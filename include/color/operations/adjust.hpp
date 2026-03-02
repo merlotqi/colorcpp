@@ -6,9 +6,8 @@
  * saturating, and hue shifting. All operations work in HSV color space for
  * natural color manipulation.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

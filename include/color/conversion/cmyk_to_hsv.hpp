@@ -5,9 +5,8 @@
  * Provides compile-time conversion from CMYK color space to HSV color space.
  * The conversion is performed in two steps: CMYK -> RGB -> HSV.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

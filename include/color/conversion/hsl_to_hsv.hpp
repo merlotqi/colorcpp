@@ -5,9 +5,8 @@
  * Provides compile-time conversion from HSL color space to HSV color space.
  * Uses direct mathematical transformation between the two color models.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

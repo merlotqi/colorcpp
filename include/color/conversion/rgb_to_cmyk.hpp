@@ -5,9 +5,8 @@
  * Provides compile-time conversion from RGB color space to CMYK color space.
  * Uses the standard RGB to CMYK transformation algorithm.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

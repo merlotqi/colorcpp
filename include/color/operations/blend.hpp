@@ -6,9 +6,8 @@
  * with specified ratios. Includes common blending modes like overlay,
  * screen, and multiply.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

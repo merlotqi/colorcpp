@@ -5,9 +5,8 @@
  * Provides basic HSV color template class and common color aliases.
  * Supports integer and floating-point HSV representations.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once
@@ -93,15 +92,94 @@ using hsv_float = basic_hsv<double, H, S, V, 1000>;
 /** @} */
 
 namespace colors {
+// Basic hue colors (saturation 100%, value 100%)
 using red_hsv = hsv_int<0, 100, 100>;
-using green_hsv = hsv_int<120, 100, 100>;
-using blue_hsv = hsv_int<240, 100, 100>;
+using orange_hsv = hsv_int<30, 100, 100>;
 using yellow_hsv = hsv_int<60, 100, 100>;
+using chartreuse_hsv = hsv_int<90, 100, 100>;
+using green_hsv = hsv_int<120, 100, 100>;
+using springgreen_hsv = hsv_int<150, 100, 100>;
 using cyan_hsv = hsv_int<180, 100, 100>;
+using azure_hsv = hsv_int<210, 100, 100>;
+using blue_hsv = hsv_int<240, 100, 100>;
+using violet_hsv = hsv_int<270, 100, 100>;
 using magenta_hsv = hsv_int<300, 100, 100>;
-using black_hsv = hsv_int<0, 0, 0>;
-using white_hsv = hsv_int<0, 0, 100>;
-using gray_hsv = hsv_int<0, 0, 50>;
+using rose_hsv = hsv_int<330, 100, 100>;
+
+// Grayscale series (saturation 0%)
+using black_hsv = hsv_int<0, 0, 0>;    // Black
+using gray1_hsv = hsv_int<0, 0, 25>;   // Dark gray
+using gray2_hsv = hsv_int<0, 0, 50>;   // Medium gray
+using gray3_hsv = hsv_int<0, 0, 75>;   // Light gray
+using silver_hsv = hsv_int<0, 0, 75>;  // Silver (same as gray3_hsv)
+using white_hsv = hsv_int<0, 0, 100>;  // White
+
+// W3C standard colors in HSV
+using maroon_hsv = hsv_int<0, 100, 50>;        // Maroon
+using red_hsv_w3c = hsv_int<0, 100, 100>;      // Red
+using olive_hsv = hsv_int<60, 100, 50>;        // Olive
+using yellow_hsv_w3c = hsv_int<60, 100, 100>;  // Yellow
+using green_hsv_w3c = hsv_int<120, 100, 50>;   // Green (W3C standard is dark green)
+using lime_hsv = hsv_int<120, 100, 100>;       // Lime (bright green)
+using teal_hsv = hsv_int<180, 100, 50>;        // Teal
+using cyan_hsv_w3c = hsv_int<180, 100, 100>;   // Cyan
+using navy_hsv = hsv_int<240, 100, 50>;        // Navy
+using blue_hsv_w3c = hsv_int<240, 100, 100>;   // Blue
+using purple_hsv = hsv_int<300, 100, 50>;      // Purple
+using fuchsia_hsv = hsv_int<300, 100, 100>;    // Fuchsia
+using aqua_hsv = hsv_int<180, 100, 100>;       // Aqua (same as cyan_hsv_w3c)
+
+// Common variants (different saturation and value)
+using darkred_hsv = hsv_int<0, 100, 30>;       // Dark red
+using brown_hsv = hsv_int<30, 100, 40>;        // Brown
+using darkorange_hsv = hsv_int<30, 100, 70>;   // Dark orange
+using gold_hsv = hsv_int<45, 100, 85>;         // Gold
+using darkgreen_hsv = hsv_int<120, 100, 30>;   // Dark green
+using forestgreen_hsv = hsv_int<120, 80, 40>;  // Forest green
+using seagreen_hsv = hsv_int<150, 80, 50>;     // Sea green
+using darkcyan_hsv = hsv_int<180, 100, 40>;    // Dark cyan
+using deepblue_hsv = hsv_int<240, 100, 40>;    // Deep blue
+using indigo_hsv = hsv_int<260, 100, 45>;      // Indigo
+using darkpurple_hsv = hsv_int<280, 100, 40>;  // Dark purple
+using pink_hsv = hsv_int<340, 30, 100>;        // Pink
+using hotpink_hsv = hsv_int<330, 70, 100>;     // Hot pink
+using lightpink_hsv = hsv_int<350, 20, 100>;   // Light pink
+
+// Low saturation colors (soft/muted colors)
+using softred_hsv = hsv_int<0, 50, 90>;       // Soft red
+using softorange_hsv = hsv_int<30, 50, 90>;   // Soft orange
+using softyellow_hsv = hsv_int<60, 50, 90>;   // Soft yellow
+using softgreen_hsv = hsv_int<120, 50, 90>;   // Soft green
+using softblue_hsv = hsv_int<240, 50, 90>;    // Soft blue
+using softpurple_hsv = hsv_int<280, 50, 90>;  // Soft purple
+
+// High saturation medium value colors
+using vibrantred_hsv = hsv_int<0, 100, 80>;       // Vibrant red
+using vibrantorange_hsv = hsv_int<30, 100, 80>;   // Vibrant orange
+using vibrantyellow_hsv = hsv_int<60, 100, 80>;   // Vibrant yellow
+using vibrantgreen_hsv = hsv_int<120, 100, 80>;   // Vibrant green
+using vibrantblue_hsv = hsv_int<240, 100, 80>;    // Vibrant blue
+using vibrantpurple_hsv = hsv_int<280, 100, 80>;  // Vibrant purple
+
+// Light colors (high value, low saturation)
+using lightred_hsv = hsv_int<0, 30, 100>;        // Light red
+using lightorange_hsv = hsv_int<30, 30, 100>;    // Light orange
+using lightyellow_hsv = hsv_int<60, 30, 100>;    // Light yellow
+using lightgreen_hsv = hsv_int<120, 30, 100>;    // Light green
+using lightblue_hsv = hsv_int<210, 30, 100>;     // Light blue
+using lightpurple_hsv = hsv_int<280, 30, 100>;   // Light purple
+using lightcyan_hsv = hsv_int<180, 30, 100>;     // Light cyan
+using lightmagenta_hsv = hsv_int<300, 30, 100>;  // Light magenta
+
+// Dark colors (low value)
+using deepred_hsv = hsv_int<0, 100, 25>;        // Deep red
+using deeporange_hsv = hsv_int<30, 100, 25>;    // Deep orange
+using deepyellow_hsv = hsv_int<60, 100, 25>;    // Deep yellow
+using deepgreen_hsv = hsv_int<120, 100, 25>;    // Deep green
+using deepblue_hsv2 = hsv_int<240, 100, 25>;    // Deep blue
+using deeppurple_hsv = hsv_int<280, 100, 25>;   // Deep purple
+using deepcyan_hsv = hsv_int<180, 100, 25>;     // Deep cyan
+using deepmagenta_hsv = hsv_int<300, 100, 25>;  // Deep magenta
 }  // namespace colors
 
 }  // namespace color::core

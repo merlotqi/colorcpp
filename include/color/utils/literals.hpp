@@ -6,9 +6,8 @@
  * directly in source code. Supports RGB/HEX, HSV, and HSL color formats
  * with compile-time parsing and validation.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

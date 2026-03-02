@@ -6,9 +6,8 @@
  * color inversion, thresholding, and posterization. These operations modify
  * colors in various ways to achieve different visual effects.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

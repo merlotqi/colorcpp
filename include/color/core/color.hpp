@@ -5,9 +5,8 @@
  * Provides the main Color class template with support for various color space conversions
  * and color manipulation operations. Supports RGB, HSV, HSL, and CMYK color spaces.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ *
  */
 
 #pragma once

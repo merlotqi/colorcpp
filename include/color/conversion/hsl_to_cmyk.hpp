@@ -5,9 +5,8 @@
  * Provides compile-time conversion from HSL color space to CMYK color space.
  * The conversion is performed in two steps: HSL -> RGB -> CMYK.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

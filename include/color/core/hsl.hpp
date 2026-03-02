@@ -5,9 +5,8 @@
  * Provides basic HSL color template class and common color aliases.
  * Supports integer and floating-point HSL representations.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once
@@ -93,15 +92,58 @@ using hsl_float = basic_hsl<double, H, S, L, 1000>;
 /** @} */
 
 namespace colors {
+// Basic HSL colors
 using red_hsl = hsl_int<0, 100, 50>;
-using green_hsl = hsl_int<120, 100, 50>;
-using blue_hsl = hsl_int<240, 100, 50>;
+using orange_hsl = hsl_int<30, 100, 50>;
 using yellow_hsl = hsl_int<60, 100, 50>;
+using chartreuse_hsl = hsl_int<90, 100, 50>;
+using green_hsl = hsl_int<120, 100, 50>;
+using springgreen_hsl = hsl_int<150, 100, 50>;
 using cyan_hsl = hsl_int<180, 100, 50>;
+using azure_hsl = hsl_int<210, 100, 50>;
+using blue_hsl = hsl_int<240, 100, 50>;
+using violet_hsl = hsl_int<270, 100, 50>;
 using magenta_hsl = hsl_int<300, 100, 50>;
+using rose_hsl = hsl_int<330, 100, 50>;
+
+// Grayscale HSL
 using black_hsl = hsl_int<0, 0, 0>;
-using white_hsl = hsl_int<0, 0, 100>;
 using gray_hsl = hsl_int<0, 0, 50>;
+using silver_hsl = hsl_int<0, 0, 75>;
+using white_hsl = hsl_int<0, 0, 100>;
+
+// W3C standard colors in HSL
+using maroon_hsl = hsl_int<0, 100, 25>;
+using darkred_hsl = hsl_int<0, 100, 27>;
+using brown_hsl = hsl_int<0, 59, 41>;
+using olive_hsl = hsl_int<60, 100, 25>;
+using darkgreen_hsl = hsl_int<120, 100, 20>;
+using teal_hsl = hsl_int<180, 100, 25>;
+using navy_hsl = hsl_int<240, 100, 25>;
+using purple_hsl = hsl_int<300, 100, 25>;
+using fuchsia_hsl = hsl_int<300, 100, 50>;
+using aqua_hsl = hsl_int<180, 100, 50>;
+using lime_hsl = hsl_int<120, 100, 50>;
+
+// Light variants
+using lightred_hsl = hsl_int<0, 100, 75>;
+using lightgreen_hsl = hsl_int<120, 100, 75>;
+using lightblue_hsl = hsl_int<210, 100, 75>;
+using lightyellow_hsl = hsl_int<60, 100, 75>;
+using lightcyan_hsl = hsl_int<180, 100, 75>;
+using lightmagenta_hsl = hsl_int<300, 100, 75>;
+
+// Dark variants
+using darkorange_hsl = hsl_int<30, 100, 40>;
+using darkcyan_hsl = hsl_int<180, 100, 30>;
+using darkblue_hsl = hsl_int<240, 100, 30>;
+using darkpurple_hsl = hsl_int<280, 100, 30>;
+
+// Pastel variants (lower saturation)
+using pink_hsl = hsl_int<350, 70, 75>;
+using lavender_hsl = hsl_int<240, 70, 85>;
+using mint_hsl = hsl_int<150, 60, 80>;
+using peach_hsl = hsl_int<30, 70, 80>;
 }  // namespace colors
 
 }  // namespace color::core

@@ -6,9 +6,8 @@
  * categorization. These traits help determine color type categories
  * and validate color operations at compile time.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once

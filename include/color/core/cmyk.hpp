@@ -5,9 +5,8 @@
  * Provides basic CMYK color template class and common color aliases.
  * Supports integer and floating-point CMYK representations.
  *
- * @author Color Library Team
- * @date 2025
- * @version 1.0
+ * @author Merlot.Qi
+ * 
  */
 
 #pragma once
@@ -95,6 +94,7 @@ using cmyk_float = basic_cmyk<double, C, M, Y, K, 1000>;
 /** @} */
 
 namespace colors {
+// Basic CMYK colors
 using black_cmyk = cmyk_int<0, 0, 0, 100>;
 using white_cmyk = cmyk_int<0, 0, 0, 0>;
 using red_cmyk = cmyk_int<0, 100, 100, 0>;
@@ -103,6 +103,21 @@ using blue_cmyk = cmyk_int<100, 100, 0, 0>;
 using yellow_cmyk = cmyk_int<0, 0, 100, 0>;
 using cyan_cmyk = cmyk_int<100, 0, 0, 0>;
 using magenta_cmyk = cmyk_int<0, 100, 0, 0>;
+
+// W3C standard colors in CMYK
+using maroon_cmyk = cmyk_int<0, 100, 100, 50>;
+using olive_cmyk = cmyk_int<0, 0, 100, 50>;
+using navy_cmyk = cmyk_int<100, 100, 0, 50>;
+using purple_cmyk = cmyk_int<0, 100, 0, 50>;
+using teal_cmyk = cmyk_int<100, 0, 0, 50>;
+using silver_cmyk = cmyk_int<0, 0, 0, 25>;
+using gray_cmyk = cmyk_int<0, 0, 0, 50>;
+
+// Secondary colors
+using orange_cmyk = cmyk_int<0, 50, 100, 0>;
+using lime_cmyk = cmyk_int<50, 0, 100, 0>;
+using aqua_cmyk = cmyk_int<100, 0, 0, 0>;     // Same as cyan
+using fuchsia_cmyk = cmyk_int<0, 100, 0, 0>;  // Same as magenta
 }  // namespace colors
 
 }  // namespace color::core
