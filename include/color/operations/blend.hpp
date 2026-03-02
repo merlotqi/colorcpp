@@ -35,14 +35,14 @@ static constexpr T lerp_channel(T c1, T c2, int ratio) {
 
 template <typename Color1, typename Color2>
 constexpr Color1 blend(const Color1& c1, const Color2& c2, int ratio) {
-  auto c2_mapped = conversion::convert<Color1>(c2);
+  auto c2_mapped = conversion::to_rgb<Color1>(c2);
   return Color1{details::lerp_channel(c1.r, c2_mapped.r, ratio), details::lerp_channel(c1.g, c2_mapped.g, ratio),
                 details::lerp_channel(c1.b, c2_mapped.b, ratio)};
 }
 
 template <typename Color1, typename Color2>
 constexpr Color1 multiply(const Color1& c1, const Color2& c2) {
-  auto c2_m = conversion::convert<Color1>(c2);
+  auto c2_m = conversion::to_rgb<Color1>(c2);
   constexpr double s = details::get_scale_v<Color1>();
   auto op = [s](auto v1, auto v2) {
     return static_cast<typename Color1::value_type>((static_cast<double>(v1) * v2) / s);
@@ -52,7 +52,7 @@ constexpr Color1 multiply(const Color1& c1, const Color2& c2) {
 
 template <typename Color1, typename Color2>
 constexpr Color1 screen(const Color1& c1, const Color2& c2) {
-  auto c2_m = conversion::convert<Color1>(c2);
+  auto c2_m = conversion::to_rgb<Color1>(c2);
   constexpr double s = details::get_scale_v<Color1>();
   auto op = [s](auto v1, auto v2) { return static_cast<typename Color1::value_type>(s - ((s - v1) * (s - v2) / s)); };
   return Color1{op(c1.r, c2_m.r), op(c1.g, c2_m.g), op(c1.b, c2_m.b)};
@@ -60,7 +60,7 @@ constexpr Color1 screen(const Color1& c1, const Color2& c2) {
 
 template <typename Color1, typename Color2>
 constexpr Color1 overlay(const Color1& c1, const Color2& c2) {
-  auto c2_m = conversion::convert<Color1>(c2);
+  auto c2_m = conversion::to_rgb<Color1>(c2);
   constexpr double s = details::get_scale_v<Color1>();
   auto op = [s](auto v1, auto v2) {
     double f1 = static_cast<double>(v1);

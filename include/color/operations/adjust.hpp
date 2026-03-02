@@ -12,8 +12,7 @@
 
 #pragma once
 
-#include "../conversion/hsv_to_rgb.hpp"
-#include "../conversion/rgb_to_hsv.hpp"
+#include "../conversion/conversion.hpp"
 
 namespace color::operations {
 
@@ -33,21 +32,21 @@ struct details {
 
 template <typename ColorType>
 constexpr auto lighten(const ColorType& c, int percent) {
-  auto hsv = conversion::convert<typename ColorType::value_type, 100>(c);
+  auto hsv = conversion::to_hsv<typename ColorType::value_type, 100>(c);
   hsv.v = details::clamp(details::apply_percent(hsv.v, percent, 100), 0, 100);
   return conversion::convert<ColorType>(hsv);
 }
 
 template <typename ColorType>
 constexpr auto saturate(const ColorType& c, int percent) {
-  auto hsv = conversion::convert<typename ColorType::value_type, 100>(c);
+  auto hsv = conversion::to_hsv<typename ColorType::value_type, 100>(c);
   hsv.s = details::clamp(details::apply_percent(hsv.s, percent, 100), 0, 100);
   return conversion::convert<ColorType>(hsv);
 }
 
 template <typename ColorType>
 constexpr auto hue_shift(const ColorType& c, int degrees) {
-  auto hsv = conversion::convert<typename ColorType::value_type, 100>(c);
+  auto hsv = conversion::to_hsv<typename ColorType::value_type, 100>(c);
   intptr_t new_h = (hsv.h + degrees) % 360;
   hsv.h = (new_h < 0) ? (new_h + 360) : new_h;
   return conversion::convert<ColorType>(hsv);

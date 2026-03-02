@@ -34,8 +34,11 @@ struct basic_rgb {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
 
   using value_type = T;
+
   T r, g, b;
+
   constexpr basic_rgb() : r(0), g(0), b(0) {}
+
   constexpr basic_rgb(T red, T green, T blue) : r(red), g(green), b(blue) {
     if (!is_valid_val(red, green, blue)) {
       assert(false && "RGB values out of range!");

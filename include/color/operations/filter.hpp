@@ -45,7 +45,7 @@ static constexpr double get_rgb_max() {
 template <typename ColorType>
 constexpr auto lighten(const ColorType& c, int percent) {
   using T = typename ColorType::value_type;
-  auto hsl = conversion::convert<T, 100>(c);
+  auto hsl = conversion::to_hsl<T, 100>(c);
   hsl.l = details::clamp(details::apply_percent(hsl.l, percent, 100), 0, 100);
   return conversion::convert<ColorType>(hsl);
 }
@@ -53,7 +53,7 @@ constexpr auto lighten(const ColorType& c, int percent) {
 template <typename ColorType>
 constexpr auto saturate(const ColorType& c, int percent) {
   using T = typename ColorType::value_type;
-  auto hsv = conversion::convert<T, 100>(c);
+  auto hsv = conversion::to_hsv<T, 100>(c);
   hsv.s = details::clamp(details::apply_percent(hsv.s, percent, 100), 0, 100);
   return conversion::convert<ColorType>(hsv);
 }
@@ -61,7 +61,7 @@ constexpr auto saturate(const ColorType& c, int percent) {
 template <typename ColorType>
 constexpr auto hue_shift(const ColorType& c, int degrees) {
   using T = typename ColorType::value_type;
-  auto hsv = conversion::convert<T, 100>(c);
+  auto hsv = conversion::to_hsv<T, 100>(c);
   intptr_t new_h = (hsv.h + degrees) % 360;
   hsv.h = (new_h < 0) ? (new_h + 360) : new_h;
   return conversion::convert<ColorType>(hsv);
@@ -69,7 +69,7 @@ constexpr auto hue_shift(const ColorType& c, int degrees) {
 
 template <typename Color1, typename Color2>
 constexpr Color1 blend(const Color1& c1, const Color2& c2, int ratio) {
-  auto c2_mapped = conversion::convert<Color1>(c2);
+  auto c2_mapped = conversion::to_rgb<Color1>(c2);
   auto b = [ratio](auto v1, auto v2) {
     return static_cast<typename Color1::value_type>(
         (static_cast<intptr_t>(v1) * (100 - ratio) + static_cast<intptr_t>(v2) * ratio) / 100);

@@ -34,8 +34,11 @@ struct basic_hsv {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
 
   using value_type = T;
+
   T h, s, v;
+
   constexpr basic_hsv() : h(0), s(0), v(0) {}
+
   constexpr basic_hsv(T hue, T saturation, T value) : h(hue), s(saturation), v(value) {
     if (!is_valid_val(hue, saturation, value)) {
       assert(false && "HSV values out of range!");

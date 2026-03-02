@@ -31,8 +31,11 @@ struct basic_cmyk {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
 
   using value_type = T;
+
   T c, m, y, k;
+
   constexpr basic_cmyk() : c(0), m(0), y(0), k(0) {}
+  
   constexpr basic_cmyk(T cyan, T magenta, T yellow, T key) : c(cyan), m(magenta), y(yellow), k(key) {
     if (!is_valid_val(cyan, magenta, yellow, key)) {
       assert(false && "CMYK values out of range!");
