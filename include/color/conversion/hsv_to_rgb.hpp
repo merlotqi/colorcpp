@@ -6,88 +6,83 @@
  * Uses the standard HSV to RGB transformation algorithm.
  *
  * @author Merlot.Qi
- * 
+ *
  */
 
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
+#include "../core/hsv.hpp"
 #include "../core/rgb.hpp"
+#include "../utils/maths.hpp"
 
 namespace color::conversion {
 
-/**
- * @brief HSV to RGB color space converter
- *
- * Template struct for converting HSV colors to RGB colors at compile time.
- * Uses the standard HSV to RGB transformation algorithm.
- *
- * @tparam HSVType Source HSV color type
- */
+namespace details {
+
+template <typename T, intptr_t Scale>
+constexpr core::rgb8_t convert(const core::basic_hsv<T, Scale>& hsv) {
+  constexpr double sc = static_cast<double>(Scale);
+
+  double s_f = static_cast<double>(hsv.s) / sc;
+  double v_f = static_cast<double>(hsv.v) / sc;
+
+  double h_f = static_cast<double>(hsv.h);
+
+  double c = v_f * s_f;
+  double h_prime = h_f / 60.0;
+  double x = c * (1.0 - maths::abs(maths::fmod(h_prime, 2.0) - 1.0));
+  double m = v_f - c;
+
+  double rt = 0, gt = 0, bt = 0;
+  int sector = static_cast<int>(h_prime) % 6;
+
+  switch (sector) {
+    case 0:
+      rt = c;
+      gt = x;
+      bt = 0;
+      break;
+    case 1:
+      rt = x;
+      gt = c;
+      bt = 0;
+      break;
+    case 2:
+      rt = 0;
+      gt = c;
+      bt = x;
+      break;
+    case 3:
+      rt = 0;
+      gt = x;
+      bt = c;
+      break;
+    case 4:
+      rt = x;
+      gt = 0;
+      bt = c;
+      break;
+    default:
+      rt = c;
+      gt = 0;
+      bt = x;
+      break;
+  }
+
+  return core::rgb8_t(maths::round<uint8_t>((rt + m) * 255.0), maths::round<uint8_t>((gt + m) * 255.0),
+                      maths::round<uint8_t>((bt + m) * 255.0));
+}
+}  // namespace details
+
 template <typename HSVType>
-struct hsv_to_rgb {
-  using hsv_type = HSVType;
-  using value_type = typename HSVType::value_type;
+inline constexpr core::rgb8_t hsv_to_rgb_v = details::convert(HSVType{});
 
-  /// @brief Hue component from HSV input
-  static constexpr value_type h = HSVType::h;
-  /// @brief Saturation component from HSV input
-  static constexpr value_type s = HSVType::s;
-  /// @brief Value (brightness) component from HSV input
-  static constexpr value_type v = HSVType::v;
-
-  /// @brief Normalized hue component (0.0-360.0)
-  static constexpr value_type h_norm = h / (std::is_integral_v<value_type> ? 1.0 : 1.0);
-  /// @brief Normalized saturation component (0.0-1.0)
-  static constexpr value_type s_norm = s / (std::is_integral_v<value_type> ? 100.0 : 1.0);
-  /// @brief Normalized value component (0.0-1.0)
-  static constexpr value_type v_norm = v / (std::is_integral_v<value_type> ? 100.0 : 1.0);
-
-  /// @brief Chroma value for HSV to RGB conversion
-  static constexpr value_type c = v_norm * s_norm;
-  /// @brief Intermediate value for HSV to RGB conversion
-  static constexpr value_type x = c * (1.0 - std::abs(std::fmod(h_norm / 60.0, 2.0) - 1.0));
-  /// @brief Match value for HSV to RGB conversion
-  static constexpr value_type m = v_norm - c;
-
-  /// @brief Temporary red component during HSV to RGB conversion
-  static constexpr value_type r_temp = (h_norm < 60.0)    ? c
-                                       : (h_norm < 120.0) ? x
-                                       : (h_norm < 240.0) ? 0.0
-                                       : (h_norm < 300.0) ? x
-                                                          : c;
-
-  /// @brief Temporary green component during HSV to RGB conversion
-  static constexpr value_type g_temp = (h_norm < 60.0) ? x : (h_norm < 180.0) ? c : (h_norm < 240.0) ? x : 0.0;
-
-  /// @brief Temporary blue component during HSV to RGB conversion
-  static constexpr value_type b_temp = (h_norm < 120.0) ? 0.0 : (h_norm < 180.0) ? x : (h_norm < 300.0) ? c : x;
-
-  /// @brief Final red component (0.0-1.0)
-  static constexpr value_type r = r_temp + m;
-  /// @brief Final green component (0.0-1.0)
-  static constexpr value_type g = g_temp + m;
-  /// @brief Final blue component (0.0-1.0)
-  static constexpr value_type b = b_temp + m;
-
-  /**
-   * @brief Resulting RGB type
-   *
-   * Converts the calculated RGB values to 8-bit format and creates
-   * an rgb8 type with the computed red, green, and blue components.
-   */
-  using type = core::rgb8<static_cast<uint8_t>(std::round(r * 255.0)), static_cast<uint8_t>(std::round(g * 255.0)),
-                          static_cast<uint8_t>(std::round(b * 255.0))>;
-};
-
-/**
- * @brief Type alias for HSV to RGB conversion result
- *
- * @tparam HSVType Source HSV color type
- * @return RGB color type resulting from the conversion
- */
-template <typename HSVType>
-using hsv_to_rgb_t = typename hsv_to_rgb<HSVType>::type;
+template <typename T, intptr_t Scale>
+constexpr core::rgb8_t convert(const core::basic_hsv<T, Scale>& hsv) {
+  return details::convert(hsv);
+}
 
 }  // namespace color::conversion

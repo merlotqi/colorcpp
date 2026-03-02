@@ -6,11 +6,12 @@
  * Supports integer and floating-point HSL representations.
  *
  * @author Merlot.Qi
- * 
+ *
  */
 
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <type_traits>
 
@@ -23,38 +24,39 @@ namespace color::core {
  * Supports both integer (H: 0-359, S/L: 0-100) and floating-point (H: 0-360, S/L: 0.0-1.0) value ranges.
  *
  * @tparam T Value type (must be arithmetic)
- * @tparam H_raw Raw hue component value
- * @tparam S_raw Raw saturation component value
- * @tparam L_raw Raw lightness component value
  * @tparam Scale Scaling factor for value conversion
  */
-template <typename T, intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t Scale = 1>
+template <typename T, intptr_t Scale = 1>
 struct basic_hsl {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
 
   using value_type = T;
-
-  /// @brief Hue component value (converted from raw value using scale)
-  static constexpr T h = static_cast<T>(H_raw) / static_cast<T>(Scale);
-  /// @brief Saturation component value (converted from raw value using scale)
-  static constexpr T s = static_cast<T>(S_raw) / static_cast<T>(Scale);
-  /// @brief Lightness component value (converted from raw value using scale)
-  static constexpr T l = static_cast<T>(L_raw) / static_cast<T>(Scale);
-
-  /**
-   * @brief Validate that HSL values are within acceptable ranges
-   * @return true if values are valid, false otherwise
-   */
-  static constexpr bool is_valid() {
-    if constexpr (std::is_floating_point_v<T>) {
-      return h >= 0.0 && h < 360.0 && s >= 0.0 && s <= 1.0 && l >= 0.0 && l <= 1.0;
-    } else {
-      return h >= 0 && h < 360 && s >= 0 && s <= 100 && l >= 0 && l <= 100;
+  T h, s, l;
+  constexpr basic_hsl() : h(0), s(0), l(0) {}
+  constexpr basic_hsl(T hue, T saturation, T lightness) : h(hue), s(saturation), l(lightness) {
+    if (!is_valid_val(hue, saturation, lightness)) {
+      assert(false && "HSL values out of range!");
     }
   }
 
-  static_assert(is_valid(),
-                "HSL values must be in valid range (0-360 for H, 0-100 for S/L for int, 0.0-1.0 for float)");
+  template <intptr_t H_raw, intptr_t S_raw, intptr_t L_raw>
+  static constexpr basic_hsl make() {
+    constexpr T static_h = static_cast<T>(H_raw) / static_cast<T>(Scale);
+    constexpr T static_s = static_cast<T>(S_raw) / static_cast<T>(Scale);
+    constexpr T static_l = static_cast<T>(L_raw) / static_cast<T>(Scale);
+    static_assert(is_valid_val(static_h, static_s, static_l), "HSL value out of range!");
+    return {static_h, static_s, static_l};
+  }
+
+  static constexpr bool is_valid_val(T hv, T sv, T lv) {
+    if constexpr (std::is_floating_point_v<T>) {
+      return hv >= 0.0 && hv < 360.0 && sv >= 0.0 && sv <= 1.0 && lv >= 0.0 && lv <= 1.0;
+    } else {
+      return hv >= 0 && hv < 360 && sv >= 0 && sv <= 100 && lv >= 0 && lv <= 100;
+    }
+  }
+
+  constexpr bool is_valid() const { return is_valid_val(h, s, l); }
 };
 
 /**
@@ -72,8 +74,9 @@ struct basic_hsl {
  * @tparam S Saturation component (0-100)
  * @tparam L Lightness component (0-100)
  */
+using hsl_int_t = basic_hsl<int, 1>;
 template <int H, int S, int L>
-using hsl_int = basic_hsl<int, H, S, L, 1>;
+inline constexpr hsl_int_t hsl_int = hsl_int_t::make<H, S, L>();
 
 /**
  * @brief Floating-point HSL color type
@@ -86,64 +89,65 @@ using hsl_int = basic_hsl<int, H, S, L, 1>;
  * @tparam S Saturation component (scaled from integer to 0.0-1.0)
  * @tparam L Lightness component (scaled from integer to 0.0-1.0)
  */
+using hsl_float_t = basic_hsl<double, 1000>;
 template <int H, int S, int L>
-using hsl_float = basic_hsl<double, H, S, L, 1000>;
+inline constexpr hsl_float_t hsl_float = hsl_float_t::make<H, S, L>();
 
 /** @} */
 
 namespace colors {
 // Basic HSL colors
-using red_hsl = hsl_int<0, 100, 50>;
-using orange_hsl = hsl_int<30, 100, 50>;
-using yellow_hsl = hsl_int<60, 100, 50>;
-using chartreuse_hsl = hsl_int<90, 100, 50>;
-using green_hsl = hsl_int<120, 100, 50>;
-using springgreen_hsl = hsl_int<150, 100, 50>;
-using cyan_hsl = hsl_int<180, 100, 50>;
-using azure_hsl = hsl_int<210, 100, 50>;
-using blue_hsl = hsl_int<240, 100, 50>;
-using violet_hsl = hsl_int<270, 100, 50>;
-using magenta_hsl = hsl_int<300, 100, 50>;
-using rose_hsl = hsl_int<330, 100, 50>;
+inline constexpr hsl_int_t red_hsl = hsl_int<0, 100, 50>;
+inline constexpr hsl_int_t orange_hsl = hsl_int<30, 100, 50>;
+inline constexpr hsl_int_t yellow_hsl = hsl_int<60, 100, 50>;
+inline constexpr hsl_int_t chartreuse_hsl = hsl_int<90, 100, 50>;
+inline constexpr hsl_int_t green_hsl = hsl_int<120, 100, 50>;
+inline constexpr hsl_int_t springgreen_hsl = hsl_int<150, 100, 50>;
+inline constexpr hsl_int_t cyan_hsl = hsl_int<180, 100, 50>;
+inline constexpr hsl_int_t azure_hsl = hsl_int<210, 100, 50>;
+inline constexpr hsl_int_t blue_hsl = hsl_int<240, 100, 50>;
+inline constexpr hsl_int_t violet_hsl = hsl_int<270, 100, 50>;
+inline constexpr hsl_int_t magenta_hsl = hsl_int<300, 100, 50>;
+inline constexpr hsl_int_t rose_hsl = hsl_int<330, 100, 50>;
 
 // Grayscale HSL
-using black_hsl = hsl_int<0, 0, 0>;
-using gray_hsl = hsl_int<0, 0, 50>;
-using silver_hsl = hsl_int<0, 0, 75>;
-using white_hsl = hsl_int<0, 0, 100>;
+inline constexpr hsl_int_t black_hsl = hsl_int<0, 0, 0>;
+inline constexpr hsl_int_t gray_hsl = hsl_int<0, 0, 50>;
+inline constexpr hsl_int_t silver_hsl = hsl_int<0, 0, 75>;
+inline constexpr hsl_int_t white_hsl = hsl_int<0, 0, 100>;
 
 // W3C standard colors in HSL
-using maroon_hsl = hsl_int<0, 100, 25>;
-using darkred_hsl = hsl_int<0, 100, 27>;
-using brown_hsl = hsl_int<0, 59, 41>;
-using olive_hsl = hsl_int<60, 100, 25>;
-using darkgreen_hsl = hsl_int<120, 100, 20>;
-using teal_hsl = hsl_int<180, 100, 25>;
-using navy_hsl = hsl_int<240, 100, 25>;
-using purple_hsl = hsl_int<300, 100, 25>;
-using fuchsia_hsl = hsl_int<300, 100, 50>;
-using aqua_hsl = hsl_int<180, 100, 50>;
-using lime_hsl = hsl_int<120, 100, 50>;
+inline constexpr hsl_int_t maroon_hsl = hsl_int<0, 100, 25>;
+inline constexpr hsl_int_t darkred_hsl = hsl_int<0, 100, 27>;
+inline constexpr hsl_int_t brown_hsl = hsl_int<0, 59, 41>;
+inline constexpr hsl_int_t olive_hsl = hsl_int<60, 100, 25>;
+inline constexpr hsl_int_t darkgreen_hsl = hsl_int<120, 100, 20>;
+inline constexpr hsl_int_t teal_hsl = hsl_int<180, 100, 25>;
+inline constexpr hsl_int_t navy_hsl = hsl_int<240, 100, 25>;
+inline constexpr hsl_int_t purple_hsl = hsl_int<300, 100, 25>;
+inline constexpr hsl_int_t fuchsia_hsl = hsl_int<300, 100, 50>;
+inline constexpr hsl_int_t aqua_hsl = hsl_int<180, 100, 50>;
+inline constexpr hsl_int_t lime_hsl = hsl_int<120, 100, 50>;
 
 // Light variants
-using lightred_hsl = hsl_int<0, 100, 75>;
-using lightgreen_hsl = hsl_int<120, 100, 75>;
-using lightblue_hsl = hsl_int<210, 100, 75>;
-using lightyellow_hsl = hsl_int<60, 100, 75>;
-using lightcyan_hsl = hsl_int<180, 100, 75>;
-using lightmagenta_hsl = hsl_int<300, 100, 75>;
+inline constexpr hsl_int_t lightred_hsl = hsl_int<0, 100, 75>;
+inline constexpr hsl_int_t lightgreen_hsl = hsl_int<120, 100, 75>;
+inline constexpr hsl_int_t lightblue_hsl = hsl_int<210, 100, 75>;
+inline constexpr hsl_int_t lightyellow_hsl = hsl_int<60, 100, 75>;
+inline constexpr hsl_int_t lightcyan_hsl = hsl_int<180, 100, 75>;
+inline constexpr hsl_int_t lightmagenta_hsl = hsl_int<300, 100, 75>;
 
 // Dark variants
-using darkorange_hsl = hsl_int<30, 100, 40>;
-using darkcyan_hsl = hsl_int<180, 100, 30>;
-using darkblue_hsl = hsl_int<240, 100, 30>;
-using darkpurple_hsl = hsl_int<280, 100, 30>;
+inline constexpr hsl_int_t darkorange_hsl = hsl_int<30, 100, 40>;
+inline constexpr hsl_int_t darkcyan_hsl = hsl_int<180, 100, 30>;
+inline constexpr hsl_int_t darkblue_hsl = hsl_int<240, 100, 30>;
+inline constexpr hsl_int_t darkpurple_hsl = hsl_int<280, 100, 30>;
 
 // Pastel variants (lower saturation)
-using pink_hsl = hsl_int<350, 70, 75>;
-using lavender_hsl = hsl_int<240, 70, 85>;
-using mint_hsl = hsl_int<150, 60, 80>;
-using peach_hsl = hsl_int<30, 70, 80>;
+inline constexpr hsl_int_t pink_hsl = hsl_int<350, 70, 75>;
+inline constexpr hsl_int_t lavender_hsl = hsl_int<240, 70, 85>;
+inline constexpr hsl_int_t mint_hsl = hsl_int<150, 60, 80>;
+inline constexpr hsl_int_t peach_hsl = hsl_int<30, 70, 80>;
 }  // namespace colors
 
 }  // namespace color::core

@@ -6,82 +6,62 @@
  * Uses the standard RGB to CMYK transformation algorithm.
  *
  * @author Merlot.Qi
- * 
+ *
  */
 
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 #include "../core/cmyk.hpp"
+#include "../core/rgb.hpp"
+#include "../utils/maths.hpp"
 
 namespace color::conversion {
 
-/**
- * @brief RGB to CMYK color space converter
- *
- * Template struct for converting RGB colors to CMYK colors at compile time.
- * Uses the standard RGB to CMYK transformation algorithm.
- *
- * @tparam RGBType Source RGB color type
- */
+namespace details {
+
+template <typename T, intptr_t Scale>
+constexpr core::cmyk_int_t convert(const core::basic_rgb<T, Scale>& rgb) {
+  double r_f{0}, g_f{0}, b_f{0};
+  if constexpr (std::is_integral_v<T> && Scale == 1) {
+    r_f = static_cast<double>(rgb.r) / 255.0;
+    g_f = static_cast<double>(rgb.g) / 255.0;
+    b_f = static_cast<double>(rgb.b) / 255.0;
+  } else {
+    constexpr double sc = static_cast<double>(Scale);
+    r_f = static_cast<double>(rgb.r) / sc;
+    g_f = static_cast<double>(rgb.g) / sc;
+    b_f = static_cast<double>(rgb.b) / sc;
+  }
+
+  double max_rgb = (r_f > g_f) ? ((r_f > b_f) ? r_f : b_f) : ((g_f > b_f) ? g_f : b_f);
+  double k = 1.0 - max_rgb;
+
+  double c_final = 0.0;
+  double m_final = 0.0;
+  double y_final = 0.0;
+
+  if (max_rgb > 1e-7) {
+    double inv_max = 1.0 / max_rgb;
+    c_final = (max_rgb - r_f) * inv_max;
+    m_final = (max_rgb - g_f) * inv_max;
+    y_final = (max_rgb - b_f) * inv_max;
+  }
+
+  return core::cmyk_int_t(maths::round<int>(c_final * 100.0), maths::round<int>(m_final * 100.0),
+                          maths::round<int>(y_final * 100.0), maths::round<int>(k * 100.0));
+}
+
+}  // namespace details
+
 template <typename RGBType>
-struct rgb_to_cmyk {
-  using rgb_type = RGBType;
-  using value_type = typename RGBType::value_type;
+inline constexpr core::cmyk_int_t rgb_to_cmyk_v = details::convert(RGBType{});
 
-  /// @brief Red component from RGB input
-  static constexpr value_type r = RGBType::r;
-  /// @brief Green component from RGB input
-  static constexpr value_type g = RGBType::g;
-  /// @brief Blue component from RGB input
-  static constexpr value_type b = RGBType::b;
-
-  /// @brief Normalized red component (0.0-1.0)
-  static constexpr value_type r_norm = r / (std::is_integral_v<value_type> ? 255.0 : 1.0);
-  /// @brief Normalized green component (0.0-1.0)
-  static constexpr value_type g_norm = g / (std::is_integral_v<value_type> ? 255.0 : 1.0);
-  /// @brief Normalized blue component (0.0-1.0)
-  static constexpr value_type b_norm = b / (std::is_integral_v<value_type> ? 255.0 : 1.0);
-
-  /// @brief Maximum RGB component value
-  static constexpr value_type max_val =
-      (r_norm > g_norm) ? ((r_norm > b_norm) ? r_norm : b_norm) : ((g_norm > b_norm) ? g_norm : b_norm);
-
-  /// @brief Cyan component before CMYK adjustment
-  static constexpr value_type c = 1.0 - r_norm;
-  /// @brief Magenta component before CMYK adjustment
-  static constexpr value_type m = 1.0 - g_norm;
-  /// @brief Yellow component before CMYK adjustment
-  static constexpr value_type y = 1.0 - b_norm;
-  /// @brief Key (black) component
-  static constexpr value_type k = 1.0 - max_val;
-
-  /// @brief Final cyan component (0.0-1.0)
-  static constexpr value_type c_final = (k == 1.0) ? 0.0 : ((c - k) / (1.0 - k));
-  /// @brief Final magenta component (0.0-1.0)
-  static constexpr value_type m_final = (k == 1.0) ? 0.0 : ((m - k) / (1.0 - k));
-  /// @brief Final yellow component (0.0-1.0)
-  static constexpr value_type y_final = (k == 1.0) ? 0.0 : ((y - k) / (1.0 - k));
-
-  /**
-   * @brief Resulting CMYK type
-   *
-   * Converts the calculated CMYK values to integer format and creates
-   * a cmyk_int type with the computed cyan, magenta, yellow, and key components.
-   */
-  using type =
-      core::cmyk_int<static_cast<int>(std::round(c_final * 100.0)), static_cast<int>(std::round(m_final * 100.0)),
-                     static_cast<int>(std::round(y_final * 100.0)), static_cast<int>(std::round(k * 100.0))>;
-};
-
-/**
- * @brief Type alias for RGB to CMYK conversion result
- *
- * @tparam RGBType Source RGB color type
- * @return CMYK color type resulting from the conversion
- */
-template <typename RGBType>
-using rgb_to_cmyk_t = typename rgb_to_cmyk<RGBType>::type;
+template <typename T, intptr_t Scale>
+constexpr core::cmyk_int_t convert(const core::basic_rgb<T, Scale>& rgb) {
+  return details::convert(rgb);
+}
 
 }  // namespace color::conversion

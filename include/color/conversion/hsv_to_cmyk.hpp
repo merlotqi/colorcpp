@@ -6,108 +6,95 @@
  * The conversion is performed in two steps: HSV -> RGB -> CMYK.
  *
  * @author Merlot.Qi
- * 
+ *
  */
 
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 
 #include "../core/cmyk.hpp"
+#include "../core/hsv.hpp"
+#include "../utils/maths.hpp"
 
 namespace color::conversion {
 
-/**
- * @brief HSV to CMYK color space converter
- *
- * Template struct for converting HSV colors to CMYK colors at compile time.
- * The conversion follows the standard HSV -> RGB -> CMYK transformation path.
- *
- * @tparam HSVType Source HSV color type
- */
+namespace details {
+
+template <typename T, intptr_t Scale>
+constexpr core::cmyk_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
+  constexpr double sc = static_cast<double>(Scale);
+  double h_f = static_cast<double>(hsv.h);
+  double s_f = static_cast<double>(hsv.s) / sc;
+  double v_f = static_cast<double>(hsv.v) / sc;
+
+  double c = v_f * s_f;
+  double x = c * (1.0 - maths::abs(maths::fmod(h_f / 60.0, 2.0) - 1.0));
+  double m = v_f - c;
+
+  double r = 0, g = 0, b = 0;
+  int sector = static_cast<int>(h_f / 60.0) % 6;
+
+  switch (sector) {
+    case 0:
+      r = c;
+      g = x;
+      b = 0;
+      break;
+    case 1:
+      r = x;
+      g = c;
+      b = 0;
+      break;
+    case 2:
+      r = 0;
+      g = c;
+      b = x;
+      break;
+    case 3:
+      r = 0;
+      g = x;
+      b = c;
+      break;
+    case 4:
+      r = x;
+      g = 0;
+      b = c;
+      break;
+    default:
+      r = c;
+      g = 0;
+      b = x;
+      break;
+  }
+
+  r += m;
+  g += m;
+  b += m;
+
+  double max_rgb = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
+  double k = 1.0 - max_rgb;
+
+  double c_final = 0, m_final = 0, y_final = 0;
+  if (max_rgb > 1e-7) {
+    c_final = (1.0 - r - k) / (1.0 - k);
+    m_final = (1.0 - g - k) / (1.0 - k);
+    y_final = (1.0 - b - k) / (1.0 - k);
+  }
+
+  return core::cmyk_int_t(maths::round<int>(c_final * 100.0), maths::round<int>(m_final * 100.0),
+                          maths::round<int>(y_final * 100.0), maths::round<int>(k * 100.0));
+}
+
+}  // namespace details
+
 template <typename HSVType>
-struct hsv_to_cmyk {
-  using hsv_type = HSVType;
-  using value_type = typename HSVType::value_type;
+inline constexpr core::cmyk_int_t hsv_to_cmyk_v = details::convert(HSVType{});
 
-  /// @brief Hue component from HSV input
-  static constexpr value_type h = HSVType::h;
-  /// @brief Saturation component from HSV input
-  static constexpr value_type s = HSVType::s;
-  /// @brief Value (brightness) component from HSV input
-  static constexpr value_type v = HSVType::v;
-
-  /// @brief Normalized hue component (0.0-360.0)
-  static constexpr value_type h_norm = h / (std::is_integral_v<value_type> ? 1.0 : 1.0);
-  /// @brief Normalized saturation component (0.0-1.0)
-  static constexpr value_type s_norm = s / (std::is_integral_v<value_type> ? 100.0 : 1.0);
-  /// @brief Normalized value component (0.0-1.0)
-  static constexpr value_type v_norm = v / (std::is_integral_v<value_type> ? 100.0 : 1.0);
-
-  /// @brief Chroma value for HSV to RGB conversion
-  static constexpr value_type c = v_norm * s_norm;
-  /// @brief Intermediate value for HSV to RGB conversion
-  static constexpr value_type x = c * (1.0 - std::abs(std::fmod(h_norm / 60.0, 2.0) - 1.0));
-  /// @brief Match value for HSV to RGB conversion
-  static constexpr value_type m = v_norm - c;
-
-  /// @brief Temporary red component during HSV to RGB conversion
-  static constexpr value_type r_temp = (h_norm < 60.0)    ? c
-                                       : (h_norm < 120.0) ? x
-                                       : (h_norm < 240.0) ? 0.0
-                                       : (h_norm < 300.0) ? x
-                                                          : c;
-
-  /// @brief Temporary green component during HSV to RGB conversion
-  static constexpr value_type g_temp = (h_norm < 60.0) ? x : (h_norm < 180.0) ? c : (h_norm < 240.0) ? x : 0.0;
-
-  /// @brief Temporary blue component during HSV to RGB conversion
-  static constexpr value_type b_temp = (h_norm < 120.0) ? 0.0 : (h_norm < 180.0) ? x : (h_norm < 300.0) ? c : x;
-
-  /// @brief Red component after HSV to RGB conversion
-  static constexpr value_type r = r_temp + m;
-  /// @brief Green component after HSV to RGB conversion
-  static constexpr value_type g = g_temp + m;
-  /// @brief Blue component after HSV to RGB conversion
-  static constexpr value_type b = b_temp + m;
-
-  /// @brief Maximum RGB component value
-  static constexpr value_type max_val = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
-
-  /// @brief Cyan component before CMYK adjustment
-  static constexpr value_type c_cmyk = 1.0 - r;
-  /// @brief Magenta component before CMYK adjustment
-  static constexpr value_type m_cmyk = 1.0 - g;
-  /// @brief Yellow component before CMYK adjustment
-  static constexpr value_type y_cmyk = 1.0 - b;
-  /// @brief Key (black) component
-  static constexpr value_type k = 1.0 - max_val;
-
-  /// @brief Final cyan component (0.0-1.0)
-  static constexpr value_type c_final = (k == 1.0) ? 0.0 : ((c_cmyk - k) / (1.0 - k));
-  /// @brief Final magenta component (0.0-1.0)
-  static constexpr value_type m_final = (k == 1.0) ? 0.0 : ((m_cmyk - k) / (1.0 - k));
-  /// @brief Final yellow component (0.0-1.0)
-  static constexpr value_type y_final = (k == 1.0) ? 0.0 : ((y_cmyk - k) / (1.0 - k));
-
-  /**
-   * @brief Resulting CMYK type
-   *
-   * Converts the calculated CMYK values to integer format and creates
-   * a cmyk_int type with the computed cyan, magenta, yellow, and key components.
-   */
-  using type =
-      core::cmyk_int<static_cast<int>(std::round(c_final * 100.0)), static_cast<int>(std::round(m_final * 100.0)),
-                     static_cast<int>(std::round(y_final * 100.0)), static_cast<int>(std::round(k * 100.0))>;
-};
-
-/**
- * @brief Type alias for HSV to CMYK conversion result
- *
- * @tparam HSVType Source HSV color type
- * @return CMYK color type resulting from the conversion
- */
-template <typename HSVType>
-using hsv_to_cmyk_t = typename hsv_to_cmyk<HSVType>::type;
+template <typename T, intptr_t Scale>
+constexpr core::cmyk_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
+  return details::convert(hsv);
+}
 
 }  // namespace color::conversion

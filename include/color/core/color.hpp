@@ -17,6 +17,8 @@
 #include "../conversion/cmyk_to_rgb.hpp"
 #include "../conversion/hsl_to_rgb.hpp"
 #include "../conversion/hsv_to_rgb.hpp"
+#include "../conversion/rgb_to_cmyk.hpp"
+#include "../conversion/rgb_to_hsl.hpp"
 #include "../conversion/rgb_to_hsv.hpp"
 #include "cmyk.hpp"
 #include "hsl.hpp"
@@ -67,17 +69,12 @@ class Color {
    * Creates a color from a basic_rgb type, converting the components to the target type.
    *
    * @tparam U Source value type
-   * @tparam R_raw Raw red component value
-   * @tparam G_raw Raw green component value
-   * @tparam B_raw Raw blue component value
    * @tparam Scale Scaling factor for value conversion
    * @param rgb RGB color type to convert from
    */
-  template <typename U, intptr_t R_raw, intptr_t G_raw, intptr_t B_raw, intptr_t Scale>
-  constexpr Color(const basic_rgb<U, R_raw, G_raw, B_raw, Scale>&)
-      : r_(static_cast<T>(basic_rgb<U, R_raw, G_raw, B_raw, Scale>::r)),
-        g_(static_cast<T>(basic_rgb<U, R_raw, G_raw, B_raw, Scale>::g)),
-        b_(static_cast<T>(basic_rgb<U, R_raw, G_raw, B_raw, Scale>::b)) {}
+  template <typename U, intptr_t Scale>
+  constexpr Color(const basic_rgb<U, Scale>& rgb)
+      : r_(static_cast<T>(rgb.r)), g_(static_cast<T>(rgb.g)), b_(static_cast<T>(rgb.b)) {}
 
   /**
    * @brief HSV type constructor
@@ -85,18 +82,15 @@ class Color {
    * Creates a color from a basic_hsv type by converting HSV to RGB.
    *
    * @tparam U Source value type
-   * @tparam H_raw Raw hue component value
-   * @tparam S_raw Raw saturation component value
-   * @tparam V_raw Raw value component value
    * @tparam Scale Scaling factor for value conversion
    * @param hsv HSV color type to convert from
    */
-  template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t V_raw, intptr_t Scale>
-  constexpr Color(const basic_hsv<U, H_raw, S_raw, V_raw, Scale>&) {
-    using rgb_type = conversion::hsv_to_rgb_t<basic_hsv<U, H_raw, S_raw, V_raw, Scale>>;
-    r_ = static_cast<T>(rgb_type::r);
-    g_ = static_cast<T>(rgb_type::g);
-    b_ = static_cast<T>(rgb_type::b);
+  template <typename U, intptr_t Scale>
+  constexpr Color(const basic_hsv<U, Scale>& hsv) {
+    auto rgb_res = conversion::convert(hsv);
+    r_ = static_cast<T>(rgb_res.r);
+    g_ = static_cast<T>(rgb_res.g);
+    b_ = static_cast<T>(rgb_res.b);
   }
 
   /**
@@ -105,18 +99,15 @@ class Color {
    * Creates a color from a basic_hsl type by converting HSL to RGB.
    *
    * @tparam U Source value type
-   * @tparam H_raw Raw hue component value
-   * @tparam S_raw Raw saturation component value
-   * @tparam L_raw Raw lightness component value
    * @tparam Scale Scaling factor for value conversion
    * @param hsl HSL color type to convert from
    */
-  template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t Scale>
-  constexpr Color(const basic_hsl<U, H_raw, S_raw, L_raw, Scale>&) {
-    using rgb_type = conversion::hsl_to_rgb_t<basic_hsl<U, H_raw, S_raw, L_raw, Scale>>;
-    r_ = static_cast<T>(rgb_type::r);
-    g_ = static_cast<T>(rgb_type::g);
-    b_ = static_cast<T>(rgb_type::b);
+  template <typename U, intptr_t Scale>
+  constexpr Color(const basic_hsl<U, Scale>& hsl) {
+    auto rgb_res = conversion::convert(hsl);
+    r_ = static_cast<T>(rgb_res.r);
+    g_ = static_cast<T>(rgb_res.g);
+    b_ = static_cast<T>(rgb_res.b);
   }
 
   /**
@@ -125,19 +116,15 @@ class Color {
    * Creates a color from a basic_cmyk type by converting CMYK to RGB.
    *
    * @tparam U Source value type
-   * @tparam C_raw Raw cyan component value
-   * @tparam M_raw Raw magenta component value
-   * @tparam Y_raw Raw yellow component value
-   * @tparam K_raw Raw key (black) component value
    * @tparam Scale Scaling factor for value conversion
    * @param cmyk CMYK color type to convert from
    */
-  template <typename U, intptr_t C_raw, intptr_t M_raw, intptr_t Y_raw, intptr_t K_raw, intptr_t Scale>
-  constexpr Color(const basic_cmyk<U, C_raw, M_raw, Y_raw, K_raw, Scale>&) {
-    using rgb_type = conversion::cmyk_to_rgb_t<basic_cmyk<U, C_raw, M_raw, Y_raw, K_raw, Scale>>;
-    r_ = static_cast<T>(rgb_type::r);
-    g_ = static_cast<T>(rgb_type::g);
-    b_ = static_cast<T>(rgb_type::b);
+  template <typename U, intptr_t Scale>
+  constexpr Color(const basic_cmyk<U, Scale>& cmyk) {
+    auto rgb_res = conversion::convert(cmyk);
+    r_ = static_cast<T>(rgb_res.r);
+    g_ = static_cast<T>(rgb_res.g);
+    b_ = static_cast<T>(rgb_res.b);
   }
 
   /**
@@ -168,45 +155,45 @@ class Color {
    */
   constexpr T b() const { return b_; }
 
-  /**
-   * @brief Convert to RGB type
-   *
-   * @tparam RGBType Target RGB type (defaults to basic_rgb with current values)
-   * @return RGB color type representation
-   */
-  template <typename RGBType = basic_rgb<T, 0, 0, 0>>
-  constexpr RGBType to_rgb() const {
-    return RGBType{r_, g_, b_};
+  template <typename U = T, intptr_t TargetScale = (std::is_integral_v<U> ? 1 : 100)>
+  constexpr basic_rgb<U, TargetScale> to_rgb() const {
+    if constexpr (std::is_integral_v<T> && !std::is_floating_point_v<U>) {
+      return basic_rgb<U, TargetScale>{static_cast<U>(r_ * TargetScale / 255), static_cast<U>(g_ * TargetScale / 255),
+                                       static_cast<U>(b_ * TargetScale / 255)};
+    } else {
+      double r_norm = std::is_integral_v<T> ? r_ / 255.0 : static_cast<double>(r_);
+      double g_norm = std::is_integral_v<T> ? g_ / 255.0 : static_cast<double>(g_);
+      double b_norm = std::is_integral_v<T> ? b_ / 255.0 : static_cast<double>(b_);
+      return basic_rgb<U, TargetScale>{static_cast<U>(r_norm * TargetScale), static_cast<U>(g_norm * TargetScale),
+                                       static_cast<U>(b_norm * TargetScale)};
+    }
   }
 
   /**
    * @brief Convert to HSV type
-   *
-   * @return HSV color type representation
    */
-  constexpr basic_hsv<T, 0, 0, 0> to_hsv() const {
-    using rgb_type = basic_rgb<T, static_cast<intptr_t>(r_), static_cast<intptr_t>(g_), static_cast<intptr_t>(b_)>;
-    return conversion::rgb_to_hsv_t<rgb_type>{};
+  template <typename U = T, intptr_t TargetScale = 100>
+  constexpr basic_hsv<U, TargetScale> to_hsv() const {
+    auto current_rgb = to_rgb < T, std::is_integral_v<T> ? 1 : 1 > ();
+    return conversion::convert<U, TargetScale>(current_rgb);
   }
 
   /**
    * @brief Convert to HSL type
-   *
-   * @return HSL color type representation
    */
-  constexpr basic_hsl<T, 0, 0, 0> to_hsl() const {
-    // HSL conversion needs to be implemented
-    return basic_hsl<T, 0, 0, 0>{};
+  template <typename U = T, intptr_t TargetScale = 100>
+  constexpr basic_hsl<U, TargetScale> to_hsl() const {
+    auto current_rgb = to_rgb < T, std::is_integral_v<T> ? 1 : 1 > ();
+    return conversion::convert<U, TargetScale>(current_rgb);
   }
 
   /**
    * @brief Convert to CMYK type
-   *
-   * @return CMYK color type representation
    */
-  constexpr basic_cmyk<T, 0, 0, 0, 0> to_cmyk() const {
-    // CMYK conversion needs to be implemented
-    return basic_cmyk<T, 0, 0, 0, 0>{};
+  template <typename U = T, intptr_t TargetScale = 100>
+  constexpr basic_cmyk<U, TargetScale> to_cmyk() const {
+    auto current_rgb = to_rgb < T, std::is_integral_v<T> ? 1 : 1 > ();
+    return conversion::convert<U, TargetScale>(current_rgb);
   }
 
   /**
@@ -392,50 +379,37 @@ using ColorF = Color<double>;
  * @brief Deduction guide for RGB color types
  *
  * @tparam U Source value type
- * @tparam R_raw Raw red component value
- * @tparam G_raw Raw green component value
- * @tparam B_raw Raw blue component value
  * @tparam Scale Scaling factor for value conversion
  */
-template <typename U, intptr_t R_raw, intptr_t G_raw, intptr_t B_raw, intptr_t Scale>
-Color(const basic_rgb<U, R_raw, G_raw, B_raw, Scale>&) -> Color<U>;
+template <typename U, intptr_t Scale>
+Color(const basic_rgb<U, Scale>&) -> Color<U>;
 
 /**
  * @brief Deduction guide for HSV color types
  *
  * @tparam U Source value type
- * @tparam H_raw Raw hue component value
- * @tparam S_raw Raw saturation component value
- * @tparam V_raw Raw value component value
  * @tparam Scale Scaling factor for value conversion
  */
-template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t V_raw, intptr_t Scale>
-Color(const basic_hsv<U, H_raw, S_raw, V_raw, Scale>&) -> Color<U>;
+template <typename U, intptr_t Scale>
+Color(const basic_hsv<U, Scale>&) -> Color<U>;
 
 /**
  * @brief Deduction guide for HSL color types
  *
  * @tparam U Source value type
- * @tparam H_raw Raw hue component value
- * @tparam S_raw Raw saturation component value
- * @tparam L_raw Raw lightness component value
  * @tparam Scale Scaling factor for value conversion
  */
-template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t Scale>
-Color(const basic_hsl<U, H_raw, S_raw, L_raw, Scale>&) -> Color<U>;
+template <typename U, intptr_t Scale>
+Color(const basic_hsl<U, Scale>&) -> Color<U>;
 
 /**
  * @brief Deduction guide for CMYK color types
  *
  * @tparam U Source value type
- * @tparam C_raw Raw cyan component value
- * @tparam M_raw Raw magenta component value
- * @tparam Y_raw Raw yellow component value
- * @tparam K_raw Raw key (black) component value
  * @tparam Scale Scaling factor for value conversion
  */
-template <typename U, intptr_t C_raw, intptr_t M_raw, intptr_t Y_raw, intptr_t K_raw, intptr_t Scale>
-Color(const basic_cmyk<U, C_raw, M_raw, Y_raw, K_raw, Scale>&) -> Color<U>;
+template <typename U, intptr_t Scale>
+Color(const basic_cmyk<U, Scale>&) -> Color<U>;
 
 /** @} */
 

@@ -6,67 +6,49 @@
  * Uses direct mathematical transformation between the two color models.
  *
  * @author Merlot.Qi
- * 
+ *
  */
 
 #pragma once
 
 #include <cmath>
-#include <type_traits>
+#include <cstdint>
 
 #include "../core/hsl.hpp"
+#include "../core/hsv.hpp"
+#include "../utils/maths.hpp"
 
 namespace color::conversion {
 
-/**
- * @brief HSV to HSL color space converter
- *
- * Template struct for converting HSV colors to HSL colors at compile time.
- * Uses direct mathematical transformation between the HSV and HSL color models.
- *
- * @tparam HSVType Source HSV color type
- */
+namespace details {
+
+template <typename T, intptr_t Scale>
+constexpr core::hsl_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
+  constexpr double sc = static_cast<double>(Scale);
+  double h_f = static_cast<double>(hsv.h);
+  double s_hsv = static_cast<double>(hsv.s) / sc;
+  double v_f = static_cast<double>(hsv.v) / sc;
+
+  double l = v_f * (1.0 - s_hsv / 2.0);
+
+  double s_hsl = 0.0;
+  double min_l = (l < (1.0 - l)) ? l : (1.0 - l);
+
+  if (min_l > 1e-7) {
+    s_hsl = (v_f - l) / min_l;
+  }
+
+  return core::hsl_int_t(maths::round<int>(h_f), maths::round<int>(s_hsl * 100.0), maths::round<int>(l * 100.0));
+}
+
+}  // namespace details
+
 template <typename HSVType>
-struct hsv_to_hsl {
-  using hsv_type = HSVType;
-  using value_type = typename HSVType::value_type;
+inline constexpr core::hsl_int_t hsv_to_hsl_v = details::convert(HSVType{});
 
-  /// @brief Hue component from HSV input
-  static constexpr value_type h = HSVType::h;
-  /// @brief Saturation component from HSV input
-  static constexpr value_type s = HSVType::s;
-  /// @brief Value (brightness) component from HSV input
-  static constexpr value_type v = HSVType::v;
-
-  /// @brief Normalized hue component (0.0-360.0)
-  static constexpr value_type h_norm = h / (std::is_integral_v<value_type> ? 1.0 : 1.0);
-  /// @brief Normalized saturation component (0.0-1.0)
-  static constexpr value_type s_norm = s / (std::is_integral_v<value_type> ? 100.0 : 1.0);
-  /// @brief Normalized value component (0.0-1.0)
-  static constexpr value_type v_norm = v / (std::is_integral_v<value_type> ? 100.0 : 1.0);
-
-  /// @brief Calculated lightness component (0.0-1.0)
-  static constexpr value_type l = v_norm * (2.0 - s_norm) / 2.0;
-  /// @brief Calculated saturation component for HSL (0.0-1.0)
-  static constexpr value_type s_hsl = (l == 0.0 || l == 1.0) ? 0.0 : (v_norm - l) / std::min(l, 1.0 - l);
-
-  /**
-   * @brief Resulting HSL type
-   *
-   * Converts the calculated HSL values to integer format and creates
-   * an hsl_int type with the computed hue, saturation, and lightness components.
-   */
-  using type = core::hsl_int<static_cast<int>(std::round(h_norm)), static_cast<int>(std::round(s_hsl * 100.0)),
-                             static_cast<int>(std::round(l * 100.0))>;
-};
-
-/**
- * @brief Type alias for HSV to HSL conversion result
- *
- * @tparam HSVType Source HSV color type
- * @return HSL color type resulting from the conversion
- */
-template <typename HSVType>
-using hsv_to_hsl_t = typename hsv_to_hsl<HSVType>::type;
+template <typename T, intptr_t Scale>
+constexpr core::hsl_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
+  return details::convert(hsv);
+}
 
 }  // namespace color::conversion
