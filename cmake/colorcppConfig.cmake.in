@@ -1,0 +1,7 @@
+# colorcppConfig.cmake.in
+
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/colorcppTargets.cmake")
+
+check_required_components(colorcpp)
