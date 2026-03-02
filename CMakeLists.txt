@@ -39,11 +39,11 @@ endif()
 add_library(colorcpp::colorcpp ALIAS colorcpp)
 
 if(BUILD_EXAMPLES)
-  add_executable(example_usage example_usage.cpp)
-  target_link_libraries(example_usage PRIVATE colorcpp)
+  add_executable(example_color_member example_color_member.cpp)
+  target_link_libraries(example_color_member PRIVATE colorcpp)
   
-  set_property(TARGET example_usage PROPERTY CXX_STANDARD 17)
-  set_property(TARGET example_usage PROPERTY CXX_STANDARD_REQUIRED ON)
+  set_property(TARGET example_color_member PROPERTY CXX_STANDARD 17)
+  set_property(TARGET example_color_member PROPERTY CXX_STANDARD_REQUIRED ON)
 endif()
 
 if(BUILD_TESTS)

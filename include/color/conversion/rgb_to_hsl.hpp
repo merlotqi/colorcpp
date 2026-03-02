@@ -2,14 +2,14 @@
 
 #include <cmath>
 
-#include "../core/hsv.hpp"
+#include "../core/hsl.hpp"
 #include "../core/rgb.hpp"
 
 namespace color::conversion {
 
-// RGB到HSV转换器
+// RGB到HSL转换器
 template <typename RGBType>
-struct rgb_to_hsv {
+struct rgb_to_hsl {
   using rgb_type = RGBType;
   using value_type = typename RGBType::value_type;
 
@@ -48,19 +48,19 @@ struct rgb_to_hsv {
 
   static constexpr value_type h = compute_hue();
 
+  // 计算亮度 (Lightness)
+  static constexpr value_type l = (max_val + min_val) / 2.0;
+
   // 计算饱和度 (Saturation)
-  static constexpr value_type s = (max_val == 0.0) ? 0.0 : (delta / max_val);
+  static constexpr value_type s = (delta == 0.0) ? 0.0 : (delta / (1.0 - std::abs(2.0 * l - 1.0)));
 
-  // 计算明度 (Value)
-  static constexpr value_type v = max_val;
-
-  // 根据输入类型选择输出类型 - 统一使用整型HSV
-  using type = core::hsv_int<static_cast<int>(std::round(h)), static_cast<int>(std::round(s * 100.0)),
-                             static_cast<int>(std::round(v * 100.0))>;
+  // 根据输入类型选择输出类型 - 统一使用整型HSL
+  using type = core::hsl_int<static_cast<int>(std::round(h)), static_cast<int>(std::round(s * 100.0)),
+                             static_cast<int>(std::round(l * 100.0))>;
 };
 
 // 类型别名
 template <typename RGBType>
-using rgb_to_hsv_t = typename rgb_to_hsv<RGBType>::type;
+using rgb_to_hsl_t = typename rgb_to_hsl<RGBType>::type;
 
 }  // namespace color::conversion
