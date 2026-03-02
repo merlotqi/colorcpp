@@ -1,16 +1,24 @@
+/**
+ * @file color.hpp
+ * @brief Core Color class implementation
+ *
+ * Provides the main Color class template with support for various color space conversions
+ * and color manipulation operations. Supports RGB, HSV, HSL, and CMYK color spaces.
+ *
+ * @author Color Library Team
+ * @date 2025
+ * @version 1.0
+ */
+
 #pragma once
 
 #include <cstdint>
 #include <type_traits>
-#include <utility>
 
 #include "../conversion/cmyk_to_rgb.hpp"
 #include "../conversion/hsl_to_rgb.hpp"
 #include "../conversion/hsv_to_rgb.hpp"
 #include "../conversion/rgb_to_hsv.hpp"
-#include "../operations/adjust.hpp"
-#include "../operations/blend.hpp"
-#include "../operations/filter.hpp"
 #include "cmyk.hpp"
 #include "hsl.hpp"
 #include "hsv.hpp"
@@ -18,6 +26,15 @@
 
 namespace color::core {
 
+/**
+ * @brief Main Color class template
+ *
+ * Template class for representing colors with support for multiple color spaces
+ * and various color manipulation operations. The class can be instantiated with
+ * different value types (e.g., uint8_t for 8-bit colors, double for floating-point).
+ *
+ * @tparam T Value type for color components (default: uint8_t)
+ */
 template <typename T = uint8_t>
 class Color {
  public:
@@ -27,69 +44,207 @@ class Color {
   T r_, g_, b_;
 
  public:
-  // 构造函数
+  /**
+   * @brief Default constructor
+   *
+   * Creates a black color (RGB: 0, 0, 0).
+   */
   constexpr Color() : r_(0), g_(0), b_(0) {}
 
+  /**
+   * @brief RGB constructor
+   *
+   * Creates a color from red, green, and blue components.
+   *
+   * @param r Red component value
+   * @param g Green component value
+   * @param b Blue component value
+   */
   constexpr Color(T r, T g, T b) : r_(r), g_(g), b_(b) {}
 
-  // 从RGB类型构造
-  template <typename RGBType>
-  constexpr Color(const RGBType& rgb) : r_(rgb.r), g_(rgb.g), b_(rgb.b) {}
+  /**
+   * @brief RGB type constructor
+   *
+   * Creates a color from a basic_rgb type, converting the components to the target type.
+   *
+   * @tparam U Source value type
+   * @tparam R_raw Raw red component value
+   * @tparam G_raw Raw green component value
+   * @tparam B_raw Raw blue component value
+   * @tparam Scale Scaling factor for value conversion
+   * @param rgb RGB color type to convert from
+   */
+  template <typename U, intptr_t R_raw, intptr_t G_raw, intptr_t B_raw, intptr_t Scale>
+  constexpr Color(const basic_rgb<U, R_raw, G_raw, B_raw, Scale>&)
+      : r_(static_cast<T>(basic_rgb<U, R_raw, G_raw, B_raw, Scale>::r)),
+        g_(static_cast<T>(basic_rgb<U, R_raw, G_raw, B_raw, Scale>::g)),
+        b_(static_cast<T>(basic_rgb<U, R_raw, G_raw, B_raw, Scale>::b)) {}
 
-  // 拷贝构造和赋值
+  /**
+   * @brief HSV type constructor
+   *
+   * Creates a color from a basic_hsv type by converting HSV to RGB.
+   *
+   * @tparam U Source value type
+   * @tparam H_raw Raw hue component value
+   * @tparam S_raw Raw saturation component value
+   * @tparam V_raw Raw value component value
+   * @tparam Scale Scaling factor for value conversion
+   * @param hsv HSV color type to convert from
+   */
+  template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t V_raw, intptr_t Scale>
+  constexpr Color(const basic_hsv<U, H_raw, S_raw, V_raw, Scale>&) {
+    using rgb_type = conversion::hsv_to_rgb_t<basic_hsv<U, H_raw, S_raw, V_raw, Scale>>;
+    r_ = static_cast<T>(rgb_type::r);
+    g_ = static_cast<T>(rgb_type::g);
+    b_ = static_cast<T>(rgb_type::b);
+  }
+
+  /**
+   * @brief HSL type constructor
+   *
+   * Creates a color from a basic_hsl type by converting HSL to RGB.
+   *
+   * @tparam U Source value type
+   * @tparam H_raw Raw hue component value
+   * @tparam S_raw Raw saturation component value
+   * @tparam L_raw Raw lightness component value
+   * @tparam Scale Scaling factor for value conversion
+   * @param hsl HSL color type to convert from
+   */
+  template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t Scale>
+  constexpr Color(const basic_hsl<U, H_raw, S_raw, L_raw, Scale>&) {
+    using rgb_type = conversion::hsl_to_rgb_t<basic_hsl<U, H_raw, S_raw, L_raw, Scale>>;
+    r_ = static_cast<T>(rgb_type::r);
+    g_ = static_cast<T>(rgb_type::g);
+    b_ = static_cast<T>(rgb_type::b);
+  }
+
+  /**
+   * @brief CMYK type constructor
+   *
+   * Creates a color from a basic_cmyk type by converting CMYK to RGB.
+   *
+   * @tparam U Source value type
+   * @tparam C_raw Raw cyan component value
+   * @tparam M_raw Raw magenta component value
+   * @tparam Y_raw Raw yellow component value
+   * @tparam K_raw Raw key (black) component value
+   * @tparam Scale Scaling factor for value conversion
+   * @param cmyk CMYK color type to convert from
+   */
+  template <typename U, intptr_t C_raw, intptr_t M_raw, intptr_t Y_raw, intptr_t K_raw, intptr_t Scale>
+  constexpr Color(const basic_cmyk<U, C_raw, M_raw, Y_raw, K_raw, Scale>&) {
+    using rgb_type = conversion::cmyk_to_rgb_t<basic_cmyk<U, C_raw, M_raw, Y_raw, K_raw, Scale>>;
+    r_ = static_cast<T>(rgb_type::r);
+    g_ = static_cast<T>(rgb_type::g);
+    b_ = static_cast<T>(rgb_type::b);
+  }
+
+  /**
+   * @brief Copy constructor
+   */
   constexpr Color(const Color&) = default;
+
+  /**
+   * @brief Copy assignment operator
+   */
   constexpr Color& operator=(const Color&) = default;
 
-  // 获取RGB分量
+  /**
+   * @brief Get red component value
+   * @return Red component value
+   */
   constexpr T r() const { return r_; }
+
+  /**
+   * @brief Get green component value
+   * @return Green component value
+   */
   constexpr T g() const { return g_; }
+
+  /**
+   * @brief Get blue component value
+   * @return Blue component value
+   */
   constexpr T b() const { return b_; }
 
-  // 转换为RGB类型
+  /**
+   * @brief Convert to RGB type
+   *
+   * @tparam RGBType Target RGB type (defaults to basic_rgb with current values)
+   * @return RGB color type representation
+   */
   template <typename RGBType = basic_rgb<T, 0, 0, 0>>
   constexpr RGBType to_rgb() const {
     return RGBType{r_, g_, b_};
   }
 
-  // 转换为HSV类型
+  /**
+   * @brief Convert to HSV type
+   *
+   * @return HSV color type representation
+   */
   constexpr basic_hsv<T, 0, 0, 0> to_hsv() const {
     using rgb_type = basic_rgb<T, static_cast<intptr_t>(r_), static_cast<intptr_t>(g_), static_cast<intptr_t>(b_)>;
     return conversion::rgb_to_hsv_t<rgb_type>{};
   }
 
-  // 转换为HSL类型
+  /**
+   * @brief Convert to HSL type
+   *
+   * @return HSL color type representation
+   */
   constexpr basic_hsl<T, 0, 0, 0> to_hsl() const {
-    // HSL转换需要实现
-    // 这里返回一个默认值，实际应该通过HSL转换器实现
+    // HSL conversion needs to be implemented
     return basic_hsl<T, 0, 0, 0>{};
   }
 
-  // 转换为CMYK类型
+  /**
+   * @brief Convert to CMYK type
+   *
+   * @return CMYK color type representation
+   */
   constexpr basic_cmyk<T, 0, 0, 0, 0> to_cmyk() const {
-    // CMYK转换需要实现
-    // 这里返回一个默认值，实际应该通过CMYK转换器实现
+    // CMYK conversion needs to be implemented
     return basic_cmyk<T, 0, 0, 0, 0>{};
   }
 
-  // 亮度调整
+  /**
+   * @brief Lighten the color by a percentage
+   *
+   * @param percent Percentage to lighten (0-100)
+   * @return Lightened color
+   */
   constexpr Color lighten(int percent) const {
     auto hsv = to_hsv();
     int new_v = static_cast<int>(hsv.v) + (100 - static_cast<int>(hsv.v)) * percent / 100;
     int clamped_v = (new_v < 0) ? 0 : ((new_v > 100) ? 100 : new_v);
-    // 直接计算RGB值，避免模板参数问题
+    // Direct RGB calculation to avoid template parameter issues
     T r = static_cast<T>(r_);
     T g = static_cast<T>(g_);
     T b = static_cast<T>(b_);
-    // 简化的亮度调整
+    // Simplified brightness adjustment
     T factor = static_cast<T>(1.0 + percent / 100.0);
     return Color(static_cast<T>(r * factor), static_cast<T>(g * factor), static_cast<T>(b * factor));
   }
 
+  /**
+   * @brief Darken the color by a percentage
+   *
+   * @param percent Percentage to darken (0-100)
+   * @return Darkened color
+   */
   constexpr Color darken(int percent) const { return lighten(-percent); }
 
-  // 饱和度调整
+  /**
+   * @brief Saturate the color by a percentage
+   *
+   * @param percent Percentage to saturate (0-100)
+   * @return Saturated color
+   */
   constexpr Color saturate(int percent) const {
-    // 简化的饱和度调整
+    // Simplified saturation adjustment
     T r = static_cast<T>(r_);
     T g = static_cast<T>(g_);
     T b = static_cast<T>(b_);
@@ -97,13 +252,18 @@ class Color {
     return Color(static_cast<T>(r * factor), static_cast<T>(g * factor), static_cast<T>(b * factor));
   }
 
-  // 色相偏移
+  /**
+   * @brief Shift the hue by a number of degrees
+   *
+   * @param degrees Number of degrees to shift (0-360)
+   * @return Color with shifted hue
+   */
   constexpr Color hue_shift(int degrees) const {
-    // 简化的色相偏移
+    // Simplified hue shift
     T r = static_cast<T>(r_);
     T g = static_cast<T>(g_);
     T b = static_cast<T>(b_);
-    // 简单的RGB循环偏移
+    // Simple RGB cycling shift
     if (degrees % 120 == 0) {
       return Color(g, b, r);
     } else if (degrees % 240 == 0) {
@@ -112,7 +272,14 @@ class Color {
     return Color(r, g, b);
   }
 
-  // 颜色混合
+  /**
+   * @brief Blend this color with another color
+   *
+   * @tparam OtherColor Type of the other color
+   * @param other The other color to blend with
+   * @param ratio Blending ratio (0-100, where 0 is this color, 100 is other color)
+   * @return Blended color
+   */
   template <typename OtherColor>
   constexpr Color blend(const OtherColor& other, int ratio) const {
     static_assert(std::is_arithmetic_v<typename OtherColor::value_type>, "OtherColor must have arithmetic value_type");
@@ -128,24 +295,48 @@ class Color {
     return Color(new_r, new_g, new_b);
   }
 
-  // 灰度化
+  /**
+   * @brief Convert color to grayscale
+   *
+   * @return Grayscale version of the color
+   */
   constexpr Color grayscale() const {
     T gray = static_cast<T>(r_ * 0.299 + g_ * 0.587 + b_ * 0.114);
     return Color(gray, gray, gray);
   }
 
-  // 反色
-  constexpr Color invert() const { return Color(255 - r_, 255 - g_, 255 - b_); }
+  /**
+   * @brief Invert the color (negative)
+   *
+   * @return Inverted color
+   */
+  constexpr Color invert() const {
+    if constexpr (std::is_same_v<T, uint8_t>) {
+      return Color(255 - r_, 255 - g_, 255 - b_);
+    } else {
+      return Color(1.0 - r_, 1.0 - g_, 1.0 - b_);
+    }
+  }
 
-  // 阈值处理
-  constexpr Color threshold(int threshold) const {
-    T new_r = (r_ > threshold) ? 255 : 0;
-    T new_g = (g_ > threshold) ? 255 : 0;
-    T new_b = (b_ > threshold) ? 255 : 0;
+  /**
+   * @brief Apply threshold filter
+   *
+   * @param threshold Threshold value
+   * @return Thresholded color (binary)
+   */
+  constexpr Color threshold(T threshold) const {
+    T new_r = (r_ > threshold) ? (std::is_same_v<T, uint8_t> ? 255 : 1.0) : 0;
+    T new_g = (g_ > threshold) ? (std::is_same_v<T, uint8_t> ? 255 : 1.0) : 0;
+    T new_b = (b_ > threshold) ? (std::is_same_v<T, uint8_t> ? 255 : 1.0) : 0;
     return Color(new_r, new_g, new_b);
   }
 
-  // 色调分离
+  /**
+   * @brief Apply posterize filter
+   *
+   * @param levels Number of color levels (2-256)
+   * @return Posterized color
+   */
   constexpr Color posterize(int levels) const {
     static_assert(std::is_integral_v<T>, "Posterize requires integer type");
     int step = 256 / levels;
@@ -155,42 +346,98 @@ class Color {
     return Color(new_r, new_g, new_b);
   }
 
-  // 比较操作符
+  /**
+   * @brief Equality comparison operator
+   *
+   * @param other Color to compare with
+   * @return true if colors are equal, false otherwise
+   */
   constexpr bool operator==(const Color& other) const { return r_ == other.r_ && g_ == other.g_ && b_ == other.b_; }
 
+  /**
+   * @brief Inequality comparison operator
+   *
+   * @param other Color to compare with
+   * @return true if colors are not equal, false otherwise
+   */
   constexpr bool operator!=(const Color& other) const { return !(*this == other); }
 };
 
-// 便捷别名
+/**
+ * @name Convenience Type Aliases
+ * @{
+ */
+
+/**
+ * @brief 8-bit color type alias
+ *
+ * Represents colors using 8-bit integer values (0-255 range).
+ */
 using Color8 = Color<uint8_t>;
+
+/**
+ * @brief Floating-point color type alias
+ *
+ * Represents colors using double precision floating-point values (0.0-1.0 range).
+ */
 using ColorF = Color<double>;
 
-// RGB类型到动态颜色的隐式转换
-template <typename T, intptr_t R_raw, intptr_t G_raw, intptr_t B_raw, intptr_t Scale>
-constexpr Color<T> operator+(const basic_rgb<T, R_raw, G_raw, B_raw, Scale>&) {
-  return Color<T>(basic_rgb<T, R_raw, G_raw, B_raw, Scale>::r, basic_rgb<T, R_raw, G_raw, B_raw, Scale>::g,
-                  basic_rgb<T, R_raw, G_raw, B_raw, Scale>::b);
-}
+/** @} */
 
-// HSV类型到动态颜色的隐式转换
-template <typename T, intptr_t H_raw, intptr_t S_raw, intptr_t V_raw, intptr_t Scale>
-constexpr Color<T> operator+(const basic_hsv<T, H_raw, S_raw, V_raw, Scale>& hsv) {
-  using rgb_type = conversion::hsv_to_rgb_t<basic_hsv<T, H_raw, S_raw, V_raw, Scale>>;
-  return Color<T>(rgb_type::r, rgb_type::g, rgb_type::b);
-}
+/**
+ * @name Class Template Argument Deduction Guides
+ * @{
+ */
 
-// HSL类型到动态颜色的隐式转换
-template <typename T, intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t Scale>
-constexpr Color<T> operator+(const basic_hsl<T, H_raw, S_raw, L_raw, Scale>& hsl) {
-  using rgb_type = conversion::hsl_to_rgb_t<basic_hsl<T, H_raw, S_raw, L_raw, Scale>>;
-  return Color<T>(rgb_type::r, rgb_type::g, rgb_type::b);
-}
+/**
+ * @brief Deduction guide for RGB color types
+ *
+ * @tparam U Source value type
+ * @tparam R_raw Raw red component value
+ * @tparam G_raw Raw green component value
+ * @tparam B_raw Raw blue component value
+ * @tparam Scale Scaling factor for value conversion
+ */
+template <typename U, intptr_t R_raw, intptr_t G_raw, intptr_t B_raw, intptr_t Scale>
+Color(const basic_rgb<U, R_raw, G_raw, B_raw, Scale>&) -> Color<U>;
 
-// CMYK类型到动态颜色的隐式转换
-template <typename T, intptr_t C_raw, intptr_t M_raw, intptr_t Y_raw, intptr_t K_raw, intptr_t Scale>
-constexpr Color<T> operator+(const basic_cmyk<T, C_raw, M_raw, Y_raw, K_raw, Scale>& cmyk) {
-  using rgb_type = conversion::cmyk_to_rgb_t<basic_cmyk<T, C_raw, M_raw, Y_raw, K_raw, Scale>>;
-  return Color<T>(rgb_type::r, rgb_type::g, rgb_type::b);
-}
+/**
+ * @brief Deduction guide for HSV color types
+ *
+ * @tparam U Source value type
+ * @tparam H_raw Raw hue component value
+ * @tparam S_raw Raw saturation component value
+ * @tparam V_raw Raw value component value
+ * @tparam Scale Scaling factor for value conversion
+ */
+template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t V_raw, intptr_t Scale>
+Color(const basic_hsv<U, H_raw, S_raw, V_raw, Scale>&) -> Color<U>;
+
+/**
+ * @brief Deduction guide for HSL color types
+ *
+ * @tparam U Source value type
+ * @tparam H_raw Raw hue component value
+ * @tparam S_raw Raw saturation component value
+ * @tparam L_raw Raw lightness component value
+ * @tparam Scale Scaling factor for value conversion
+ */
+template <typename U, intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t Scale>
+Color(const basic_hsl<U, H_raw, S_raw, L_raw, Scale>&) -> Color<U>;
+
+/**
+ * @brief Deduction guide for CMYK color types
+ *
+ * @tparam U Source value type
+ * @tparam C_raw Raw cyan component value
+ * @tparam M_raw Raw magenta component value
+ * @tparam Y_raw Raw yellow component value
+ * @tparam K_raw Raw key (black) component value
+ * @tparam Scale Scaling factor for value conversion
+ */
+template <typename U, intptr_t C_raw, intptr_t M_raw, intptr_t Y_raw, intptr_t K_raw, intptr_t Scale>
+Color(const basic_cmyk<U, C_raw, M_raw, Y_raw, K_raw, Scale>&) -> Color<U>;
+
+/** @} */
 
 }  // namespace color::core

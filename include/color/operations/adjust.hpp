@@ -1,78 +1,137 @@
+/**
+ * @file adjust.hpp
+ * @brief Color adjustment operations
+ *
+ * Provides compile-time color adjustment operations including lightening,
+ * saturating, and hue shifting. All operations work in HSV color space for
+ * natural color manipulation.
+ *
+ * @author Color Library Team
+ * @date 2025
+ * @version 1.0
+ */
+
 #pragma once
 
 #include "../conversion/hsv_to_rgb.hpp"
 #include "../conversion/rgb_to_hsv.hpp"
 #include "../core/hsv.hpp"
-#include "../core/rgb.hpp"
 
 namespace color::operations {
 
-// 亮度调整操作
+/**
+ * @brief Lighten color operation
+ *
+ * Template struct for lightening a color by a specified percentage.
+ * Works by adjusting the value (brightness) component in HSV color space.
+ *
+ * @tparam RGBType Source RGB color type
+ * @tparam Percent Percentage to lighten (-100 to 100)
+ */
 template <typename RGBType, int Percent>
 struct lighten {
   using rgb_type = RGBType;
   static_assert(Percent >= -100 && Percent <= 100, "Percent must be -100 to 100");
 
-  // 转换到HSV空间进行亮度调整
+  /// @brief HSV representation of the input color
   using hsv_type = conversion::rgb_to_hsv_t<RGBType>;
 
-  // 调整亮度值
+  /// @brief New value (brightness) after adjustment
   static constexpr int new_v = hsv_type::v + (100 - hsv_type::v) * Percent / 100;
+  /// @brief Clamped value to ensure it stays in valid range (0-100)
   static constexpr int clamped_v = (new_v < 0) ? 0 : ((new_v > 100) ? 100 : new_v);
 
-  // 创建新的HSV类型
+  /// @brief Adjusted HSV type with new brightness
   using adjusted_hsv = core::hsv_int<hsv_type::h, hsv_type::s, clamped_v>;
 
-  // 转换回RGB
+  /// @brief Resulting RGB type after conversion back from HSV
   using type = conversion::hsv_to_rgb_t<adjusted_hsv>;
 };
 
-// 饱和度调整操作
+/**
+ * @brief Saturate color operation
+ *
+ * Template struct for saturating a color by a specified percentage.
+ * Works by adjusting the saturation component in HSV color space.
+ *
+ * @tparam RGBType Source RGB color type
+ * @tparam Percent Percentage to saturate (-100 to 100)
+ */
 template <typename RGBType, int Percent>
 struct saturate {
   using rgb_type = RGBType;
   static_assert(Percent >= -100 && Percent <= 100, "Percent must be -100 to 100");
 
-  // 转换到HSV空间进行饱和度调整
+  /// @brief HSV representation of the input color
   using hsv_type = conversion::rgb_to_hsv_t<RGBType>;
 
-  // 调整饱和度值
+  /// @brief New saturation after adjustment
   static constexpr int new_s = hsv_type::s + (100 - hsv_type::s) * Percent / 100;
+  /// @brief Clamped saturation to ensure it stays in valid range (0-100)
   static constexpr int clamped_s = (new_s < 0) ? 0 : ((new_s > 100) ? 100 : new_s);
 
-  // 创建新的HSV类型
+  /// @brief Adjusted HSV type with new saturation
   using adjusted_hsv = core::hsv_int<hsv_type::h, clamped_s, hsv_type::v>;
 
-  // 转换回RGB
+  /// @brief Resulting RGB type after conversion back from HSV
   using type = conversion::hsv_to_rgb_t<adjusted_hsv>;
 };
 
-// 色相偏移操作
+/**
+ * @brief Hue shift color operation
+ *
+ * Template struct for shifting the hue of a color by a specified number of degrees.
+ * Works by adjusting the hue component in HSV color space with proper wrapping.
+ *
+ * @tparam RGBType Source RGB color type
+ * @tparam Degrees Number of degrees to shift the hue
+ */
 template <typename RGBType, int Degrees>
 struct hue_shift {
   using rgb_type = RGBType;
 
-  // 转换到HSV空间进行色相调整
+  /// @brief HSV representation of the input color
   using hsv_type = conversion::rgb_to_hsv_t<RGBType>;
 
-  // 调整色相值
+  /// @brief New hue after adjustment (before clamping)
   static constexpr int new_h = (hsv_type::h + Degrees) % 360;
+  /// @brief Clamped hue to ensure it stays in valid range (0-360)
   static constexpr int clamped_h = (new_h < 0) ? (new_h + 360) : new_h;
 
-  // 创建新的HSV类型
+  /// @brief Adjusted HSV type with new hue
   using adjusted_hsv = core::hsv_int<clamped_h, hsv_type::s, hsv_type::v>;
 
-  // 转换回RGB
+  /// @brief Resulting RGB type after conversion back from HSV
   using type = conversion::hsv_to_rgb_t<adjusted_hsv>;
 };
 
-// 类型别名
+/**
+ * @brief Type alias for lighten operation result
+ *
+ * @tparam RGBType Source RGB color type
+ * @tparam Percent Percentage to lighten (-100 to 100)
+ * @return RGB color type with increased brightness
+ */
 template <typename RGBType, int Percent>
 using lighten_t = typename lighten<RGBType, Percent>::type;
 
+/**
+ * @brief Type alias for saturate operation result
+ *
+ * @tparam RGBType Source RGB color type
+ * @tparam Percent Percentage to saturate (-100 to 100)
+ * @return RGB color type with increased saturation
+ */
 template <typename RGBType, int Percent>
 using saturate_t = typename saturate<RGBType, Percent>::type;
 
+/**
+ * @brief Type alias for hue shift operation result
+ *
+ * @tparam RGBType Source RGB color type
+ * @tparam Degrees Number of degrees to shift the hue
+ * @return RGB color type with shifted hue
+ */
 template <typename RGBType, int Degrees>
 using hue_shift_t = typename hue_shift<RGBType, Degrees>::type;
 

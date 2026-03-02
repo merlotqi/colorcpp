@@ -112,3 +112,9 @@ if(INSTALL_HEADERS)
     DESTINATION lib/pkgconfig
   )
 endif()
+
+
+  add_executable(test_all_models test_all_models.cpp)
+  target_link_libraries(test_all_models PRIVATE colorcpp)
+  set_property(TARGET test_all_models PROPERTY CXX_STANDARD 17)
+  set_property(TARGET test_all_models PROPERTY CXX_STANDARD_REQUIRED ON)
