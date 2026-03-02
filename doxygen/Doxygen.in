@@ -1,0 +1,21 @@
+PROJECT_NAME           = "@PROJECT_NAME@"
+PROJECT_NUMBER         = "@PROJECT_VERSION@"
+OUTPUT_DIRECTORY       = "@CMAKE_CURRENT_BINARY_DIR@/doc_doxygen"
+
+
+INPUT                  = "@PROJECT_SOURCE_DIR@/include" \
+                         "@PROJECT_SOURCE_DIR@/README.md"
+
+RECURSIVE              = YES
+
+FILE_PATTERNS          = *.h *.hpp *.cuh
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES

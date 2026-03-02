@@ -1,326 +1,313 @@
-# C++ 编译期颜色库设计文档
+# Colorcpp
 
-## 1. 设计哲学与核心原则
+A modern, header-only C++ library for compile-time color space conversions and operations. Built with C++20 features and template metaprogramming for zero-runtime overhead color manipulation.
 
-### 1.1 核心设计目标
-- **零成本抽象**：所有颜色计算在编译期完成，无运行时开销
-- **类型安全**：通过类型系统确保颜色值的有效性
-- **可组合性**：颜色操作可以任意组合，形成复杂的颜色变换
-- **可扩展性**：用户可以方便地添加新的颜色空间和操作
+## 🚀 Features
 
-### 1.2 设计约束
-- 使用 C++17 标准
-- 优先使用模板元编程技术
-- 避免运行时多态
-- 编译期错误信息应当清晰可读
+- **Compile-time Operations**: All color conversions and operations happen at compile time with zero runtime overhead
+- **Multiple Color Spaces**: Support for RGB, HSV, HSL, and CMYK color spaces
+- **Type Safety**: Strong type system with compile-time validation and constraints
+- **Template Metaprogramming**: Advanced C++20 template features for maximum performance
+- **Color Operations**: Built-in operations for blending, filtering, and adjustments
+- **Color Palettes**: Predefined color palettes including web-safe colors
+- **User-defined Literals**: Convenient literal operators for color creation
+- **Header-only**: No external dependencies, easy integration
 
-## 2. 架构概览
+## 🎨 Supported Color Spaces
 
-```
-color/
-├── core/               # 核心颜色表示
-│   ├── rgb.hpp        # RGB颜色空间
-│   ├── hsv.hpp        # HSV颜色空间
-│   ├── hsl.hpp        # HSL颜色空间
-│   └── cmyk.hpp       # CMYK颜色空间
-├── conversion/         # 颜色空间转换
-│   ├── rgb_to_hsv.hpp
-│   ├── hsv_to_rgb.hpp
-│   └── ...
-├── operations/         # 颜色操作
-│   ├── blend.hpp      # 混合操作
-│   ├── adjust.hpp     # 调整操作
-│   └── filter.hpp     # 滤镜操作
-├── palettes/          # 预定义调色板
-│   ├── web.hpp        # Web安全色
-│   ├── material.hpp   # Material Design
-│   └── custom.hpp     # 自定义调色板
-├── traits/            # 类型特征
-│   ├── concepts.hpp   # 颜色概念
-│   └── properties.hpp # 颜色属性
-└── utils/             # 工具函数
-    ├── validation.hpp # 编译期验证
-    └── literals.hpp   # 用户定义字面量
-```
-
-## 3. 颜色表示设计
-
-### 3.1 基础颜色模板
-每个颜色空间都应以模板参数形式表示通道值，支持：
-- 整数类型（0-255）
-- 浮点类型（0.0-1.0）
-- 百分比类型（0-100）
-
-### 3.2 RGB颜色空间
+### RGB (Red, Green, Blue)
 ```cpp
-template<typename T, T R, T G, T B>
-struct basic_rgb;
+#include <color.hpp>
+
+using namespace color;
+
+// Create RGB colors
+auto red = core::rgb8<255, 0, 0>;
+auto blue = core::rgbf<1000, 0, 0>;  // Floating point
 ```
 
-需要考虑的变体：
-- `rgb8`：8位整型
-- `rgbf`：浮点型
-- `rgb_percent`：百分比型
-
-### 3.3 颜色通道的编译期验证
-每个通道值都应经过编译期验证：
-- 范围检查
-- 类型一致性检查
-- 特定颜色空间的额外约束
-
-## 4. 颜色转换系统
-
-### 4.1 转换器设计模式
-使用模板元编程实现转换器：
-- 输入：源颜色类型
-- 输出：目标颜色类型
-- 转换逻辑：纯编译期计算
-
-### 4.2 转换链支持
-支持多个转换的组合：
-```
-源颜色 -> 转换器A -> 中间颜色 -> 转换器B -> 目标颜色
-```
-
-### 4.3 转换精度策略
-定义转换精度策略：
-- 精确转换（整数运算）
-- 近似转换（浮点运算）
-- 查表转换（预计算表）
-
-## 5. 颜色操作库
-
-### 5.1 基本操作分类
-
-#### 算术操作
-- 加法（颜色叠加）
-- 乘法（颜色缩放）
-- 混合（线性插值）
-
-#### 调整操作
-- 亮度调整
-- 对比度调整
-- 饱和度调整
-- 色相偏移
-
-#### 滤镜效果
-- 灰度化
-- 反色
-- 色调分离
-- 阈值处理
-
-### 5.2 操作组合机制
-支持操作符重载和组合：
+### HSV (Hue, Saturation, Value)
 ```cpp
-using result = operation::compose<
-    adjust::brighten<20>,
-    filter::grayscale,
-    blend::over<background_color>
->;
+// Create HSV colors
+auto hsv_red = core::hsv_int<0, 100, 100>;
+auto hsv_blue = core::hsv_int<240, 100, 100>;
 ```
 
-### 5.3 操作验证
-每个操作应该：
-- 验证输入颜色类型
-- 检查参数有效性
-- 保证输出颜色在有效范围内
-
-## 6. 调色板系统
-
-### 6.1 静态调色板
-编译期定义的固定颜色集合：
-- 预定义颜色常量
-- 主题色系
-- 渐变色系
-
-### 6.2 生成式调色板
-通过编译期计算生成的调色板：
-- 单色系生成
-- 互补色生成
-- 三色系生成
-- 四色系生成
-
-### 6.3 调色板操作
-- 颜色提取
-- 调色板合并
-- 调色板变换
-
-## 7. 类型特征系统
-
-### 7.1 颜色概念定义
+### HSL (Hue, Saturation, Lightness)
 ```cpp
-template<typename T>
-concept Color = requires {
-    // 颜色必须有的特征
+// Create HSL colors
+auto hsl_red = core::hsl_int<0, 100, 50>;
+auto hsl_blue = core::hsl_int<240, 100, 50>;
+```
+
+### CMYK (Cyan, Magenta, Yellow, Key)
+```cpp
+// Create CMYK colors
+auto cmyk_red = core::cmyk_int<0, 100, 100, 0>;
+auto cmyk_blue = core::cmyk_int<100, 0, 0, 0>;
+```
+
+## 🔄 Color Conversions
+
+Seamless compile-time conversions between all supported color spaces:
+
+```cpp
+#include <color.hpp>
+
+using namespace color;
+
+// RGB to HSV conversion
+auto rgb_red = core::rgb8<255, 0, 0>;
+auto hsv_red = conversion::rgb_to_hsv_t<rgb_red>;  // Compile-time conversion
+
+// HSV to RGB conversion
+auto hsv_blue = core::hsv_int<240, 100, 100>;
+auto rgb_blue = conversion::hsv_to_rgb_t<hsv_blue>;
+
+// HSL to CMYK conversion
+auto hsl_green = core::hsl_int<120, 100, 50>;
+auto cmyk_green = conversion::hsl_to_cmyk_t<hsl_green>;
+```
+
+## 🎛️ Color Operations
+
+### Adjustments
+```cpp
+#include <color.hpp>
+
+using namespace color;
+
+// Lighten a color by 20%
+auto original = core::rgb8<100, 150, 200>;
+auto lighter = operations::lighten_t<original, 20>;
+
+// Saturate a color by 30%
+auto saturated = operations::saturate_t<original, 30>;
+
+// Shift hue by 45 degrees
+auto shifted = operations::hue_shift_t<original, 45>;
+```
+
+### Blending
+```cpp
+// Blend two colors with 50% ratio
+auto color1 = core::rgb8<255, 0, 0>;  // Red
+auto color2 = core::rgb8<0, 0, 255>;  // Blue
+auto purple = operations::blend_t<color1, color2, 50>;
+
+// Common blending modes
+auto overlay = operations::blend_ops::overlay<color1, color2>;
+auto screen = operations::blend_ops::screen<color1, color2>;
+auto multiply = operations::blend_ops::multiply<color1, color2>;
+```
+
+### Filters
+```cpp
+// Convert to grayscale
+auto color = core::rgb8<100, 150, 200>;
+auto gray = operations::grayscale_t<color>;
+
+// Invert colors
+auto inverted = operations::invert_t<color>;
+
+// Apply threshold
+auto thresholded = operations::threshold_t<color, 128>;
+
+// Posterize with 4 levels
+auto posterized = operations::posterize_t<color, 4>;
+```
+
+## 🎨 Color Palettes
+
+### Web Colors
+```cpp
+#include <color.hpp>
+
+using namespace color;
+
+// Use predefined web colors
+auto alice_blue = palettes::web::safe_colors::alice_blue;
+auto coral = palettes::web::safe_colors::coral;
+auto dark_orange = palettes::web::safe_colors::dark_orange;
+
+// Grayscale palette
+auto medium_gray = palettes::web::grayscale::medium_gray;
+
+// Warm colors
+auto gold = palettes::web::warm::gold;
+auto orange = palettes::web::warm::orange;
+
+// Cool colors
+auto navy = palettes::web::cool::navy;
+auto teal = palettes::web::cool::teal;
+```
+
+### Named Colors
+```cpp
+// Access W3C standard colors
+auto black = core::colors::black;
+auto white = core::colors::white;
+auto red = core::colors::red;
+auto lime = core::colors::lime;  // Bright green
+auto blue = core::colors::blue;
+auto yellow = core::colors::yellow;
+auto cyan = core::colors::cyan;
+auto magenta = core::colors::magenta;
+
+// Extended color names
+auto maroon = core::colors::maroon;
+auto olive = core::colors::olive;
+auto navy = core::colors::navy;
+auto purple = core::colors::purple;
+auto teal = core::colors::teal;
+auto silver = core::colors::silver;
+auto gray = core::colors::gray;
+```
+
+## 🔧 User-defined Literals
+
+Create colors directly in source code using literal operators:
+
+```cpp
+#include <color.hpp>
+
+using namespace color::literals;
+
+// RGB/HEX literals
+auto red = 0xFF0000_rgb;
+auto blue = 0x0000FF_hex;
+auto green = 00FF00_rgb;
+
+// HSV literals (format: H*10000 + S*100 + V)
+auto hsv_red = 0100100_hsv;    // Hue=0, Sat=100, Value=100
+auto hsv_blue = 240100100_hsv;  // Hue=240, Sat=100, Value=100
+
+// HSL literals (format: H*10000 + S*100 + L)
+auto hsl_red = 010050_hsl;     // Hue=0, Sat=100, Light=50
+auto hsl_blue = 24010050_hsl;   // Hue=240, Sat=100, Light=50
+
+// Simplified hue-only literals
+auto hue_red = 0_hsv_hue;      // HSV: 0°, 100%, 100%
+auto hue_blue = 240_hsl_hue;   // HSL: 240°, 100%, 50%
+```
+
+## 📦 Installation
+
+This is a header-only library. Simply copy the `include/color` directory to your project and include the main header:
+
+```cpp
+#include <color.hpp>
+```
+
+### Requirements
+- C++20 compatible compiler
+- No external dependencies
+
+### Build System Integration
+
+#### CMake
+```cmake
+# Add the color library to your project
+target_include_directories(your_target PRIVATE path/to/color/include)
+```
+
+#### Manual
+```bash
+# Copy headers to your project
+cp -r include/color /path/to/your/project/
+```
+
+## 🧪 Examples
+
+### Basic Usage
+```cpp
+#include <color.hpp>
+#include <iostream>
+
+int main() {
+    using namespace color;
+    
+    // Create colors
+    auto red = core::rgb8<255, 0, 0>;
+    auto blue = core::rgb8<0, 0, 255>;
+    
+    // Convert RGB to HSV
+    auto hsv_red = conversion::rgb_to_hsv_t<red>;
+    
+    // Blend colors
+    auto purple = operations::blend_t<red, blue, 50>;
+    
+    // Apply operations
+    auto lighter_red = operations::lighten_t<red, 20>;
+    
+    // Use literals
+    auto green = 0x00FF00_rgb;
+    auto cyan = 180100100_hsv;
+    
+    return 0;
+}
+```
+
+### Advanced Example
+```cpp
+#include <color.hpp>
+
+using namespace color;
+
+// Create a color palette generator
+template<typename BaseColor, int Steps>
+struct color_palette {
+    template<int Index>
+    using color = operations::hue_shift_t<BaseColor, (360 * Index) / Steps>;
 };
+
+// Generate a 12-color palette from red
+using red_palette = color_palette<core::rgb8<255, 0, 0>, 12>;
+
+// Access palette colors
+auto color1 = red_palette::color<0>;   // Red
+auto color2 = red_palette::color<1>;   // Orange-red
+auto color3 = red_palette::color<2>;   // Orange
+// ... etc
 ```
 
-### 7.2 颜色属性提取
-编译期提取颜色属性：
-- 亮度
-- 色度
-- 饱和度
-- 透明度
+## 🏗️ Architecture
 
-### 7.3 颜色关系判定
-编译期判断颜色间关系：
-- 是否互补
-- 是否相似
-- 色差计算
+The library is organized into several modules:
 
-## 8. 实用工具
-
-### 8.1 编译期验证工具
-- 静态断言辅助宏
-- 范围检查器
-- 约束验证器
-
-### 8.2 用户定义字面量
-支持直观的颜色表示：
-```cpp
-auto c = 0xFF0000_rgb;  // 红色
-auto d = 120_deg_hsv;   // 120度色相
+```
+include/color/
+├── core/           # Basic color types and definitions
+├── conversion/     # Color space conversion templates
+├── operations/     # Color manipulation operations
+├── palettes/       # Predefined color palettes
+├── traits/         # Type traits and concepts
+└── utils/          # Utility functions and literals
 ```
 
-### 8.3 序列化支持
-- 编译期字符串表示
-- 十六进制转换
-- CSS颜色字符串生成
+### Core Types
+- `basic_rgb<T, R, G, B>` - RGB color template
+- `basic_hsv<T, H, S, V>` - HSV color template  
+- `basic_hsl<T, H, S, L>` - HSL color template
+- `basic_cmyk<T, C, M, Y, K>` - CMYK color template
 
-## 9. 扩展机制
+### Type Aliases
+- `rgb8<R, G, B>` - 8-bit RGB colors
+- `rgbf<R, G, B>` - Floating-point RGB colors
+- `hsv_int<H, S, V>` - Integer HSV colors
+- `hsl_int<H, S, L>` - Integer HSL colors
+- `cmyk_int<C, M, Y, K>` - Integer CMYK colors
 
-### 9.1 添加新颜色空间
-定义新颜色空间需要：
-1. 颜色表示模板
-2. 与RGB的相互转换
-3. 基本操作适配
+## 🤝 Contributing
 
-### 9.2 自定义操作
-创建新操作需要：
-1. 操作模板定义
-2. 类型约束
-3. 编译期计算实现
+Contributions are welcome! Please feel free to submit pull requests or open issues.
 
-### 9.3 第三方集成
-提供适配器机制：
-- Qt颜色集成
-- OpenCV颜色集成
-- STL风格迭代器
+## 📄 License
 
-## 10. 性能考虑
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-### 10.1 编译时开销
-- 模板实例化数量控制
-- 递归深度限制
-- 编译缓存策略
+## 🙏 Acknowledgments
 
-### 10.2 内存布局
-- 紧凑的颜色表示
-- SIMD友好布局
-- 缓存行对齐
-
-### 10.3 代码生成
-- 内联策略
-- 常量传播
-- 死代码消除
-
-## 11. 错误处理
-
-### 11.1 编译期错误
-- 清晰的错误信息
-- 错误位置提示
-- 可能的修复建议
-
-### 11.2 静态断言策略
-分层断言：
-1. 类型检查
-2. 范围检查
-3. 逻辑约束检查
-
-### 11.3 降级策略
-当编译期计算不可行时：
-- 回退到运行时计算
-- 部分编译期优化
-- 提供替代方案
-
-## 12. 使用示例场景
-
-### 12.1 主题系统开发
-```cpp
-// 定义应用主题色
-using primary = colors::blue_500;
-using secondary = operations::complement<primary>;
-using background = operations::lighten<primary, 90>;
-```
-
-### 12.2 数据可视化
-```cpp
-// 生成渐变色系
-using gradient = palettes::gradient<
-    colors::red, colors::blue, 10
->;
-```
-
-### 12.3 图像处理算法
-```cpp
-// 编译期图像滤镜
-template<typename Image, typename Filter>
-struct apply_filter {
-    using result = transform<Image, Filter>;
-};
-```
-
-## 13. 测试策略
-
-### 13.1 编译期测试
-- 静态断言测试
-- 类型关系测试
-- 常量表达式测试
-
-### 13.2 运行时测试
-- 与参考实现对比
-- 边界条件测试
-- 性能基准测试
-
-### 13.3 文档测试
-- 示例代码验证
-- API使用示例
-- 性能预期验证
-
-## 14. 版本规划
-
-### v1.0 (基础版)
-- 基础颜色空间支持
-- 基本转换功能
-- 预定义颜色集
-
-### v2.0 (增强版)
-- 操作组合系统
-- 调色板生成
-- 类型特征系统
-
-### v3.0 (专业版)
-- 色彩管理
-- 设备色彩空间
-- ICC配置文件支持
-
-## 15. 贡献指南
-
-### 15.1 代码规范
-- 命名约定
-- 文件组织
-- 注释要求
-
-### 15.2 性能基准
-- 编译时间基准
-- 运行时代码大小
-- 优化指导原则
-
-### 15.3 文档要求
-- API文档完整性
-- 示例代码质量
-- 性能预期说明
-
----
-
-这个文档提供了一个完整的框架，您可以基于这个设计逐步实现各个模块。每个部分都可以独立开发和测试，最终组合成一个完整的编译期颜色库。
+- Built with modern C++20 features
+- Inspired by various color theory and computer graphics principles
+- Designed for performance and type safety
