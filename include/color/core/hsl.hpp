@@ -35,7 +35,7 @@ struct basic_hsl {
   T h, s, l;
 
   constexpr basic_hsl() : h(0), s(0), l(0) {}
-  
+
   constexpr basic_hsl(T hue, T saturation, T lightness) : h(hue), s(saturation), l(lightness) {
     if (!is_valid_val(hue, saturation, lightness)) {
       assert(false && "HSL values out of range!");

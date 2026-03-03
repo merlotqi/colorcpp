@@ -10,17 +10,16 @@
 
 #pragma once
 
+#include <color/conversion/conversion.hpp>
+#include <color/utils/maths.hpp>
 #include <type_traits>
 #include <utility>
-
-#include "../conversion/conversion.hpp"
-#include "../utils/maths.hpp"
 
 namespace color::operations {
 
 namespace details {
 
-static constexpr intptr_t apply_percent(intptr_t value, int percent, intptr_t scale) {
+constexpr intptr_t apply_percent(intptr_t value, int percent, intptr_t scale) {
   if (percent >= 0) {
     return value + (scale - value) * percent / 100;
   } else {
@@ -28,18 +27,19 @@ static constexpr intptr_t apply_percent(intptr_t value, int percent, intptr_t sc
   }
 }
 
-static constexpr intptr_t clamp(intptr_t val, intptr_t min_v, intptr_t max_v) {
+constexpr intptr_t clamp(intptr_t val, intptr_t min_v, intptr_t max_v) {
   return (val < min_v) ? min_v : ((val > max_v) ? max_v : val);
 }
 
 template <typename T, intptr_t Scale>
-static constexpr double get_rgb_max() {
+constexpr double get_rgb_max() {
   if constexpr (std::is_integral_v<T> && Scale == 1) {
     return 255.0;
   } else {
     return static_cast<double>(Scale);
   }
 }
+
 }  // namespace details
 
 template <typename ColorType>

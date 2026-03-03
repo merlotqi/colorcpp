@@ -1,6 +1,18 @@
+/**
+ * @file web.hpp
+ * @brief Web color palettes
+ *
+ * Provides predefined color palettes commonly used in web development,
+ * including web-safe colors, grayscale variations, and warm/cool color schemes.
+ * All colors are defined as compile-time RGB values for optimal performance.
+ *
+ * @author Merlot.Qi
+ *
+ */
+
 #pragma once
 
-#include "../core/rgb.hpp"
+#include <color/core/rgb.hpp>
 
 namespace color::palettes::web {
 

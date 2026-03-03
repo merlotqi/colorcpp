@@ -10,12 +10,11 @@
 
 #pragma once
 
+#include <color/core/hsl.hpp>
+#include <color/core/hsv.hpp>
+#include <color/core/rgb.hpp>
 #include <cstddef>
 #include <cstdint>
-
-#include "../core/hsl.hpp"
-#include "../core/hsv.hpp"
-#include "../core/rgb.hpp"
 
 namespace color::literals {
 

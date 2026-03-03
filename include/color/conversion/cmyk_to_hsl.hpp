@@ -12,11 +12,10 @@
 #pragma once
 
 #include <cmath>
+#include <color/core/cmyk.hpp>
+#include <color/core/hsl.hpp>
+#include <color/utils/maths.hpp>
 #include <cstdint>
-
-#include "../core/cmyk.hpp"
-#include "../core/hsl.hpp"
-#include "../utils/maths.hpp"
 
 namespace color::conversion {
 

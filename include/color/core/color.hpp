@@ -11,19 +11,13 @@
 
 #pragma once
 
+#include <color/conversion/conversion.hpp>
+#include <color/core/cmyk.hpp>
+#include <color/core/hsl.hpp>
+#include <color/core/hsv.hpp>
+#include <color/core/rgb.hpp>
 #include <cstdint>
 #include <type_traits>
-
-#include "../conversion/cmyk_to_rgb.hpp"
-#include "../conversion/hsl_to_rgb.hpp"
-#include "../conversion/hsv_to_rgb.hpp"
-#include "../conversion/rgb_to_cmyk.hpp"
-#include "../conversion/rgb_to_hsl.hpp"
-#include "../conversion/rgb_to_hsv.hpp"
-#include "cmyk.hpp"
-#include "hsl.hpp"
-#include "hsv.hpp"
-#include "rgb.hpp"
 
 namespace color::core {
 

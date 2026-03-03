@@ -12,23 +12,25 @@
 
 #pragma once
 
-#include "../conversion/conversion.hpp"
+#include <color/conversion/conversion.hpp>
 
 namespace color::operations {
 
-struct details {
-  static constexpr intptr_t apply_percent(intptr_t value, int percent, intptr_t scale) {
-    if (percent >= 0) {
-      return value + (scale - value) * percent / 100;
-    } else {
-      return value + (value * percent / 100);
-    }
-  }
+namespace details {
 
-  static constexpr intptr_t clamp(intptr_t val, intptr_t min_v, intptr_t max_v) {
-    return (val < min_v) ? min_v : ((val > max_v) ? max_v : val);
+static constexpr intptr_t apply_percent(intptr_t value, int percent, intptr_t scale) {
+  if (percent >= 0) {
+    return value + (scale - value) * percent / 100;
+  } else {
+    return value + (value * percent / 100);
   }
-};
+}
+
+static constexpr intptr_t clamp(intptr_t val, intptr_t min_v, intptr_t max_v) {
+  return (val < min_v) ? min_v : ((val > max_v) ? max_v : val);
+}
+
+}  // namespace details
 
 template <typename ColorType>
 constexpr auto lighten(const ColorType& c, int percent) {

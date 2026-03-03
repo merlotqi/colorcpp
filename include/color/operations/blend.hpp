@@ -10,9 +10,8 @@
 
 #pragma once
 
+#include <color/conversion/conversion.hpp>
 #include <type_traits>
-
-#include "../conversion/conversion.hpp"
 
 namespace color::operations {
 
@@ -31,6 +30,7 @@ template <typename T>
 static constexpr T lerp_channel(T c1, T c2, int ratio) {
   return static_cast<T>((static_cast<intptr_t>(c1) * (100 - ratio) + static_cast<intptr_t>(c2) * ratio) / 100);
 }
+
 }  // namespace details
 
 template <typename Color1, typename Color2>

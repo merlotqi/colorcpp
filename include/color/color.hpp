@@ -1,27 +1,28 @@
 #pragma once
 
 // Include all color conversion headers
-#include "color/conversion/conversion.hpp"
+#include <color/conversion/conversion.hpp>
 
 // Include all color core headers
-#include "color/core/cmyk.hpp"
-#include "color/core/color.hpp"
-#include "color/core/hsl.hpp"
-#include "color/core/hsv.hpp"
-#include "color/core/rgb.hpp"
+#include <color/core/cmyk.hpp>
+#include <color/core/color.hpp>
+#include <color/core/hsl.hpp>
+#include <color/core/hsv.hpp>
+#include <color/core/rgb.hpp>
 
 // Include all color operations headers
-#include "color/operations/adjust.hpp"
-#include "color/operations/blend.hpp"
+#include <color/operations/adjust.hpp>
+#include <color/operations/blend.hpp>
 
 // Include all color palettes headers
-#include "color/palettes/web.hpp"
+#include <color/palettes/web.hpp>
 
 // Include all color traits headers
-#include "color/traits/concepts.hpp"
+#include <color/traits/concepts.hpp>
 
 // Include all color utils headers
-#include "color/utils/literals.hpp"
+#include <color/utils/literals.hpp>
+#include <color/utils/maths.hpp>
 
 namespace color {
 
@@ -31,7 +32,5 @@ using namespace operations;
 using namespace palettes;
 using namespace traits;
 using namespace literals;
-
-namespace colors = core::colors;
 
 }  // namespace color

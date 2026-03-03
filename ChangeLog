@@ -1,0 +1,39 @@
+Date: 2026-03-03
+Commit: bbeda08
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize color library structure and improve header inclusions
+
+Date: 2026-03-02
+Commit: da25975
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: consolidate color conversion logic and improve API consistency
+
+Date: 2026-03-02
+Commit: 82c063c
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: consolidate color conversion headers and remove test executable
+
+Date: 2026-03-02
+Commit: f5b535f
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: simplify README.md and update project documentation
+
+Date: 2026-03-02
+Commit: dd1e6ae
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: Update color library documentation and add comprehensive color palette definitions
+
+Date: 2026-03-02
+Commit: b7ac9c8
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: Add comprehensive test suite and improve library structure
+
+Date: 2026-03-02
+Commit: ff3378d
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize project structure and rename example executable
+
+Date: 2026-03-02
+Commit: 065d9d5
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: Add colorcpp library with core color models and operations
