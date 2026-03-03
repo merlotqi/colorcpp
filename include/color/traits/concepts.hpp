@@ -21,13 +21,13 @@ template <typename T>
 struct is_color : std::false_type {};
 
 template <typename T, intptr_t Scale>
-struct is_color<core::basic_rgb<T, Scale>> : std::true_type {};
+struct is_color<core::basic_rgba<T, Scale>> : std::true_type {};
 
 template <typename T, intptr_t Scale>
-struct is_color<core::basic_hsv<T, Scale>> : std::true_type {};
+struct is_color<core::basic_hsva<T, Scale>> : std::true_type {};
 
 template <typename T, intptr_t Scale>
-struct is_color<core::basic_hsl<T, Scale>> : std::true_type {};
+struct is_color<core::basic_hsla<T, Scale>> : std::true_type {};
 
 template <typename T, intptr_t Scale>
 struct is_color<core::basic_cmyk<T, Scale>> : std::true_type {};
@@ -38,17 +38,17 @@ constexpr bool is_color_v = is_color<T>::value;
 template <typename T>
 struct is_rgb : std::false_type {};
 template <typename T, intptr_t Scale>
-struct is_rgb<core::basic_rgb<T, Scale>> : std::true_type {};
+struct is_rgb<core::basic_rgba<T, Scale>> : std::true_type {};
 
 template <typename T>
 struct is_hsv : std::false_type {};
 template <typename T, intptr_t Scale>
-struct is_hsv<core::basic_hsv<T, Scale>> : std::true_type {};
+struct is_hsv<core::basic_hsva<T, Scale>> : std::true_type {};
 
 template <typename T>
 struct is_hsl : std::false_type {};
 template <typename T, intptr_t Scale>
-struct is_hsl<core::basic_hsl<T, Scale>> : std::true_type {};
+struct is_hsl<core::basic_hsla<T, Scale>> : std::true_type {};
 
 template <typename T>
 struct is_cmyk : std::false_type {};
@@ -74,6 +74,9 @@ concept HslColor = ColorType<T> && is_hsl<T>::value;
 
 template <typename T>
 concept CmykColor = ColorType<T> && is_cmyk<T>::value;
+
+template <typename T>
+concept HasAlpha = ColorType<T> && !is_cmyk<T>::value;
 
 #endif
 

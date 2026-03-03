@@ -96,9 +96,7 @@ constexpr RGBType threshold(const RGBType& c, int thresh = 127) {
   using T = typename RGBType::value_type;
   constexpr float max_v = details::get_rgb_max<T, RGBType::scale()>();
   float t = (thresh / 255.0) * max_v;
-  auto filter = [t, max_v](T val) {
-    return (static_cast<float>(val) > t) ? static_cast<T>(max_v) : static_cast<T>(0);
-  };
+  auto filter = [t, max_v](T val) { return (static_cast<float>(val) > t) ? static_cast<T>(max_v) : static_cast<T>(0); };
   return RGBType{filter(c.r), filter(c.g), filter(c.b)};
 }
 

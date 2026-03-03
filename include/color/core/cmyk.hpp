@@ -99,31 +99,4 @@ inline constexpr cmyk_float_t cmyk_float = cmyk_float_t::make<C, M, Y, K>();
 
 /** @} */
 
-namespace colors {
-// Basic CMYK colors
-inline constexpr cmyk_int_t black_cmyk = cmyk_int<0, 0, 0, 100>;
-inline constexpr cmyk_int_t white_cmyk = cmyk_int<0, 0, 0, 0>;
-inline constexpr cmyk_int_t red_cmyk = cmyk_int<0, 100, 100, 0>;
-inline constexpr cmyk_int_t green_cmyk = cmyk_int<100, 0, 100, 0>;
-inline constexpr cmyk_int_t blue_cmyk = cmyk_int<100, 100, 0, 0>;
-inline constexpr cmyk_int_t yellow_cmyk = cmyk_int<0, 0, 100, 0>;
-inline constexpr cmyk_int_t cyan_cmyk = cmyk_int<100, 0, 0, 0>;
-inline constexpr cmyk_int_t magenta_cmyk = cmyk_int<0, 100, 0, 0>;
-
-// W3C standard colors in CMYK
-inline constexpr cmyk_int_t maroon_cmyk = cmyk_int<0, 100, 100, 50>;
-inline constexpr cmyk_int_t olive_cmyk = cmyk_int<0, 0, 100, 50>;
-inline constexpr cmyk_int_t navy_cmyk = cmyk_int<100, 100, 0, 50>;
-inline constexpr cmyk_int_t purple_cmyk = cmyk_int<0, 100, 0, 50>;
-inline constexpr cmyk_int_t teal_cmyk = cmyk_int<100, 0, 0, 50>;
-inline constexpr cmyk_int_t silver_cmyk = cmyk_int<0, 0, 0, 25>;
-inline constexpr cmyk_int_t gray_cmyk = cmyk_int<0, 0, 0, 50>;
-
-// Secondary colors
-inline constexpr cmyk_int_t orange_cmyk = cmyk_int<0, 50, 100, 0>;
-inline constexpr cmyk_int_t lime_cmyk = cmyk_int<50, 0, 100, 0>;
-inline constexpr cmyk_int_t aqua_cmyk = cmyk_int<100, 0, 0, 0>;     // Same as cyan
-inline constexpr cmyk_int_t fuchsia_cmyk = cmyk_int<0, 100, 0, 0>;  // Same as magenta
-}  // namespace colors
-
 }  // namespace color::core
