@@ -3,7 +3,7 @@
  * @brief Core Color class implementation
  *
  * Provides the main Color class template with support for various color space conversions
- * and color manipulation operations. Supports RGB, HSV, HSL, and CMYK color spaces.
+ * and color manipulation operations. Supports RGBA, HSVA, HSLA, and CMYKA color spaces.
  *
  * @author Merlot.Qi
  *
@@ -26,7 +26,7 @@ namespace color::core {
  *
  * Template class for representing colors with support for multiple color spaces
  * and various color manipulation operations. The class can be instantiated with
- * different value types (e.g., uint8_t for 8-bit colors, double for floating-point).
+ * different value types (e.g., uint8_t for 8-bit colors, float for floating-point).
  *
  * @tparam T Value type for color components (default: uint8_t)
  */
@@ -36,15 +36,15 @@ class Color {
   using value_type = T;
 
  private:
-  T r_, g_, b_;
+  T r_, g_, b_, a_;
 
  public:
   /**
    * @brief Default constructor
    *
-   * Creates a black color (RGB: 0, 0, 0).
+   * Creates a black color (RGBA: 0, 0, 0, 1).
    */
-  constexpr Color() : r_(0), g_(0), b_(0) {}
+  constexpr Color() : r_(0), g_(0), b_(0), a_(1) {}
 
   /**
    * @brief RGB constructor
@@ -55,70 +55,88 @@ class Color {
    * @param g Green component value
    * @param b Blue component value
    */
-  constexpr Color(T r, T g, T b) : r_(r), g_(g), b_(b) {}
+  constexpr Color(T r, T g, T b) : r_(r), g_(g), b_(b), a_(1) {}
 
   /**
-   * @brief RGB type constructor
+   * @brief RGBA constructor
    *
-   * Creates a color from a basic_rgb type, converting the components to the target type.
+   * Creates a color from red, green, blue, and alpha components.
+   *
+   * @param r Red component value
+   * @param g Green component value
+   * @param b Blue component value
+   * @param a Alpha component value
+   */
+  constexpr Color(T r, T g, T b, T a) : r_(r), g_(g), b_(b), a_(a) {}
+
+  /**
+   * @brief RGBA type constructor
+   *
+   * Creates a color from a basic_rgba type, converting the components to the target type.
    *
    * @tparam U Source value type
    * @tparam Scale Scaling factor for value conversion
-   * @param rgb RGB color type to convert from
+   * @param rgba RGBA color type to convert from
    */
   template <typename U, intptr_t Scale>
-  constexpr Color(const basic_rgb<U, Scale>& rgb)
-      : r_(static_cast<T>(rgb.r)), g_(static_cast<T>(rgb.g)), b_(static_cast<T>(rgb.b)) {}
+  constexpr Color(const basic_rgba<U, Scale>& rgba)
+      : r_(static_cast<T>(rgba.r)),
+        g_(static_cast<T>(rgba.g)),
+        b_(static_cast<T>(rgba.b)),
+        a_(static_cast<T>(rgba.a)) {}
 
   /**
-   * @brief HSV type constructor
+   * @brief HSVA type constructor
    *
-   * Creates a color from a basic_hsv type by converting HSV to RGB.
+   * Creates a color from a basic_hsva type by converting HSVA to RGBA.
    *
    * @tparam U Source value type
    * @tparam Scale Scaling factor for value conversion
-   * @param hsv HSV color type to convert from
+   * @param hsva HSVA color type to convert from
    */
   template <typename U, intptr_t Scale>
-  constexpr Color(const basic_hsv<U, Scale>& hsv) {
-    auto rgb_res = conversion::convert(hsv);
-    r_ = static_cast<T>(rgb_res.r);
-    g_ = static_cast<T>(rgb_res.g);
-    b_ = static_cast<T>(rgb_res.b);
+  constexpr Color(const basic_hsva<U, Scale>& hsva) {
+    auto rgba_res = conversion::convert(hsva);
+    r_ = static_cast<T>(rgba_res.r);
+    g_ = static_cast<T>(rgba_res.g);
+    b_ = static_cast<T>(rgba_res.b);
+    a_ = static_cast<T>(rgba_res.a);
   }
 
   /**
-   * @brief HSL type constructor
+   * @brief HSLA type constructor
    *
-   * Creates a color from a basic_hsl type by converting HSL to RGB.
+   * Creates a color from a basic_hsla type by converting HSLA to RGBA.
    *
    * @tparam U Source value type
    * @tparam Scale Scaling factor for value conversion
-   * @param hsl HSL color type to convert from
+   * @param hsla HSLA color type to convert from
    */
   template <typename U, intptr_t Scale>
-  constexpr Color(const basic_hsl<U, Scale>& hsl) {
-    auto rgb_res = conversion::convert(hsl);
-    r_ = static_cast<T>(rgb_res.r);
-    g_ = static_cast<T>(rgb_res.g);
-    b_ = static_cast<T>(rgb_res.b);
+  constexpr Color(const basic_hsla<U, Scale>& hsla) {
+    auto rgba_res = conversion::convert(hsla);
+    r_ = static_cast<T>(rgba_res.r);
+    g_ = static_cast<T>(rgba_res.g);
+    b_ = static_cast<T>(rgba_res.b);
+    a_ = static_cast<T>(rgba_res.a);
   }
 
   /**
-   * @brief CMYK type constructor
+   * @brief CMYKA type constructor
    *
-   * Creates a color from a basic_cmyk type by converting CMYK to RGB.
+   * Creates a color from a basic_cmyka type by converting CMYKA to RGBA.
    *
    * @tparam U Source value type
    * @tparam Scale Scaling factor for value conversion
-   * @param cmyk CMYK color type to convert from
+   * @param cmyka CMYKA color type to convert from
    */
   template <typename U, intptr_t Scale>
-  constexpr Color(const basic_cmyk<U, Scale>& cmyk) {
-    auto rgb_res = conversion::convert(cmyk);
-    r_ = static_cast<T>(rgb_res.r);
-    g_ = static_cast<T>(rgb_res.g);
-    b_ = static_cast<T>(rgb_res.b);
+  constexpr Color(const basic_cmyk<U, Scale>& cmyka) {
+    auto rgba_res = conversion::convert(cmyka);
+    r_ = static_cast<T>(rgba_res.r);
+    g_ = static_cast<T>(rgba_res.g);
+    b_ = static_cast<T>(rgba_res.b);
+    a_ = static_cast<T>(rgba_res.a);
   }
 
   /**
@@ -149,45 +167,52 @@ class Color {
    */
   constexpr T b() const { return b_; }
 
+  /**
+   * @brief Get alpha component value
+   * @return Alpha component value
+   */
+  constexpr T a() const { return a_; }
+
   template <typename U = T, intptr_t TargetScale = (std::is_integral_v<U> ? 1 : 100)>
-  constexpr basic_rgb<U, TargetScale> to_rgb() const {
+  constexpr basic_rgba<U, TargetScale> to_rgba() const {
     if constexpr (std::is_integral_v<T> && !std::is_floating_point_v<U>) {
-      return basic_rgb<U, TargetScale>{static_cast<U>(r_ * TargetScale / 255), static_cast<U>(g_ * TargetScale / 255),
-                                       static_cast<U>(b_ * TargetScale / 255)};
+      return basic_rgba<U, TargetScale>{static_cast<U>(r_ * TargetScale / 255), static_cast<U>(g_ * TargetScale / 255),
+                                        static_cast<U>(b_ * TargetScale / 255), static_cast<U>(a_ * TargetScale / 255)};
     } else {
-      double r_norm = std::is_integral_v<T> ? r_ / 255.0 : static_cast<double>(r_);
-      double g_norm = std::is_integral_v<T> ? g_ / 255.0 : static_cast<double>(g_);
-      double b_norm = std::is_integral_v<T> ? b_ / 255.0 : static_cast<double>(b_);
-      return basic_rgb<U, TargetScale>{static_cast<U>(r_norm * TargetScale), static_cast<U>(g_norm * TargetScale),
-                                       static_cast<U>(b_norm * TargetScale)};
+      float r_norm = std::is_integral_v<T> ? r_ / 255.0 : static_cast<float>(r_);
+      float g_norm = std::is_integral_v<T> ? g_ / 255.0 : static_cast<float>(g_);
+      float b_norm = std::is_integral_v<T> ? b_ / 255.0 : static_cast<float>(b_);
+      float a_norm = std::is_integral_v<T> ? a_ / 255.0 : static_cast<float>(a_);
+      return basic_rgba<U, TargetScale>{static_cast<U>(r_norm * TargetScale), static_cast<U>(g_norm * TargetScale),
+                                        static_cast<U>(b_norm * TargetScale), static_cast<U>(a_norm * TargetScale)};
     }
   }
 
   /**
-   * @brief Convert to HSV type
+   * @brief Convert to HSVA type
    */
   template <typename U = T, intptr_t TargetScale = 100>
-  constexpr basic_hsv<U, TargetScale> to_hsv() const {
-    auto current_rgb = to_rgb < T, std::is_integral_v<T> ? 1 : 1 > ();
-    return conversion::convert<U, TargetScale>(current_rgb);
+  constexpr basic_hsva<U, TargetScale> to_hsva() const {
+    auto current_rgba = to_rgba < T, std::is_integral_v<T> ? 1 : 1 > ();
+    return conversion::convert<U, TargetScale>(current_rgba);
   }
 
   /**
-   * @brief Convert to HSL type
+   * @brief Convert to HSLA type
    */
   template <typename U = T, intptr_t TargetScale = 100>
-  constexpr basic_hsl<U, TargetScale> to_hsl() const {
-    auto current_rgb = to_rgb < T, std::is_integral_v<T> ? 1 : 1 > ();
-    return conversion::convert<U, TargetScale>(current_rgb);
+  constexpr basic_hsla<U, TargetScale> to_hsla() const {
+    auto current_rgba = to_rgba < T, std::is_integral_v<T> ? 1 : 1 > ();
+    return conversion::convert<U, TargetScale>(current_rgba);
   }
 
   /**
-   * @brief Convert to CMYK type
+   * @brief Convert to CMYKA type
    */
   template <typename U = T, intptr_t TargetScale = 100>
-  constexpr basic_cmyk<U, TargetScale> to_cmyk() const {
-    auto current_rgb = to_rgb < T, std::is_integral_v<T> ? 1 : 1 > ();
-    return conversion::convert<U, TargetScale>(current_rgb);
+  constexpr basic_cmyk<U, TargetScale> to_cmyka() const {
+    auto current_rgba = to_rgba < T, std::is_integral_v<T> ? 1 : 1 > ();
+    return conversion::convert<U, TargetScale>(current_rgba);
   }
 
   /**
@@ -197,7 +222,7 @@ class Color {
    * @return Lightened color
    */
   constexpr Color lighten(int percent) const {
-    auto hsv = to_hsv();
+    auto hsv = to_hsva();
     int new_v = static_cast<int>(hsv.v) + (100 - static_cast<int>(hsv.v)) * percent / 100;
     int clamped_v = (new_v < 0) ? 0 : ((new_v > 100) ? 100 : new_v);
     // Direct RGB calculation to avoid template parameter issues
@@ -267,12 +292,14 @@ class Color {
     T other_r = static_cast<T>(other.r());
     T other_g = static_cast<T>(other.g());
     T other_b = static_cast<T>(other.b());
+    T other_a = static_cast<T>(other.a());
 
     T new_r = static_cast<T>((r_ * (100 - ratio) + other_r * ratio) / 100);
     T new_g = static_cast<T>((g_ * (100 - ratio) + other_g * ratio) / 100);
     T new_b = static_cast<T>((b_ * (100 - ratio) + other_b * ratio) / 100);
+    T new_a = static_cast<T>((a_ * (100 - ratio) + other_a * ratio) / 100);
 
-    return Color(new_r, new_g, new_b);
+    return Color(new_r, new_g, new_b, new_a);
   }
 
   /**
@@ -332,7 +359,9 @@ class Color {
    * @param other Color to compare with
    * @return true if colors are equal, false otherwise
    */
-  constexpr bool operator==(const Color& other) const { return r_ == other.r_ && g_ == other.g_ && b_ == other.b_; }
+  constexpr bool operator==(const Color& other) const {
+    return r_ == other.r_ && g_ == other.g_ && b_ == other.b_ && a_ == other.a_;
+  }
 
   /**
    * @brief Inequality comparison operator
@@ -358,9 +387,9 @@ using Color8 = Color<uint8_t>;
 /**
  * @brief Floating-point color type alias
  *
- * Represents colors using double precision floating-point values (0.0-1.0 range).
+ * Represents colors using float precision floating-point values (0.0-1.0 range).
  */
-using ColorF = Color<double>;
+using ColorF = Color<float>;
 
 /** @} */
 
@@ -370,34 +399,34 @@ using ColorF = Color<double>;
  */
 
 /**
- * @brief Deduction guide for RGB color types
+ * @brief Deduction guide for RGBA color types
  *
  * @tparam U Source value type
  * @tparam Scale Scaling factor for value conversion
  */
 template <typename U, intptr_t Scale>
-Color(const basic_rgb<U, Scale>&) -> Color<U>;
+Color(const basic_rgba<U, Scale>&) -> Color<U>;
 
 /**
- * @brief Deduction guide for HSV color types
+ * @brief Deduction guide for HSVA color types
  *
  * @tparam U Source value type
  * @tparam Scale Scaling factor for value conversion
  */
 template <typename U, intptr_t Scale>
-Color(const basic_hsv<U, Scale>&) -> Color<U>;
+Color(const basic_hsva<U, Scale>&) -> Color<U>;
 
 /**
- * @brief Deduction guide for HSL color types
+ * @brief Deduction guide for HSLA color types
  *
  * @tparam U Source value type
  * @tparam Scale Scaling factor for value conversion
  */
 template <typename U, intptr_t Scale>
-Color(const basic_hsl<U, Scale>&) -> Color<U>;
+Color(const basic_hsla<U, Scale>&) -> Color<U>;
 
 /**
- * @brief Deduction guide for CMYK color types
+ * @brief Deduction guide for CMYKA color types
  *
  * @tparam U Source value type
  * @tparam Scale Scaling factor for value conversion

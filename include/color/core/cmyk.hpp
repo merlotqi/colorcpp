@@ -85,7 +85,7 @@ inline constexpr cmyk_int_t cmyk_int = cmyk_int_t::make<C, M, Y, K>();
 /**
  * @brief Floating-point CMYK color type
  *
- * Represents CMYK colors using double precision floating-point values (0.0-1.0 range).
+ * Represents CMYK colors using float precision floating-point values (0.0-1.0 range).
  * Scale is set to 1000, mapping integer inputs to floating-point range.
  *
  * @tparam C Cyan component (scaled from integer to 0.0-1.0)
@@ -93,7 +93,7 @@ inline constexpr cmyk_int_t cmyk_int = cmyk_int_t::make<C, M, Y, K>();
  * @tparam Y Yellow component (scaled from integer to 0.0-1.0)
  * @tparam K Key (black) component (scaled from integer to 0.0-1.0)
  */
-using cmyk_float_t = basic_cmyk<double, 1000>;
+using cmyk_float_t = basic_cmyk<float, 1000>;
 template <int C, int M, int Y, int K>
 inline constexpr cmyk_float_t cmyk_float = cmyk_float_t::make<C, M, Y, K>();
 

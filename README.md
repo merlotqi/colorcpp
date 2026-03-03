@@ -14,8 +14,8 @@ A modern, header-only C++ library for compile-time color manipulation and conver
 ## Color Spaces
 
 ### RGB (Red-Green-Blue)
-- 8-bit integer RGB (`rgb8_t`) with values 0-255
-- Floating-point RGB (`rgbf_t`) with values 0.0-1.0
+- 8-bit integer RGB (`rgba8_t`) with values 0-255
+- Floating-point RGB (`rgbaf_t`) with values 0.0-1.0
 - Template-based RGB with compile-time validation
 
 ### HSV (Hue-Saturation-Value)
@@ -43,8 +43,8 @@ A modern, header-only C++ library for compile-time color manipulation and conver
 using namespace color;
 
 // Create colors using template literals
-constexpr auto red = rgb8<255, 0, 0>;
-constexpr auto blue = rgb8<0, 0, 255>;
+constexpr auto red = rgba8<255, 0, 0>;
+constexpr auto blue = rgba8<0, 0, 255>;
 
 // Create colors using user-defined literals
 constexpr auto green = 0x00FF00_rgb;
@@ -67,7 +67,7 @@ constexpr auto hsv_red = to_hsv(red);
 constexpr auto rgb_blue = to_rgb(blue_hsv);
 
 // Automatic type conversion
-constexpr auto converted = convert<rgb8_t>(hsv_red);
+constexpr auto converted = convert<rgba8_t>(hsv_red);
 ```
 
 ### Color Operations
@@ -115,7 +115,7 @@ constexpr auto cool_green = palettes::cool::green;
 
 ```cpp
 // Compile-time color validation
-static_assert(rgb8<255, 128, 64>.is_valid());
+static_assert(rgba8<255, 128, 64>.is_valid());
 
 // Template metaprogramming with colors
 template<typename ColorType>

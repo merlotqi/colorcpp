@@ -22,35 +22,36 @@ namespace color::conversion {
 namespace details {
 
 template <typename T, intptr_t Scale>
-constexpr core::cmyk_int_t convert(const core::basic_rgb<T, Scale>& rgb) {
-  double r_f{0}, g_f{0}, b_f{0};
+constexpr core::cmyk_int_t convert(const core::basic_rgba<T, Scale>& rgb) {
+  float r_f{0}, g_f{0}, b_f{0};
+
   if constexpr (std::is_integral_v<T> && Scale == 1) {
-    r_f = static_cast<double>(rgb.r) / 255.0;
-    g_f = static_cast<double>(rgb.g) / 255.0;
-    b_f = static_cast<double>(rgb.b) / 255.0;
+    r_f = static_cast<float>(rgb.r) / 255.0f;
+    g_f = static_cast<float>(rgb.g) / 255.0f;
+    b_f = static_cast<float>(rgb.b) / 255.0f;
   } else {
-    constexpr double sc = static_cast<double>(Scale);
-    r_f = static_cast<double>(rgb.r) / sc;
-    g_f = static_cast<double>(rgb.g) / sc;
-    b_f = static_cast<double>(rgb.b) / sc;
+    constexpr float sc = static_cast<float>(Scale);
+    r_f = static_cast<float>(rgb.r) / sc;
+    g_f = static_cast<float>(rgb.g) / sc;
+    b_f = static_cast<float>(rgb.b) / sc;
   }
 
-  double max_rgb = (r_f > g_f) ? ((r_f > b_f) ? r_f : b_f) : ((g_f > b_f) ? g_f : b_f);
-  double k = 1.0 - max_rgb;
+  float max_rgb = (r_f > g_f) ? ((r_f > b_f) ? r_f : b_f) : ((g_f > b_f) ? g_f : b_f);
+  float k = 1.0f - max_rgb;
 
-  double c_final = 0.0;
-  double m_final = 0.0;
-  double y_final = 0.0;
+  float c_final = 0.0f;
+  float m_final = 0.0f;
+  float y_final = 0.0f;
 
-  if (max_rgb > 1e-7) {
-    double inv_max = 1.0 / max_rgb;
+  if (max_rgb > 1e-7f) {
+    float inv_max = 1.0f / max_rgb;
     c_final = (max_rgb - r_f) * inv_max;
     m_final = (max_rgb - g_f) * inv_max;
     y_final = (max_rgb - b_f) * inv_max;
   }
 
-  return core::cmyk_int_t(maths::round<int>(c_final * 100.0), maths::round<int>(m_final * 100.0),
-                          maths::round<int>(y_final * 100.0), maths::round<int>(k * 100.0));
+  return core::cmyk_int_t(maths::round<int>(c_final * 100.0f), maths::round<int>(m_final * 100.0f),
+                          maths::round<int>(y_final * 100.0f), maths::round<int>(k * 100.0f));
 }
 
 }  // namespace details
@@ -59,7 +60,7 @@ template <typename RGBType>
 inline constexpr core::cmyk_int_t rgb_to_cmyk_v = details::convert(RGBType{});
 
 template <typename T, intptr_t Scale>
-constexpr core::cmyk_int_t convert(const core::basic_rgb<T, Scale>& rgb) {
+constexpr core::cmyk_int_t convert(const core::basic_rgba<T, Scale>& rgb) {
   return details::convert(rgb);
 }
 

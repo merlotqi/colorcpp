@@ -22,32 +22,43 @@ namespace color::conversion {
 namespace details {
 
 template <typename T, intptr_t Scale>
-constexpr core::hsl_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
-  constexpr double sc = static_cast<double>(Scale);
-  double h_f = static_cast<double>(hsv.h);
-  double s_hsv = static_cast<double>(hsv.s) / sc;
-  double v_f = static_cast<double>(hsv.v) / sc;
+constexpr core::hsla_int_t convert(const core::basic_hsva<T, Scale>& hsv) {
+  float h_f{0}, s_hsv{0}, v_f{0}, a_f{0};
 
-  double l = v_f * (1.0 - s_hsv / 2.0);
-
-  double s_hsl = 0.0;
-  double min_l = (l < (1.0 - l)) ? l : (1.0 - l);
-
-  if (min_l > 1e-7) {
-    s_hsl = (v_f - l) / min_l;
+  if constexpr (std::is_integral_v<T> && Scale == 1) {
+    h_f = static_cast<float>(hsv.h);
+    s_hsv = static_cast<float>(hsv.s) / 100.0f;
+    v_f = static_cast<float>(hsv.v) / 100.0f;
+    a_f = static_cast<float>(hsv.a) / 255.0f;
+  } else {
+    constexpr float sc = static_cast<float>(Scale);
+    h_f = static_cast<float>(hsv.h);
+    s_hsv = static_cast<float>(hsv.s) / sc;
+    v_f = static_cast<float>(hsv.v) / sc;
+    a_f = static_cast<float>(hsv.a) / sc;
   }
 
-  return core::hsl_int_t(maths::round<int>(h_f), maths::round<int>(s_hsl * 100.0), maths::round<int>(l * 100.0));
+  float l_f = v_f * (1.0f - s_hsv / 2.0f);
+
+  float s_hsl = 0.0f;
+  float min_l = (l_f < (1.0f - l_f)) ? l_f : (1.0f - l_f);
+
+  if (min_l > 1e-7f) {
+    s_hsl = (v_f - l_f) / min_l;
+  }
+
+  return core::hsla_int_t(maths::round<int>(h_f), maths::round<int>(s_hsl * 100.0f), maths::round<int>(l_f * 100.0f),
+                          maths::round<int>(a_f * 255.0f));
 }
 
 }  // namespace details
 
 template <typename HSVType>
-inline constexpr core::hsl_int_t hsv_to_hsl_v = details::convert(HSVType{});
+inline constexpr core::hsla_int_t hsv_to_hsl_v = details::convert(HSVType{});
 
 template <typename T, intptr_t Scale>
-constexpr core::hsl_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
-  return details::convert(hsv);
+constexpr core::hsla_int_t convert(const core::basic_hsva<T, Scale>& hsva) {
+  return details::convert(hsva);
 }
 
 }  // namespace color::conversion

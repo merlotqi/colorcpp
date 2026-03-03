@@ -22,20 +22,28 @@ namespace color::conversion {
 namespace details {
 
 template <typename T, intptr_t Scale>
-constexpr core::rgb8_t convert(const core::basic_hsv<T, Scale>& hsv) {
-  constexpr double sc = static_cast<double>(Scale);
+constexpr core::rgba8_t convert(const core::basic_hsva<T, Scale>& hsv) {
+  float h_f{0}, s_f{0}, v_f{0}, a_f{0};
 
-  double s_f = static_cast<double>(hsv.s) / sc;
-  double v_f = static_cast<double>(hsv.v) / sc;
+  if constexpr (std::is_integral_v<T> && Scale == 1) {
+    h_f = static_cast<float>(hsv.h);
+    s_f = static_cast<float>(hsv.s) / 100.0f;
+    v_f = static_cast<float>(hsv.v) / 100.0f;
+    a_f = static_cast<float>(hsv.a) / 255.0f;
+  } else {
+    constexpr float sc = static_cast<float>(Scale);
+    h_f = static_cast<float>(hsv.h);
+    s_f = static_cast<float>(hsv.s) / sc;
+    v_f = static_cast<float>(hsv.v) / sc;
+    a_f = static_cast<float>(hsv.a) / sc;
+  }
 
-  double h_f = static_cast<double>(hsv.h);
+  float c = v_f * s_f;
+  float h_prime = h_f / 60.0f;
+  float x = c * (1.0f - maths::abs(maths::fmod(h_prime, 2.0f) - 1.0f));
+  float m = v_f - c;
 
-  double c = v_f * s_f;
-  double h_prime = h_f / 60.0;
-  double x = c * (1.0 - maths::abs(maths::fmod(h_prime, 2.0) - 1.0));
-  double m = v_f - c;
-
-  double rt = 0, gt = 0, bt = 0;
+  float rt = 0, gt = 0, bt = 0;
   int sector = static_cast<int>(h_prime) % 6;
 
   switch (sector) {
@@ -43,44 +51,45 @@ constexpr core::rgb8_t convert(const core::basic_hsv<T, Scale>& hsv) {
       rt = c;
       gt = x;
       bt = 0;
-      break;
+      break;  // 0-60°
     case 1:
       rt = x;
       gt = c;
       bt = 0;
-      break;
+      break;  // 60-120°
     case 2:
       rt = 0;
       gt = c;
       bt = x;
-      break;
+      break;  // 120-180°
     case 3:
       rt = 0;
       gt = x;
       bt = c;
-      break;
+      break;  // 180-240°
     case 4:
       rt = x;
       gt = 0;
       bt = c;
-      break;
+      break;  // 240-300°
     default:
       rt = c;
       gt = 0;
       bt = x;
-      break;
+      break;  // 300-360°
   }
 
-  return core::rgb8_t(maths::round<uint8_t>((rt + m) * 255.0), maths::round<uint8_t>((gt + m) * 255.0),
-                      maths::round<uint8_t>((bt + m) * 255.0));
+  return core::rgba8_t(maths::round<uint8_t>((rt + m) * 255.0f), maths::round<uint8_t>((gt + m) * 255.0f),
+                       maths::round<uint8_t>((bt + m) * 255.0f), maths::round<uint8_t>(a_f * 255.0f));
 }
+
 }  // namespace details
 
 template <typename HSVType>
-inline constexpr core::rgb8_t hsv_to_rgb_v = details::convert(HSVType{});
+inline constexpr core::rgba8_t hsv_to_rgb_v = details::convert(HSVType{});
 
 template <typename T, intptr_t Scale>
-constexpr core::rgb8_t convert(const core::basic_hsv<T, Scale>& hsv) {
+constexpr core::rgba8_t convert(const core::basic_hsva<T, Scale>& hsv) {
   return details::convert(hsv);
 }
 

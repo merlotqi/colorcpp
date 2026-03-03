@@ -32,11 +32,11 @@ constexpr intptr_t clamp(intptr_t val, intptr_t min_v, intptr_t max_v) {
 }
 
 template <typename T, intptr_t Scale>
-constexpr double get_rgb_max() {
+constexpr float get_rgb_max() {
   if constexpr (std::is_integral_v<T> && Scale == 1) {
     return 255.0;
   } else {
-    return static_cast<double>(Scale);
+    return static_cast<float>(Scale);
   }
 }
 
@@ -87,17 +87,17 @@ constexpr RGBType grayscale(const RGBType& c) {
 template <typename RGBType>
 constexpr RGBType invert(const RGBType& c) {
   using T = typename RGBType::value_type;
-  constexpr double max_v = details::get_rgb_max<T, RGBType::scale()>();
+  constexpr float max_v = details::get_rgb_max<T, RGBType::scale()>();
   return RGBType{static_cast<T>(max_v - c.r), static_cast<T>(max_v - c.g), static_cast<T>(max_v - c.b)};
 }
 
 template <typename RGBType>
 constexpr RGBType threshold(const RGBType& c, int thresh = 127) {
   using T = typename RGBType::value_type;
-  constexpr double max_v = details::get_rgb_max<T, RGBType::scale()>();
-  double t = (thresh / 255.0) * max_v;
+  constexpr float max_v = details::get_rgb_max<T, RGBType::scale()>();
+  float t = (thresh / 255.0) * max_v;
   auto filter = [t, max_v](T val) {
-    return (static_cast<double>(val) > t) ? static_cast<T>(max_v) : static_cast<T>(0);
+    return (static_cast<float>(val) > t) ? static_cast<T>(max_v) : static_cast<T>(0);
   };
   return RGBType{filter(c.r), filter(c.g), filter(c.b)};
 }
@@ -106,9 +106,9 @@ template <typename RGBType>
 constexpr RGBType posterize(const RGBType& c, int levels) {
   if (levels <= 1) return threshold(c, 127);
   using T = typename RGBType::value_type;
-  constexpr double max_v = details::get_rgb_max<T, RGBType::scale()>();
-  double step = max_v / (levels - 1);
-  auto quant = [step](T val) { return static_cast<T>(maths::round(static_cast<double>(val) / step) * step); };
+  constexpr float max_v = details::get_rgb_max<T, RGBType::scale()>();
+  float step = max_v / (levels - 1);
+  auto quant = [step](T val) { return static_cast<T>(maths::round(static_cast<float>(val) / step) * step); };
   return RGBType{quant(c.r), quant(c.g), quant(c.b)};
 }
 

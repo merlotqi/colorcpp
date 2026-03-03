@@ -22,19 +22,30 @@ namespace color::conversion {
 namespace details {
 
 template <typename T, intptr_t Scale>
-constexpr core::rgb8_t convert(const core::basic_hsl<T, Scale>& hsl) {
-  constexpr double sc = static_cast<double>(Scale);
-  double h_f = static_cast<double>(hsl.h);
-  double s_f = static_cast<double>(hsl.s) / sc;
-  double l_f = static_cast<double>(hsl.l) / sc;
+constexpr core::rgba8_t convert(const core::basic_hsla<T, Scale>& hsl) {
+  float h_f{0}, s_f{0}, l_f{0}, a_f{0};
 
-  double c = (1.0 - maths::abs(2.0 * l_f - 1.0)) * s_f;
-  double x = c * (1.0 - maths::abs(maths::fmod(h_f / 60.0, 2.0) - 1.0));
-  double m = l_f - c / 2.0;
+  if constexpr (std::is_integral_v<T> && Scale == 1) {
+    h_f = static_cast<float>(hsl.h);
+    s_f = static_cast<float>(hsl.s) / 100.0f;
+    l_f = static_cast<float>(hsl.l) / 100.0f;
+    a_f = static_cast<float>(hsl.a) / 255.0f;
+  } else {
+    constexpr float sc = static_cast<float>(Scale);
+    h_f = static_cast<float>(hsl.h);
+    s_f = static_cast<float>(hsl.s) / sc;
+    l_f = static_cast<float>(hsl.l) / sc;
+    a_f = static_cast<float>(hsl.a) / sc;
+  }
 
-  double rt = 0, gt = 0, bt = 0;
+  // 2. (Chroma/Intermediate value)
+  float c = (1.0f - maths::abs(2.0f * l_f - 1.0f)) * s_f;
+  float x = c * (1.0f - maths::abs(maths::fmod(h_f / 60.0f, 2.0f) - 1.0f));
+  float m = l_f - c / 2.0f;
 
-  int sector = static_cast<int>(h_f / 60.0) % 6;
+  float rt = 0, gt = 0, bt = 0;
+
+  int sector = static_cast<int>(h_f / 60.0f) % 6;
   switch (sector) {
     case 0:
       rt = c;
@@ -68,17 +79,17 @@ constexpr core::rgb8_t convert(const core::basic_hsl<T, Scale>& hsl) {
       break;  // 300-360°
   }
 
-  return core::rgb8_t(maths::round<uint8_t>((rt + m) * 255.0), maths::round<uint8_t>((gt + m) * 255.0),
-                      maths::round<uint8_t>((bt + m) * 255.0));
+  return core::rgba8_t(maths::round<uint8_t>((rt + m) * 255.0f), maths::round<uint8_t>((gt + m) * 255.0f),
+                       maths::round<uint8_t>((bt + m) * 255.0f), maths::round<uint8_t>(a_f * 255.0f));
 }
 
 }  // namespace details
 
 template <typename HSLType>
-inline constexpr core::rgb8_t hsl_to_rgb_v = details::convert(HSLType{});
+inline constexpr core::rgba8_t hsl_to_rgb_v = details::convert(HSLType{});
 
 template <typename T, intptr_t Scale>
-constexpr core::rgb8_t convert(const core::basic_hsl<T, Scale>& hsl) {
+constexpr core::rgba8_t convert(const core::basic_hsla<T, Scale>& hsl) {
   return details::convert(hsl);
 }
 

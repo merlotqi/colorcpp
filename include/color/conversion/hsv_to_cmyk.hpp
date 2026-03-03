@@ -22,47 +22,55 @@ namespace color::conversion {
 namespace details {
 
 template <typename T, intptr_t Scale>
-constexpr core::cmyk_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
-  constexpr double sc = static_cast<double>(Scale);
-  double h_f = static_cast<double>(hsv.h);
-  double s_f = static_cast<double>(hsv.s) / sc;
-  double v_f = static_cast<double>(hsv.v) / sc;
+constexpr core::cmyk_int_t convert(const core::basic_hsva<T, Scale>& hsv) {
+  float h_f{0}, s_f{0}, v_f{0};
 
-  double c = v_f * s_f;
-  double x = c * (1.0 - maths::abs(maths::fmod(h_f / 60.0, 2.0) - 1.0));
-  double m = v_f - c;
+  if constexpr (std::is_integral_v<T> && Scale == 1) {
+    h_f = static_cast<float>(hsv.h);
+    s_f = static_cast<float>(hsv.s) / 100.0f;
+    v_f = static_cast<float>(hsv.v) / 100.0f;
+  } else {
+    constexpr float sc = static_cast<float>(Scale);
+    h_f = static_cast<float>(hsv.h);
+    s_f = static_cast<float>(hsv.s) / sc;
+    v_f = static_cast<float>(hsv.v) / sc;
+  }
 
-  double r = 0, g = 0, b = 0;
-  int sector = static_cast<int>(h_f / 60.0) % 6;
+  float chroma = v_f * s_f;
+  float x = chroma * (1.0f - maths::abs(maths::fmod(h_f / 60.0f, 2.0f) - 1.0f));
+  float m = v_f - chroma;
+
+  float r = 0, g = 0, b = 0;
+  int sector = static_cast<int>(h_f / 60.0f) % 6;
 
   switch (sector) {
     case 0:
-      r = c;
+      r = chroma;
       g = x;
       b = 0;
       break;
     case 1:
       r = x;
-      g = c;
+      g = chroma;
       b = 0;
       break;
     case 2:
       r = 0;
-      g = c;
+      g = chroma;
       b = x;
       break;
     case 3:
       r = 0;
       g = x;
-      b = c;
+      b = chroma;
       break;
     case 4:
       r = x;
       g = 0;
-      b = c;
+      b = chroma;
       break;
     default:
-      r = c;
+      r = chroma;
       g = 0;
       b = x;
       break;
@@ -72,18 +80,19 @@ constexpr core::cmyk_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
   g += m;
   b += m;
 
-  double max_rgb = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
-  double k = 1.0 - max_rgb;
+  float max_rgb = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
+  float k = 1.0f - max_rgb;
 
-  double c_final = 0, m_final = 0, y_final = 0;
-  if (max_rgb > 1e-7) {
-    c_final = (1.0 - r - k) / (1.0 - k);
-    m_final = (1.0 - g - k) / (1.0 - k);
-    y_final = (1.0 - b - k) / (1.0 - k);
+  float c_final = 0, m_final = 0, y_final = 0;
+  if (k < 1.0f - 1e-7f) {
+    float inv_k = 1.0f / (1.0f - k);
+    c_final = (1.0f - r - k) * inv_k;
+    m_final = (1.0f - g - k) * inv_k;
+    y_final = (1.0f - b - k) * inv_k;
   }
 
-  return core::cmyk_int_t(maths::round<int>(c_final * 100.0), maths::round<int>(m_final * 100.0),
-                          maths::round<int>(y_final * 100.0), maths::round<int>(k * 100.0));
+  return core::cmyk_int_t(maths::round<int>(c_final * 100.0f), maths::round<int>(m_final * 100.0f),
+                          maths::round<int>(y_final * 100.0f), maths::round<int>(k * 100.0f));
 }
 
 }  // namespace details
@@ -92,7 +101,7 @@ template <typename HSVType>
 inline constexpr core::cmyk_int_t hsv_to_cmyk_v = details::convert(HSVType{});
 
 template <typename T, intptr_t Scale>
-constexpr core::cmyk_int_t convert(const core::basic_hsv<T, Scale>& hsv) {
+constexpr core::cmyk_int_t convert(const core::basic_hsva<T, Scale>& hsv) {
   return details::convert(hsv);
 }
 

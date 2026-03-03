@@ -1,5 +1,10 @@
 Date: 2026-03-03
-Commit: bbeda08
+Commit: ce70eb5
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: rename RGB types from rgb8_t/rgbf_t to rgba8_t/rgbaf_t
+
+Date: 2026-03-03
+Commit: abf2c01
 Author: Merlot.Qi <merlotrain.mc@gmail.com>
 Message: refactor: reorganize color library structure and improve header inclusions
 

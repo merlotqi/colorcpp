@@ -40,7 +40,7 @@ constexpr T abs(T v) noexcept {
  * @param y Divisor
  * @return Floating-point modulo result (x - floor(x/y) * y)
  */
-constexpr double fmod(double x, double y) noexcept {
+constexpr float fmod(float x, float y) noexcept {
   if (y == 0.0) return 0.0;
   return x - static_cast<long long>(x / y) * y;
 }

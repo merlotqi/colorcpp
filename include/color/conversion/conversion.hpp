@@ -94,7 +94,7 @@ constexpr TargetType convert(const SourceType& src) {
  */
 template <typename T, intptr_t Scale, typename SourceType>
 constexpr auto to_hsv(const SourceType& src) {
-  using target_t = core::basic_hsv<T, Scale>;
+  using target_t = core::basic_hsva<T, Scale>;
   return convert<target_t>(src);
 }
 
@@ -111,7 +111,7 @@ constexpr auto to_hsv(const SourceType& src) {
  */
 template <typename T, intptr_t Scale, typename SourceType>
 constexpr auto to_hsl(const SourceType& src) {
-  using target_t = core::basic_hsl<T, Scale>;
+  using target_t = core::basic_hsla<T, Scale>;
   return convert<target_t>(src);
 }
 
@@ -128,7 +128,7 @@ constexpr auto to_hsl(const SourceType& src) {
  */
 template <typename T, intptr_t Scale, typename SourceType>
 constexpr auto to_rgb(const SourceType& src) {
-  using target_t = core::basic_rgb<T, Scale>;
+  using target_t = core::basic_rgba<T, Scale>;
   return convert<target_t>(src);
 }
 
