@@ -1,5 +1,20 @@
 Date: 2026-03-03
-Commit: ce70eb5
+Commit: a021e5f
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize project structure and improve color model implementations
+
+Date: 2026-03-03
+Commit: 2301933
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: Refactor color library structure and improve I/O operations
+
+Date: 2026-03-03
+Commit: 17d1bd7
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: remove outdated build system and documentation files
+
+Date: 2026-03-03
+Commit: 4888a7d
 Author: Merlot.Qi <merlotrain.mc@gmail.com>
 Message: refactor: rename RGB types from rgb8_t/rgbf_t to rgba8_t/rgbaf_t
 

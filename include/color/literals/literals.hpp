@@ -78,6 +78,34 @@ constexpr uint64_t parse_dec_template() {
   }
   return res;
 }
+
+constexpr uint8_t hex_expand(char c) {
+  unsigned v = static_cast<uint8_t>(char_to_hex(c));
+  return (v << 4) | v;
+}
+
+constexpr core::rgba8_t parse_hex_string(const char* s, size_t n) {
+  size_t offset = (n > 0 && s[0] == '#') ? 1 : 0;
+  size_t len = n - offset;
+
+  auto get_val = [&](size_t i) { return char_to_hex(s[offset + i]); };
+
+  if (len == 3) {  // #RGB
+    return {hex_expand(s[offset]), hex_expand(s[offset + 1]), hex_expand(s[offset + 2]), 255};
+  } else if (len == 4) {  // #RGBA
+    return {hex_expand(s[offset]), hex_expand(s[offset + 1]), hex_expand(s[offset + 2]), hex_expand(s[offset + 3])};
+  } else if (len == 6) {  // #RRGGBB
+    return {static_cast<uint8_t>((get_val(0) << 4) | get_val(1)), static_cast<uint8_t>((get_val(2) << 4) | get_val(3)),
+            static_cast<uint8_t>((get_val(4) << 4) | get_val(5)), 255};
+  } else if (len == 8) {  // #RRGGBBAA
+    return {static_cast<uint8_t>((get_val(0) << 4) | get_val(1)), static_cast<uint8_t>((get_val(2) << 4) | get_val(3)),
+            static_cast<uint8_t>((get_val(4) << 4) | get_val(5)), static_cast<uint8_t>((get_val(6) << 4) | get_val(7))};
+  }
+
+  // 格式错误默认返回黑
+  return {0, 0, 0, 255};
+}
+
 }  // namespace details
 
 inline namespace operators {
@@ -127,15 +155,31 @@ constexpr auto operator"" _rgb(unsigned long long val) {
 
 /**
  * @brief Numeric literal: provides constexpr rgba8_t instance with alpha
- * @param val Hexadecimal value (AARRGGBB format)
+ * @param val Hexadecimal value (RRGGBBAA format)
  * @return Runtime rgba8_t color with specified alpha
- * @note Supports 8-digit hex values (0xAARRGGBB)
- * @example 0x80FF0000_rgba creates semi-transparent red at runtime
+ * @note Supports 8-digit hex values (0xRRGGBBAA) where alpha is in the least significant byte
+ * @example 0xFF000080_rgba creates semi-transparent red at runtime with alpha=0x80
+ * @example 0x00FF00FF_rgba creates fully opaque green at runtime
  */
 constexpr auto operator"" _rgba(unsigned long long val) {
   return core::rgba8_t{static_cast<uint8_t>((val >> 24) & 0xFF), static_cast<uint8_t>((val >> 16) & 0xFF),
                        static_cast<uint8_t>((val >> 8) & 0xFF), static_cast<uint8_t>(val & 0xFF)};
 }
+
+/**
+ * @brief Numeric literal: provides constexpr rgba8_t instance with ARGB format
+ * @param val Hexadecimal value (AARRGGBB format)
+ * @return Runtime rgba8_t color with specified alpha
+ * @note Supports 8-digit hex values (0xAARRGGBB) where alpha is in the most significant byte
+ * @example 0x80FF0000_argb creates semi-transparent red at runtime with alpha=0x80
+ * @example 0xFF00FF00_argb creates fully opaque cyan at runtime
+ */
+constexpr auto operator"" _argb(unsigned long long val) {
+  return core::rgba8_t{static_cast<uint8_t>((val >> 16) & 0xFF), static_cast<uint8_t>((val >> 8) & 0xFF),
+                       static_cast<uint8_t>(val & 0xFF), static_cast<uint8_t>((val >> 24) & 0xFF)};
+}
+
+constexpr auto operator"" _hex(const char* str, size_t len) { return details::parse_hex_string(str, len); }
 
 /** @} */
 
@@ -263,8 +307,8 @@ constexpr auto operator"" _hsla() {
  */
 constexpr auto operator"" _cmyk(unsigned long long val) {
   return core::basic_cmyk<intptr_t, 1000>{
-      static_cast<intptr_t>(val / 1000000000), static_cast<intptr_t>((val / 1000000) % 1000),
-      static_cast<intptr_t>((val / 1000) % 1000), static_cast<intptr_t>(val % 1000)};
+      static_cast<intptr_t>(val / 1000000000ULL), static_cast<intptr_t>((val / 1000000ULL) % 1000),
+      static_cast<intptr_t>((val / 1000ULL) % 1000), static_cast<intptr_t>(val % 1000)};
 }
 
 /**

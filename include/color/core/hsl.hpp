@@ -56,7 +56,8 @@ struct basic_hsla {
     if constexpr (std::is_floating_point_v<T>) {
       return hv >= 0.0 && hv < 360.0 && sv >= 0.0 && sv <= 1.0 && lv >= 0.0 && lv <= 1.0 && av >= 0.0 && av <= 1.0;
     } else {
-      return hv >= 0 && hv < 360 && sv >= 0 && sv <= 100 && lv >= 0 && lv <= 100 && av >= 0 && av <= 255;
+      return hv >= 0 && hv < 360 && sv >= 0 && sv <= static_cast<T>(Scale) && lv >= 0 && lv <= static_cast<T>(Scale) &&
+             av >= 0 && av <= static_cast<T>(Scale);
     }
   }
 

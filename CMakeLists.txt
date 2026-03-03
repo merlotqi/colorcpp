@@ -10,9 +10,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(BUILD_TESTS "Build tests" OFF)
-option(BUILD_EXAMPLES "Build examples" OFF)
-option(INSTALL_HEADERS "Install header files" OFF)
+option(COLORCPP_BUILD_TESTS "Build tests" OFF)
+option(COLORCPP_BUILD_EXAMPLES "Build examples" OFF)
+option(COLORCPP_INSTALL_HEADERS "Install header files" OFF)
 
 file(GLOB_RECURSE COLOR_HEADERS "include/color/**/*.hpp")
 add_library(colorcpp INTERFACE ${COLOR_HEADERS})
@@ -36,30 +36,7 @@ else()
 endif()
 add_library(colorcpp::colorcpp ALIAS colorcpp)
 
-if(BUILD_EXAMPLES)
-  add_executable(example_color_member example_color_member.cpp)
-  target_link_libraries(example_color_member PRIVATE colorcpp)
-  
-  set_property(TARGET example_color_member PROPERTY CXX_STANDARD 17)
-  set_property(TARGET example_color_member PROPERTY CXX_STANDARD_REQUIRED ON)
-endif()
-
-if(BUILD_TESTS)
-  enable_testing()
-  
-  add_executable(test_all_models test_all_models.cpp)
-  target_link_libraries(test_all_models PRIVATE colorcpp)
-  set_property(TARGET test_all_models PROPERTY CXX_STANDARD 17)
-  set_property(TARGET test_all_models PROPERTY CXX_STANDARD_REQUIRED ON)
-  
-  add_executable(test_unified_color test_unified_color.cpp)
-  target_link_libraries(test_unified_color PRIVATE colorcpp)
-  set_property(TARGET test_unified_color PROPERTY CXX_STANDARD 17)
-  set_property(TARGET test_unified_color PROPERTY CXX_STANDARD_REQUIRED ON)
-  
-  add_test(NAME test_all_models COMMAND test_all_models)
-  add_test(NAME test_unified_color COMMAND test_unified_color)
-endif()
+add_subdirectory(tests)
 
 if(INSTALL_HEADERS)
   install(DIRECTORY include/

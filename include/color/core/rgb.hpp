@@ -56,7 +56,8 @@ struct basic_rgba {
     if constexpr (std::is_floating_point_v<T>) {
       return rv >= 0.0 && rv <= 1.0 && gv >= 0.0 && gv <= 1.0 && bv >= 0.0 && bv <= 1.0 && av >= 0.0 && av <= 1.0;
     } else {
-      return rv >= 0 && rv <= 255 && gv >= 0 && gv <= 255 && bv >= 0 && bv <= 255 && av >= 0 && av <= 255;
+      return rv >= 0 && rv <= static_cast<T>(Scale) && gv >= 0 && gv <= static_cast<T>(Scale) && bv >= 0 &&
+             bv <= static_cast<T>(Scale) && av >= 0 && av <= static_cast<T>(Scale);
     }
   }
 
@@ -80,7 +81,7 @@ struct basic_rgba {
  * @tparam B Blue component (0-255)
  * @tparam A Alpha component (0-255, default 255)
  */
-using rgba8_t = basic_rgba<uint8_t, 1>;
+using rgba8_t = basic_rgba<uint8_t, 255>;
 template <uint8_t R, uint8_t G, uint8_t B, uint8_t A = 255>
 inline constexpr rgba8_t rgba8 = rgba8_t::make<R, G, B, A>();
 

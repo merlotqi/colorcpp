@@ -11,8 +11,6 @@
  * Supports multiple input formats and automatic type conversion for different
  * numeric types (uint8_t, int8_t, float, etc.).
  *
- * **New**: Enhanced RGBA output with hexadecimal format support using std::hex manipulator.
- *
  * @author Merlot.Qi
  */
 
@@ -30,7 +28,7 @@
 #include <string_view>
 #include <type_traits>
 
-namespace color::operation {
+namespace color::core {
 
 /**
  * @brief Input/Output operations for color types
@@ -178,7 +176,7 @@ void write_comp(std::ostream& os, T val) {
  * std::cout << std::hex << blue;       // Outputs: #00000101 (if float converts to int)
  */
 template <typename T, intptr_t Scale>
-std::ostream& operator<<(std::ostream& os, const core::basic_rgba<T, Scale>& c) {
+std::ostream& operator<<(std::ostream& os, const basic_rgba<T, Scale>& c) {
   if (os.flags() & std::ios_base::hex) {
     auto old_fill = os.fill();
     os << "#";
@@ -217,7 +215,7 @@ std::ostream& operator<<(std::ostream& os, const core::basic_rgba<T, Scale>& c) 
  * std::cin >> color; // Accepts: "rgba(1000, 0, 0, 1000)" or "1000, 0, 0, 1000"
  */
 template <typename T, intptr_t Scale>
-std::istream& operator>>(std::istream& is, core::basic_rgba<T, Scale>& c) {
+std::istream& operator>>(std::istream& is, basic_rgba<T, Scale>& c) {
   T r{0}, g{0}, b{0}, a;
   bool p;
   details::consume_header(is, "rgb", p);
@@ -236,7 +234,7 @@ std::istream& operator>>(std::istream& is, core::basic_rgba<T, Scale>& c) {
     char ch;
     while (is.get(ch) && ch != ')');
   }
-  if (!is.fail()) c = core::basic_rgba<T, Scale>(r, g, b, a);
+  if (!is.fail()) c = basic_rgba<T, Scale>(r, g, b, a);
   return is;
 }
 
@@ -255,7 +253,7 @@ std::istream& operator>>(std::istream& is, core::basic_rgba<T, Scale>& c) {
  * std::cout << green; // Outputs: hsla(120, 50, 75, 100)
  */
 template <typename T, intptr_t Scale>
-std::ostream& operator<<(std::ostream& os, const core::basic_hsla<T, Scale>& c) {
+std::ostream& operator<<(std::ostream& os, const basic_hsla<T, Scale>& c) {
   return os << "hsla(" << details::to_printable(c.h) << ", " << details::to_printable(c.s) << ", "
             << details::to_printable(c.l) << ", " << details::to_printable(c.a) << ")";
 }
@@ -279,7 +277,7 @@ std::ostream& operator<<(std::ostream& os, const core::basic_hsla<T, Scale>& c) 
  * std::cin >> color; // Accepts: "hsla(120, 50, 75, 100)" or "120, 50, 75, 100" or "120, 50, 75"
  */
 template <typename T, intptr_t Scale>
-std::istream& operator>>(std::istream& is, core::basic_hsla<T, Scale>& c) {
+std::istream& operator>>(std::istream& is, basic_hsla<T, Scale>& c) {
   T h{0}, s{0}, l{0}, a;
   bool p;
   details::consume_header(is, "hsl", p);
@@ -298,7 +296,7 @@ std::istream& operator>>(std::istream& is, core::basic_hsla<T, Scale>& c) {
     char ch;
     while (is.get(ch) && ch != ')');
   }
-  if (!is.fail()) c = core::basic_hsla<T, Scale>(h, s, l, a);
+  if (!is.fail()) c = basic_hsla<T, Scale>(h, s, l, a);
   return is;
 }
 
@@ -317,7 +315,7 @@ std::istream& operator>>(std::istream& is, core::basic_hsla<T, Scale>& c) {
  * std::cout << blue; // Outputs: hsva(240, 100, 50, 100)
  */
 template <typename T, intptr_t Scale>
-std::ostream& operator<<(std::ostream& os, const core::basic_hsva<T, Scale>& c) {
+std::ostream& operator<<(std::ostream& os, const basic_hsva<T, Scale>& c) {
   return os << "hsva(" << details::to_printable(c.h) << ", " << details::to_printable(c.s) << ", "
             << details::to_printable(c.v) << ", " << details::to_printable(c.a) << ")";
 }
@@ -341,7 +339,7 @@ std::ostream& operator<<(std::ostream& os, const core::basic_hsva<T, Scale>& c) 
  * std::cin >> color; // Accepts: "hsva(240, 100, 50, 100)" or "240, 100, 50, 100" or "240, 100, 50"
  */
 template <typename T, intptr_t Scale>
-std::istream& operator>>(std::istream& is, core::basic_hsva<T, Scale>& c) {
+std::istream& operator>>(std::istream& is, basic_hsva<T, Scale>& c) {
   T h{0}, s{0}, v{0}, a;
   bool p;
   details::consume_header(is, "hsv", p);
@@ -360,7 +358,7 @@ std::istream& operator>>(std::istream& is, core::basic_hsva<T, Scale>& c) {
     char ch;
     while (is.get(ch) && ch != ')');
   }
-  if (!is.fail()) c = core::basic_hsva<T, Scale>(h, s, v, a);
+  if (!is.fail()) c = basic_hsva<T, Scale>(h, s, v, a);
   return is;
 }
 
@@ -379,7 +377,7 @@ std::istream& operator>>(std::istream& is, core::basic_hsva<T, Scale>& c) {
  * std::cout << red; // Outputs: cmyk(0, 100, 100, 0)
  */
 template <typename T, intptr_t Scale>
-std::ostream& operator<<(std::ostream& os, const core::basic_cmyk<T, Scale>& c) {
+std::ostream& operator<<(std::ostream& os, const basic_cmyk<T, Scale>& c) {
   return os << "cmyk(" << details::to_printable(c.c) << ", " << details::to_printable(c.m) << ", "
             << details::to_printable(c.y) << ", " << details::to_printable(c.k) << ")";
 }
@@ -402,7 +400,7 @@ std::ostream& operator<<(std::ostream& os, const core::basic_cmyk<T, Scale>& c) 
  * std::cin >> color; // Accepts: "cmyk(0, 100, 100, 0)" or "0, 100, 100, 0"
  */
 template <typename T, intptr_t Scale>
-std::istream& operator>>(std::istream& is, core::basic_cmyk<T, Scale>& c) {
+std::istream& operator>>(std::istream& is, basic_cmyk<T, Scale>& c) {
   T cv{0}, m{0}, y{0}, k{0};
   bool p;
   details::consume_header(is, "cmyk", p);
@@ -417,12 +415,12 @@ std::istream& operator>>(std::istream& is, core::basic_cmyk<T, Scale>& c) {
     char ch;
     while (is.get(ch) && ch != ')');
   }
-  if (!is.fail()) c = core::basic_cmyk<T, Scale>(cv, m, y, k);
+  if (!is.fail()) c = basic_cmyk<T, Scale>(cv, m, y, k);
   return is;
 }
 
 }  // namespace io
-}  // namespace color::operation
+}  // namespace color::core
 
 /**
  * @brief Import I/O operators into core namespace for convenience
@@ -431,6 +429,6 @@ std::istream& operator>>(std::istream& is, core::basic_cmyk<T, Scale>& c) {
  * directly with color types without explicit namespace qualification.
  */
 namespace color::core {
-using color::operation::io::operator<<;
-using color::operation::io::operator>>;
+using color::core::io::operator<<;
+using color::core::io::operator>>;
 }  // namespace color::core
