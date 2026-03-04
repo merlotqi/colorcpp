@@ -11,8 +11,15 @@
 
 #pragma once
 
+#if defined(__has_include)
+#if __has_include(<version>)
+#include <version>
+#endif
+#endif
+
 #include <cassert>
 #include <cstdint>
+#include <ratio>
 #include <type_traits>
 
 namespace color::core {
@@ -26,15 +33,17 @@ namespace color::core {
  * @tparam T Value type (must be arithmetic)
  * @tparam Scale Scaling factor for value conversion
  */
-template <typename T, intptr_t Scale = 1>
+template <typename T, typename ScaleH = std::ratio<1, 360>, typename ScaleSLA = std::ratio<1, 100>>
 struct basic_hsla {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
+  static constexpr T h_full = static_cast<T>(ScaleH::den) / static_cast<T>(ScaleH::num);
+  static constexpr T sla_full = static_cast<T>(ScaleSLA::den) / static_cast<T>(ScaleSLA::num);
 
   using value_type = T;
 
   T h, s, l, a;
 
-  constexpr basic_hsla() : h(0), s(0), l(0), a(1) {}
+  constexpr basic_hsla() : h(0), s(0), l(0), a(sla_full) {}
 
   constexpr basic_hsla(T hue, T saturation, T lightness, T alpha) : h(hue), s(saturation), l(lightness), a(alpha) {
     if (!is_valid_val(hue, saturation, lightness, alpha)) {
@@ -42,23 +51,19 @@ struct basic_hsla {
     }
   }
 
-  template <intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t A_raw = Scale>
+  template <intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t A_raw = sla_full>
   static constexpr basic_hsla make() {
-    constexpr T static_h = static_cast<T>(H_raw) / static_cast<T>(Scale);
-    constexpr T static_s = static_cast<T>(S_raw) / static_cast<T>(Scale);
-    constexpr T static_l = static_cast<T>(L_raw) / static_cast<T>(Scale);
-    constexpr T static_a = static_cast<T>(A_raw) / static_cast<T>(Scale);
+    constexpr T static_h = static_cast<T>(H_raw);
+    constexpr T static_s = static_cast<T>(S_raw);
+    constexpr T static_l = static_cast<T>(L_raw);
+    constexpr T static_a = static_cast<T>(A_raw);
     static_assert(is_valid_val(static_h, static_s, static_l, static_a), "HSLA value out of range!");
     return {static_h, static_s, static_l, static_a};
   }
 
   static constexpr bool is_valid_val(T hv, T sv, T lv, T av) {
-    if constexpr (std::is_floating_point_v<T>) {
-      return hv >= 0.0 && hv < 360.0 && sv >= 0.0 && sv <= 1.0 && lv >= 0.0 && lv <= 1.0 && av >= 0.0 && av <= 1.0;
-    } else {
-      return hv >= 0 && hv < 360 && sv >= 0 && sv <= static_cast<T>(Scale) && lv >= 0 && lv <= static_cast<T>(Scale) &&
-             av >= 0 && av <= static_cast<T>(Scale);
-    }
+    return (hv >= 0 && hv < h_full) && (sv >= 0 && sv <= sla_full) && (lv >= 0 && lv <= sla_full) &&
+           (av >= 0 && av <= sla_full);
   }
 
   constexpr bool is_valid() const { return is_valid_val(h, s, l, a); }
@@ -79,10 +84,10 @@ struct basic_hsla {
  * @tparam H Hue component (0-359)
  * @tparam S Saturation component (0-100)
  * @tparam L Lightness component (0-100)
- * @tparam A Alpha component (0-255, default 255)
+ * @tparam A Alpha component (0-100, default 100)
  */
-using hsla_int_t = basic_hsla<int, 1>;
-template <int H, int S, int L, int A = 255>
+using hsla_int_t = basic_hsla<int>;
+template <int H, int S, int L, int A = 100>
 inline constexpr hsla_int_t hsla_int = hsla_int_t::make<H, S, L, A>();
 
 /**
@@ -98,9 +103,16 @@ inline constexpr hsla_int_t hsla_int = hsla_int_t::make<H, S, L, A>();
  * @tparam L Lightness component (scaled from integer to 0.0-1.0)
  * @tparam A Alpha component (scaled from integer to 0.0-1.0, default 1.0)
  */
-using hsla_float_t = basic_hsla<float, 1000>;
-template <int H, int S, int L, int A = 1000>
-inline constexpr hsla_float_t hsla_float = hsla_float_t::make<H, S, L, A>();
+using hsla_float_t = basic_hsla<float, std::ratio<1>, std::ratio<1>>;
+#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201907L
+template <float H, float S, float L, float A = 1.0f>
+inline constexpr hsla_float_t hsla_float = hsla_float_t(H, S, L, A);
+#else
+template <int H_deg, int S_per, int L_per, int A_per = 100>
+inline constexpr hsla_float_t hsla_float =
+    hsla_float_t(static_cast<float>(H_deg) / 360.0f, static_cast<float>(S_per) / 100.0f,
+                 static_cast<float>(L_per) / 100.0f, static_cast<float>(A_per) / 100.0f);
+#endif
 
 /** @} */
 

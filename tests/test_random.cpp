@@ -5,8 +5,9 @@
 
 TEST(random, basic_random) {
   using namespace color::operations::generation;
+  
+  std::mt19937 rng{std::random_device{}()};
+  rgb8_generator rgb8_gen(rng);
 
-  std::mt19937 rng(64);
-  auto gen = basic_rgb_generator<uint8_t, 255>(rng);
-  gen.next();
+  rgb8_gen.next();
 }

@@ -17,10 +17,6 @@
 #pragma once
 
 #include <cctype>
-#include <color/core/cmyk.hpp>
-#include <color/core/hsl.hpp>
-#include <color/core/hsv.hpp>
-#include <color/core/rgb.hpp>
 #include <iomanip>
 #include <ios>
 #include <iostream>
@@ -28,17 +24,26 @@
 #include <string_view>
 #include <type_traits>
 
+#include "cmyk.hpp"
+#include "hsl.hpp"
+#include "hsv.hpp"
+#include "rgb.hpp"
+
 namespace color::core {
 
-/**
- * @brief Input/Output operations for color types
- *
- * This namespace provides stream operators for all supported color space types.
- * The operators support multiple input formats and automatic type conversion.
- */
 inline namespace io {
 
 namespace details {
+
+template <typename Ratio, typename T>
+constexpr T get_scale_v() {
+  return static_cast<T>(Ratio::num) / static_cast<T>(Ratio::den);
+}
+
+template <typename Ratio>
+constexpr intptr_t get_full_range() {
+  return Ratio::den / Ratio::num;
+}
 
 /**
  * @brief Convert color component to printable format
@@ -175,7 +180,7 @@ void write_comp(std::ostream& os, T val) {
  * std::cout << blue;                   // Outputs: rgba(0, 0, 1, 1)
  * std::cout << std::hex << blue;       // Outputs: #00000101 (if float converts to int)
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::ostream& operator<<(std::ostream& os, const basic_rgba<T, Scale>& c) {
   if (os.flags() & std::ios_base::hex) {
     auto old_fill = os.fill();
@@ -214,7 +219,7 @@ std::ostream& operator<<(std::ostream& os, const basic_rgba<T, Scale>& c) {
  * basic_rgba<float, 1000> color;
  * std::cin >> color; // Accepts: "rgba(1000, 0, 0, 1000)" or "1000, 0, 0, 1000"
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::istream& operator>>(std::istream& is, basic_rgba<T, Scale>& c) {
   T r{0}, g{0}, b{0}, a;
   bool p;
@@ -228,7 +233,11 @@ std::istream& operator>>(std::istream& is, basic_rgba<T, Scale>& c) {
     if (is.peek() == ',') is.ignore();
     details::read_comp(is, a);
   } else {
-    a = (std::is_integral_v<T> && Scale == 1) ? 255 : static_cast<T>(Scale);
+    if constexpr (std::is_integral_v<T>) {
+      a = static_cast<T>(details::get_full_range<Scale>());
+    } else {
+      a = static_cast<T>(1);
+    }
   }
   if (p) {
     char ch;
@@ -252,7 +261,7 @@ std::istream& operator>>(std::istream& is, basic_rgba<T, Scale>& c) {
  * hsla_int<120, 50, 75, 100> green;
  * std::cout << green; // Outputs: hsla(120, 50, 75, 100)
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::ostream& operator<<(std::ostream& os, const basic_hsla<T, Scale>& c) {
   return os << "hsla(" << details::to_printable(c.h) << ", " << details::to_printable(c.s) << ", "
             << details::to_printable(c.l) << ", " << details::to_printable(c.a) << ")";
@@ -276,7 +285,7 @@ std::ostream& operator<<(std::ostream& os, const basic_hsla<T, Scale>& c) {
  * basic_hsla<int, 100> color;
  * std::cin >> color; // Accepts: "hsla(120, 50, 75, 100)" or "120, 50, 75, 100" or "120, 50, 75"
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::istream& operator>>(std::istream& is, basic_hsla<T, Scale>& c) {
   T h{0}, s{0}, l{0}, a;
   bool p;
@@ -290,7 +299,11 @@ std::istream& operator>>(std::istream& is, basic_hsla<T, Scale>& c) {
     if (is.peek() == ',') is.ignore();
     details::read_comp(is, a);
   } else {
-    a = static_cast<T>(Scale);
+    if constexpr (std::is_integral_v<T>) {
+      a = static_cast<T>(details::get_full_range<Scale>());
+    } else {
+      a = static_cast<T>(1);
+    }
   }
   if (p) {
     char ch;
@@ -314,7 +327,7 @@ std::istream& operator>>(std::istream& is, basic_hsla<T, Scale>& c) {
  * hsva_int<240, 100, 50, 100> blue;
  * std::cout << blue; // Outputs: hsva(240, 100, 50, 100)
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::ostream& operator<<(std::ostream& os, const basic_hsva<T, Scale>& c) {
   return os << "hsva(" << details::to_printable(c.h) << ", " << details::to_printable(c.s) << ", "
             << details::to_printable(c.v) << ", " << details::to_printable(c.a) << ")";
@@ -338,7 +351,7 @@ std::ostream& operator<<(std::ostream& os, const basic_hsva<T, Scale>& c) {
  * basic_hsva<int, 100> color;
  * std::cin >> color; // Accepts: "hsva(240, 100, 50, 100)" or "240, 100, 50, 100" or "240, 100, 50"
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::istream& operator>>(std::istream& is, basic_hsva<T, Scale>& c) {
   T h{0}, s{0}, v{0}, a;
   bool p;
@@ -352,7 +365,11 @@ std::istream& operator>>(std::istream& is, basic_hsva<T, Scale>& c) {
     if (is.peek() == ',') is.ignore();
     details::read_comp(is, a);
   } else {
-    a = static_cast<T>(Scale);
+    if constexpr (std::is_integral_v<T>) {
+      a = static_cast<T>(details::get_full_range<Scale>());
+    } else {
+      a = static_cast<T>(1);
+    }
   }
   if (p) {
     char ch;
@@ -376,7 +393,7 @@ std::istream& operator>>(std::istream& is, basic_hsva<T, Scale>& c) {
  * cmyk_int<0, 100, 100, 0> red;
  * std::cout << red; // Outputs: cmyk(0, 100, 100, 0)
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::ostream& operator<<(std::ostream& os, const basic_cmyk<T, Scale>& c) {
   return os << "cmyk(" << details::to_printable(c.c) << ", " << details::to_printable(c.m) << ", "
             << details::to_printable(c.y) << ", " << details::to_printable(c.k) << ")";
@@ -399,7 +416,7 @@ std::ostream& operator<<(std::ostream& os, const basic_cmyk<T, Scale>& c) {
  * basic_cmyk<int, 100> color;
  * std::cin >> color; // Accepts: "cmyk(0, 100, 100, 0)" or "0, 100, 100, 0"
  */
-template <typename T, intptr_t Scale>
+template <typename T, typename Scale>
 std::istream& operator>>(std::istream& is, basic_cmyk<T, Scale>& c) {
   T cv{0}, m{0}, y{0}, k{0};
   bool p;

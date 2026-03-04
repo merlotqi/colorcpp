@@ -11,8 +11,15 @@
 
 #pragma once
 
+#if defined(__has_include)
+#if __has_include(<version>)
+#include <version>
+#endif
+#endif
+
 #include <cassert>
 #include <cstdint>
+#include <ratio>
 #include <type_traits>
 
 namespace color::core {
@@ -26,9 +33,10 @@ namespace color::core {
  * @tparam T Value type (must be arithmetic)
  * @tparam Scale Scaling factor for value conversion
  */
-template <typename T, intptr_t Scale = 1>
+template <typename T, typename Scale = std::ratio<1>>
 struct basic_cmyk {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
+  static constexpr T full_range = static_cast<T>(Scale::den) / static_cast<T>(Scale::num);
 
   using value_type = T;
 
@@ -44,23 +52,22 @@ struct basic_cmyk {
 
   template <intptr_t C_raw, intptr_t M_raw, intptr_t Y_raw, intptr_t K_raw>
   static constexpr basic_cmyk make() {
-    constexpr T static_c = static_cast<T>(C_raw) / static_cast<T>(Scale);
-    constexpr T static_m = static_cast<T>(M_raw) / static_cast<T>(Scale);
-    constexpr T static_y = static_cast<T>(Y_raw) / static_cast<T>(Scale);
-    constexpr T static_k = static_cast<T>(K_raw) / static_cast<T>(Scale);
+    constexpr T static_c = static_cast<T>(C_raw);
+    constexpr T static_m = static_cast<T>(M_raw);
+    constexpr T static_y = static_cast<T>(Y_raw);
+    constexpr T static_k = static_cast<T>(K_raw);
     static_assert(is_valid_val(static_c, static_m, static_y, static_k), "CMYK value out of range!");
     return {static_c, static_m, static_y, static_k};
   }
 
   static constexpr bool is_valid_val(T cv, T mv, T yv, T kv) {
-    if constexpr (std::is_floating_point_v<T>) {
-      return cv >= 0.0 && cv <= 1.0 && mv >= 0.0 && mv <= 1.0 && yv >= 0.0 && yv <= 1.0 && kv >= 0.0 && kv <= 1.0;
-    } else {
-      return cv >= 0 && cv <= 100 && mv >= 0 && mv <= 100 && yv >= 0 && yv <= 100 && kv >= 0 && kv <= 100;
-    }
+    auto in_range = [](T v) { return v >= T(0) && v <= full_range; };
+    return in_range(cv) && in_range(mv) && in_range(yv) && in_range(kv);
   }
 
   constexpr bool is_valid() const { return is_valid_val(c, m, y, k); }
+
+  constexpr bool is_printable() const { return (c + m + y + k) <= (full_range * 3); }
 };
 
 /**
@@ -78,7 +85,7 @@ struct basic_cmyk {
  * @tparam Y Yellow component (0-100)
  * @tparam K Key (black) component (0-100)
  */
-using cmyk_int_t = basic_cmyk<int, 1>;
+using cmyk_int_t = basic_cmyk<int, std::ratio<1, 100>>;
 template <int C, int M, int Y, int K>
 inline constexpr cmyk_int_t cmyk_int = cmyk_int_t::make<C, M, Y, K>();
 
@@ -93,9 +100,16 @@ inline constexpr cmyk_int_t cmyk_int = cmyk_int_t::make<C, M, Y, K>();
  * @tparam Y Yellow component (scaled from integer to 0.0-1.0)
  * @tparam K Key (black) component (scaled from integer to 0.0-1.0)
  */
-using cmyk_float_t = basic_cmyk<float, 1000>;
-template <int C, int M, int Y, int K>
-inline constexpr cmyk_float_t cmyk_float = cmyk_float_t::make<C, M, Y, K>();
+using cmyk_float_t = basic_cmyk<float, std::ratio<1>>;
+#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201907L
+template <float C, float M, float Y, float K>
+inline constexpr cmyk_float_t cmyk_float = cmyk_float_t(C, M, Y, K);
+#else
+template <intptr_t R100, intptr_t G100, intptr_t B100, intptr_t A100 = 1000>
+inline constexpr cmyk_float_t cmykf =
+    cmyk_float_t(static_cast<float>(R100) / 100.0f, static_cast<float>(G100) / 100.0f,
+                 static_cast<float>(B100) / 100.0f, static_cast<float>(A100) / 100.0f);
+#endif
 
 /** @} */
 
