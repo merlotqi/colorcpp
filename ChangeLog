@@ -1,5 +1,20 @@
+Date: 2026-03-04
+Commit: ba2668f
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize color library structure and improve type safety
+
+Date: 2026-03-04
+Commit: 465a837
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: Refactor color library core types with improved type safety and constexpr support
+
+Date: 2026-03-04
+Commit: 5e6c317
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: remove random color generation module and update dependencies
+
 Date: 2026-03-03
-Commit: a021e5f
+Commit: 793191e
 Author: Merlot.Qi <merlotrain.mc@gmail.com>
 Message: refactor: reorganize project structure and improve color model implementations
 

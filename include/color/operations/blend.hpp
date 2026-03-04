@@ -10,112 +10,125 @@
 
 #pragma once
 
-#include <color/conversion/conversion.hpp>
-#include <type_traits>
+#include <cmath>
+#include <color/operations/color_cast.hpp>
+#include <color/traits/concepts.hpp>
 
-namespace color::operations {
+namespace color::operations::blend {
 
 namespace details {
 
-template <typename ColorType>
-static constexpr float get_scale_v() {
-  if constexpr (std::is_integral_v<typename ColorType::value_type> && ColorType::scale() == 1) {
-    return 255.0;
-  } else {
-    return static_cast<float>(ColorType::scale());
-  }
+template <typename Color>
+float to_unit(typename Color::value_type v) {
+  using Scale = typename Color::scale_type;
+  return static_cast<float>(v) * Scale::num / Scale::den;
 }
 
-template <typename T>
-static constexpr T lerp_channel(T c1, T c2, int ratio) {
-  return static_cast<T>((static_cast<intptr_t>(c1) * (100 - ratio) + static_cast<intptr_t>(c2) * ratio) / 100);
+template <typename Color>
+typename Color::value_type from_unit(float v) {
+  using Scale = typename Color::scale_type;
+  return static_cast<typename Color::value_type>(v * Scale::den / Scale::num);
 }
+
+inline float alpha_composite(float src_a, float dst_a) { return src_a + dst_a * (1.0 - src_a); }
 
 }  // namespace details
 
-template <typename Color1, typename Color2>
-constexpr Color1 blend(const Color1& c1, const Color2& c2, int ratio) {
-  auto c2_mapped = conversion::to_rgb<Color1>(c2);
-  return Color1{details::lerp_channel(c1.r, c2_mapped.r, ratio), details::lerp_channel(c1.g, c2_mapped.g, ratio),
-                details::lerp_channel(c1.b, c2_mapped.b, ratio)};
+template <typename Color>
+Color normal(const Color& src, const Color& dst) {
+  auto s = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(src);
+
+  auto d = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(dst);
+
+  float out_a = details::alpha_composite(s.a, d.a);
+
+  float r = (s.r * s.a + d.r * d.a * (1 - s.a)) / out_a;
+  float g = (s.g * s.a + d.g * d.a * (1 - s.a)) / out_a;
+  float b = (s.b * s.a + d.b * d.a * (1 - s.a)) / out_a;
+
+  auto out = core::basic_rgba<float, std::ratio<1>>{r, g, b, out_a};
+
+  return conversion::color_cast<Color>(out);
 }
 
-template <typename Color1, typename Color2>
-constexpr Color1 multiply(const Color1& c1, const Color2& c2) {
-  auto c2_m = conversion::to_rgb<Color1>(c2);
-  constexpr float s = details::get_scale_v<Color1>();
-  auto op = [s](auto v1, auto v2) {
-    return static_cast<typename Color1::value_type>((static_cast<float>(v1) * v2) / s);
-  };
-  return Color1{op(c1.r, c2_m.r), op(c1.g, c2_m.g), op(c1.b, c2_m.b)};
+template <typename Color>
+Color multiply(const Color& src, const Color& dst) {
+  auto s = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(src);
+
+  auto d = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(dst);
+
+  float r = s.r * d.r;
+  float g = s.g * d.g;
+  float b = s.b * d.b;
+
+  float out_a = details::alpha_composite(s.a, d.a);
+
+  auto out = core::basic_rgba<float, std::ratio<1>>{r, g, b, out_a};
+
+  return conversion::color_cast<Color>(out);
 }
 
-template <typename Color1, typename Color2>
-constexpr Color1 screen(const Color1& c1, const Color2& c2) {
-  auto c2_m = conversion::to_rgb<Color1>(c2);
-  constexpr float s = details::get_scale_v<Color1>();
-  auto op = [s](auto v1, auto v2) { return static_cast<typename Color1::value_type>(s - ((s - v1) * (s - v2) / s)); };
-  return Color1{op(c1.r, c2_m.r), op(c1.g, c2_m.g), op(c1.b, c2_m.b)};
+template <typename Color>
+Color screen(const Color& src, const Color& dst) {
+  auto s = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(src);
+
+  auto d = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(dst);
+
+  float r = 1 - (1 - s.r) * (1 - d.r);
+  float g = 1 - (1 - s.g) * (1 - d.g);
+  float b = 1 - (1 - s.b) * (1 - d.b);
+
+  float out_a = details::alpha_composite(s.a, d.a);
+
+  auto out = core::basic_rgba<float, std::ratio<1>>{r, g, b, out_a};
+
+  return conversion::color_cast<Color>(out);
 }
 
-template <typename Color1, typename Color2>
-constexpr Color1 overlay(const Color1& c1, const Color2& c2) {
-  auto c2_m = conversion::to_rgb<Color1>(c2);
-  constexpr float s = details::get_scale_v<Color1>();
-  auto op = [s](auto v1, auto v2) {
-    float f1 = static_cast<float>(v1);
-    float f2 = static_cast<float>(v2);
-    float res = (f1 < s / 2.0) ? (2.0 * f1 * f2 / s) : (s - 2.0 * (s - f1) * (s - f2) / s);
-    return static_cast<typename Color1::value_type>(res);
-  };
-  return Color1{op(c1.r, c2_m.r), op(c1.g, c2_m.g), op(c1.b, c2_m.b)};
+template <typename Color>
+Color overlay(const Color& src, const Color& dst) {
+  auto s = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(src);
+
+  auto d = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(dst);
+
+  auto f = [](float s, float d) { return d < 0.5 ? 2 * s * d : 1 - 2 * (1 - s) * (1 - d); };
+
+  float r = f(s.r, d.r);
+  float g = f(s.g, d.g);
+  float b = f(s.b, d.b);
+
+  float out_a = details::alpha_composite(s.a, d.a);
+
+  auto out = core::basic_rgba<float, std::ratio<1>>{r, g, b, out_a};
+
+  return conversion::color_cast<Color>(out);
 }
 
-template <typename Color1, typename Color2, int Ratio>
-struct blend_op {
-  using type = decltype(blend(std::declval<Color1>(), std::declval<Color2>(), Ratio));
-  static constexpr type value = blend(Color1{}, Color2{}, Ratio);
+enum class mode {
+  normal,
+  multiply,
+  screen,
+  overlay
 };
 
-template <typename Color1, typename Color2>
-struct multiply_op {
-  using type = decltype(multiply(std::declval<Color1>(), std::declval<Color2>()));
-  static constexpr type value = multiply(Color1{}, Color2{});
-};
+template <typename Color>
+Color blend(const Color& src, const Color& dst, mode m) {
+  switch (m) {
+    case mode::normal:
+      return normal(src, dst);
 
-template <typename Color1, typename Color2>
-struct screen_op {
-  using type = decltype(screen(std::declval<Color1>(), std::declval<Color2>()));
-  static constexpr type value = screen(Color1{}, Color2{});
-};
+    case mode::multiply:
+      return multiply(src, dst);
 
-template <typename Color1, typename Color2>
-struct overlay_op {
-  using type = decltype(overlay(std::declval<Color1>(), std::declval<Color2>()));
-  static constexpr type value = overlay(Color1{}, Color2{});
-};
+    case mode::screen:
+      return screen(src, dst);
 
-template <typename Color1, typename Color2, int Ratio>
-using blend_t = typename blend_op<Color1, Color2, Ratio>::type;
+    case mode::overlay:
+      return overlay(src, dst);
 
-template <typename Color1, typename Color2>
-using multiply_t = typename multiply_op<Color1, Color2>::type;
+    default:
+      return normal(src, dst);
+  }
+}
 
-template <typename Color1, typename Color2>
-using screen_t = typename screen_op<Color1, Color2>::type;
-
-template <typename Color1, typename Color2>
-using overlay_t = typename overlay_op<Color1, Color2>::type;
-
-namespace blend_ops {
-template <typename Color1, typename Color2>
-using mix_50 = blend_t<Color1, Color2, 50>;
-
-template <typename Color1, typename Color2>
-using mix_75 = blend_t<Color1, Color2, 75>;
-
-template <typename Color1, typename Color2>
-using mix_25 = blend_t<Color1, Color2, 25>;
-}  // namespace blend_ops
-
-}  // namespace color::operations
+}  // namespace color::operations::blend

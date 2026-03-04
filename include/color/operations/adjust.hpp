@@ -12,73 +12,175 @@
 
 #pragma once
 
-#include <color/conversion/conversion.hpp>
+#include <algorithm>
+#include <cmath>
+#include <color/operations/color_cast.hpp>
+#include <color/traits/concepts.hpp>
 
-namespace color::operations {
+namespace color::operations::adjust {
 
 namespace details {
 
-static constexpr intptr_t apply_percent(intptr_t value, int percent, intptr_t scale) {
-  if (percent >= 0) {
-    return value + (scale - value) * percent / 100;
-  } else {
-    return value + (value * percent / 100);
-  }
+template <typename Color>
+inline float to_unit(typename Color::value_type v) {
+  using Scale = typename Color::scale_type;
+  return static_cast<float>(v) * Scale::num / Scale::den;
 }
 
-static constexpr intptr_t clamp(intptr_t val, intptr_t min_v, intptr_t max_v) {
-  return (val < min_v) ? min_v : ((val > max_v) ? max_v : val);
+template <typename Color>
+inline typename Color::value_type from_unit(float v) {
+  using Scale = typename Color::scale_type;
+  return static_cast<typename Color::value_type>(v * Scale::den / Scale::num);
+}
+
+template <typename T>
+inline T clamp01(T v) {
+  return std::clamp(v, T(0), T(1));
 }
 
 }  // namespace details
 
-template <typename ColorType>
-constexpr auto lighten(const ColorType& c, int percent) {
-  auto hsv = conversion::to_hsv<typename ColorType::value_type, 100>(c);
-  hsv.v = details::clamp(details::apply_percent(hsv.v, percent, 100), 0, 100);
-  return conversion::convert<ColorType>(hsv);
+template <typename Color>
+Color brightness(const Color& c, float factor) {
+  Color result = c;
+
+  if constexpr (traits::is_rgb_v<Color>) {
+    float r = details::to_unit<Color>(c.r);
+    float g = details::to_unit<Color>(c.g);
+    float b = details::to_unit<Color>(c.b);
+
+    r = std::clamp(r * factor, 0.0f, 1.0f);
+    g = std::clamp(g * factor, 0.0f, 1.0f);
+    b = std::clamp(b * factor, 0.0f, 1.0f);
+
+    result.r = details::from_unit<Color>(r);
+    result.g = details::from_unit<Color>(g);
+    result.b = details::from_unit<Color>(b);
+  } else {
+    auto rgb = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(c);
+
+    rgb = brightness(rgb, factor);
+
+    result = conversion::color_cast<Color>(rgb);
+  }
+
+  return result;
 }
 
-template <typename ColorType>
-constexpr auto saturate(const ColorType& c, int percent) {
-  auto hsv = conversion::to_hsv<typename ColorType::value_type, 100>(c);
-  hsv.s = details::clamp(details::apply_percent(hsv.s, percent, 100), 0, 100);
-  return conversion::convert<ColorType>(hsv);
+template <typename Color>
+Color contrast(const Color& c, float factor) {
+  Color result = c;
+
+  if constexpr (traits::is_rgb_v<Color>) {
+    auto adjust = [&](float x) { return std::clamp((x - 0.5) * factor + 0.5, 0.0, 1.0); };
+
+    float r = adjust(details::to_unit<Color>(c.r));
+    float g = adjust(details::to_unit<Color>(c.g));
+    float b = adjust(details::to_unit<Color>(c.b));
+
+    result.r = details::from_unit<Color>(r);
+    result.g = details::from_unit<Color>(g);
+    result.b = details::from_unit<Color>(b);
+  } else {
+    auto rgb = conversion::color_cast<core::basic_rgba<float, std::ratio<1>>, Color>(c);
+
+    rgb = contrast(rgb, factor);
+
+    result = conversion::color_cast<Color>(rgb);
+  }
+
+  return result;
 }
 
-template <typename ColorType>
-constexpr auto hue_shift(const ColorType& c, int degrees) {
-  auto hsv = conversion::to_hsv<typename ColorType::value_type, 100>(c);
-  intptr_t new_h = (hsv.h + degrees) % 360;
-  hsv.h = (new_h < 0) ? (new_h + 360) : new_h;
-  return conversion::convert<ColorType>(hsv);
+template <typename Color>
+Color alpha(const Color& c, float factor) {
+  Color result = c;
+
+  float a = details::to_unit<Color>(c.a);
+  a = details::clamp01(a * factor);
+
+  result.a = details::from_unit<Color>(a);
+
+  return result;
 }
 
-template <typename RGBType, int Percent>
-struct lighten_op {
-  static constexpr auto value() { return lighten(RGBType{}, Percent); }
-  using type = decltype(value());
+template <typename Color>
+Color hue_shift(const Color& c, float degrees) {
+  if constexpr (traits::is_hsl_v<Color> || traits::is_hsv_v<Color>) {
+    Color result = c;
+
+    float h = details::to_unit<Color>(c.h);
+
+    h += degrees;
+    h = std::fmod(h, 360.0);
+    if (h < 0) h += 360.0;
+
+    result.h = details::from_unit<Color>(h);
+
+    return result;
+  } else {
+    auto hsl = conversion::color_cast<core::basic_hsla<float, std::ratio<1, 360>, std::ratio<1>>, Color>(c);
+
+    hsl = hue_shift(hsl, degrees);
+
+    return conversion::color_cast<Color>(hsl);
+  }
+}
+
+template <typename Color>
+Color saturation(const Color& c, float factor) {
+  if constexpr (traits::is_hsl_v<Color> || traits::is_hsv_v<Color>) {
+    Color result = c;
+
+    float s = details::to_unit<Color>(c.s);
+    s = details::clamp01(s * factor);
+
+    result.s = details::from_unit<Color>(s);
+
+    return result;
+  } else {
+    auto hsl = conversion::color_cast<core::basic_hsla<float, std::ratio<1, 360>, std::ratio<1>>, Color>(c);
+
+    hsl = saturation(hsl, factor);
+
+    return conversion::color_cast<Color>(hsl);
+  }
+}
+
+template <typename Color>
+class pipeline {
+ public:
+  explicit pipeline(Color c) : current(std::move(c)) {}
+
+  pipeline& brightness(float f) {
+    current = adjust::brightness(current, f);
+    return *this;
+  }
+
+  pipeline& contrast(float f) {
+    current = adjust::contrast(current, f);
+    return *this;
+  }
+
+  pipeline& hue(float d) {
+    current = adjust::hue_shift(current, d);
+    return *this;
+  }
+
+  pipeline& saturation(float f) {
+    current = adjust::saturation(current, f);
+    return *this;
+  }
+
+  Color get() const { return current; }
+
+ private:
+  Color current;
 };
 
-template <typename RGBType, int Percent>
-struct saturate_op {
-  static constexpr auto value() { return saturate(RGBType{}, Percent); }
-  using type = decltype(value());
-};
+template <typename Color>
+pipeline<Color> make_pipeline(Color c) {
+  return pipeline<Color>(std::move(c));
+}
 
-template <typename RGBType, int Degrees>
-struct hue_shift_op {
-  static constexpr auto value() { return hue_shift(RGBType{}, Degrees); }
-  using type = decltype(value());
-};
-
-template <typename RGBType, int Percent>
-using lighten_t = typename lighten_op<RGBType, Percent>::type;
-
-template <typename RGBType, int Percent>
-using saturate_t = typename saturate_op<RGBType, Percent>::type;
-
-template <typename RGBType, int Degrees>
-using hue_shift_t = typename hue_shift_op<RGBType, Degrees>::type;
-
-}  // namespace color::operations
+}  // namespace color::operations::adjust

@@ -11,16 +11,10 @@
 
 #pragma once
 
-#if defined(__has_include)
-#if __has_include(<version>)
-#include <version>
-#endif
-#endif
-
 #include <cassert>
-#include <cstdint>
+#include <color/core/color_base.hpp>
+#include <color/traits/concepts.hpp>
 #include <ratio>
-#include <type_traits>
 
 namespace color::core {
 
@@ -34,12 +28,10 @@ namespace color::core {
  * @tparam Scale Scaling factor for value conversion
  */
 template <typename T, typename ScaleH = std::ratio<1, 360>, typename ScaleSLA = std::ratio<1, 100>>
-struct basic_hsla {
+struct basic_hsla : public color_base<T, ScaleH, category::hsl> {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
   static constexpr T h_full = static_cast<T>(ScaleH::den) / static_cast<T>(ScaleH::num);
   static constexpr T sla_full = static_cast<T>(ScaleSLA::den) / static_cast<T>(ScaleSLA::num);
-
-  using value_type = T;
 
   T h, s, l, a;
 
@@ -51,7 +43,7 @@ struct basic_hsla {
     }
   }
 
-  template <intptr_t H_raw, intptr_t S_raw, intptr_t L_raw, intptr_t A_raw = sla_full>
+  template <long long H_raw, long long S_raw, long long L_raw, long long A_raw = sla_full>
   static constexpr basic_hsla make() {
     constexpr T static_h = static_cast<T>(H_raw);
     constexpr T static_s = static_cast<T>(S_raw);
@@ -104,15 +96,10 @@ inline constexpr hsla_int_t hsla_int = hsla_int_t::make<H, S, L, A>();
  * @tparam A Alpha component (scaled from integer to 0.0-1.0, default 1.0)
  */
 using hsla_float_t = basic_hsla<float, std::ratio<1>, std::ratio<1>>;
-#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201907L
-template <float H, float S, float L, float A = 1.0f>
-inline constexpr hsla_float_t hsla_float = hsla_float_t(H, S, L, A);
-#else
 template <int H_deg, int S_per, int L_per, int A_per = 100>
 inline constexpr hsla_float_t hsla_float =
     hsla_float_t(static_cast<float>(H_deg) / 360.0f, static_cast<float>(S_per) / 100.0f,
                  static_cast<float>(L_per) / 100.0f, static_cast<float>(A_per) / 100.0f);
-#endif
 
 /** @} */
 

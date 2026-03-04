@@ -12,6 +12,7 @@
 #pragma once
 
 #include <color/core/cmyk.hpp>
+#include <color/core/color_base.hpp>
 #include <color/core/constants.hpp>
 #include <color/core/hsl.hpp>
 #include <color/core/hsv.hpp>
@@ -22,6 +23,6 @@ namespace color {
 
 using namespace core;
 using core::rgba8_t;
-using core::rgbaf_t;
+using core::rgba_float_t;
 
 }  // namespace color

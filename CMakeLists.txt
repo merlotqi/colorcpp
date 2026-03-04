@@ -14,8 +14,10 @@ option(COLORCPP_BUILD_TESTS "Build tests" OFF)
 option(COLORCPP_BUILD_EXAMPLES "Build examples" OFF)
 option(COLORCPP_INSTALL_HEADERS "Install header files" OFF)
 
-file(GLOB_RECURSE COLOR_HEADERS "include/color/**/*.hpp")
-add_library(colorcpp INTERFACE ${COLOR_HEADERS})
+file(GLOB_RECURSE COLOR_HEADERS CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+)
+add_library(colorcpp INTERFACE)
 
 target_include_directories(colorcpp
   INTERFACE

@@ -11,16 +11,10 @@
 
 #pragma once
 
-#if defined(__has_include)
-#if __has_include(<version>)
-#include <version>
-#endif
-#endif
-
 #include <cassert>
-#include <cstdint>
+#include <color/core/color_base.hpp>
+#include <color/traits/concepts.hpp>
 #include <ratio>
-#include <type_traits>
 
 namespace color::core {
 
@@ -34,11 +28,13 @@ namespace color::core {
  * @tparam Scale Scaling factor for value conversion
  */
 template <typename T, typename Scale = std::ratio<1>>
-struct basic_cmyk {
+struct basic_cmyk : public color_base<T, Scale, category::cmyk> {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
   static constexpr T full_range = static_cast<T>(Scale::den) / static_cast<T>(Scale::num);
 
   using value_type = T;
+  using scale_type = Scale;
+  using color_tag = category::cmyk;
 
   T c, m, y, k;
 
@@ -50,7 +46,7 @@ struct basic_cmyk {
     }
   }
 
-  template <intptr_t C_raw, intptr_t M_raw, intptr_t Y_raw, intptr_t K_raw>
+  template <long long C_raw, long long M_raw, long long Y_raw, long long K_raw>
   static constexpr basic_cmyk make() {
     constexpr T static_c = static_cast<T>(C_raw);
     constexpr T static_m = static_cast<T>(M_raw);
@@ -101,15 +97,10 @@ inline constexpr cmyk_int_t cmyk_int = cmyk_int_t::make<C, M, Y, K>();
  * @tparam K Key (black) component (scaled from integer to 0.0-1.0)
  */
 using cmyk_float_t = basic_cmyk<float, std::ratio<1>>;
-#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201907L
-template <float C, float M, float Y, float K>
-inline constexpr cmyk_float_t cmyk_float = cmyk_float_t(C, M, Y, K);
-#else
-template <intptr_t R100, intptr_t G100, intptr_t B100, intptr_t A100 = 1000>
+template <int R100, int G100, int B100, int A100 = 1000>
 inline constexpr cmyk_float_t cmykf =
     cmyk_float_t(static_cast<float>(R100) / 100.0f, static_cast<float>(G100) / 100.0f,
                  static_cast<float>(B100) / 100.0f, static_cast<float>(A100) / 100.0f);
-#endif
 
 /** @} */
 

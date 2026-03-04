@@ -2,13 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <color/core/hsl.hpp>
+#include <color/core/hsv.hpp>
+#include <color/core/rgb.hpp>
 #include <random>
 #include <type_traits>
 #include <vector>
-
-#include "../../core/hsl.hpp"
-#include "../../core/hsv.hpp"
-#include "../../core/rgb.hpp"
 
 namespace color::operations::generation {
 inline namespace random {
@@ -184,13 +183,13 @@ class basic_golden_angle_generator : public basic_hsl_generator<Color, Engine> {
   static_assert(traits::has_hue, "Golden angle requires hue");
 
   mutable T current_hue{};
-  static constexpr double GOLDEN_ANGLE = 137.507764;
+  static constexpr float GOLDEN_ANGLE = 137.507764f;
 
  public:
   using result_type = Color;
 
   explicit basic_golden_angle_generator(Engine& e) : base(e) {
-    std::uniform_real_distribution<double> dist(0.0, 360.0);
+    std::uniform_real_distribution<float> dist(0.0f, 360.0f);
     current_hue = static_cast<T>(dist(this->rng));
   }
 

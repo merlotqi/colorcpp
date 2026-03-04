@@ -11,18 +11,12 @@
 
 #pragma once
 
-#if defined(__has_include)
-#if __has_include(<version>)
-#include <version>
-#endif
-#endif
-
 #include <cassert>
+#include <color/core/color_base.hpp>
+#include <color/traits/concepts.hpp>
 #include <cstdint>
 #include <ratio>
 #include <type_traits>
-
-#include "../traits/concepts.hpp"
 
 namespace color::core {
 
@@ -36,13 +30,9 @@ namespace color::core {
  * @tparam Scale Scaling factor for value conversion
  */
 template <typename T, typename Scale = std::ratio<1>>
-struct basic_rgba {
+struct basic_rgba : color_base<T, Scale, category::rgb> {
   static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
   static constexpr T full_range = static_cast<T>(Scale::den) / static_cast<T>(Scale::num);
-
-  using value_type = T;
-  using scale_type = Scale;
-  using color_tag = category::rgb;
 
   T r, g, b, a;
 
@@ -54,13 +44,15 @@ struct basic_rgba {
     }
   }
 
-  template <intptr_t R_raw, intptr_t G_raw, intptr_t B_raw, intptr_t A_raw = full_range>
+  template <long long R_raw, long long G_raw, long long B_raw, long long A_raw = full_range>
   static constexpr basic_rgba make() {
     constexpr T static_r = static_cast<T>(R_raw);
     constexpr T static_g = static_cast<T>(G_raw);
     constexpr T static_b = static_cast<T>(B_raw);
     constexpr T static_a = static_cast<T>(A_raw);
+
     static_assert(is_valid_val(static_r, static_g, static_b, static_a), "RGBA value out of range!");
+
     return {static_r, static_g, static_b, static_a};
   }
 
@@ -106,17 +98,10 @@ inline constexpr rgba8_t rgba8 = rgba8_t::make<R, G, B, A>();
  * @tparam A Alpha component (scaled from integer to 0.0-1.0, default 1.0)
  */
 using rgba_float_t = basic_rgba<float, std::ratio<1>>;
-#if defined(__cpp_nontype_template_args) && __cpp_nontype_template_args >= 201907L
-template <float R, float G, float B, float A = 1.0f>
-inline constexpr rgba_float_t rgbaf = rgba_float_t::make<R, G, B, A>();
-#else
-template <intptr_t R1000, intptr_t G1000, intptr_t B1000, intptr_t A1000 = 1000>
-inline constexpr rgba_float_t rgbaf =
-    rgba_float_t(static_cast<float>(R1000) / 1000.0f, static_cast<float>(G1000) / 1000.0f,
-                 static_cast<float>(B1000) / 1000.0f, static_cast<float>(A1000) / 1000.0f);
-inline constexpr rgba_float_t make_rgbaf(float r, float g, float b, float a = 1.0f) { return rgba_float_t(r, g, b, a); }
-#endif
-
+template <int R, int G, int B, int A = 1000>
+inline constexpr rgba_float_t rgbaf = rgba_float_t(static_cast<float>(R) / 1000.0f, static_cast<float>(G) / 1000.0f,
+                                                   static_cast<float>(B) / 1000.0f, static_cast<float>(A) / 1000.0f);
+inline rgba_float_t make_rgbaf(float r, float g, float b, float a = 1.0f) { return rgba_float_t(r, g, b, a); }
 /**
  * @brief Percentage-based RGBA color type
  *
@@ -129,7 +114,7 @@ inline constexpr rgba_float_t make_rgbaf(float r, float g, float b, float a = 1.
  * @tparam A Alpha component percentage (0-100, default 100)
  */
 using rgba_percent_t = basic_rgba<int, std::ratio<1, 100>>;
-template <intptr_t R, intptr_t G, intptr_t B, intptr_t A = 100>
+template <int R, int G, int B, int A = 100>
 inline constexpr rgba_percent_t rgbaper = rgba_percent_t::make<R, G, B, A>();
 
 /** @} */

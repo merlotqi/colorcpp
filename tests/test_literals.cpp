@@ -50,76 +50,76 @@ TEST(literals, hsv) {
   using namespace color::literals;
 
   // Test numeric literals
-  auto hsv_color = 120500750_hsv;   // Hue=120, Sat=500, Val=750
-  auto hsv_color2 = 240750500_hsv;  // Hue=240, Sat=750, Val=500
+  auto hsv_color = 120'50'75_hsv;   // Hue=120, Sat=50, Val=75
+  auto hsv_color2 = 240'75'50_hsv;  // Hue=240, Sat=75, Val=50
 
   // Verify HSV values
   EXPECT_EQ(hsv_color.h, 120);
-  EXPECT_EQ(hsv_color.s, 500);
-  EXPECT_EQ(hsv_color.v, 750);
-  EXPECT_EQ(hsv_color.a, 1000);
+  EXPECT_EQ(hsv_color.s, 50);
+  EXPECT_EQ(hsv_color.v, 75);
+  EXPECT_EQ(hsv_color.a, 100);
 
   EXPECT_EQ(hsv_color2.h, 240);
-  EXPECT_EQ(hsv_color2.s, 750);
-  EXPECT_EQ(hsv_color2.v, 500);
-  EXPECT_EQ(hsv_color2.a, 1000);
+  EXPECT_EQ(hsv_color2.s, 75);
+  EXPECT_EQ(hsv_color2.v, 50);
+  EXPECT_EQ(hsv_color2.a, 100);
 }
 
 TEST(literals, hsva) {
   using namespace color::literals;
 
   // Test numeric literals with alpha
-  auto hsva_color = 120500750800_hsva;   // Hue=120, Sat=500, Val=750, Alpha=800
-  auto hsva_color2 = 300600400900_hsva;  // Hue=300, Sat=600, Val=400, Alpha=900
+  auto hsva_color = 120'50'75'80_hsva;   // Hue=120, Sat=50, Val=75, Alpha=80
+  auto hsva_color2 = 300'60'40'90_hsva;  // Hue=300, Sat=60, Val=40, Alpha=90
 
   // Verify HSVA values
   EXPECT_EQ(hsva_color.h, 120);
-  EXPECT_EQ(hsva_color.s, 500);
-  EXPECT_EQ(hsva_color.v, 750);
-  EXPECT_EQ(hsva_color.a, 800);
+  EXPECT_EQ(hsva_color.s, 50);
+  EXPECT_EQ(hsva_color.v, 75);
+  EXPECT_EQ(hsva_color.a, 80);
 
   EXPECT_EQ(hsva_color2.h, 300);
-  EXPECT_EQ(hsva_color2.s, 600);
-  EXPECT_EQ(hsva_color2.v, 400);
-  EXPECT_EQ(hsva_color2.a, 900);
+  EXPECT_EQ(hsva_color2.s, 60);
+  EXPECT_EQ(hsva_color2.v, 40);
+  EXPECT_EQ(hsva_color2.a, 90);
 }
 
 TEST(literals, hsl) {
   using namespace color::literals;
 
   // Test numeric literals
-  auto hsl_color = 240750500_hsl;  // Hue=240, Sat=750, Light=500
-  auto hsl_color2 = 60500750_hsl;  // Hue=60, Sat=500, Light=750
+  auto hsl_color = 240'75'50_hsl;  // Hue=240, Sat=75, Light=50
+  auto hsl_color2 = 60'50'75_hsl;  // Hue=60, Sat=50, Light=75
 
   // Verify HSL values
   EXPECT_EQ(hsl_color.h, 240);
-  EXPECT_EQ(hsl_color.s, 750);
-  EXPECT_EQ(hsl_color.l, 500);
-  EXPECT_EQ(hsl_color.a, 1000);
+  EXPECT_EQ(hsl_color.s, 75);
+  EXPECT_EQ(hsl_color.l, 50);
+  EXPECT_EQ(hsl_color.a, 100);
 
   EXPECT_EQ(hsl_color2.h, 60);
-  EXPECT_EQ(hsl_color2.s, 500);
-  EXPECT_EQ(hsl_color2.l, 750);
-  EXPECT_EQ(hsl_color2.a, 1000);
+  EXPECT_EQ(hsl_color2.s, 50);
+  EXPECT_EQ(hsl_color2.l, 75);
+  EXPECT_EQ(hsl_color2.a, 100);
 }
 
 TEST(literals, hsla) {
   using namespace color::literals;
 
   // Test numeric literals with alpha
-  auto hsla_color = 240750500900_hsla;   // Hue=240, Sat=750, Light=500, Alpha=900
-  auto hsla_color2 = 180600400700_hsla;  // Hue=180, Sat=600, Light=400, Alpha=700
+  auto hsla_color = 240'75'50'90_hsla;   // Hue=240, Sat=75, Light=50, Alpha=90
+  auto hsla_color2 = 180'60'40'70_hsla;  // Hue=180, Sat=60, Light=40, Alpha=70
 
   // Verify HSLA values
   EXPECT_EQ(hsla_color.h, 240);
-  EXPECT_EQ(hsla_color.s, 750);
-  EXPECT_EQ(hsla_color.l, 500);
-  EXPECT_EQ(hsla_color.a, 900);
+  EXPECT_EQ(hsla_color.s, 75);
+  EXPECT_EQ(hsla_color.l, 50);
+  EXPECT_EQ(hsla_color.a, 90);
 
   EXPECT_EQ(hsla_color2.h, 180);
-  EXPECT_EQ(hsla_color2.s, 600);
-  EXPECT_EQ(hsla_color2.l, 400);
-  EXPECT_EQ(hsla_color2.a, 700);
+  EXPECT_EQ(hsla_color2.s, 60);
+  EXPECT_EQ(hsla_color2.l, 40);
+  EXPECT_EQ(hsla_color2.a, 70);
 }
 
 TEST(literals, hsv_hue) {
@@ -132,19 +132,19 @@ TEST(literals, hsv_hue) {
 
   // Verify HSV hue shortcut values
   EXPECT_EQ(pure_red.h, 0);
-  EXPECT_EQ(pure_red.s, 1000);
-  EXPECT_EQ(pure_red.v, 1000);
-  EXPECT_EQ(pure_red.a, 1000);
+  EXPECT_EQ(pure_red.s, 100);
+  EXPECT_EQ(pure_red.v, 100);
+  EXPECT_EQ(pure_red.a, 100);
 
   EXPECT_EQ(pure_green.h, 120);
-  EXPECT_EQ(pure_green.s, 1000);
-  EXPECT_EQ(pure_green.v, 1000);
-  EXPECT_EQ(pure_green.a, 1000);
+  EXPECT_EQ(pure_green.s, 100);
+  EXPECT_EQ(pure_green.v, 100);
+  EXPECT_EQ(pure_green.a, 100);
 
   EXPECT_EQ(pure_blue.h, 240);
-  EXPECT_EQ(pure_blue.s, 1000);
-  EXPECT_EQ(pure_blue.v, 1000);
-  EXPECT_EQ(pure_blue.a, 1000);
+  EXPECT_EQ(pure_blue.s, 100);
+  EXPECT_EQ(pure_blue.v, 100);
+  EXPECT_EQ(pure_blue.a, 100);
 }
 
 TEST(literals, hsl_hue) {
@@ -157,19 +157,19 @@ TEST(literals, hsl_hue) {
 
   // Verify HSL hue shortcut values
   EXPECT_EQ(pure_red.h, 0);
-  EXPECT_EQ(pure_red.s, 1000);
-  EXPECT_EQ(pure_red.l, 500);
-  EXPECT_EQ(pure_red.a, 1000);
+  EXPECT_EQ(pure_red.s, 100);
+  EXPECT_EQ(pure_red.l, 50);
+  EXPECT_EQ(pure_red.a, 100);
 
   EXPECT_EQ(pure_green.h, 120);
-  EXPECT_EQ(pure_green.s, 1000);
-  EXPECT_EQ(pure_green.l, 500);
-  EXPECT_EQ(pure_green.a, 1000);
+  EXPECT_EQ(pure_green.s, 100);
+  EXPECT_EQ(pure_green.l, 50);
+  EXPECT_EQ(pure_green.a, 100);
 
   EXPECT_EQ(pure_blue.h, 240);
-  EXPECT_EQ(pure_blue.s, 1000);
-  EXPECT_EQ(pure_blue.l, 500);
-  EXPECT_EQ(pure_blue.a, 1000);
+  EXPECT_EQ(pure_blue.s, 100);
+  EXPECT_EQ(pure_blue.l, 50);
+  EXPECT_EQ(pure_blue.a, 100);
 }
 
 TEST(literals, template_literals) {
@@ -178,10 +178,10 @@ TEST(literals, template_literals) {
   // Test template literals for all color spaces
   constexpr auto rgb_template = 0xFF0000_rgb;
   constexpr auto rgba_template = 0x80FF0000_argb;
-  constexpr auto hsv_template = 120500750_hsv;
-  constexpr auto hsva_template = 120500750800_hsva;
-  constexpr auto hsl_template = 240750500_hsl;
-  constexpr auto hsla_template = 240750500900_hsla;
+  constexpr auto hsv_template = 120'50'75_hsv;
+  constexpr auto hsva_template = 120'50'75'80_hsva;
+  constexpr auto hsl_template = 240'75'50_hsl;
+  constexpr auto hsla_template = 240'75'50'90_hsla;
   constexpr auto hsv_hue_template = 120_hsv_hue;
   constexpr auto hsl_hue_template = 240_hsl_hue;
 
@@ -197,34 +197,34 @@ TEST(literals, template_literals) {
   EXPECT_EQ(rgba_template.a, 128);
 
   EXPECT_EQ(hsv_template.h, 120);
-  EXPECT_EQ(hsv_template.s, 500);
-  EXPECT_EQ(hsv_template.v, 750);
-  EXPECT_EQ(hsv_template.a, 1000);
+  EXPECT_EQ(hsv_template.s, 50);
+  EXPECT_EQ(hsv_template.v, 75);
+  EXPECT_EQ(hsv_template.a, 100);
 
   EXPECT_EQ(hsva_template.h, 120);
-  EXPECT_EQ(hsva_template.s, 500);
-  EXPECT_EQ(hsva_template.v, 750);
-  EXPECT_EQ(hsva_template.a, 800);
+  EXPECT_EQ(hsva_template.s, 50);
+  EXPECT_EQ(hsva_template.v, 75);
+  EXPECT_EQ(hsva_template.a, 80);
 
   EXPECT_EQ(hsl_template.h, 240);
-  EXPECT_EQ(hsl_template.s, 750);
-  EXPECT_EQ(hsl_template.l, 500);
-  EXPECT_EQ(hsl_template.a, 1000);
+  EXPECT_EQ(hsl_template.s, 75);
+  EXPECT_EQ(hsl_template.l, 50);
+  EXPECT_EQ(hsl_template.a, 100);
 
   EXPECT_EQ(hsla_template.h, 240);
-  EXPECT_EQ(hsla_template.s, 750);
-  EXPECT_EQ(hsla_template.l, 500);
-  EXPECT_EQ(hsla_template.a, 900);
+  EXPECT_EQ(hsla_template.s, 75);
+  EXPECT_EQ(hsla_template.l, 50);
+  EXPECT_EQ(hsla_template.a, 90);
 
   EXPECT_EQ(hsv_hue_template.h, 120);
-  EXPECT_EQ(hsv_hue_template.s, 1000);
-  EXPECT_EQ(hsv_hue_template.v, 1000);
-  EXPECT_EQ(hsv_hue_template.a, 1000);
+  EXPECT_EQ(hsv_hue_template.s, 100);
+  EXPECT_EQ(hsv_hue_template.v, 100);
+  EXPECT_EQ(hsv_hue_template.a, 100);
 
   EXPECT_EQ(hsl_hue_template.h, 240);
-  EXPECT_EQ(hsl_hue_template.s, 1000);
-  EXPECT_EQ(hsl_hue_template.l, 500);
-  EXPECT_EQ(hsl_hue_template.a, 1000);
+  EXPECT_EQ(hsl_hue_template.s, 100);
+  EXPECT_EQ(hsl_hue_template.l, 50);
+  EXPECT_EQ(hsl_hue_template.a, 100);
 }
 
 TEST(literals, css_hex) {

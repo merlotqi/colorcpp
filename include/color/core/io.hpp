@@ -17,17 +17,16 @@
 #pragma once
 
 #include <cctype>
+#include <color/core/cmyk.hpp>
+#include <color/core/hsl.hpp>
+#include <color/core/hsv.hpp>
+#include <color/core/rgb.hpp>
 #include <iomanip>
 #include <ios>
 #include <iostream>
 #include <ostream>
 #include <string_view>
 #include <type_traits>
-
-#include "cmyk.hpp"
-#include "hsl.hpp"
-#include "hsv.hpp"
-#include "rgb.hpp"
 
 namespace color::core {
 

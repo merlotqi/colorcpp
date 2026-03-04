@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <color/operations/generation/random.hpp>
+#include <color/color.hpp>
 #include <random>
 
 TEST(random, basic_random) {
