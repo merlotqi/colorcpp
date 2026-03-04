@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include <color/core/cmyk.hpp>
-#include <color/core/hsl.hpp>
-#include <color/core/hsv.hpp>
-#include <color/core/rgb.hpp>
+#include <colorcpp/core/cmyk.hpp>
+#include <colorcpp/core/hsl.hpp>
+#include <colorcpp/core/hsv.hpp>
+#include <colorcpp/core/rgb.hpp>
 #include <cstddef>
 #include <cstdint>
 

@@ -1,4 +1,4 @@
-#include <color/color.hpp>
+#include <colorcpp/colorcpp.hpp>
 #include <iostream>
 #include <random>
 

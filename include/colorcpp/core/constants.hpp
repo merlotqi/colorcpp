@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <color/literals/literals.hpp>
+#include <colorcpp/literals/literals.hpp>
 
 namespace color::constants {
 

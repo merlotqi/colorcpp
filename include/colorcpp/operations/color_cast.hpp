@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <color/core/hsl.hpp>
-#include <color/core/hsv.hpp>
-#include <color/core/rgb.hpp>
-#include <color/traits/concepts.hpp>
+#include <colorcpp/core/hsl.hpp>
+#include <colorcpp/core/hsv.hpp>
+#include <colorcpp/core/rgb.hpp>
+#include <colorcpp/traits/concepts.hpp>
 
 namespace color::operations::conversion {
 

@@ -12,8 +12,8 @@
 #pragma once
 
 #include <cassert>
-#include <color/core/color_base.hpp>
-#include <color/traits/concepts.hpp>
+#include <colorcpp/core/color_base.hpp>
+#include <colorcpp/traits/concepts.hpp>
 #include <cstdint>
 #include <ratio>
 #include <type_traits>

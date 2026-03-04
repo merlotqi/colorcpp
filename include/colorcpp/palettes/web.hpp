@@ -12,8 +12,8 @@
 
 #pragma once
 
-#include <color/core/rgb.hpp>
-#include <color/literals/literals.hpp>
+#include <colorcpp/core/rgb.hpp>
+#include <colorcpp/literals/literals.hpp>
 
 namespace color::palettes::web {
 

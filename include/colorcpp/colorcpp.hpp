@@ -2,22 +2,22 @@
 
 
 // Include all color core headers
-#include <color/core/core.hpp>
+#include <colorcpp/core/core.hpp>
 
 // Include literals headers
-#include <color/literals/literals.hpp>
+#include <colorcpp/literals/literals.hpp>
 
 // Include all color palettes headers
-#include <color/palettes/web.hpp>
+#include <colorcpp/palettes/web.hpp>
 
 // Include all color traits headers
-#include <color/traits/concepts.hpp>
+#include <colorcpp/traits/concepts.hpp>
 
 // Include all color utils headers
-#include <color/utils/maths.hpp>
+#include <colorcpp/utils/maths.hpp>
 
 // Include all color operations headers
-#include <color/operations/operations.hpp>
+#include <colorcpp/operations/operations.hpp>
 
 namespace color {
 

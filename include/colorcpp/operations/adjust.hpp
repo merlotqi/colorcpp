@@ -14,8 +14,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <color/operations/color_cast.hpp>
-#include <color/traits/concepts.hpp>
+#include <colorcpp/operations/color_cast.hpp>
+#include <colorcpp/traits/concepts.hpp>
 
 namespace color::operations::adjust {
 

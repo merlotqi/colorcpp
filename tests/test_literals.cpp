@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <color/color.hpp>
+#include <colorcpp/colorcpp.hpp>
 
 TEST(literals, rgb) {
   using namespace color::literals;

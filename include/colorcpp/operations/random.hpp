@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <color/core/hsl.hpp>
-#include <color/core/hsv.hpp>
-#include <color/core/rgb.hpp>
+#include <colorcpp/core/hsl.hpp>
+#include <colorcpp/core/hsv.hpp>
+#include <colorcpp/core/rgb.hpp>
 #include <random>
 #include <type_traits>
 #include <vector>

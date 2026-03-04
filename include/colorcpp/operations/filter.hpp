@@ -15,8 +15,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <color/operations/color_cast.hpp>
-#include <color/traits/concepts.hpp>
+#include <colorcpp/operations/color_cast.hpp>
+#include <colorcpp/traits/concepts.hpp>
 #include <vector>
 
 namespace color::operations::filter {
