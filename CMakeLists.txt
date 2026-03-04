@@ -39,6 +39,7 @@ endif()
 add_library(colorcpp::colorcpp ALIAS colorcpp)
 
 add_subdirectory(tests)
+add_subdirectory(examples)
 
 if(INSTALL_HEADERS)
   install(DIRECTORY include/
