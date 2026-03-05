@@ -14,7 +14,7 @@ namespace details {
 template <typename Color>
 constexpr float to_unit(typename Color::value_type v) {
   using Scale = typename Color::scale_type;
-  return static_cast<float>(v * Scale::num / Scale::den);
+  return static_cast<float>(v) * Scale::num / Scale::den;
 }
 
 template <typename Color>
@@ -170,36 +170,52 @@ HSV rgb_to_hsv(const RGB& src) {
 
 template <typename To, typename From>
 To color_cast(const From& src) {
-  if constexpr (std::is_same_v<typename From::color_tag, category::hsl> &&
-                std::is_same_v<typename To::color_tag, category::rgb>) {
+  if constexpr (std::is_same_v<typename From::color_tag, typename To::color_tag>) {
+    To out{};
+
+    if constexpr (std::is_same_v<typename To::color_tag, ::color::category::rgb>) {
+      out.r = details::from_unit<To>(details::to_unit<From>(src.r));
+      out.g = details::from_unit<To>(details::to_unit<From>(src.g));
+      out.b = details::from_unit<To>(details::to_unit<From>(src.b));
+      out.a = details::from_unit<To>(details::to_unit<From>(src.a));
+    }
+
+    else if constexpr (std::is_same_v<typename To::color_tag, color::category::hsl>) {
+      out.h = details::from_unit<To>(details::to_unit<From>(src.h));
+      out.s = details::from_unit<To>(details::to_unit<From>(src.s));
+      out.l = details::from_unit<To>(details::to_unit<From>(src.l));
+      out.a = details::from_unit<To>(details::to_unit<From>(src.a));
+    }
+
+    else if constexpr (std::is_same_v<typename To::color_tag, color::category::hsv>) {
+      out.h = details::from_unit<To>(details::to_unit<From>(src.h));
+      out.s = details::from_unit<To>(details::to_unit<From>(src.s));
+      out.v = details::from_unit<To>(details::to_unit<From>(src.v));
+      out.a = details::from_unit<To>(details::to_unit<From>(src.a));
+    }
+
+    return out;
+  } else if constexpr (std::is_same_v<typename From::color_tag, color::category::hsl> &&
+                       std::is_same_v<typename To::color_tag, color::category::rgb>) {
     return details::hsl_to_rgb<To, From>(src);
   }
 
-  if constexpr (std::is_same_v<typename From::color_tag, category::rgb> &&
-                std::is_same_v<typename To::color_tag, category::hsl>) {
+  else if constexpr (std::is_same_v<typename From::color_tag, color::category::rgb> &&
+                     std::is_same_v<typename To::color_tag, color::category::hsl>) {
     return details::rgb_to_hsl<To, From>(src);
   }
 
-  if constexpr (std::is_same_v<typename From::color_tag, category::hsv> &&
-                std::is_same_v<typename To::color_tag, category::rgb>) {
+  else if constexpr (std::is_same_v<typename From::color_tag, color::category::hsv> &&
+                     std::is_same_v<typename To::color_tag, color::category::rgb>) {
     return details::hsv_to_rgb<To, From>(src);
   }
 
-  if constexpr (std::is_same_v<typename From::color_tag, category::rgb> &&
-                std::is_same_v<typename To::color_tag, category::hsv>) {
+  else if constexpr (std::is_same_v<typename From::color_tag, color::category::rgb> &&
+                     std::is_same_v<typename To::color_tag, color::category::hsv>) {
     return details::rgb_to_hsv<To, From>(src);
+  } else {
+    static_assert(sizeof(To) == 0, "Unsupported color conversion");
   }
-
-  if constexpr (std::is_same_v<typename From::color_tag, typename To::color_tag>) {
-    To out{};
-    out.r = details::from_unit<To>(details::to_unit<From>(src.r));
-    out.g = details::from_unit<To>(details::to_unit<From>(src.g));
-    out.b = details::from_unit<To>(details::to_unit<From>(src.b));
-    out.a = details::from_unit<To>(details::to_unit<From>(src.a));
-    return out;
-  }
-
-  static_assert(sizeof(To) == 0, "Unsupported color conversion");
 }
 
 }  // namespace color::operations::conversion
