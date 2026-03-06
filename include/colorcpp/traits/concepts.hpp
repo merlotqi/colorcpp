@@ -16,6 +16,8 @@ struct rgb {};
 struct hsv {};
 struct hsl {};
 struct cmyk {};
+struct xyz {};
+struct lab {};
 
 }  // namespace color::category
 
@@ -75,6 +77,28 @@ struct is_cmyk<
 
 template <typename T>
 constexpr bool is_cmyk_v = is_cmyk<T>::value;
+
+template <typename T, typename = void>
+struct is_xyz : std::false_type {};
+
+template <typename T>
+struct is_xyz<T,
+              typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::xyz>::value>::type>
+    : std::true_type {};
+
+template <typename T>
+constexpr bool is_xyz_v = is_xyz<T>::value;
+
+template <typename T, typename = void>
+struct is_lab : std::false_type {};
+
+template <typename T>
+struct is_lab<T,
+              typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::lab>::value>::type>
+    : std::true_type {};
+
+template <typename T>
+constexpr bool is_lab_v = is_lab<T>::value;
 
 template <typename T, typename = void>
 struct has_alpha : std::false_type {};

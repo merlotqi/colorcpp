@@ -84,6 +84,7 @@ struct basic_rgba : color_base<T, Scale, category::rgb> {
 using rgba8_t = basic_rgba<uint8_t, std::ratio<1, 255>>;
 template <uint8_t R, uint8_t G, uint8_t B, uint8_t A = 255>
 inline constexpr rgba8_t rgba8 = rgba8_t::make<R, G, B, A>();
+inline rgba8_t make_rgba8(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) { return rgba8_t(r, g, b, a); }
 
 /**
  * @brief Floating-point RGBA color type

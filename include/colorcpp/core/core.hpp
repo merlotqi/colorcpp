@@ -18,6 +18,8 @@
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/io.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/lab.hpp>
+#include <colorcpp/core/xyz.hpp>
 
 namespace color {
 

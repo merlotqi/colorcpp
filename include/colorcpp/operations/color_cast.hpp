@@ -5,9 +5,11 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/xyz.hpp>
 #include <colorcpp/traits/concepts.hpp>
 
-namespace color::operations::conversion {
+namespace color {
+namespace operations::conversion {
 
 namespace details {
 
@@ -21,6 +23,16 @@ template <typename Color>
 constexpr typename Color::value_type from_unit(float v) {
   using Scale = typename Color::scale_type;
   return static_cast<typename Color::value_type>(v * Scale::den / Scale::num);
+}
+
+template <typename T>
+constexpr T srgb_to_linear(T standard) {
+  return (standard <= 0.04045f) ? (standard / 12.92f) : std::pow((standard + 0.055f) / 1.055f, 2.4f);
+}
+
+template <typename T>
+constexpr T linear_to_srgb(T linear) {
+  return (linear <= 0.0031308f) ? (linear * 12.92f) : (1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f);
 }
 
 template <typename RGB, typename HSL>
@@ -166,6 +178,67 @@ HSV rgb_to_hsv(const RGB& src) {
   return HSV{from_unit<HSV>(h * 360.0), from_unit<HSV>(s), from_unit<HSV>(v), from_unit<HSV>(a)};
 }
 
+template <typename HSV, typename HSL>
+HSV hsl_to_hsv(const HSL& src) {
+  float h = to_unit<HSL>(src.h);
+  float s = to_unit<HSL>(src.s);
+  float l = to_unit<HSL>(src.l);
+  float a = to_unit<HSL>(src.a);
+
+  h /= 360.0;
+  s = std::clamp(s, 0.0f, 1.0f);
+  l = std::clamp(l, 0.0f, 1.0f);
+
+  float v = l + s * std::min(l, 1.0f - l);
+  float sv = (v == 0.0f) ? 0.0f : 2.0f * (1.0f - l / v);
+
+  return HSV{from_unit<HSV>(h * 360.0), from_unit<HSV>(sv), from_unit<HSV>(v), from_unit<HSV>(a)};
+}
+
+template <typename HSL, typename HSV>
+HSL hsv_to_hsl(const HSV& src) {
+  float h = to_unit<HSV>(src.h);
+  float s = to_unit<HSV>(src.s);
+  float v = to_unit<HSV>(src.v);
+  float a = to_unit<HSV>(src.a);
+
+  h /= 360.0;
+  s = std::clamp(s, 0.0f, 1.0f);
+  v = std::clamp(v, 0.0f, 1.0f);
+
+  float l = v * (1.0f - s / 2.0f);
+  float sl = (l == 0.0f || l == 1.0f) ? 0.0f : (v - l) / std::min(l, 1.0f - l);
+
+  return HSL{from_unit<HSL>(h * 360.0), from_unit<HSL>(sl), from_unit<HSL>(l), from_unit<HSL>(a)};
+}
+
+template <typename XYZ, typename RGB>
+XYZ rgb_to_xyz(const RGB& src) {
+  float r = srgb_to_linear(to_unit<RGB>(src.r));
+  float g = srgb_to_linear(to_unit<RGB>(src.g));
+  float b = srgb_to_linear(to_unit<RGB>(src.b));
+
+  float x = r * 0.4124f + g * 0.3576f + b * 0.1805f;
+  float y = r * 0.2126f + g * 0.7152f + b * 0.0722f;
+  float z = r * 0.0193f + g * 0.1192f + b * 0.9505f;
+
+  return XYZ{from_unit<XYZ>(x * 100.0f), from_unit<XYZ>(y * 100.0f), from_unit<XYZ>(z * 100.0f)};
+}
+
+template <typename RGB, typename XYZ>
+RGB xyz_to_rgb(const XYZ& src) {
+  float x = to_unit<XYZ>(src.x) / 100.0f;
+  float y = to_unit<XYZ>(src.y) / 100.0f;
+  float z = to_unit<XYZ>(src.z) / 100.0f;
+
+  float r = x * 3.2406f + y * -1.5372f + z * -0.4986f;
+  float g = x * -0.9689f + y * 1.8758f + z * 0.0415f;
+  float b = x * 0.0557f + y * -0.2040f + z * 1.0570f;
+
+  return RGB{from_unit<RGB>(linear_to_srgb(r)), from_unit<RGB>(linear_to_srgb(g)), from_unit<RGB>(linear_to_srgb(b)),
+             from_unit<RGB>(1.0f)};
+}
+
 }  // namespace details
 
 template <typename To, typename From>
@@ -198,24 +271,44 @@ To color_cast(const From& src) {
   } else if constexpr (std::is_same_v<typename From::color_tag, color::category::hsl> &&
                        std::is_same_v<typename To::color_tag, color::category::rgb>) {
     return details::hsl_to_rgb<To, From>(src);
-  }
-
-  else if constexpr (std::is_same_v<typename From::color_tag, color::category::rgb> &&
-                     std::is_same_v<typename To::color_tag, color::category::hsl>) {
+  } else if constexpr (std::is_same_v<typename From::color_tag, color::category::rgb> &&
+                       std::is_same_v<typename To::color_tag, color::category::hsl>) {
     return details::rgb_to_hsl<To, From>(src);
-  }
-
-  else if constexpr (std::is_same_v<typename From::color_tag, color::category::hsv> &&
-                     std::is_same_v<typename To::color_tag, color::category::rgb>) {
+  } else if constexpr (std::is_same_v<typename From::color_tag, color::category::hsv> &&
+                       std::is_same_v<typename To::color_tag, color::category::rgb>) {
     return details::hsv_to_rgb<To, From>(src);
-  }
-
-  else if constexpr (std::is_same_v<typename From::color_tag, color::category::rgb> &&
-                     std::is_same_v<typename To::color_tag, color::category::hsv>) {
+  } else if constexpr (std::is_same_v<typename From::color_tag, color::category::rgb> &&
+                       std::is_same_v<typename To::color_tag, color::category::hsv>) {
     return details::rgb_to_hsv<To, From>(src);
+  } else if constexpr (std::is_same_v<typename From::color_tag, color::category::hsl> &&
+                       std::is_same_v<typename To::color_tag, color::category::hsv>) {
+    return details::hsl_to_hsv<To, From>(src);
+  } else if constexpr (std::is_same_v<typename From::color_tag, color::category::hsv> &&
+                       std::is_same_v<typename To::color_tag, color::category::hsl>) {
+    return details::hsv_to_hsl<To, From>(src);
+  } else if constexpr (std::is_same_v<typename From::color_tag, category::rgb> &&
+                       std::is_same_v<typename To::color_tag, category::xyz>) {
+    return details::rgb_to_xyz<To, From>(src);
+  } else if constexpr (std::is_same_v<typename From::color_tag, category::xyz> &&
+                       std::is_same_v<typename To::color_tag, category::rgb>) {
+    return details::xyz_to_rgb<To, From>(src);
   } else {
     static_assert(sizeof(To) == 0, "Unsupported color conversion");
   }
 }
 
-}  // namespace color::operations::conversion
+}  // namespace operations::conversion
+
+using operations::conversion::color_cast;
+
+template <typename From>
+auto to_rgba8(const From& src) {
+  return color_cast<core::rgba8_t>(src);
+}
+
+template <typename From>
+auto to_rgba_float(const From& src) {
+  return color_cast<core::rgba_float_t>(src);
+}
+
+}  // namespace color

@@ -13,9 +13,6 @@
 // Include all color traits headers
 #include <colorcpp/traits/concepts.hpp>
 
-// Include all color utils headers
-#include <colorcpp/utils/maths.hpp>
-
 // Include all color operations headers
 #include <colorcpp/operations/operations.hpp>
 
