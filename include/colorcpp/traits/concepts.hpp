@@ -1,71 +1,41 @@
 #pragma once
 
 #include <concepts>
-#include <cstddef>
+#include <limits>
 #include <type_traits>
 
-namespace color::traits {
-
-// ------------------------------------------------
-// channel value
-// ------------------------------------------------
+namespace colorcpp::traits {
 
 template <typename T>
 concept channel_value = std::is_arithmetic_v<T>;
 
-
-// ------------------------------------------------
-// channel traits
-// ------------------------------------------------
-
 template <typename T>
-concept channel_traits_like = requires {
-  { T::min };
-  { T::max };
+struct default_range {
+  static constexpr T min = static_cast<T>(0);
+  static constexpr T max = std::is_floating_point_v<T> ? static_cast<T>(1) : std::numeric_limits<T>::max();
 };
 
-
-// ------------------------------------------------
-// model traits
-// ------------------------------------------------
-
-template <typename T>
-concept model_traits_like = requires {
-  { T::channels } -> std::convertible_to<std::size_t>;
+template <typename Channel, typename T>
+struct channel_traits {
+  static constexpr T min = default_range<T>::min;
+  static constexpr T max = default_range<T>::max;
 };
 
-
-// ------------------------------------------------
-// channel type
-// ------------------------------------------------
-
-template <typename T>
-concept channel = requires(T c) {
-  typename T::value_type;
-  typename T::tag;
-
-  { c.value } -> std::convertible_to<typename T::value_type>;
+template <typename Tag, typename T, T Min, T Max>
+struct packed_channel {
+  using tag_type = Tag;
+  using value_type = T;
+  static constexpr T min = Min;
+  static constexpr T max = Max;
 };
 
-
-// ------------------------------------------------
-// color model tag
-// ------------------------------------------------
+template <typename Model>
+struct model_traits;
 
 template <typename T>
-concept model_tag = requires {
-  typename T::model_tag;
+concept is_model_traits = requires {
+  { model_traits<T>::channel_size } -> std::convertible_to<std::size_t>;
+  typename model_traits<T>::channels_type;
 };
 
-
-// ------------------------------------------------
-// color type
-// ------------------------------------------------
-
-template <typename T>
-concept color = requires {
-  typename T::value_type;
-  typename T::model_type;
-};
-
-} // namespace color::traits
+}  // namespace colorcpp::traits

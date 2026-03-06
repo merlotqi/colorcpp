@@ -15,109 +15,63 @@
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/traits/concepts.hpp>
 #include <cstdint>
-#include <ratio>
-#include <type_traits>
 
-namespace color::core {
+namespace colorcpp::core::rgb {
 
-/**
- * @brief Basic RGBA color template class
- *
- * Template class for representing RGBA colors with compile-time validation.
- * Supports both integer (0-255) and floating-point (0.0-1.0) value ranges.
- *
- * @tparam T Value type (must be arithmetic)
- * @tparam Scale Scaling factor for value conversion
- */
-template <typename T, typename Scale = std::ratio<1>>
-struct basic_rgba : color_base<T, Scale, category::rgb> {
-  static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
-  static constexpr T full_range = static_cast<T>(Scale::den) / static_cast<T>(Scale::num);
+namespace channel {
+struct r_tag {};
+struct g_tag {};
+struct b_tag {};
+struct a_tag {};
 
-  T r, g, b, a;
-
-  constexpr basic_rgba() : r(0), g(0), b(0), a(full_range) {}
-
-  constexpr basic_rgba(T red, T green, T blue, T alpha) : r(red), g(green), b(blue), a(alpha) {
-    if (!is_valid_val(red, green, blue, alpha)) {
-      assert(false && "RGBA values out of range!");
-    }
-  }
-
-  template <long long R_raw, long long G_raw, long long B_raw, long long A_raw = full_range>
-  static constexpr basic_rgba make() {
-    constexpr T static_r = static_cast<T>(R_raw);
-    constexpr T static_g = static_cast<T>(G_raw);
-    constexpr T static_b = static_cast<T>(B_raw);
-    constexpr T static_a = static_cast<T>(A_raw);
-
-    static_assert(is_valid_val(static_r, static_g, static_b, static_a), "RGBA value out of range!");
-
-    return {static_r, static_g, static_b, static_a};
-  }
-
-  static constexpr bool is_valid_val(T rv, T gv, T bv, T av) {
-    auto in_range = [](T v) { return v >= T(0) && v <= full_range; };
-    return in_range(rv) && in_range(gv) && in_range(bv) && in_range(av);
-  }
-
-  constexpr bool is_valid() const { return is_valid_val(r, g, b, a); }
+template <typename Tag, typename T, T Min, T Max>
+struct packed_channel {
+  using tag_type = Tag;
+  using value_type = T;
+  static constexpr T min = Min;
+  static constexpr T max = Max;
 };
 
-/**
- * @name RGBA Color Type Aliases
- * @{
- */
+using u8_r = packed_channel<r_tag, uint8_t, 0, 255>;
+using u8_g = packed_channel<g_tag, uint8_t, 0, 255>;
+using u8_b = packed_channel<b_tag, uint8_t, 0, 255>;
+using u8_a = packed_channel<a_tag, uint8_t, 0, 255>;
 
-/**
- * @brief 8-bit integer RGBA color type
- *
- * Represents RGBA colors using 8-bit integer values (0-255 range).
- * Scale is set to 1, so values are stored directly.
- * Alpha channel defaults to 255 (fully opaque).
- *
- * @tparam R Red component (0-255)
- * @tparam G Green component (0-255)
- * @tparam B Blue component (0-255)
- * @tparam A Alpha component (0-255, default 255)
- */
-using rgba8_t = basic_rgba<uint8_t, std::ratio<1, 255>>;
-template <uint8_t R, uint8_t G, uint8_t B, uint8_t A = 255>
-inline constexpr rgba8_t rgba8 = rgba8_t::make<R, G, B, A>();
-inline rgba8_t make_rgba8(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) { return rgba8_t(r, g, b, a); }
+using f32_r = packed_channel<r_tag, float, 0.0f, 1.0f>;
+using f32_g = packed_channel<g_tag, float, 0.0f, 1.0f>;
+using f32_b = packed_channel<b_tag, float, 0.0f, 1.0f>;
+using f32_a = packed_channel<a_tag, float, 0.0f, 1.0f>;
 
-/**
- * @brief Floating-point RGBA color type
- *
- * Represents RGBA colors using float precision floating-point values (0.0-1.0 range).
- * Scale is set to 1000, mapping integer inputs to floating-point range.
- * Alpha channel defaults to 1.0 (fully opaque).
- *
- * @tparam R Red component (scaled from integer to 0.0-1.0)
- * @tparam G Green component (scaled from integer to 0.0-1.0)
- * @tparam B Blue component (scaled from integer to 0.0-1.0)
- * @tparam A Alpha component (scaled from integer to 0.0-1.0, default 1.0)
- */
-using rgba_float_t = basic_rgba<float, std::ratio<1>>;
-template <int R, int G, int B, int A = 1000>
-inline constexpr rgba_float_t rgbaf = rgba_float_t(static_cast<float>(R) / 1000.0f, static_cast<float>(G) / 1000.0f,
-                                                   static_cast<float>(B) / 1000.0f, static_cast<float>(A) / 1000.0f);
-inline rgba_float_t make_rgbaf(float r, float g, float b, float a = 1.0f) { return rgba_float_t(r, g, b, a); }
-/**
- * @brief Percentage-based RGBA color type
- *
- * Represents RGBA colors using integer percentage values (0-100 range).
- * Alpha channel defaults to 100% (fully opaque).
- *
- * @tparam R Red component percentage (0-100)
- * @tparam G Green component percentage (0-100)
- * @tparam B Blue component percentage (0-100)
- * @tparam A Alpha component percentage (0-100, default 100)
- */
-using rgba_percent_t = basic_rgba<int, std::ratio<1, 100>>;
-template <int R, int G, int B, int A = 100>
-inline constexpr rgba_percent_t rgbaper = rgba_percent_t::make<R, G, B, A>();
+}  // namespace channel
 
-/** @} */
+namespace model {
+struct rgb8 {};
+struct rgba8 {};
+struct rgb_f32 {};
+}  // namespace model
 
-}  // namespace color::core
+}  // namespace colorcpp::core::rgb
+
+namespace colorcpp::traits {
+namespace ch = colorcpp::core::rgb::channel;
+namespace md = colorcpp::core::rgb::model;
+
+template <>
+struct model_traits<md::rgb8> {
+  using channels_type = std::tuple<ch::u8_r, ch::u8_g, ch::u8_b, ch::u8_a>;
+  static constexpr std::size_t channel_size = 4;
+};
+
+template <>
+struct model_traits<md::rgb_f32> {
+  using channels_type = std::tuple<ch::f32_r, ch::f32_g, ch::f32_b>;
+  static constexpr std::size_t channel_size = 3;
+};
+}  // namespace colorcpp::traits
+
+namespace colorcpp::core {
+
+using rgb8_t = basic_color<rgb::model::rgb8>;
+using rgbf_t = basic_color<rgb::model::rgb_f32>;
+
+}  // namespace colorcpp::core
