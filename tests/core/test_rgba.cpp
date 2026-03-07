@@ -1,26 +1,25 @@
 #include <gtest/gtest.h>
+
 #include <colorcpp/colorcpp.hpp>
-#include "colorcpp/core/rgb.hpp"
 
-TEST(core_rgba, rgba8)
-{
-  using namespace color::core;
+TEST(core_rgba, rgba8) {
+  using namespace colorcpp::core;
+  
+  auto rgb = rgb8_t{255, 0, 0};
+  ASSERT_EQ(rgb.r(), 255);
 
-  rgba8_t color = make_rgba8(12, 12, 13);
-  ASSERT_EQ(color.r, 12);
-  ASSERT_EQ(color.g, 12);
-  ASSERT_EQ(color.b, 13);
-  ASSERT_EQ(color.a, 255);
+  auto getr = rgb.get<rgb::channel::r_tag>();
+  ASSERT_EQ(getr, 255);
 
-}
+  auto stdr = std::get<0>(rgb);
+  ASSERT_EQ(stdr, 255);
 
-TEST(color_rgba, rgbaf)
-{
-  using namespace color::core;
+  auto stdchannelr = std::get<rgb::channel::r_tag>(rgb);
+  ASSERT_EQ(stdchannelr, 255);
 
-  rgba_float_t color = make_rgbaf(0.1, 0.1, 0.2);
-  ASSERT_EQ(color.r, 0.1);
-  ASSERT_EQ(color.g, 0.1);
-  ASSERT_EQ(color.b, 0.2);
-  ASSERT_EQ(color.a, 1.0f);
+  auto red = colorcpp::constants::red;
+  ASSERT_EQ(red.r(), 255);
+  ASSERT_EQ(red.g(), 0);
+  ASSERT_EQ(red.b(), 0);
+  ASSERT_EQ(red.a(), 255);
 }

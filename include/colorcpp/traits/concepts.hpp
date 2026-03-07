@@ -1,120 +1,106 @@
-/**
- * @file concepts.hpp
- * @brief Color type concepts and traits (Updated for Scale system)
- *
- * Provides Modern C++ concepts and type traits to support the Scale-based
- * color system, ensuring compile-time safety across different color spaces.
- */
-
 #pragma once
 
+#include <cstdint>
+#include <limits>
+#include <tuple>
 #include <type_traits>
 
-namespace color::category {
+namespace colorcpp::traits {
 
-struct rgb {};
-struct hsv {};
-struct hsl {};
-struct cmyk {};
-struct xyz {};
-struct lab {};
+namespace detail {
 
-}  // namespace color::category
+template <typename Tuple, typename Tag, std::size_t I = 0>
+struct find_channel_index_impl {
+ private:
+  static constexpr std::size_t compute() {
+    if constexpr (I >= std::tuple_size_v<Tuple>) {
+      return std::tuple_size_v<Tuple>;
+    } else {
+      using channel_t = std::tuple_element_t<I, Tuple>;
+      if constexpr (std::is_same_v<typename channel_t::tag_type, Tag>) {
+        return I;
+      } else {
+        return find_channel_index_impl<Tuple, Tag, I + 1>::value;
+      }
+    }
+  }
 
-namespace color::traits {
+ public:
+  static constexpr std::size_t value = compute();
+};
 
-template <typename T, typename = void>
-struct is_color : std::false_type {};
+template <typename Tuple, typename Tag>
+struct has_channel_tag_impl
+    : std::bool_constant<(find_channel_index_impl<Tuple, Tag>::value < std::tuple_size_v<Tuple>)> {};
+
+}  // namespace detail
 
 template <typename T>
-struct is_color<T, typename std::enable_if<std::is_class<T>::value &&
-                                           std::is_same<typename T::value_type, typename T::value_type>::value>::type>
+struct default_range {
+  static constexpr T min = static_cast<T>(0);
+
+  static constexpr T max = std::is_floating_point_v<T> ? static_cast<T>(1) : std::numeric_limits<T>::max();
+};
+
+template <typename Channel, typename T>
+struct channel_traits {
+  static constexpr T min = default_range<T>::min;
+  static constexpr T max = default_range<T>::max;
+};
+
+template <typename Tag, typename T, int64_t Min, int64_t Max, int64_t Den = Max>
+struct basic_channel {
+  static_assert(Den != 0, "colorcpp: channel denominator cannot be zero");
+
+  using tag_type = Tag;
+  using value_type = T;
+
+  static constexpr T min = static_cast<T>(Min) / static_cast<T>(Den);
+
+  static constexpr T max = static_cast<T>(Max) / static_cast<T>(Den);
+
+  static_assert(min <= max, "colorcpp: channel minimum must not exceed maximum");
+};
+
+template <typename Model>
+struct model_traits;
+
+template <typename T, typename = void>
+struct is_model_traits : std::false_type {};
+
+template <typename T>
+struct is_model_traits<T, std::void_t<decltype(model_traits<T>::channel_size), typename model_traits<T>::channels_type>>
     : std::true_type {};
 
 template <typename T>
-constexpr bool is_color_v = is_color<T>::value;
+inline constexpr bool is_model_traits_v = is_model_traits<T>::value;
 
-template <typename T, typename = void>
-struct is_rgb : std::false_type {};
+// has_channel_tag
+template <typename Model, typename Tag>
+struct has_channel_tag {
+ private:
+  using channels_tuple = typename model_traits<Model>::channels_type;
 
-template <typename T>
-struct is_rgb<T,
-              typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::rgb>::value>::type>
-    : std::true_type {};
+ public:
+  static constexpr bool value = detail::has_channel_tag_impl<channels_tuple, Tag>::value;
+};
 
-template <typename T>
-constexpr bool is_rgb_v = is_rgb<T>::value;
+template <typename Model, typename Tag>
+inline constexpr bool has_channel_tag_v = has_channel_tag<Model, Tag>::value;
 
-template <typename T, typename = void>
-struct is_hsv : std::false_type {};
+// channel_index
+template <typename Model, typename Tag>
+struct channel_index {
+ private:
+  using channels_tuple = typename model_traits<Model>::channels_type;
 
-template <typename T>
-struct is_hsv<T,
-              typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::hsv>::value>::type>
-    : std::true_type {};
+  static_assert(has_channel_tag_v<Model, Tag>, "colorcpp: requested channel tag does not exist in this color model");
 
-template <typename T>
-constexpr bool is_hsv_v = is_hsv<T>::value;
+ public:
+  static constexpr std::size_t value = detail::find_channel_index_impl<channels_tuple, Tag>::value;
+};
 
-template <typename T, typename = void>
-struct is_hsl : std::false_type {};
+template <typename Model, typename Tag>
+inline constexpr std::size_t channel_index_v = channel_index<Model, Tag>::value;
 
-template <typename T>
-struct is_hsl<T,
-              typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::hsl>::value>::type>
-    : std::true_type {};
-
-template <typename T>
-constexpr bool is_hsl_v = is_hsl<T>::value;
-
-template <typename T, typename = void>
-struct is_cmyk : std::false_type {};
-
-template <typename T>
-struct is_cmyk<
-    T, typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::cmyk>::value>::type>
-    : std::true_type {};
-
-template <typename T>
-constexpr bool is_cmyk_v = is_cmyk<T>::value;
-
-template <typename T, typename = void>
-struct is_xyz : std::false_type {};
-
-template <typename T>
-struct is_xyz<T,
-              typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::xyz>::value>::type>
-    : std::true_type {};
-
-template <typename T>
-constexpr bool is_xyz_v = is_xyz<T>::value;
-
-template <typename T, typename = void>
-struct is_lab : std::false_type {};
-
-template <typename T>
-struct is_lab<T,
-              typename std::enable_if<is_color_v<T> && std::is_same<typename T::color_tag, category::lab>::value>::type>
-    : std::true_type {};
-
-template <typename T>
-constexpr bool is_lab_v = is_lab<T>::value;
-
-template <typename T, typename = void>
-struct has_alpha : std::false_type {};
-
-template <typename T>
-struct has_alpha<T,
-                 typename std::enable_if<is_color_v<T> && std::is_member_object_pointer<decltype(&T::a)>::value>::type>
-    : std::true_type {};
-
-template <typename T>
-constexpr bool has_alpha_v = has_alpha<T>::value;
-
-template <typename From, typename To>
-struct is_convertible_color : std::integral_constant<bool, is_color_v<From> && is_color_v<To> > {};
-
-template <typename From, typename To>
-constexpr bool is_convertible_color_v = is_convertible_color<From, To>::value;
-
-}  // namespace color::traits
+}  // namespace colorcpp::traits

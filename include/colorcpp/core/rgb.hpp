@@ -1,123 +1,151 @@
-/**
- * @file rgb.hpp
- * @brief RGBA color space core implementation
- *
- * Provides basic RGBA color template class and common color aliases.
- * Supports 8-bit integer RGBA and floating-point RGBA representations.
- *
- * @author Merlot.Qi
- *
- */
-
 #pragma once
 
 #include <cassert>
 #include <colorcpp/core/color_base.hpp>
-#include <colorcpp/traits/concepts.hpp>
 #include <cstdint>
-#include <ratio>
+#include <tuple>
 #include <type_traits>
 
-namespace color::core {
+namespace colorcpp::core::rgb {
 
-/**
- * @brief Basic RGBA color template class
- *
- * Template class for representing RGBA colors with compile-time validation.
- * Supports both integer (0-255) and floating-point (0.0-1.0) value ranges.
- *
- * @tparam T Value type (must be arithmetic)
- * @tparam Scale Scaling factor for value conversion
- */
-template <typename T, typename Scale = std::ratio<1>>
-struct basic_rgba : color_base<T, Scale, category::rgb> {
-  static_assert(std::is_arithmetic_v<T>, "T must be arithmetic type");
-  static constexpr T full_range = static_cast<T>(Scale::den) / static_cast<T>(Scale::num);
+namespace channel {
 
-  T r, g, b, a;
+struct r_tag {};
+struct g_tag {};
+struct b_tag {};
+struct a_tag {};
 
-  constexpr basic_rgba() : r(0), g(0), b(0), a(full_range) {}
+using u8_red = traits::basic_channel<r_tag, uint8_t, 0, 255, 1>;
+using u8_green = traits::basic_channel<g_tag, uint8_t, 0, 255, 1>;
+using u8_blue = traits::basic_channel<b_tag, uint8_t, 0, 255, 1>;
+using u8_alpha = traits::basic_channel<a_tag, uint8_t, 0, 255, 1>;
 
-  constexpr basic_rgba(T red, T green, T blue, T alpha) : r(red), g(green), b(blue), a(alpha) {
-    if (!is_valid_val(red, green, blue, alpha)) {
-      assert(false && "RGBA values out of range!");
-    }
-  }
+using float_red = traits::basic_channel<r_tag, float, 0, 1>;
+using float_green = traits::basic_channel<g_tag, float, 0, 1>;
+using float_blue = traits::basic_channel<b_tag, float, 0, 1>;
+using float_alpha = traits::basic_channel<a_tag, float, 0, 1>;
 
-  template <long long R_raw, long long G_raw, long long B_raw, long long A_raw = full_range>
-  static constexpr basic_rgba make() {
-    constexpr T static_r = static_cast<T>(R_raw);
-    constexpr T static_g = static_cast<T>(G_raw);
-    constexpr T static_b = static_cast<T>(B_raw);
-    constexpr T static_a = static_cast<T>(A_raw);
+}  // namespace channel
 
-    static_assert(is_valid_val(static_r, static_g, static_b, static_a), "RGBA value out of range!");
+namespace model {
 
-    return {static_r, static_g, static_b, static_a};
-  }
+struct rgb8 {};
+struct rgba8 {};
 
-  static constexpr bool is_valid_val(T rv, T gv, T bv, T av) {
-    auto in_range = [](T v) { return v >= T(0) && v <= full_range; };
-    return in_range(rv) && in_range(gv) && in_range(bv) && in_range(av);
-  }
+struct rgb_float {};
+struct rgba_float {};
 
-  constexpr bool is_valid() const { return is_valid_val(r, g, b, a); }
+}  // namespace model
+
+}  // namespace colorcpp::core::rgb
+
+namespace colorcpp::traits {
+
+template <>
+struct model_traits<core::rgb::model::rgb8> {
+  using channels_type =
+      std::tuple<core::rgb::channel::u8_red, core::rgb::channel::u8_green, core::rgb::channel::u8_blue>;
+
+  static constexpr std::size_t channel_size = 3;
 };
 
-/**
- * @name RGBA Color Type Aliases
- * @{
- */
+template <>
+struct model_traits<core::rgb::model::rgba8> {
+  using channels_type = std::tuple<core::rgb::channel::u8_red, core::rgb::channel::u8_green,
+                                   core::rgb::channel::u8_blue, core::rgb::channel::u8_alpha>;
 
-/**
- * @brief 8-bit integer RGBA color type
- *
- * Represents RGBA colors using 8-bit integer values (0-255 range).
- * Scale is set to 1, so values are stored directly.
- * Alpha channel defaults to 255 (fully opaque).
- *
- * @tparam R Red component (0-255)
- * @tparam G Green component (0-255)
- * @tparam B Blue component (0-255)
- * @tparam A Alpha component (0-255, default 255)
- */
-using rgba8_t = basic_rgba<uint8_t, std::ratio<1, 255>>;
-template <uint8_t R, uint8_t G, uint8_t B, uint8_t A = 255>
-inline constexpr rgba8_t rgba8 = rgba8_t::make<R, G, B, A>();
-inline rgba8_t make_rgba8(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) { return rgba8_t(r, g, b, a); }
+  static constexpr std::size_t channel_size = 4;
+};
 
-/**
- * @brief Floating-point RGBA color type
- *
- * Represents RGBA colors using float precision floating-point values (0.0-1.0 range).
- * Scale is set to 1000, mapping integer inputs to floating-point range.
- * Alpha channel defaults to 1.0 (fully opaque).
- *
- * @tparam R Red component (scaled from integer to 0.0-1.0)
- * @tparam G Green component (scaled from integer to 0.0-1.0)
- * @tparam B Blue component (scaled from integer to 0.0-1.0)
- * @tparam A Alpha component (scaled from integer to 0.0-1.0, default 1.0)
- */
-using rgba_float_t = basic_rgba<float, std::ratio<1>>;
-template <int R, int G, int B, int A = 1000>
-inline constexpr rgba_float_t rgbaf = rgba_float_t(static_cast<float>(R) / 1000.0f, static_cast<float>(G) / 1000.0f,
-                                                   static_cast<float>(B) / 1000.0f, static_cast<float>(A) / 1000.0f);
-inline rgba_float_t make_rgbaf(float r, float g, float b, float a = 1.0f) { return rgba_float_t(r, g, b, a); }
-/**
- * @brief Percentage-based RGBA color type
- *
- * Represents RGBA colors using integer percentage values (0-100 range).
- * Alpha channel defaults to 100% (fully opaque).
- *
- * @tparam R Red component percentage (0-100)
- * @tparam G Green component percentage (0-100)
- * @tparam B Blue component percentage (0-100)
- * @tparam A Alpha component percentage (0-100, default 100)
- */
-using rgba_percent_t = basic_rgba<int, std::ratio<1, 100>>;
-template <int R, int G, int B, int A = 100>
-inline constexpr rgba_percent_t rgbaper = rgba_percent_t::make<R, G, B, A>();
+template <>
+struct model_traits<core::rgb::model::rgb_float> {
+  using channels_type =
+      std::tuple<core::rgb::channel::float_red, core::rgb::channel::float_green, core::rgb::channel::float_blue>;
 
-/** @} */
+  static constexpr std::size_t channel_size = 3;
+};
 
-}  // namespace color::core
+template <>
+struct model_traits<core::rgb::model::rgba_float> {
+  using channels_type = std::tuple<core::rgb::channel::float_red, core::rgb::channel::float_green,
+                                   core::rgb::channel::float_blue, core::rgb::channel::float_alpha>;
+
+  static constexpr std::size_t channel_size = 4;
+};
+
+}  // namespace colorcpp::traits
+
+namespace colorcpp::core {
+
+template <typename Model>
+struct basic_rgba : basic_color<Model> {
+  using base = basic_color<Model>;
+
+  using base::base;
+  using base::data;
+
+ private:
+  template <typename Tag>
+  constexpr auto& channel() {
+    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
+
+    return data[idx];
+  }
+
+  template <typename Tag>
+  constexpr const auto& channel() const {
+    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
+
+    return data[idx];
+  }
+
+ public:
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::r_tag>>>
+  constexpr auto& r() {
+    return channel<rgb::channel::r_tag>();
+  }
+
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::r_tag>>>
+  constexpr const auto& r() const {
+    return channel<rgb::channel::r_tag>();
+  }
+
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::g_tag>>>
+  constexpr auto& g() {
+    return channel<rgb::channel::g_tag>();
+  }
+
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::g_tag>>>
+  constexpr const auto& g() const {
+    return channel<rgb::channel::g_tag>();
+  }
+
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::b_tag>>>
+  constexpr auto& b() {
+    return channel<rgb::channel::b_tag>();
+  }
+
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::b_tag>>>
+  constexpr const auto& b() const {
+    return channel<rgb::channel::b_tag>();
+  }
+
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::a_tag>>>
+  constexpr auto& a() {
+    return channel<rgb::channel::a_tag>();
+  }
+
+  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rgb::channel::a_tag>>>
+  constexpr const auto& a() const {
+    return channel<rgb::channel::a_tag>();
+  }
+};
+
+using rgb8_t = basic_rgba<rgb::model::rgb8>;
+using rgba8_t = basic_rgba<rgb::model::rgba8>;
+
+using rgbf_t = basic_rgba<rgb::model::rgb_float>;
+using rgbaf_t = basic_rgba<rgb::model::rgba_float>;
+
+
+}  // namespace colorcpp::core

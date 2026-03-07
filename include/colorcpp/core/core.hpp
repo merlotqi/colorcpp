@@ -1,30 +1,11 @@
-/**
- * @file core.hpp
- * @brief Core color space types and constants
- *
- * This header provides the main entry point for the core color functionality,
- * including all basic color space types and predefined color constants.
- * It serves as a convenience header that includes all core components.
- *
- * @author Merlot.Qi
- */
-
 #pragma once
 
-#include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/color_base.hpp>
-#include <colorcpp/core/constants.hpp>
-#include <colorcpp/core/hsl.hpp>
-#include <colorcpp/core/hsv.hpp>
-#include <colorcpp/core/io.hpp>
 #include <colorcpp/core/rgb.hpp>
-#include <colorcpp/core/lab.hpp>
-#include <colorcpp/core/xyz.hpp>
+#include <colorcpp/core/hsv.hpp>
 
-namespace color {
+#include <colorcpp/core/constants.hpp>
 
+namespace colorcpp {
 using namespace core;
-using core::rgba8_t;
-using core::rgba_float_t;
-
-}  // namespace color
+}
