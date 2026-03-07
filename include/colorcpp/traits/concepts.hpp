@@ -1,17 +1,44 @@
 #pragma once
 
-#include <concepts>
+#include <cstdint>
 #include <limits>
+#include <tuple>
 #include <type_traits>
 
 namespace colorcpp::traits {
 
-template <typename T>
-concept channel_value = std::is_arithmetic_v<T>;
+namespace detail {
+
+template <typename Tuple, typename Tag, std::size_t I = 0>
+struct find_channel_index_impl {
+ private:
+  static constexpr std::size_t compute() {
+    if constexpr (I >= std::tuple_size_v<Tuple>) {
+      return std::tuple_size_v<Tuple>;
+    } else {
+      using channel_t = std::tuple_element_t<I, Tuple>;
+      if constexpr (std::is_same_v<typename channel_t::tag_type, Tag>) {
+        return I;
+      } else {
+        return find_channel_index_impl<Tuple, Tag, I + 1>::value;
+      }
+    }
+  }
+
+ public:
+  static constexpr std::size_t value = compute();
+};
+
+template <typename Tuple, typename Tag>
+struct has_channel_tag_impl
+    : std::bool_constant<(find_channel_index_impl<Tuple, Tag>::value < std::tuple_size_v<Tuple>)> {};
+
+}  // namespace detail
 
 template <typename T>
 struct default_range {
   static constexpr T min = static_cast<T>(0);
+
   static constexpr T max = std::is_floating_point_v<T> ? static_cast<T>(1) : std::numeric_limits<T>::max();
 };
 
@@ -21,21 +48,59 @@ struct channel_traits {
   static constexpr T max = default_range<T>::max;
 };
 
-template <typename Tag, typename T, T Min, T Max>
-struct packed_channel {
+template <typename Tag, typename T, int64_t Min, int64_t Max, int64_t Den = Max>
+struct basic_channel {
+  static_assert(Den != 0, "colorcpp: channel denominator cannot be zero");
+
   using tag_type = Tag;
   using value_type = T;
-  static constexpr T min = Min;
-  static constexpr T max = Max;
+
+  static constexpr T min = static_cast<T>(Min) / static_cast<T>(Den);
+
+  static constexpr T max = static_cast<T>(Max) / static_cast<T>(Den);
+
+  static_assert(min <= max, "colorcpp: channel minimum must not exceed maximum");
 };
 
 template <typename Model>
 struct model_traits;
 
+template <typename T, typename = void>
+struct is_model_traits : std::false_type {};
+
 template <typename T>
-concept is_model_traits = requires {
-  { model_traits<T>::channel_size } -> std::convertible_to<std::size_t>;
-  typename model_traits<T>::channels_type;
+struct is_model_traits<T, std::void_t<decltype(model_traits<T>::channel_size), typename model_traits<T>::channels_type>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_model_traits_v = is_model_traits<T>::value;
+
+// has_channel_tag
+template <typename Model, typename Tag>
+struct has_channel_tag {
+ private:
+  using channels_tuple = typename model_traits<Model>::channels_type;
+
+ public:
+  static constexpr bool value = detail::has_channel_tag_impl<channels_tuple, Tag>::value;
 };
+
+template <typename Model, typename Tag>
+inline constexpr bool has_channel_tag_v = has_channel_tag<Model, Tag>::value;
+
+// channel_index
+template <typename Model, typename Tag>
+struct channel_index {
+ private:
+  using channels_tuple = typename model_traits<Model>::channels_type;
+
+  static_assert(has_channel_tag_v<Model, Tag>, "colorcpp: requested channel tag does not exist in this color model");
+
+ public:
+  static constexpr std::size_t value = detail::find_channel_index_impl<channels_tuple, Tag>::value;
+};
+
+template <typename Model, typename Tag>
+inline constexpr std::size_t channel_index_v = channel_index<Model, Tag>::value;
 
 }  // namespace colorcpp::traits

@@ -16,9 +16,9 @@
 
 #include <colorcpp/literals/literals.hpp>
 
-namespace color::constants {
+namespace colorcpp::constants {
 
-using namespace color::literals;
+using namespace colorcpp::literals;
 
 // Basic RGB colors
 inline constexpr auto black = 0x000000_rgb;

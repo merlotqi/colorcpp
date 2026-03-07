@@ -19,13 +19,12 @@
 #pragma once
 
 #include <colorcpp/core/cmyk.hpp>
-#include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <cstddef>
 #include <cstdint>
 
-namespace color::literals {
+namespace colorcpp::literals {
 
 namespace details {
 /**
@@ -91,19 +90,22 @@ constexpr core::rgba8_t parse_hex_string(const char* s, size_t n) {
   auto get_val = [&](size_t i) { return char_to_hex(s[offset + i]); };
 
   if (len == 3) {  // #RGB
-    return {hex_expand(s[offset]), hex_expand(s[offset + 1]), hex_expand(s[offset + 2]), 255};
+    return core::rgba8_t{hex_expand(s[offset]), hex_expand(s[offset + 1]), hex_expand(s[offset + 2]), 255};
   } else if (len == 4) {  // #RGBA
-    return {hex_expand(s[offset]), hex_expand(s[offset + 1]), hex_expand(s[offset + 2]), hex_expand(s[offset + 3])};
+    return core::rgba8_t{hex_expand(s[offset]), hex_expand(s[offset + 1]), hex_expand(s[offset + 2]),
+                         hex_expand(s[offset + 3])};
   } else if (len == 6) {  // #RRGGBB
-    return {static_cast<uint8_t>((get_val(0) << 4) | get_val(1)), static_cast<uint8_t>((get_val(2) << 4) | get_val(3)),
-            static_cast<uint8_t>((get_val(4) << 4) | get_val(5)), 255};
+    return core::rgba8_t{static_cast<uint8_t>((get_val(0) << 4) | get_val(1)),
+                         static_cast<uint8_t>((get_val(2) << 4) | get_val(3)),
+                         static_cast<uint8_t>((get_val(4) << 4) | get_val(5)), 255};
   } else if (len == 8) {  // #RRGGBBAA
-    return {static_cast<uint8_t>((get_val(0) << 4) | get_val(1)), static_cast<uint8_t>((get_val(2) << 4) | get_val(3)),
-            static_cast<uint8_t>((get_val(4) << 4) | get_val(5)), static_cast<uint8_t>((get_val(6) << 4) | get_val(7))};
+    return core::rgba8_t{
+        static_cast<uint8_t>((get_val(0) << 4) | get_val(1)), static_cast<uint8_t>((get_val(2) << 4) | get_val(3)),
+        static_cast<uint8_t>((get_val(4) << 4) | get_val(5)), static_cast<uint8_t>((get_val(6) << 4) | get_val(7))};
+  } else {
+    throw std::invalid_argument("colorcpp: invalid hex string length. Expected 3, 4, 6, or 8 characters.");
+    return core::rgba8_t{0, 0, 0, 0};
   }
-
-  // 格式错误默认返回黑
-  return {0, 0, 0, 255};
 }
 
 }  // namespace details
@@ -125,7 +127,7 @@ inline namespace operators {
 template <char... Chars>
 constexpr auto operator"" _rgb() {
   constexpr uint64_t val = details::parse_hex_template<Chars...>();
-  return core::rgba8<(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF, 255>;
+  return core::rgba8_t{(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF, 255};
 }
 
 /**
@@ -138,7 +140,7 @@ constexpr auto operator"" _rgb() {
 template <char... Chars>
 constexpr auto operator"" _rgba() {
   constexpr uint64_t val = details::parse_hex_template<Chars...>();
-  return core::rgba8<(val >> 24) & 0xFF, (val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF>;
+  return core::rgba8_t{(val >> 24) & 0xFF, (val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF};
 }
 
 /**
@@ -149,6 +151,9 @@ constexpr auto operator"" _rgba() {
  * @example 0xFF0000_rgb creates red color at runtime
  */
 constexpr auto operator"" _rgb(unsigned long long val) {
+  if (val > 0xFFFFFF) {
+    throw std::out_of_range("colorcpp: _rgb value exceeds 0xFFFFFF (24-bit limit)");
+  }
   return core::rgba8_t{static_cast<uint8_t>((val >> 16) & 0xFF), static_cast<uint8_t>((val >> 8) & 0xFF),
                        static_cast<uint8_t>(val & 0xFF), 255};
 }
@@ -162,6 +167,9 @@ constexpr auto operator"" _rgb(unsigned long long val) {
  * @example 0x00FF00FF_rgba creates fully opaque green at runtime
  */
 constexpr auto operator"" _rgba(unsigned long long val) {
+  if (val > 0xFFFFFFFF) {
+    throw std::out_of_range("colorcpp: _rgb value exceeds 0xFFFFFF (24-bit limit)");
+  }
   return core::rgba8_t{static_cast<uint8_t>((val >> 24) & 0xFF), static_cast<uint8_t>((val >> 16) & 0xFF),
                        static_cast<uint8_t>((val >> 8) & 0xFF), static_cast<uint8_t>(val & 0xFF)};
 }
@@ -175,6 +183,9 @@ constexpr auto operator"" _rgba(unsigned long long val) {
  * @example 0xFF00FF00_argb creates fully opaque cyan at runtime
  */
 constexpr auto operator"" _argb(unsigned long long val) {
+  if (val > 0xFFFFFFFF) {
+    throw std::out_of_range("colorcpp: _rgb value exceeds 0xFFFFFF (24-bit limit)");
+  }
   return core::rgba8_t{static_cast<uint8_t>((val >> 16) & 0xFF), static_cast<uint8_t>((val >> 8) & 0xFF),
                        static_cast<uint8_t>(val & 0xFF), static_cast<uint8_t>((val >> 24) & 0xFF)};
 }
@@ -183,204 +194,205 @@ constexpr auto operator"" _hex(const char* str, size_t len) { return details::pa
 
 /** @} */
 
-/**
- * @name HSV/HSVA Literal Operators
- * @{
- */
+// /**
+//  * @name HSV/HSVA Literal Operators
+//  * @{
+//  */
 
-/**
- * @brief Numeric literal: creates HSV color with scale 1000
- * @param val Decimal value in format HHHSSTS (Hue, Saturation, Value)
- * @return HSV color with alpha=1000 (opaque)
- * @note Hue: 0-360, Saturation: 0-100, Value: 0-100
- * @example 120'50'75_hsv creates HSV(120°, 50%, 75%)
- */
-constexpr auto operator"" _hsv(unsigned long long val) {
-  int v = static_cast<int>(val % 100ULL);
-  int s = static_cast<int>((val / 100ULL) % 100ULL);
-  int h = static_cast<int>(val / 10000ULL);
-  return core::hsva_int_t{h, s, v, 100};
-}
+// /**
+//  * @brief Numeric literal: creates HSV color with scale 1000
+//  * @param val Decimal value in format HHHSSTS (Hue, Saturation, Value)
+//  * @return HSV color with alpha=1000 (opaque)
+//  * @note Hue: 0-360, Saturation: 0-100, Value: 0-100
+//  * @example 120'50'75_hsv creates HSV(120°, 50%, 75%)
+//  */
+// constexpr auto operator"" _hsv(unsigned long long val) {
+//   int v = static_cast<int>(val % 100ULL);
+//   int s = static_cast<int>((val / 100ULL) % 100ULL);
+//   int h = static_cast<int>(val / 10000ULL);
+//   return core::hsva_int_t{h, s, v, 100};
+// }
 
-/**
- * @brief Numeric literal: creates HSVA color with scale 1000
- * @param val Decimal value in format HHHSSTTA (Hue, Saturation, Value, Alpha)
- * @return HSVA color with specified alpha
- * @note Hue: 0-360, Saturation: 0-100, Value: 0-100, Alpha: 0-100
- * @example 120'50'75'80_hsva creates HSV(120°, 50%, 75%) with 80% alpha
- */
-constexpr auto operator"" _hsva(unsigned long long val) {
-  int a = static_cast<int>(val % 100ULL);
-  int v = static_cast<int>((val / 100ULL) % 100ULL);
-  int s = static_cast<int>((val / 10000ULL) % 100ULL);
-  int h = static_cast<int>(val / 1000000ULL);
-  return core::hsva_int_t{h, s, v, a};
-}
+// /**
+//  * @brief Numeric literal: creates HSVA color with scale 1000
+//  * @param val Decimal value in format HHHSSTTA (Hue, Saturation, Value, Alpha)
+//  * @return HSVA color with specified alpha
+//  * @note Hue: 0-360, Saturation: 0-100, Value: 0-100, Alpha: 0-100
+//  * @example 120'50'75'80_hsva creates HSV(120°, 50%, 75%) with 80% alpha
+//  */
+// constexpr auto operator"" _hsva(unsigned long long val) {
+//   int a = static_cast<int>(val % 100ULL);
+//   int v = static_cast<int>((val / 100ULL) % 100ULL);
+//   int s = static_cast<int>((val / 10000ULL) % 100ULL);
+//   int h = static_cast<int>(val / 1000000ULL);
+//   return core::hsva_int_t{h, s, v, a};
+// }
 
-/**
- * @brief Template literal: creates HSV color from decimal string
- * @tparam Chars Character pack representing decimal HSV values
- * @return HSV color with alpha=1000 (opaque)
- * @note Same format as numeric literal but parsed at compile time
- */
-template <char... Chars>
-constexpr auto operator"" _hsv() {
-  return operator"" _hsv(details::parse_dec_template<Chars...>());
-}
+// /**
+//  * @brief Template literal: creates HSV color from decimal string
+//  * @tparam Chars Character pack representing decimal HSV values
+//  * @return HSV color with alpha=1000 (opaque)
+//  * @note Same format as numeric literal but parsed at compile time
+//  */
+// template <char... Chars>
+// constexpr auto operator"" _hsv() {
+//   return operator"" _hsv(details::parse_dec_template<Chars...>());
+// }
 
-/**
- * @brief Template literal: creates HSVA color from decimal string
- * @tparam Chars Character pack representing decimal HSVA values
- * @return HSVA color with specified alpha
- * @note Same format as numeric literal but parsed at compile time
- */
-template <char... Chars>
-constexpr auto operator"" _hsva() {
-  return operator"" _hsva(details::parse_dec_template<Chars...>());
-}
+// /**
+//  * @brief Template literal: creates HSVA color from decimal string
+//  * @tparam Chars Character pack representing decimal HSVA values
+//  * @return HSVA color with specified alpha
+//  * @note Same format as numeric literal but parsed at compile time
+//  */
+// template <char... Chars>
+// constexpr auto operator"" _hsva() {
+//   return operator"" _hsva(details::parse_dec_template<Chars...>());
+// }
 
-/** @} */
+// /** @} */
 
-/**
- * @name HSL/HSLA Literal Operators
- * @{
- */
+// /**
+//  * @name HSL/HSLA Literal Operators
+//  * @{
+//  */
 
-/**
- * @brief Numeric literal: creates HSL color with scale 1000
- * @param val Decimal value in format HHHSSTS (Hue, Saturation, Lightness)
- * @return HSL color with alpha=1000 (opaque)
- * @note Hue: 0-360, Saturation: 0-100, Lightness: 0-100
- * @example 240'75'50_hsl creates HSL(240°, 75%, 50%)
- */
-constexpr auto operator"" _hsl(unsigned long long val) {
-  int l = static_cast<int>(val % 100ULL);
-  int s = static_cast<int>((val / 100ULL) % 100ULL);
-  int h = static_cast<int>(val / 10000ULL);
-  return core::hsla_int_t{h, s, l, 100};
-}
+// /**
+//  * @brief Numeric literal: creates HSL color with scale 1000
+//  * @param val Decimal value in format HHHSSTS (Hue, Saturation, Lightness)
+//  * @return HSL color with alpha=1000 (opaque)
+//  * @note Hue: 0-360, Saturation: 0-100, Lightness: 0-100
+//  * @example 240'75'50_hsl creates HSL(240°, 75%, 50%)
+//  */
+// constexpr auto operator"" _hsl(unsigned long long val) {
+//   int l = static_cast<int>(val % 100ULL);
+//   int s = static_cast<int>((val / 100ULL) % 100ULL);
+//   int h = static_cast<int>(val / 10000ULL);
+//   return core::hsla_int_t{h, s, l, 100};
+// }
 
-/**
- * @brief Numeric literal: creates HSLA color with scale 100
- * @param val Decimal value in format HHHSSTTA (Hue, Saturation, Lightness, Alpha)
- * @return HSLA color with specified alpha
- * @note Hue: 0-360, Saturation: 0-100, Lightness: 0-100, Alpha: 0-100
- * @example 240'75'50'90_hsla creates HSL(240°, 75%, 50%) with 90% alpha
- */
-constexpr auto operator"" _hsla(unsigned long long val) {
-  int a = static_cast<int>(val % 100ULL);
-  int l = static_cast<int>((val / 100ULL) % 100ULL);
-  int s = static_cast<int>((val / 10000ULL) % 100ULL);
-  int h = static_cast<int>(val / 1000000ULL);
-  return core::hsla_int_t{h, s, l, a};
-}
+// /**
+//  * @brief Numeric literal: creates HSLA color with scale 100
+//  * @param val Decimal value in format HHHSSTTA (Hue, Saturation, Lightness, Alpha)
+//  * @return HSLA color with specified alpha
+//  * @note Hue: 0-360, Saturation: 0-100, Lightness: 0-100, Alpha: 0-100
+//  * @example 240'75'50'90_hsla creates HSL(240°, 75%, 50%) with 90% alpha
+//  */
+// constexpr auto operator"" _hsla(unsigned long long val) {
+//   int a = static_cast<int>(val % 100ULL);
+//   int l = static_cast<int>((val / 100ULL) % 100ULL);
+//   int s = static_cast<int>((val / 10000ULL) % 100ULL);
+//   int h = static_cast<int>(val / 1000000ULL);
+//   return core::hsla_int_t{h, s, l, a};
+// }
 
-/**
- * @brief Template literal: creates HSL color from decimal string
- * @tparam Chars Character pack representing decimal HSL values
- * @return HSL color with alpha=1000 (opaque)
- * @note Same format as numeric literal but parsed at compile time
- */
-template <char... Chars>
-constexpr auto operator"" _hsl() {
-  return operator"" _hsl(details::parse_dec_template<Chars...>());
-}
+// /**
+//  * @brief Template literal: creates HSL color from decimal string
+//  * @tparam Chars Character pack representing decimal HSL values
+//  * @return HSL color with alpha=1000 (opaque)
+//  * @note Same format as numeric literal but parsed at compile time
+//  */
+// template <char... Chars>
+// constexpr auto operator"" _hsl() {
+//   return operator"" _hsl(details::parse_dec_template<Chars...>());
+// }
 
-/**
- * @brief Template literal: creates HSLA color from decimal string
- * @tparam Chars Character pack representing decimal HSLA values
- * @return HSLA color with specified alpha
- * @note Same format as numeric literal but parsed at compile time
- */
-template <char... Chars>
-constexpr auto operator"" _hsla() {
-  return operator"" _hsla(details::parse_dec_template<Chars...>());
-}
+// /**
+//  * @brief Template literal: creates HSLA color from decimal string
+//  * @tparam Chars Character pack representing decimal HSLA values
+//  * @return HSLA color with specified alpha
+//  * @note Same format as numeric literal but parsed at compile time
+//  */
+// template <char... Chars>
+// constexpr auto operator"" _hsla() {
+//   return operator"" _hsla(details::parse_dec_template<Chars...>());
+// }
 
-/** @} */
+// /** @} */
 
-/**
- * @name CMYK Literal Operators
- * @{
- */
+// /**
+//  * @name CMYK Literal Operators
+//  * @{
+//  */
 
-/**
- * @brief Numeric literal: creates CMYK color with scale 1000
- * @param val Decimal value in format CCCMMMYYYKKK (Cyan, Magenta, Yellow, Black)
- * @return CMYK color with specified components
- * @note Each component: 0-1000 representing 0-100%
- * @example 100'000'100'000_cmyk creates CMYK(100%, 0%, 100%, 0%) (magenta)
- */
-constexpr auto operator"" _cmyk(unsigned long long val) {
-  int32_t k = static_cast<int32_t>(val % 1000ULL);
-  int32_t y = static_cast<int32_t>((val / 1000ULL) % 1000ULL);
-  int32_t m = static_cast<int32_t>((val / 1000000ULL) % 1000ULL);
-  int32_t c = static_cast<int32_t>((val / 1000000000ULL) % 1000ULL);
-  return core::cmyk_int_t{c, m, y, k};
-}
+// /**
+//  * @brief Numeric literal: creates CMYK color with scale 1000
+//  * @param val Decimal value in format CCCMMMYYYKKK (Cyan, Magenta, Yellow, Black)
+//  * @return CMYK color with specified components
+//  * @note Each component: 0-1000 representing 0-100%
+//  * @example 100'000'100'000_cmyk creates CMYK(100%, 0%, 100%, 0%) (magenta)
+//  */
+// constexpr auto operator"" _cmyk(unsigned long long val) {
+//   int32_t k = static_cast<int32_t>(val % 1000ULL);
+//   int32_t y = static_cast<int32_t>((val / 1000ULL) % 1000ULL);
+//   int32_t m = static_cast<int32_t>((val / 1000000ULL) % 1000ULL);
+//   int32_t c = static_cast<int32_t>((val / 1000000000ULL) % 1000ULL);
+//   return core::cmyk_int_t{c, m, y, k};
+// }
 
-/**
- * @brief Template literal: creates CMYK color from decimal string
- * @tparam Chars Character pack representing decimal CMYK values
- * @return CMYK color with specified components
- * @note Same format as numeric literal but parsed at compile time
- */
-template <char... Chars>
-constexpr auto operator"" _cmyk() {
-  return operator"" _cmyk(details::parse_dec_template<Chars...>());
-}
+// /**
+//  * @brief Template literal: creates CMYK color from decimal string
+//  * @tparam Chars Character pack representing decimal CMYK values
+//  * @return CMYK color with specified components
+//  * @note Same format as numeric literal but parsed at compile time
+//  */
+// template <char... Chars>
+// constexpr auto operator"" _cmyk() {
+//   return operator"" _cmyk(details::parse_dec_template<Chars...>());
+// }
 
-/** @} */
+// /** @} */
 
-/**
- * @name Hue Shortcuts (Alpha defaults to opaque)
- * @{
- */
+// /**
+//  * @name Hue Shortcuts (Alpha defaults to opaque)
+//  * @{
+//  */
 
-/**
- * @brief Hue shortcut: creates HSV color with maximum saturation and value
- * @param h Hue value (0-360)
- * @return HSV color with S=1000, V=1000, A=1000 (fully saturated, bright, opaque)
- * @note Useful for creating pure, vibrant colors by specifying only hue
- * @example 120_hsv_hue creates pure green (HSV 120°, 100%, 100%)
- */
-constexpr auto operator"" _hsv_hue(unsigned long long h) {
-  return core::hsva_int_t{static_cast<int>(h), 100, 100, 100};
-}
+// /**
+//  * @brief Hue shortcut: creates HSV color with maximum saturation and value
+//  * @param h Hue value (0-360)
+//  * @return HSV color with S=1000, V=1000, A=1000 (fully saturated, bright, opaque)
+//  * @note Useful for creating pure, vibrant colors by specifying only hue
+//  * @example 120_hsv_hue creates pure green (HSV 120°, 100%, 100%)
+//  */
+// constexpr auto operator"" _hsv_hue(unsigned long long h) {
+//   return core::hsva_int_t{static_cast<int>(h), 100, 100, 100};
+// }
 
-/**
- * @brief Hue shortcut: creates HSL color with maximum saturation and 50% lightness
- * @param h Hue value (0-360)
- * @return HSL color with S=1000, L=500, A=1000 (fully saturated, medium brightness, opaque)
- * @note Useful for creating pure, vibrant colors by specifying only hue
- * @example 240_hsl_hue creates pure blue (HSL 240°, 100%, 50%)
- */
-constexpr auto operator"" _hsl_hue(unsigned long long h) { return core::hsla_int_t{static_cast<int>(h), 100, 50, 100}; }
+// /**
+//  * @brief Hue shortcut: creates HSL color with maximum saturation and 50% lightness
+//  * @param h Hue value (0-360)
+//  * @return HSL color with S=1000, L=500, A=1000 (fully saturated, medium brightness, opaque)
+//  * @note Useful for creating pure, vibrant colors by specifying only hue
+//  * @example 240_hsl_hue creates pure blue (HSL 240°, 100%, 50%)
+//  */
+// constexpr auto operator"" _hsl_hue(unsigned long long h) { return core::hsla_int_t{static_cast<int>(h), 100, 50,
+// 100}; }
 
-/**
- * @brief Template literal: creates HSV hue shortcut from string
- * @tparam Chars Character pack representing hue value
- * @return HSV color with maximum saturation and value
- * @note Same format as numeric literal but parsed at compile time
- */
-template <char... Chars>
-constexpr auto operator"" _hsv_hue() {
-  return operator"" _hsv_hue(details::parse_dec_template<Chars...>());
-}
+// /**
+//  * @brief Template literal: creates HSV hue shortcut from string
+//  * @tparam Chars Character pack representing hue value
+//  * @return HSV color with maximum saturation and value
+//  * @note Same format as numeric literal but parsed at compile time
+//  */
+// template <char... Chars>
+// constexpr auto operator"" _hsv_hue() {
+//   return operator"" _hsv_hue(details::parse_dec_template<Chars...>());
+// }
 
-/**
- * @brief Template literal: creates HSL hue shortcut from string
- * @tparam Chars Character pack representing hue value
- * @return HSL color with maximum saturation and 50% lightness
- * @note Same format as numeric literal but parsed at compile time
- */
-template <char... Chars>
-constexpr auto operator"" _hsl_hue() {
-  return operator"" _hsl_hue(details::parse_dec_template<Chars...>());
-}
+// /**
+//  * @brief Template literal: creates HSL hue shortcut from string
+//  * @tparam Chars Character pack representing hue value
+//  * @return HSL color with maximum saturation and 50% lightness
+//  * @note Same format as numeric literal but parsed at compile time
+//  */
+// template <char... Chars>
+// constexpr auto operator"" _hsl_hue() {
+//   return operator"" _hsl_hue(details::parse_dec_template<Chars...>());
+// }
 
-/** @} */
+// /** @} */
 
 }  // namespace operators
 
-}  // namespace color::literals
+}  // namespace colorcpp::literals
