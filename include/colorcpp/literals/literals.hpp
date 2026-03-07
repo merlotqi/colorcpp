@@ -103,8 +103,9 @@ constexpr core::rgba8_t parse_hex_string(const char* s, size_t n) {
         static_cast<uint8_t>((get_val(0) << 4) | get_val(1)), static_cast<uint8_t>((get_val(2) << 4) | get_val(3)),
         static_cast<uint8_t>((get_val(4) << 4) | get_val(5)), static_cast<uint8_t>((get_val(6) << 4) | get_val(7))};
   } else {
-    throw std::invalid_argument("colorcpp: invalid hex string length. Expected 3, 4, 6, or 8 characters.");
-    return core::rgba8_t{0, 0, 0, 0};
+    constexpr char error_msg[] = "colorcpp: invalid hex string length. Expected 3, 4, 6, or 8 characters.";
+    (void)error_msg;
+    return core::rgba8_t{error_msg[0], error_msg[1], error_msg[2], error_msg[3]};
   }
 }
 
@@ -127,6 +128,7 @@ inline namespace operators {
 template <char... Chars>
 constexpr auto operator"" _rgb() {
   constexpr uint64_t val = details::parse_hex_template<Chars...>();
+  static_assert(val <= 0xFFFFFF, "colorcpp: _rgb template value exceeds 0xFFFFFF (24-bit limit)");
   return core::rgba8_t{(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF, 255};
 }
 
@@ -140,6 +142,7 @@ constexpr auto operator"" _rgb() {
 template <char... Chars>
 constexpr auto operator"" _rgba() {
   constexpr uint64_t val = details::parse_hex_template<Chars...>();
+  static_assert(val <= 0xFFFFFFFF, "colorcpp: _rgba template value exceeds 0xFFFFFFFF (32-bit limit)");
   return core::rgba8_t{(val >> 24) & 0xFF, (val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF};
 }
 
@@ -168,7 +171,7 @@ constexpr auto operator"" _rgb(unsigned long long val) {
  */
 constexpr auto operator"" _rgba(unsigned long long val) {
   if (val > 0xFFFFFFFF) {
-    throw std::out_of_range("colorcpp: _rgb value exceeds 0xFFFFFF (24-bit limit)");
+    throw std::out_of_range("colorcpp: _rgba value exceeds 0xFFFFFFFF (32-bit limit)");
   }
   return core::rgba8_t{static_cast<uint8_t>((val >> 24) & 0xFF), static_cast<uint8_t>((val >> 16) & 0xFF),
                        static_cast<uint8_t>((val >> 8) & 0xFF), static_cast<uint8_t>(val & 0xFF)};
@@ -184,7 +187,7 @@ constexpr auto operator"" _rgba(unsigned long long val) {
  */
 constexpr auto operator"" _argb(unsigned long long val) {
   if (val > 0xFFFFFFFF) {
-    throw std::out_of_range("colorcpp: _rgb value exceeds 0xFFFFFF (24-bit limit)");
+    throw std::out_of_range("colorcpp: _argb value exceeds 0xFFFFFFFF (32-bit limit)");
   }
   return core::rgba8_t{static_cast<uint8_t>((val >> 16) & 0xFF), static_cast<uint8_t>((val >> 8) & 0xFF),
                        static_cast<uint8_t>(val & 0xFF), static_cast<uint8_t>((val >> 24) & 0xFF)};
