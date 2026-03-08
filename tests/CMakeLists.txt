@@ -16,7 +16,6 @@ if(COLORCPP_BUILD_TESTS)
     include(GoogleTest)
 
     file(GLOB_RECURSE TEST_MODULES "*.cpp")
-    message(STATUS "TEST_MODULES=${TEST_MODULES}")
     
     foreach(TEST_SOURCE ${TEST_MODULES})
         get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)

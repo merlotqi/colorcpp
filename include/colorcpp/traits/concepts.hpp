@@ -4,6 +4,7 @@
 #include <limits>
 #include <tuple>
 #include <type_traits>
+#include <string_view>
 
 namespace colorcpp::traits {
 
@@ -63,7 +64,9 @@ struct basic_channel {
 };
 
 template <typename Model>
-struct model_traits;
+struct model_traits {
+  static constexpr std::string_view prefix = "";
+};
 
 template <typename T, typename = void>
 struct is_model_traits : std::false_type {};

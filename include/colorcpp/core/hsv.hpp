@@ -12,9 +12,9 @@ struct v_tag {};  // value
 struct a_tag {};  // alpha
 
 using f32_hue = traits::basic_channel<h_tag, float, 0, 360, 1>;
-using f32_saturation = traits::basic_channel<s_tag, float, 0, 1>;
-using f32_value = traits::basic_channel<v_tag, float, 0, 1>;
-using f32_alpha = traits::basic_channel<a_tag, float, 0, 1>;
+using f32_saturation = traits::basic_channel<s_tag, float, 0, 100, 1>;
+using f32_value = traits::basic_channel<v_tag, float, 0, 100, 1>;
+using f32_alpha = traits::basic_channel<a_tag, float, 0, 100, 1>;
 
 }  // namespace channel
 
