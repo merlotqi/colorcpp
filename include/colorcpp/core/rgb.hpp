@@ -45,7 +45,7 @@ template <>
 struct model_traits<core::rgb::model::rgb8> {
   using channels_type =
       std::tuple<core::rgb::channel::u8_red, core::rgb::channel::u8_green, core::rgb::channel::u8_blue>;
-
+  static constexpr std::string_view prefix = "rgb";
   static constexpr std::size_t channel_size = 3;
 };
 
@@ -53,7 +53,7 @@ template <>
 struct model_traits<core::rgb::model::rgba8> {
   using channels_type = std::tuple<core::rgb::channel::u8_red, core::rgb::channel::u8_green,
                                    core::rgb::channel::u8_blue, core::rgb::channel::u8_alpha>;
-
+  static constexpr std::string_view prefix = "rgba";
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -61,7 +61,7 @@ template <>
 struct model_traits<core::rgb::model::rgb_float> {
   using channels_type =
       std::tuple<core::rgb::channel::float_red, core::rgb::channel::float_green, core::rgb::channel::float_blue>;
-
+  static constexpr std::string_view prefix = "rgbf";
   static constexpr std::size_t channel_size = 3;
 };
 
@@ -69,7 +69,7 @@ template <>
 struct model_traits<core::rgb::model::rgba_float> {
   using channels_type = std::tuple<core::rgb::channel::float_red, core::rgb::channel::float_green,
                                    core::rgb::channel::float_blue, core::rgb::channel::float_alpha>;
-
+  static constexpr std::string_view prefix = "rgbaf";
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -146,6 +146,5 @@ using rgba8_t = basic_rgba<rgb::model::rgba8>;
 
 using rgbf_t = basic_rgba<rgb::model::rgb_float>;
 using rgbaf_t = basic_rgba<rgb::model::rgba_float>;
-
 
 }  // namespace colorcpp::core
