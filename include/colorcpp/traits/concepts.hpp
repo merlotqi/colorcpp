@@ -2,9 +2,9 @@
 
 #include <cstdint>
 #include <limits>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
-#include <string_view>
 
 namespace colorcpp::traits {
 
