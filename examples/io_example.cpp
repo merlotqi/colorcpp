@@ -5,7 +5,6 @@ int main() {
   auto red = colorcpp::constants::red;
   std::cout << red << std::endl;
 
-
   colorcpp::core::rgb8_t color;
   std::cin >> color;
 

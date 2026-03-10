@@ -10,4 +10,7 @@ if(COLORCPP_BUILD_EXAMPLES)
 
   add_executable(interpolate_example interpolate_example.cpp)
   target_link_libraries(interpolate_example colorcpp::colorcpp)
+
+  add_executable(palette_example palette_example.cpp)
+  target_link_libraries(palette_example colorcpp::colorcpp)
 endif()
