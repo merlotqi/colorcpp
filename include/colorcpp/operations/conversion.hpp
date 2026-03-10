@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/rgb.hpp>
@@ -71,6 +72,9 @@ struct model_category {
 
   static constexpr bool is_hsv =
       std::is_same_v<ModelTag, core::hsv::model::hsv> || std::is_same_v<ModelTag, core::hsv::model::hsva>;
+
+  static constexpr bool is_cmyk =
+      std::is_same_v<ModelTag, core::cmyk::model::cmyk_u8> || std::is_same_v<ModelTag, core::cmyk::model::cmyk_float>;
 };
 
 template <typename To, typename From>

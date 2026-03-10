@@ -129,9 +129,7 @@ struct tuple_size<colorcpp::core::basic_color<Model>>
 template <std::size_t I, typename Model>
 struct tuple_element<I, colorcpp::core::basic_color<Model>> {
   using channels = typename colorcpp::traits::model_traits<Model>::channels_type;
-
   using channel_type = std::tuple_element<I, channels>;
-
   using type = typename channel_type::value_type;
 };
 

@@ -34,6 +34,7 @@ struct model_traits<core::hsl::model::hsl> {
   using channels_type =
       std::tuple<core::hsl::channel::f32_hue, core::hsl::channel::f32_saturation, core::hsl::channel::f32_lightness>;
 
+  static constexpr std::string_view prefix = "hsl";
   static constexpr std::size_t channel_size = 3;
 };
 
@@ -41,7 +42,7 @@ template <>
 struct model_traits<core::hsl::model::hsla> {
   using channels_type = std::tuple<core::hsl::channel::f32_hue, core::hsl::channel::f32_saturation,
                                    core::hsl::channel::f32_lightness, core::hsl::channel::f32_alpha>;
-
+  static constexpr std::string_view prefix = "hsla";
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -93,12 +94,12 @@ struct basic_hsl : basic_color<Model> {
   }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hsl::channel::l_tag>>>
-  constexpr auto& v() {
+  constexpr auto& l() {
     return channel<hsl::channel::l_tag>();
   }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hsl::channel::l_tag>>>
-  constexpr const auto& v() const {
+  constexpr const auto& l() const {
     return channel<hsl::channel::l_tag>();
   }
 
