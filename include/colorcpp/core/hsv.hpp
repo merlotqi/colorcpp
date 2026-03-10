@@ -34,6 +34,7 @@ struct model_traits<core::hsv::model::hsv> {
   using channels_type =
       std::tuple<core::hsv::channel::f32_hue, core::hsv::channel::f32_saturation, core::hsv::channel::f32_value>;
 
+  static constexpr std::string_view prefix = "hsv";
   static constexpr std::size_t channel_size = 3;
 };
 
@@ -42,6 +43,7 @@ struct model_traits<core::hsv::model::hsva> {
   using channels_type = std::tuple<core::hsv::channel::f32_hue, core::hsv::channel::f32_saturation,
                                    core::hsv::channel::f32_value, core::hsv::channel::f32_alpha>;
 
+  static constexpr std::string_view prefix = "hsva";
   static constexpr std::size_t channel_size = 4;
 };
 

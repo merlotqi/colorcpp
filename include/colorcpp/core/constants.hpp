@@ -171,4 +171,4 @@ inline constexpr auto rosybrown = 0xBC8F8F_rgb;
 inline constexpr auto sienna = 0xA0522D_rgb;
 inline constexpr auto saddlebrown = 0x8B4513_rgb;
 
-}  // namespace color::constants
+}  // namespace colorcpp::constants

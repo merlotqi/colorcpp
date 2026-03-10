@@ -1,10 +1,12 @@
 #include <colorcpp/colorcpp.hpp>
 #include <iostream>
 
-int main() {
-  auto brown = color::constants::brown;
+using namespace colorcpp;
 
-  auto brownf = color::to_rgba_float(brown);
+int main() {
+  auto brown = colorcpp::constants::brown;
+
+  auto brownf = colorcpp::conversion::color_cast<colorcpp::core::rgbaf_t>(brown);
 
   std::cout << brown << '\n';
   std::cout << brownf << '\n';

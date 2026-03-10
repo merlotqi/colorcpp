@@ -11,6 +11,11 @@ struct m_tag {};
 struct y_tag {};
 struct k_tag {};
 
+using u8_cyan = traits::basic_channel<c_tag, uint8_t, 0, 100, 1>;
+using u8_magenta = traits::basic_channel<m_tag, uint8_t, 0, 100, 1>;
+using u8_yellow = traits::basic_channel<y_tag, uint8_t, 0, 100, 1>;
+using u8_key = traits::basic_channel<k_tag, uint8_t, 0, 100, 1>;
+
 using float_cyan = traits::basic_channel<c_tag, float, 0, 1>;
 using float_magenta = traits::basic_channel<m_tag, float, 0, 1>;
 using float_yellow = traits::basic_channel<y_tag, float, 0, 1>;
@@ -20,6 +25,7 @@ using float_key = traits::basic_channel<k_tag, float, 0, 1>;
 
 namespace model {
 
+struct cmyk_u8 {};
 struct cmyk_float {};
 
 }  // namespace model
@@ -29,10 +35,20 @@ struct cmyk_float {};
 namespace colorcpp::traits {
 
 template <>
+struct model_traits<core::cmyk::model::cmyk_u8> {
+  using channels_type = std::tuple<core::cmyk::channel::u8_cyan, core::cmyk::channel::u8_magenta,
+                                   core::cmyk::channel::u8_yellow, core::cmyk::channel::u8_key>;
+
+  static constexpr std::string_view prefix = "cmyk";
+  static constexpr std::size_t channel_size = 4;
+};
+
+template <>
 struct model_traits<core::cmyk::model::cmyk_float> {
   using channels_type = std::tuple<core::cmyk::channel::float_cyan, core::cmyk::channel::float_magenta,
                                    core::cmyk::channel::float_yellow, core::cmyk::channel::float_key>;
 
+  static constexpr std::string_view prefix = "cmyk";
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -104,6 +120,7 @@ struct basic_cymk : basic_color<Model> {
   }
 };
 
+using cmyk8_t = basic_cymk<cmyk::model::cmyk_u8>;
 using cmyk_float_t = basic_cymk<cmyk::model::cmyk_float>;
 
 }  // namespace colorcpp::core
