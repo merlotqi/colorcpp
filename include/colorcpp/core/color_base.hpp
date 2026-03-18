@@ -62,6 +62,11 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
                   "colorcpp: requested channel tag does not exist in this model");
 
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
+    using channel_t = std::tuple_element_t<idx, channels_tuple>;
+
+    if (!(v >= static_cast<T>(channel_t::min) && v <= static_cast<T>(channel_t::max))) {
+      throw std::out_of_range("colorcpp: channel value out of range");
+    }
 
     data[idx] = static_cast<value_type>(v);
   }
@@ -129,8 +134,7 @@ struct tuple_size<colorcpp::core::basic_color<Model>>
 template <std::size_t I, typename Model>
 struct tuple_element<I, colorcpp::core::basic_color<Model>> {
   using channels = typename colorcpp::traits::model_traits<Model>::channels_type;
-  using channel_type = std::tuple_element<I, channels>;
-  using type = typename channel_type::value_type;
+  using type = typename std::tuple_element_t<I, channels>::value_type;
 };
 
 template <std::size_t I, typename Model>

@@ -2,7 +2,10 @@
 
 #include <algorithm>
 #include <array>
+#include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/hsl.hpp>
+#include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <iomanip>
 #include <iostream>
@@ -168,5 +171,35 @@ std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_rgba<Mode
 
 template <typename Model>
 std::istream& operator>>(std::istream& is, colorcpp::core::basic_rgba<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_hsl<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_hsl<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_hsv<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_hsv<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_cmyk<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_cmyk<Model>& c) {
   return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
 }
