@@ -96,6 +96,24 @@ auto visual_scale(const Color& start, const Color& end, size_t count) {
   return p;
 }
 
+// Perceptually uniform scale via OkLab interpolation.
+// Produces smoother brightness and saturation transitions than visual_scale (HSL).
+template <typename Color>
+auto perceptual_scale(const Color& start, const Color& end, size_t count) {
+  palette_set<Color> p;
+  if (count == 0) return p;
+  if (count == 1) {
+    p.add(start);
+    return p;
+  }
+
+  for (size_t i = 0; i < count; ++i) {
+    float t = static_cast<float>(i) / (count - 1);
+    p.add(interpolate::lerp_oklab(start, end, t));
+  }
+  return p;
+}
+
 struct generate {
   template <typename Color>
   static auto complementary(const Color& base) {

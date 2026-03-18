@@ -9,15 +9,11 @@ namespace colorcpp::operations::accessibility {
 template <typename Color>
 float relative_luminance(const Color& c) {
   using namespace conversion;
-  auto rgb = color_cast<core::rgbaf_t>(c);
-
-  auto linearize = [](float v) { return (v <= 0.04045f) ? (v / 12.92f) : std::pow((v + 0.055f) / 1.055f, 2.4f); };
-
-  float r = linearize(rgb.template get_index<0>());
-  float g = linearize(rgb.template get_index<1>());
-  float b = linearize(rgb.template get_index<2>());
-
-  return 0.2126f * r + 0.7152f * g + 0.0722f * b;
+  // color_cast<linear_rgbf_t> handles gamma removal for all registered models
+  // (sRGB → IEC 61966-2-1 linearization, OkLab/CIELAB → XYZ → linear sRGB, etc.)
+  auto lin = color_cast<core::linear_rgbf_t>(c);
+  return 0.2126f * lin.template get_index<0>() + 0.7152f * lin.template get_index<1>() +
+         0.0722f * lin.template get_index<2>();
 }
 
 template <typename Color>

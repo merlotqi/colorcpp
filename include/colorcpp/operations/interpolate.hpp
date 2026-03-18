@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
+#include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <initializer_list>
@@ -146,6 +148,88 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
+// OkLab-space interpolation (perceptually uniform, recommended for UI gradients).
+// L/a/b channels lerp linearly in OkLab; alpha is lerped via the rgba representation.
+template <typename Color>
+Color lerp_oklab(const Color& a, const Color& b, float t) {
+  using namespace conversion;
+  t = std::clamp(t, 0.0f, 1.0f);
+
+  auto ca = color_cast<core::oklab_t>(a);
+  auto cb = color_cast<core::oklab_t>(b);
+
+  core::oklab_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
+                    details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+                    details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+
+  auto ra = color_cast<core::rgbaf_t>(a);
+  auto rb = color_cast<core::rgbaf_t>(b);
+  auto out = color_cast<core::rgbaf_t>(mid);
+  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
+  return color_cast<Color>(out);
+}
+
+// OkLCH-space interpolation: shortest-arc hue, linear L/C; alpha via rgba.
+template <typename Color>
+Color lerp_oklch(const Color& a, const Color& b, float t) {
+  using namespace conversion;
+  t = std::clamp(t, 0.0f, 1.0f);
+
+  auto ca = color_cast<core::oklch_t>(a);
+  auto cb = color_cast<core::oklch_t>(b);
+
+  core::oklch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
+                    details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+                    details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+
+  auto ra = color_cast<core::rgbaf_t>(a);
+  auto rb = color_cast<core::rgbaf_t>(b);
+  auto out = color_cast<core::rgbaf_t>(mid);
+  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
+  return color_cast<Color>(out);
+}
+
+// CIELAB-space interpolation (ISO 11664-4 standard perceptual model).
+// L*/a*/b* channels lerp linearly; alpha is lerped via the rgba representation.
+template <typename Color>
+Color lerp_lab(const Color& a, const Color& b, float t) {
+  using namespace conversion;
+  t = std::clamp(t, 0.0f, 1.0f);
+
+  auto ca = color_cast<core::cielab_t>(a);
+  auto cb = color_cast<core::cielab_t>(b);
+
+  core::cielab_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
+                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+                     details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+
+  auto ra = color_cast<core::rgbaf_t>(a);
+  auto rb = color_cast<core::rgbaf_t>(b);
+  auto out = color_cast<core::rgbaf_t>(mid);
+  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
+  return color_cast<Color>(out);
+}
+
+// CIELCH-space interpolation: shortest-arc hue, linear L*/C*; alpha via rgba.
+template <typename Color>
+Color lerp_lch(const Color& a, const Color& b, float t) {
+  using namespace conversion;
+  t = std::clamp(t, 0.0f, 1.0f);
+
+  auto ca = color_cast<core::cielch_t>(a);
+  auto cb = color_cast<core::cielch_t>(b);
+
+  core::cielch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
+                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+                     details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+
+  auto ra = color_cast<core::rgbaf_t>(a);
+  auto rb = color_cast<core::rgbaf_t>(b);
+  auto out = color_cast<core::rgbaf_t>(mid);
+  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
+  return color_cast<Color>(out);
+}
+
 // ── Eased interpolation ───────────────────────────────────────────────────
 
 // Apply any easing curve (from the easing namespace) to an RGB lerp.
@@ -159,6 +243,18 @@ Color ease(const Color& a, const Color& b, float t, EasingFunc&& ef) {
 template <typename Color, typename EasingFunc>
 Color ease_hsl(const Color& a, const Color& b, float t, EasingFunc&& ef) {
   return lerp_hsl(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+}
+
+// Apply any easing curve to an OkLab lerp.
+template <typename Color, typename EasingFunc>
+Color ease_oklab(const Color& a, const Color& b, float t, EasingFunc&& ef) {
+  return lerp_oklab(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+}
+
+// Apply any easing curve to an OkLCH lerp.
+template <typename Color, typename EasingFunc>
+Color ease_oklch(const Color& a, const Color& b, float t, EasingFunc&& ef) {
+  return lerp_oklch(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
 // Convenience: smoothstep ease-in-out in RGB space (backward-compatible shortcut).
@@ -207,6 +303,42 @@ Color multi_lerp_hsl(std::initializer_list<Color> stops, float t) {
   return lerp_hsl(lo, hi, local_t);
 }
 
+// Interpolate across N stops in OkLab space (perceptually uniform gradients).
+template <typename Color>
+Color multi_lerp_oklab(std::initializer_list<Color> stops, float t) {
+  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklab requires at least 2 colour stops");
+  t = std::clamp(t, 0.0f, 1.0f);
+
+  const std::size_t n = stops.size() - 1;
+  float scaled = t * static_cast<float>(n);
+  std::size_t i = std::min(static_cast<std::size_t>(scaled), n - 1);
+  float local_t = scaled - static_cast<float>(i);
+
+  auto it = stops.begin();
+  std::advance(it, i);
+  const Color& lo = *it++;
+  const Color& hi = *it;
+  return lerp_oklab(lo, hi, local_t);
+}
+
+// Interpolate across N stops in OkLCH space (hue-preserving gradients).
+template <typename Color>
+Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
+  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklch requires at least 2 colour stops");
+  t = std::clamp(t, 0.0f, 1.0f);
+
+  const std::size_t n = stops.size() - 1;
+  float scaled = t * static_cast<float>(n);
+  std::size_t i = std::min(static_cast<std::size_t>(scaled), n - 1);
+  float local_t = scaled - static_cast<float>(i);
+
+  auto it = stops.begin();
+  std::advance(it, i);
+  const Color& lo = *it++;
+  const Color& hi = *it;
+  return lerp_oklch(lo, hi, local_t);
+}
+
 // ── Batch generation ─────────────────────────────────────────────────────
 
 // Generate `count` evenly-spaced colours from a to b inclusive via RGB lerp.
@@ -236,6 +368,36 @@ std::vector<Color> lerp_hsl_n(const Color& a, const Color& b, std::size_t count)
   }
   for (std::size_t i = 0; i < count; ++i)
     out.push_back(lerp_hsl(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
+  return out;
+}
+
+// Generate `count` evenly-spaced colours from a to b inclusive via OkLab lerp.
+template <typename Color>
+std::vector<Color> lerp_oklab_n(const Color& a, const Color& b, std::size_t count) {
+  std::vector<Color> out;
+  if (count == 0) return out;
+  out.reserve(count);
+  if (count == 1) {
+    out.push_back(a);
+    return out;
+  }
+  for (std::size_t i = 0; i < count; ++i)
+    out.push_back(lerp_oklab(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
+  return out;
+}
+
+// Generate `count` evenly-spaced colours from a to b inclusive via OkLCH lerp.
+template <typename Color>
+std::vector<Color> lerp_oklch_n(const Color& a, const Color& b, std::size_t count) {
+  std::vector<Color> out;
+  if (count == 0) return out;
+  out.reserve(count);
+  if (count == 1) {
+    out.push_back(a);
+    return out;
+  }
+  for (std::size_t i = 0; i < count; ++i)
+    out.push_back(lerp_oklch(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
   return out;
 }
 
