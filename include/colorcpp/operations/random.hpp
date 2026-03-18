@@ -13,8 +13,7 @@
 #include <utility>
 #include <vector>
 
-namespace colorcpp::operations::generation {
-inline namespace random {
+namespace colorcpp::operations::random {
 
 enum class harmony_mode {
   analogous,
@@ -332,5 +331,4 @@ using hsv_generator = basic_hsl_generator<core::hsv_float_t>;
 using harmony_gen = harmony_generator<core::hsla_float_t>;
 using golden_gen = golden_angle_generator<core::hsl_float_t>;
 
-}  // namespace random
-}  // namespace colorcpp::operations::generation
+}  // namespace colorcpp::operations::random

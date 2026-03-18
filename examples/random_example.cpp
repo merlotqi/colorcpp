@@ -1,8 +1,7 @@
 #include <colorcpp/colorcpp.hpp>
 #include <iostream>
 
-
-using namespace colorcpp::operations::generation;
+using namespace colorcpp::operations::random;
 
 int main() {
   // 1. seed
