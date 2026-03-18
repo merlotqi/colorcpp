@@ -8,7 +8,7 @@
 
 namespace colorcpp::traits {
 
-namespace detail {
+namespace details {
 
 template <typename Tuple, typename Tag, std::size_t I = 0>
 struct find_channel_index_impl {
@@ -34,7 +34,7 @@ template <typename Tuple, typename Tag>
 struct has_channel_tag_impl
     : std::bool_constant<(find_channel_index_impl<Tuple, Tag>::value < std::tuple_size_v<Tuple>)> {};
 
-}  // namespace detail
+}  // namespace details
 
 template <typename T>
 struct default_range {
@@ -85,7 +85,7 @@ struct has_channel_tag {
   using channels_tuple = typename model_traits<Model>::channels_type;
 
  public:
-  static constexpr bool value = detail::has_channel_tag_impl<channels_tuple, Tag>::value;
+  static constexpr bool value = details::has_channel_tag_impl<channels_tuple, Tag>::value;
 };
 
 template <typename Model, typename Tag>
@@ -100,7 +100,7 @@ struct channel_index {
   static_assert(has_channel_tag_v<Model, Tag>, "colorcpp: requested channel tag does not exist in this color model");
 
  public:
-  static constexpr std::size_t value = detail::find_channel_index_impl<channels_tuple, Tag>::value;
+  static constexpr std::size_t value = details::find_channel_index_impl<channels_tuple, Tag>::value;
 };
 
 template <typename Model, typename Tag>
