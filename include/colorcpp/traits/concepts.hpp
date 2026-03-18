@@ -106,4 +106,20 @@ struct channel_index {
 template <typename Model, typename Tag>
 inline constexpr std::size_t channel_index_v = channel_index<Model, Tag>::value;
 
+// Derives a heterogeneous value-storage tuple from a channels_type tuple.
+// channels_type = tuple<Ch0, Ch1, Ch2>  →  storage_type = tuple<Ch0::value_type, Ch1::value_type, Ch2::value_type>
+// This allows each channel to carry its own scalar type (e.g. float L, float a, float b for Lab,
+// or eventually double for high-precision channels), rather than forcing every channel to share
+// the same type as was the case with the previous std::array<value_type, N> layout.
+template <typename ChannelsTuple>
+struct channels_storage;
+
+template <typename... Channels>
+struct channels_storage<std::tuple<Channels...>> {
+  using type = std::tuple<typename Channels::value_type...>;
+};
+
+template <typename ChannelsTuple>
+using channels_storage_t = typename channels_storage<ChannelsTuple>::type;
+
 }  // namespace colorcpp::traits

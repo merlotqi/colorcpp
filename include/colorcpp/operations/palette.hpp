@@ -177,8 +177,8 @@ struct generate {
     using namespace conversion;
     auto h = color_cast<core::hsla_float_t>(base);
 
-    core::hsla_float_t low{h.template get_index<0>(), h.template get_index<1>(), 20.0f, h.template get_index<3>()};
-    core::hsla_float_t high{h.template get_index<0>(), h.template get_index<1>(), 90.0f, h.template get_index<3>()};
+    core::hsla_float_t low{h.template get_index<0>(), h.template get_index<1>(), 0.2f, h.template get_index<3>()};
+    core::hsla_float_t high{h.template get_index<0>(), h.template get_index<1>(), 0.9f, h.template get_index<3>()};
 
     return visual_scale(color_cast<Color>(low), color_cast<Color>(high), count);
   }

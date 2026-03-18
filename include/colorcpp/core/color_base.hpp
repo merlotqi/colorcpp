@@ -22,9 +22,20 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
 
   using first_channel = std::tuple_element_t<0, channels_tuple>;
 
+  // Retained for backward compatibility (e.g. io.hpp, user code).
+  // For homogeneous models this equals every channel's type.
+  // For future heterogeneous models, prefer channel_value_t<I>.
   using value_type = typename first_channel::value_type;
 
-  using storage_type = std::array<value_type, channels>;
+  // Per-channel value type: channel_value_t<I> gives the exact scalar type of channel I.
+  // For current models all channels share the same type, but new spaces (Lab, XYZ, …)
+  // may legitimately mix types (e.g. signed float for a/b channels in Lab).
+  template <std::size_t I>
+  using channel_value_t = typename std::tuple_element_t<I, channels_tuple>::value_type;
+
+  // Heterogeneous tuple storage: each element has the value_type declared by its channel.
+  // Replaces the former std::array<value_type, N> which forced all channels to share one type.
+  using storage_type = traits::channels_storage_t<channels_tuple>;
 
   storage_type data{};
 
@@ -32,7 +43,7 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   constexpr basic_color() = default;
 
   template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == channels>>
-  constexpr explicit basic_color(Args... args) : data{static_cast<value_type>(args)...} {
+  constexpr explicit basic_color(Args... args) : data{make_storage(std::make_index_sequence<channels>{}, args...)} {
     check_range(std::make_index_sequence<channels>{}, args...);
   }
 
@@ -42,8 +53,7 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
                   "colorcpp: requested channel tag does not exist in this model");
 
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-
-    return data[idx];
+    return std::get<idx>(data);
   }
 
   template <typename Tag>
@@ -52,8 +62,7 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
                   "colorcpp: requested channel tag does not exist in this model");
 
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-
-    return data[idx];
+    return std::get<idx>(data);
   }
 
   template <typename Tag, typename T>
@@ -68,26 +77,37 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
       throw std::out_of_range("colorcpp: channel value out of range");
     }
 
-    data[idx] = static_cast<value_type>(v);
+    std::get<idx>(data) = static_cast<channel_value_t<idx>>(v);
   }
 
   template <std::size_t I>
   constexpr auto& get_index() {
     static_assert(I < channels, "colorcpp: channel index out of range");
-    return data[I];
+    return std::get<I>(data);
   }
 
   template <std::size_t I>
   constexpr const auto& get_index() const {
     static_assert(I < channels, "colorcpp: channel index out of range");
-    return data[I];
+    return std::get<I>(data);
   }
 
  private:
+  // Constructs the heterogeneous tuple storage from variadic args,
+  // casting each arg to the exact value_type declared by its channel.
+  template <std::size_t... Is, typename... Args>
+  constexpr static storage_type make_storage(std::index_sequence<Is...>, Args... args) {
+    auto tp = std::make_tuple(args...);
+    return storage_type{static_cast<channel_value_t<Is>>(std::get<Is>(tp))...};
+  }
+
+  // Validates each arg against its channel's [min, max] using the original (uncast) values,
+  // so out-of-range inputs are detected before any narrowing conversion.
   template <std::size_t... Is, typename... Args>
   constexpr void check_range(std::index_sequence<Is...>, Args... args) {
-    bool valid = ((args >= std::tuple_element_t<Is, channels_tuple>::min &&
-                   args <= std::tuple_element_t<Is, channels_tuple>::max) &&
+    auto tp = std::make_tuple(args...);
+    bool valid = ((std::get<Is>(tp) >= std::tuple_element_t<Is, channels_tuple>::min &&
+                   std::get<Is>(tp) <= std::tuple_element_t<Is, channels_tuple>::max) &&
                   ...);
 
     if (!valid) {
@@ -131,6 +151,8 @@ template <typename Model>
 struct tuple_size<colorcpp::core::basic_color<Model>>
     : std::integral_constant<std::size_t, colorcpp::traits::model_traits<Model>::channel_size> {};
 
+// tuple_element<I> now correctly reflects per-channel value_type,
+// matching what get_index<I>() actually returns after the tuple-storage change.
 template <std::size_t I, typename Model>
 struct tuple_element<I, colorcpp::core::basic_color<Model>> {
   using channels = typename colorcpp::traits::model_traits<Model>::channels_type;

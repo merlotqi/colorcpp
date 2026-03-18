@@ -13,12 +13,12 @@
  * - CMYK:     Decimal literals with fixed-width encoding
  *
  * HSL/HSV encoding convention (3-channel):
- *   val = H * 1'000'000 + S * 1'000 + L  (S and L are 3-digit, 000–100)
- *   Example: 120'050'075_hsl  → hsl_float_t{120, 50, 75}
+ *   val = H * 1'000'000 + S * 1'000 + L  (S and L written as 3-digit percentages 000–100)
+ *   Example: 120'050'075_hsl  → hsl_float_t{120, 0.50f, 0.75f}   (stored as [0,1])
  *
  * HSL/HSV encoding convention (4-channel with alpha):
  *   val = H * 1'000'000'000 + S * 1'000'000 + L * 1'000 + A
- *   Example: 120'050'075'100_hsla → hsla_float_t{120, 50, 75, 100}
+ *   Example: 120'050'075'100_hsla → hsla_float_t{120, 0.50f, 0.75f, 1.0f}  (stored as [0,1])
  *
  * CMYK encoding convention:
  *   val = C * 1'000'000'000 + M * 1'000'000 + Y * 1'000 + K  (each field 000–100)
@@ -232,7 +232,8 @@ constexpr auto operator"" _hsl() {
   static_assert(h <= 360, "colorcpp: _hsl H out of range (0–360)");
   static_assert(s <= 100, "colorcpp: _hsl S out of range (000–100)");
   static_assert(l <= 100, "colorcpp: _hsl L out of range (000–100)");
-  return core::hsl_float_t{static_cast<float>(h), static_cast<float>(s), static_cast<float>(l)};
+  // S and L are written as percentages (000–100) but stored as [0,1]
+  return core::hsl_float_t{static_cast<float>(h), static_cast<float>(s) / 100.0f, static_cast<float>(l) / 100.0f};
 }
 
 template <char... Chars>
@@ -246,7 +247,8 @@ constexpr auto operator"" _hsla() {
   static_assert(s <= 100, "colorcpp: _hsla S out of range (000–100)");
   static_assert(l <= 100, "colorcpp: _hsla L out of range (000–100)");
   static_assert(a <= 100, "colorcpp: _hsla A out of range (000–100)");
-  return core::hsla_float_t{static_cast<float>(h), static_cast<float>(s), static_cast<float>(l), static_cast<float>(a)};
+  return core::hsla_float_t{static_cast<float>(h), static_cast<float>(s) / 100.0f, static_cast<float>(l) / 100.0f,
+                            static_cast<float>(a) / 100.0f};
 }
 
 /** @} */
@@ -256,10 +258,10 @@ constexpr auto operator"" _hsla() {
  *
  * Encoding: val = H * 1'000'000 + S * 1'000 + V
  *   - H: 0–360 (degrees), S/V: 000–100 (three-digit percentage)
- * Example: 210'080'090_hsv → hsv_float_t{210, 80, 90}
+ * Example: 210'080'090_hsv → hsv_float_t{210, 0.80f, 0.90f}  (S/V stored as [0,1])
  *
  * 4-channel encoding: val = H * 1'000'000'000 + S * 1'000'000 + V * 1'000 + A
- * Example: 210'080'090'100_hsva → hsva_float_t{210, 80, 90, 100}
+ * Example: 210'080'090'100_hsva → hsva_float_t{210, 0.80f, 0.90f, 1.0f}  (S/V/A stored as [0,1])
  * @{
  */
 
@@ -272,7 +274,7 @@ constexpr auto operator"" _hsv() {
   static_assert(h <= 360, "colorcpp: _hsv H out of range (0–360)");
   static_assert(s <= 100, "colorcpp: _hsv S out of range (000–100)");
   static_assert(v <= 100, "colorcpp: _hsv V out of range (000–100)");
-  return core::hsv_float_t{static_cast<float>(h), static_cast<float>(s), static_cast<float>(v)};
+  return core::hsv_float_t{static_cast<float>(h), static_cast<float>(s) / 100.0f, static_cast<float>(v) / 100.0f};
 }
 
 template <char... Chars>
@@ -286,7 +288,8 @@ constexpr auto operator"" _hsva() {
   static_assert(s <= 100, "colorcpp: _hsva S out of range (000–100)");
   static_assert(v <= 100, "colorcpp: _hsva V out of range (000–100)");
   static_assert(a <= 100, "colorcpp: _hsva A out of range (000–100)");
-  return core::hsva_float_t{static_cast<float>(h), static_cast<float>(s), static_cast<float>(v), static_cast<float>(a)};
+  return core::hsva_float_t{static_cast<float>(h), static_cast<float>(s) / 100.0f, static_cast<float>(v) / 100.0f,
+                            static_cast<float>(a) / 100.0f};
 }
 
 /** @} */
