@@ -68,7 +68,8 @@ struct algorithms {
     return std::min(1.0f, a / b);
   }
 
-  // W3C soft-light formula (matches Photoshop behaviour)
+  // W3C soft-light formula (matches Photoshop behaviour).
+  // Not constexpr: std::sqrt is not constexpr before C++23.
   static float soft_light(float a, float b) {
     if (b <= 0.5f) {
       return a - (1.0f - 2.0f * b) * a * (1.0f - a);
@@ -99,16 +100,22 @@ inline rgb3 clip_color(rgb3 c) {
   float n = std::min({c.r, c.g, c.b});
   float x = std::max({c.r, c.g, c.b});
   if (n < 0.0f) {
+    // d == 0 when all channels are equal (achromatic): scaling is a no-op, skip.
     float d = l - n;
-    c.r = l + (c.r - l) * l / d;
-    c.g = l + (c.g - l) * l / d;
-    c.b = l + (c.b - l) * l / d;
+    if (d > 0.0f) {
+      c.r = l + (c.r - l) * l / d;
+      c.g = l + (c.g - l) * l / d;
+      c.b = l + (c.b - l) * l / d;
+    }
   }
   if (x > 1.0f) {
+    // d == 0 when all channels are equal (achromatic): scaling is a no-op, skip.
     float d = x - l;
-    c.r = l + (c.r - l) * (1.0f - l) / d;
-    c.g = l + (c.g - l) * (1.0f - l) / d;
-    c.b = l + (c.b - l) * (1.0f - l) / d;
+    if (d > 0.0f) {
+      c.r = l + (c.r - l) * (1.0f - l) / d;
+      c.g = l + (c.g - l) * (1.0f - l) / d;
+      c.b = l + (c.b - l) * (1.0f - l) / d;
+    }
   }
   return c;
 }

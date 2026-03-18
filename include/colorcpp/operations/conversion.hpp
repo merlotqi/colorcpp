@@ -683,12 +683,16 @@ struct color_cast_impl {
     using FromCat = details::model_category<FromTag>;
     using ToCat = details::model_category<ToTag>;
 
-    // ── Same space (variant or precision cast) ──────────────────────────────
-    if constexpr (std::is_same_v<FromTag, ToTag> || (FromCat::is_rgb && ToCat::is_rgb) ||
-                  (FromCat::is_hsl && ToCat::is_hsl) || (FromCat::is_hsv && ToCat::is_hsv) ||
-                  (FromCat::is_cmyk && ToCat::is_cmyk) || (FromCat::is_linear_rgb && ToCat::is_linear_rgb) ||
-                  (FromCat::is_oklab && ToCat::is_oklab) || (FromCat::is_oklch && ToCat::is_oklch) ||
-                  (FromCat::is_lab && ToCat::is_lab) || (FromCat::is_lch && ToCat::is_lch)) {
+    // ── Identity cast: return a copy without any arithmetic ────────────────
+    if constexpr (std::is_same_v<From, To>) {
+      return src;
+
+      // ── Same space (variant or precision cast) ────────────────────────────
+    } else if constexpr (std::is_same_v<FromTag, ToTag> || (FromCat::is_rgb && ToCat::is_rgb) ||
+                         (FromCat::is_hsl && ToCat::is_hsl) || (FromCat::is_hsv && ToCat::is_hsv) ||
+                         (FromCat::is_cmyk && ToCat::is_cmyk) || (FromCat::is_linear_rgb && ToCat::is_linear_rgb) ||
+                         (FromCat::is_oklab && ToCat::is_oklab) || (FromCat::is_oklch && ToCat::is_oklch) ||
+                         (FromCat::is_lab && ToCat::is_lab) || (FromCat::is_lch && ToCat::is_lch)) {
       return details::same_model_cast_impl<To>(src, std::make_index_sequence<To::channels>{});
 
       // ── Direct: sRGB ↔ HSL / HSV / CMYK ─────────────────────────────────
