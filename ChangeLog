@@ -1,5 +1,85 @@
+Date: 2026-03-18
+Commit: 529d4e7
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: fix color_cast bugs and add missing conversions, enhance interpolation with HSL/HSL easing and multi-stop gradients
+
+Date: 2026-03-18
+Commit: bea8228
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: simplify and unify color interpolation API
+
+Date: 2026-03-18
+Commit: 40c9e43
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: fix: Corrected typos and added missing includes for HSL, CMYK, and I/O support
+
+Date: 2026-03-10
+Commit: 6aee180
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: Add CMYK color model support with uint8 and float channel types
+
+Date: 2026-03-10
+Commit: c7e6a12
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize operations module structure and update examples
+
+Date: 2026-03-09
+Commit: 980ac5a
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize namespace structure and improve color casting functionality
+
+Date: 2026-03-09
+Commit: d59c562
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize colorcpp namespace structure and add random color generation example
+
+Date: 2026-03-08
+Commit: 386696f
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: feat: add HSL color model and I/O support
+
+Date: 2026-03-07
+Commit: b50cb10
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: fix: add static_assert bounds checking and fix error messages in color literals
+
+Date: 2026-03-07
+Commit: dfab48c
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: rename namespace color to colorcpp and cleanup includes
+
+Date: 2026-03-06
+Commit: 4178a8b
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: restructure color system with new model-based architecture
+
+Date: 2026-03-06
+Commit: e9eab1b
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize color traits into dedicated header files
+
+Date: 2026-03-06
+Commit: 36bf66b
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize color conversion operations and add new color space support
+
+Date: 2026-03-05
+Commit: b62e640
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: optimize color_cast implementation and fix unit conversion
+
 Date: 2026-03-04
-Commit: ba2668f
+Commit: de238f9
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: update include paths from color to colorcpp namespace
+
+Date: 2026-03-04
+Commit: 3cd5f39
+Author: Merlot.Qi <merlotrain.mc@gmail.com>
+Message: refactor: reorganize CMakeLists.txt to include examples subdirectory
+
+Date: 2026-03-04
+Commit: 7728d29
 Author: Merlot.Qi <merlotrain.mc@gmail.com>
 Message: refactor: reorganize color library structure and improve type safety
 

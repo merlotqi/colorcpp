@@ -311,8 +311,8 @@ constexpr auto operator"" _cmyk() {
   static_assert(m <= 100, "colorcpp: _cmyk M out of range (000–100)");
   static_assert(y <= 100, "colorcpp: _cmyk Y out of range (000–100)");
   static_assert(k <= 100, "colorcpp: _cmyk K out of range (000–100)");
-  return core::cmyk8_t{static_cast<uint8_t>(c), static_cast<uint8_t>(m),
-                       static_cast<uint8_t>(y),  static_cast<uint8_t>(k)};
+  return core::cmyk8_t{static_cast<uint8_t>(c), static_cast<uint8_t>(m), static_cast<uint8_t>(y),
+                       static_cast<uint8_t>(k)};
 }
 
 /** @} */

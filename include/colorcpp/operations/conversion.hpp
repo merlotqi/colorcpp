@@ -168,12 +168,36 @@ constexpr To hsv_to_rgb(const From& src) {
 
   float r = 0, g = 0, b = 0;
   switch (i % 6) {
-    case 0: r = v; g = t; b = p; break;
-    case 1: r = q; g = v; b = p; break;
-    case 2: r = p; g = v; b = t; break;
-    case 3: r = p; g = q; b = v; break;
-    case 4: r = t; g = p; b = v; break;
-    case 5: r = v; g = p; b = q; break;
+    case 0:
+      r = v;
+      g = t;
+      b = p;
+      break;
+    case 1:
+      r = q;
+      g = v;
+      b = p;
+      break;
+    case 2:
+      r = p;
+      g = v;
+      b = t;
+      break;
+    case 3:
+      r = p;
+      g = q;
+      b = v;
+      break;
+    case 4:
+      r = t;
+      g = p;
+      b = v;
+      break;
+    case 5:
+      r = v;
+      g = p;
+      b = q;
+      break;
   }
   if constexpr (To::channels >= 4)
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(a));
@@ -249,58 +273,42 @@ constexpr To same_model_cast_impl(const From& src, std::index_sequence<Is...>) {
 
 }  // namespace details
 
-// ---------------------------------------------------------------------------
-// Extension point
-//
-// Specialize color_cast_impl<To, From> to register conversions for new color
-// models without modifying this file. Include your specialization header before
-// the call site so the compiler picks it up at instantiation time.
-//
-// Built-in dispatch strategy:
-//   1. Same tag / same category  → channel-wise unit normalisation
-//   2. Known direct pairs        → dedicated conversion function
-//   3. Everything else           → two-hop via core::rgbaf_t (From→RGBaf→To)
-//      The two-hop only fires when neither type is RGB, avoiding recursion.
-//      If the intermediate path is also unresolvable, a static_assert fires.
-// ---------------------------------------------------------------------------
 
 template <typename To, typename From, typename = void>
 struct color_cast_impl {
   static constexpr To convert(const From& src) {
     using FromTag = details::extract_model_t<From>;
-    using ToTag   = details::extract_model_t<To>;
+    using ToTag = details::extract_model_t<To>;
     using FromCat = details::model_category<FromTag>;
-    using ToCat   = details::model_category<ToTag>;
+    using ToCat = details::model_category<ToTag>;
 
     // Same type, or same colour space with different precision/alpha variant
-    if constexpr (std::is_same_v<FromTag, ToTag>      ||
-                  (FromCat::is_rgb  && ToCat::is_rgb)  ||
-                  (FromCat::is_hsl  && ToCat::is_hsl)  ||
-                  (FromCat::is_hsv  && ToCat::is_hsv)  ||
+    if constexpr (std::is_same_v<FromTag, ToTag> || (FromCat::is_rgb && ToCat::is_rgb) ||
+                  (FromCat::is_hsl && ToCat::is_hsl) || (FromCat::is_hsv && ToCat::is_hsv) ||
                   (FromCat::is_cmyk && ToCat::is_cmyk)) {
       return details::same_model_cast_impl<To>(src, std::make_index_sequence<To::channels>{});
 
-    // Direct conversions: HSL ↔ RGB
+      // Direct conversions: HSL ↔ RGB
     } else if constexpr (FromCat::is_hsl && ToCat::is_rgb) {
       return details::hsl_to_rgb<To>(src);
     } else if constexpr (FromCat::is_rgb && ToCat::is_hsl) {
       return details::rgb_to_hsl<To>(src);
 
-    // Direct conversions: HSV ↔ RGB
+      // Direct conversions: HSV ↔ RGB
     } else if constexpr (FromCat::is_hsv && ToCat::is_rgb) {
       return details::hsv_to_rgb<To>(src);
     } else if constexpr (FromCat::is_rgb && ToCat::is_hsv) {
       return details::rgb_to_hsv<To>(src);
 
-    // Direct conversions: CMYK ↔ RGB
+      // Direct conversions: CMYK ↔ RGB
     } else if constexpr (FromCat::is_cmyk && ToCat::is_rgb) {
       return details::cmyk_to_rgb<To>(src);
     } else if constexpr (FromCat::is_rgb && ToCat::is_cmyk) {
       return details::rgb_to_cmyk<To>(src);
 
-    // Two-hop via RGBaf: handles all other cross-category pairs
-    // (HSL↔CMYK, HSV↔CMYK, new-model↔existing, etc.)
-    // Only attempted when neither side is RGB to prevent infinite recursion.
+      // Two-hop via RGBaf: handles all other cross-category pairs
+      // (HSL↔CMYK, HSV↔CMYK, new-model↔existing, etc.)
+      // Only attempted when neither side is RGB to prevent infinite recursion.
     } else if constexpr (!FromCat::is_rgb && !ToCat::is_rgb) {
       auto mid = color_cast<core::rgbaf_t>(src);
       return color_cast<To>(mid);

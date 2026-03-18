@@ -327,7 +327,7 @@ class golden_angle_generator : public basic_hsl_generator<Color, Engine> {
 using rgb8_generator = basic_rgb_generator<core::rgb8_t>;
 using rgba8_generator = basic_rgb_generator<core::rgba8_t>;
 using hsl_generator = basic_hsl_generator<core::hsl_float_t>;
-// basic_hsl_generator also works for HSV: channels 0=H, 1=S, 2=V map to the same indices
+
 using hsv_generator = basic_hsl_generator<core::hsv_float_t>;
 using harmony_gen = harmony_generator<core::hsla_float_t>;
 using golden_gen = golden_angle_generator<core::hsl_float_t>;

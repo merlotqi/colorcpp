@@ -39,9 +39,7 @@ inline float linear(float t) noexcept { return t; }
 // Quadratic
 inline float in_quad(float t) noexcept { return t * t; }
 inline float out_quad(float t) noexcept { return t * (2.0f - t); }
-inline float in_out_quad(float t) noexcept {
-  return t < 0.5f ? 2.0f * t * t : -1.0f + (4.0f - 2.0f * t) * t;
-}
+inline float in_out_quad(float t) noexcept { return t < 0.5f ? 2.0f * t * t : -1.0f + (4.0f - 2.0f * t) * t; }
 
 // Cubic
 inline float in_cubic(float t) noexcept { return t * t * t; }
@@ -57,9 +55,7 @@ inline float in_out_cubic(float t) noexcept {
 inline float smoothstep(float t) noexcept { return t * t * (3.0f - 2.0f * t); }
 
 // Smootherstep — zero first AND second derivative at endpoints (Ken Perlin)
-inline float smootherstep(float t) noexcept {
-  return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
-}
+inline float smootherstep(float t) noexcept { return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); }
 
 // Sine
 inline float in_sine(float t) noexcept { return 1.0f - std::cos(t * kPi * 0.5f); }
@@ -67,17 +63,12 @@ inline float out_sine(float t) noexcept { return std::sin(t * kPi * 0.5f); }
 inline float in_out_sine(float t) noexcept { return -(std::cos(kPi * t) - 1.0f) * 0.5f; }
 
 // Exponential
-inline float in_expo(float t) noexcept {
-  return t == 0.0f ? 0.0f : std::pow(2.0f, 10.0f * t - 10.0f);
-}
-inline float out_expo(float t) noexcept {
-  return t == 1.0f ? 1.0f : 1.0f - std::pow(2.0f, -10.0f * t);
-}
+inline float in_expo(float t) noexcept { return t == 0.0f ? 0.0f : std::pow(2.0f, 10.0f * t - 10.0f); }
+inline float out_expo(float t) noexcept { return t == 1.0f ? 1.0f : 1.0f - std::pow(2.0f, -10.0f * t); }
 inline float in_out_expo(float t) noexcept {
   if (t == 0.0f) return 0.0f;
   if (t == 1.0f) return 1.0f;
-  return t < 0.5f ? std::pow(2.0f, 20.0f * t - 10.0f) * 0.5f
-                  : (2.0f - std::pow(2.0f, -20.0f * t + 10.0f)) * 0.5f;
+  return t < 0.5f ? std::pow(2.0f, 20.0f * t - 10.0f) * 0.5f : (2.0f - std::pow(2.0f, -20.0f * t + 10.0f)) * 0.5f;
 }
 
 // Back — slight overshoot past start (in) or end (out)
@@ -130,11 +121,10 @@ Color lerp_hsl(const Color& a, const Color& b, float t) {
   auto cb = color_cast<core::hsla_float_t>(b);
 
   // H channel is in [0, 360] — use degree-space shortest-arc interpolation.
-  core::hsla_float_t out{
-      details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
-      details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-      details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
-      details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
+  core::hsla_float_t out{details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
+                         details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+                         details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
+                         details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
 
   return color_cast<Color>(out);
 }
@@ -148,11 +138,10 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::hsva_float_t>(a);
   auto cb = color_cast<core::hsva_float_t>(b);
 
-  core::hsva_float_t out{
-      details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
-      details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-      details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
-      details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
+  core::hsva_float_t out{details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
+                         details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+                         details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
+                         details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
 
   return color_cast<Color>(out);
 }
@@ -185,8 +174,7 @@ Color ease_in_out(const Color& a, const Color& b, float t) {
 // Throws std::invalid_argument if fewer than 2 stops are given.
 template <typename Color>
 Color multi_lerp(std::initializer_list<Color> stops, float t) {
-  if (stops.size() < 2)
-    throw std::invalid_argument("colorcpp: multi_lerp requires at least 2 colour stops");
+  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp requires at least 2 colour stops");
   t = std::clamp(t, 0.0f, 1.0f);
 
   const std::size_t n = stops.size() - 1;
@@ -204,8 +192,7 @@ Color multi_lerp(std::initializer_list<Color> stops, float t) {
 // Same as multi_lerp but interpolates in HSL space between adjacent stops.
 template <typename Color>
 Color multi_lerp_hsl(std::initializer_list<Color> stops, float t) {
-  if (stops.size() < 2)
-    throw std::invalid_argument("colorcpp: multi_lerp_hsl requires at least 2 colour stops");
+  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_hsl requires at least 2 colour stops");
   t = std::clamp(t, 0.0f, 1.0f);
 
   const std::size_t n = stops.size() - 1;
@@ -228,7 +215,10 @@ std::vector<Color> lerp_n(const Color& a, const Color& b, std::size_t count) {
   std::vector<Color> out;
   if (count == 0) return out;
   out.reserve(count);
-  if (count == 1) { out.push_back(a); return out; }
+  if (count == 1) {
+    out.push_back(a);
+    return out;
+  }
   for (std::size_t i = 0; i < count; ++i)
     out.push_back(lerp(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
   return out;
@@ -240,7 +230,10 @@ std::vector<Color> lerp_hsl_n(const Color& a, const Color& b, std::size_t count)
   std::vector<Color> out;
   if (count == 0) return out;
   out.reserve(count);
-  if (count == 1) { out.push_back(a); return out; }
+  if (count == 1) {
+    out.push_back(a);
+    return out;
+  }
   for (std::size_t i = 0; i < count; ++i)
     out.push_back(lerp_hsl(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
   return out;
