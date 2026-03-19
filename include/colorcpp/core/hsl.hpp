@@ -12,9 +12,9 @@ struct l_tag {};  // lightness
 struct a_tag {};  // alpha
 
 using f32_hue = traits::basic_channel<h_tag, float, 0, 360, 1>;
-using f32_saturation = traits::basic_channel<s_tag, float, 0, 100, 1>;
-using f32_lightness = traits::basic_channel<l_tag, float, 0, 100, 1>;
-using f32_alpha = traits::basic_channel<a_tag, float, 0, 100, 1>;
+using f32_saturation = traits::basic_channel<s_tag, float, 0, 1>;  // [0, 1] — not percentage
+using f32_lightness = traits::basic_channel<l_tag, float, 0, 1>;   // [0, 1] — not percentage
+using f32_alpha = traits::basic_channel<a_tag, float, 0, 1>;       // [0, 1] — consistent with RGB alpha
 
 }  // namespace channel
 
@@ -61,15 +61,13 @@ struct basic_hsl : basic_color<Model> {
   template <typename Tag>
   constexpr auto& channel() {
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-
-    return data[idx];
+    return std::get<idx>(data);
   }
 
   template <typename Tag>
   constexpr const auto& channel() const {
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-
-    return data[idx];
+    return std::get<idx>(data);
   }
 
  public:

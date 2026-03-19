@@ -57,7 +57,7 @@ struct model_traits<core::cmyk::model::cmyk_float> {
 namespace colorcpp::core {
 
 template <typename Model>
-struct basic_cymk : basic_color<Model> {
+struct basic_cmyk : basic_color<Model> {
   using base = basic_color<Model>;
 
   using base::base;
@@ -67,15 +67,13 @@ struct basic_cymk : basic_color<Model> {
   template <typename Tag>
   constexpr auto& channel() {
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-
-    return data[idx];
+    return std::get<idx>(data);
   }
 
   template <typename Tag>
   constexpr const auto& channel() const {
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-
-    return data[idx];
+    return std::get<idx>(data);
   }
 
  public:
@@ -120,7 +118,7 @@ struct basic_cymk : basic_color<Model> {
   }
 };
 
-using cmyk8_t = basic_cymk<cmyk::model::cmyk_u8>;
-using cmyk_float_t = basic_cymk<cmyk::model::cmyk_float>;
+using cmyk8_t = basic_cmyk<cmyk::model::cmyk_u8>;
+using cmyk_float_t = basic_cmyk<cmyk::model::cmyk_float>;
 
 }  // namespace colorcpp::core

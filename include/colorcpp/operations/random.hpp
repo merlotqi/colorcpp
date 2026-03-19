@@ -6,13 +6,14 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/operations/palette.hpp>
 #include <random>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-namespace colorcpp::operations::generation {
-inline namespace random {
+namespace colorcpp::operations::random {
 
 enum class harmony_mode {
   analogous,
@@ -35,6 +36,12 @@ struct color_traits {
                                   traits::has_channel_tag_v<typename Color::trait_model, core::hsv::channel::h_tag>;
 
   template <std::size_t I>
+  static constexpr value_type min_at() {
+    using channel_t = std::tuple_element_t<I, channels_tuple>;
+    return channel_t::min;
+  }
+
+  template <std::size_t I>
   static constexpr value_type max_at() {
     using channel_t = std::tuple_element_t<I, channels_tuple>;
     return channel_t::max;
@@ -52,21 +59,27 @@ class basic_random_generator {
   using T = typename traits::value_type;
   mutable Engine rng;
 
+  // uniform_int_distribution requires at least unsigned short (C++ standard §26.6.8.2)
+  // uint8_t (unsigned char) is not a valid template argument, promote to unsigned short
+  using int_dist_type = std::conditional_t<(sizeof(T) < sizeof(unsigned short)), unsigned short, T>;
   using dist_t = std::conditional_t<std::is_floating_point_v<T>, std::uniform_real_distribution<T>,
-                                    std::uniform_int_distribution<T>>;
+                                    std::uniform_int_distribution<int_dist_type>>;
 
  public:
+  using color_type = Color;
+
   explicit basic_random_generator(Engine& e) : rng(e) {}
+  explicit basic_random_generator(typename Engine::result_type seed) : rng(seed) {}
 
   T random_value(T min, T max) const {
-    dist_t dist(min, max);
-    return dist(rng);
+    dist_t dist(static_cast<typename dist_t::result_type>(min), static_cast<typename dist_t::result_type>(max));
+    return static_cast<T>(dist(rng));
   }
 
  protected:
   template <std::size_t... Is>
   Color generate_full_random(std::index_sequence<Is...>) const {
-    return Color{this->random_value(T(0), traits::template max_at<Is>())...};
+    return Color{this->random_value(traits::template min_at<Is>(), traits::template max_at<Is>())...};
   }
 };
 
@@ -76,14 +89,24 @@ class basic_rgb_generator : public basic_random_generator<Color, Engine> {
 
  public:
   using base::base;
+
   Color next() const {
     return this->generate_full_random(std::make_index_sequence<details::color_traits<Color>::size>{});
+  }
+
+  std::vector<Color> generate_n(std::size_t count) const {
+    std::vector<Color> out;
+    out.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) out.push_back(next());
+    return out;
   }
 };
 
 template <typename Color, typename Engine = std::mt19937>
 class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   using base = basic_random_generator<Color, Engine>;
+
+ protected:
   using traits = details::color_traits<Color>;
   using T = typename base::T;
 
@@ -98,9 +121,24 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   options opts{};
 
  public:
-  basic_hsl_generator(Engine& e, const options& o = {}) : base(e), opts(o) {}
+  basic_hsl_generator(Engine& e, const options& o = {}) : base(e), opts(o) {
+    if (opts.h_min > opts.h_max || opts.s_min > opts.s_max || opts.l_min > opts.l_max)
+      throw std::invalid_argument("colorcpp: generator options min must not exceed max");
+  }
+
+  explicit basic_hsl_generator(typename Engine::result_type seed, const options& o = {}) : base(seed), opts(o) {
+    if (opts.h_min > opts.h_max || opts.s_min > opts.s_max || opts.l_min > opts.l_max)
+      throw std::invalid_argument("colorcpp: generator options min must not exceed max");
+  }
 
   Color next() const { return next_impl(std::make_index_sequence<traits::size>{}); }
+
+  std::vector<Color> generate_n(std::size_t count) const {
+    std::vector<Color> out;
+    out.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) out.push_back(next());
+    return out;
+  }
 
   static Color step_value(const Color& base_c, float factor) {
     Color c = base_c;
@@ -161,7 +199,10 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
         h_new = h_base + (h_max * index / 3);
         break;
       case harmony_mode::tetradic:
-        h_new = h_base + (index % 4 == 1 ? h_max / 6 : (index % 4 == 2 ? h_max / 2 : h_max * 2 / 3));
+        h_new = h_base + (index % 4 == 0   ? T(0)
+                          : index % 4 == 1 ? h_max / 6
+                          : index % 4 == 2 ? h_max / 2
+                                           : h_max * 2 / 3);
         break;
       case harmony_mode::square:
         h_new = h_base + (h_max * index / 4);
@@ -189,7 +230,40 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
         return construct_from_hue(this->next(), candidate, std::make_index_sequence<traits::size>{});
       }
     }
-    return this->next();
+    Color fallback = this->next();
+    samples.push_back(fallback.template get_index<0>());
+    return fallback;
+  }
+
+  // Returns the complete set of colors for the given harmony mode.
+  // The palette always starts with base_c itself, followed by its harmony partners.
+  palette::palette_set<Color> generate_palette(const Color& base_c, harmony_mode mode) const {
+    std::size_t partner_count = 0;
+    switch (mode) {
+      case harmony_mode::complementary:
+        partner_count = 1;
+        break;
+      case harmony_mode::split_complementary:
+        partner_count = 2;
+        break;
+      case harmony_mode::analogous:
+        partner_count = 2;
+        break;
+      case harmony_mode::triadic:
+        partner_count = 2;
+        break;
+      case harmony_mode::tetradic:
+        partner_count = 3;
+        break;
+      case harmony_mode::square:
+        partner_count = 3;
+        break;
+    }
+
+    palette::palette_set<Color> result;
+    result.add(base_c);
+    for (std::size_t i = 1; i <= partner_count; ++i) result.add(next_harmony(base_c, mode, i));
+    return result;
   }
 
  private:
@@ -207,32 +281,54 @@ class golden_angle_generator : public basic_hsl_generator<Color, Engine> {
   mutable T current_h;
 
  public:
-  explicit golden_angle_generator(Engine& e) : base(e) { current_h = this->random_value(T(0), traits::hue_max()); }
+  explicit golden_angle_generator(Engine& e, const typename base::options& o = {}) : base(e, o) {
+    current_h = this->random_value(T(0), traits::hue_max());
+  }
+
+  explicit golden_angle_generator(typename Engine::result_type seed, const typename base::options& o = {})
+      : base(seed, o) {
+    current_h = this->random_value(T(0), traits::hue_max());
+  }
 
   Color next() const {
     float step = (137.5077f / 360.0f) * static_cast<float>(traits::hue_max());
     current_h = static_cast<T>(std::fmod(static_cast<float>(current_h) + step, static_cast<float>(traits::hue_max())));
-
-    auto gen_args = [&](std::size_t i) -> T {
-      if (i == 0) return current_h;
-      if (i == 1) return this->opts.s_max;
-      if (i == 2) return this->opts.l_max;
-      return traits::template max_at<i>();
-    };
-    return next_with_h(gen_args, std::make_index_sequence<traits::size>{});
+    return next_impl(std::make_index_sequence<traits::size>{});
   }
 
  private:
-  template <typename F, std::size_t... Is>
-  Color next_with_h(F&& f, std::index_sequence<Is...>) const {
-    return Color{f(Is)...};
+  template <std::size_t I>
+  T channel_for_index() const {
+    if constexpr (I == 0)
+      return current_h;
+    else if constexpr (I == 1)
+      return this->opts.s_max;
+    else if constexpr (I == 2)
+      return this->opts.l_max;
+    else
+      return traits::template max_at<I>();
+  }
+
+  template <std::size_t... Is>
+  Color next_impl(std::index_sequence<Is...>) const {
+    return Color{channel_for_index<Is>()...};
+  }
+
+ public:
+  std::vector<Color> generate_n(std::size_t count) const {
+    std::vector<Color> out;
+    out.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) out.push_back(next());
+    return out;
   }
 };
 
 using rgb8_generator = basic_rgb_generator<core::rgb8_t>;
 using rgba8_generator = basic_rgb_generator<core::rgba8_t>;
 using hsl_generator = basic_hsl_generator<core::hsl_float_t>;
-using harmony_gen = harmony_generator<core::hsla_float_t>;
 
-}  // namespace random
-}  // namespace colorcpp::operations::generation
+using hsv_generator = basic_hsl_generator<core::hsv_float_t>;
+using harmony_gen = harmony_generator<core::hsla_float_t>;
+using golden_gen = golden_angle_generator<core::hsl_float_t>;
+
+}  // namespace colorcpp::operations::random
