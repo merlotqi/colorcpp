@@ -49,9 +49,13 @@ constexpr float to_unit(V v) {
 template <typename Color, std::size_t I>
 constexpr typename Color::template channel_value_t<I> from_unit(float v) {
   using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
+  using value_t = typename Color::template channel_value_t<I>;
   v = std::clamp(v, 0.0f, 1.0f);
   float val = v * static_cast<float>(channel_t::max - channel_t::min) + static_cast<float>(channel_t::min);
-  return static_cast<typename Color::template channel_value_t<I>>(val);
+  if constexpr (std::is_integral_v<value_t>)
+    return static_cast<value_t>(std::round(val));
+  else
+    return static_cast<value_t>(val);
 }
 
 // Maps a raw channel value (already in the channel's natural units, possibly signed)
@@ -61,8 +65,12 @@ constexpr typename Color::template channel_value_t<I> from_unit(float v) {
 template <typename Color, std::size_t I>
 constexpr typename Color::template channel_value_t<I> from_value(float v) {
   using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
+  using value_t = typename Color::template channel_value_t<I>;
   float clamped = std::clamp(v, static_cast<float>(channel_t::min), static_cast<float>(channel_t::max));
-  return static_cast<typename Color::template channel_value_t<I>>(clamped);
+  if constexpr (std::is_integral_v<value_t>)
+    return static_cast<value_t>(std::round(clamped));
+  else
+    return static_cast<value_t>(clamped);
 }
 
 // Returns the alpha channel as a unit [0,1] value.
@@ -375,9 +383,9 @@ constexpr To oklab_to_linear_rgb(const From& src) {
   float A = static_cast<float>(src.template get_index<1>());
   float B = static_cast<float>(src.template get_index<2>());
 
-  float l_ = L + 0.3963377774f * A + 0.2158037573f * B;
-  float m_ = L - 0.1055613458f * A - 0.0638541728f * B;
-  float s_ = L - 0.0894841775f * A - 1.2914855480f * B;
+  float l_ = L + 0.3939205158f * A + 0.4003836363f * B;
+  float m_ = L - 0.1048460944f * A - 0.1184695156f * B;
+  float s_ = L - 0.0750179025f * A - 2.3961106171f * B;
 
   float lms_l = l_ * l_ * l_;
   float lms_m = m_ * m_ * m_;
@@ -652,9 +660,9 @@ constexpr To oklab_to_xyz(const From& src) {
   float A = static_cast<float>(src.template get_index<1>());
   float B = static_cast<float>(src.template get_index<2>());
 
-  float l_ = L + 0.3963377774f * A + 0.2158037573f * B;
-  float m_ = L - 0.1055613458f * A - 0.0638541728f * B;
-  float s_ = L - 0.0894841775f * A - 1.2914855480f * B;
+  float l_ = L + 0.3939205158f * A + 0.4003836363f * B;
+  float m_ = L - 0.1048460944f * A - 0.1184695156f * B;
+  float s_ = L - 0.0750179025f * A - 2.3961106171f * B;
 
   float lms_l = l_ * l_ * l_;
   float lms_m = m_ * m_ * m_;
@@ -667,10 +675,19 @@ constexpr To oklab_to_xyz(const From& src) {
   return pack_to<To>(from_value<To, 0>(X), from_value<To, 1>(Y), from_value<To, 2>(Z));
 }
 
+// Helper: read channel I from src if it exists, else return a default (for alpha expansion).
+// Uses if constexpr so get_index<I> is never instantiated on a type with fewer channels.
+template <typename To, typename From, std::size_t I>
+constexpr typename To::template channel_value_t<I> channel_or_default(const From& src, float default_val) {
+  if constexpr (I < From::channels)
+    return from_unit<To, I>(to_unit<From, I>(src.template get_index<I>()));
+  else
+    return from_unit<To, I>(default_val);
+}
+
 template <typename To, typename From, std::size_t... Is>
 constexpr To same_model_cast_impl(const From& src, std::index_sequence<Is...>) {
-  return pack_to<To>((Is < From::channels ? from_unit<To, Is>(to_unit<From, Is>(src.template get_index<Is>()))
-                                          : from_unit<To, Is>(1.0f))...);
+  return pack_to<To>(channel_or_default<To, From, Is>(src, 1.0f)...);
 }
 
 }  // namespace details

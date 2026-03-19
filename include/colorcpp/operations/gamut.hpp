@@ -33,9 +33,9 @@ namespace details {
 // OKLab → linear sRGB, without clamping (needed for gamut testing).
 // Coefficients from conversion.hpp (Ottosson 2020, M1 and M2 matrices).
 inline void oklab_to_linrgb(float L, float a, float b, float& r, float& g, float& bl) noexcept {
-  float l_ = L + 0.3963377774f * a + 0.2158037573f * b;
-  float m_ = L - 0.1055613458f * a - 0.0638541728f * b;
-  float s_ = L - 0.0894841775f * a - 1.2914855480f * b;
+  float l_ = L + 0.3939205158f * a + 0.4003836363f * b;
+  float m_ = L - 0.1048460944f * a - 0.1184695156f * b;
+  float s_ = L - 0.0750179025f * a - 2.3961106171f * b;
 
   const float lms_l = l_ * l_ * l_;
   const float lms_m = m_ * m_ * m_;

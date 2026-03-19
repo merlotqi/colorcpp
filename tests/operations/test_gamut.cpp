@@ -2,6 +2,8 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+#include "colorcpp/core/rgb.hpp"
+#include "colorcpp/operations/conversion.hpp"
 
 namespace colorcpp::operations::test {
 
@@ -88,7 +90,7 @@ TEST(GamutClipTest, ChromaReduceProducesInGamutResult) {
 }
 
 TEST(GamutClipTest, ChromaReduceInGamutUnchanged) {
-  rgbaf_t in_gamut(0.4f, 0.6f, 0.2f, 1.0f);
+  rgbf_t in_gamut(0.4f, 0.6f, 0.2f);
   auto result = gamut_clip(in_gamut, clip_method::chroma_reduce);
   EXPECT_NEAR(result.r(), in_gamut.r(), 1e-3f);
   EXPECT_NEAR(result.g(), in_gamut.g(), 1e-3f);

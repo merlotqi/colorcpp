@@ -93,14 +93,15 @@ TEST(LerpHslTest, TOneReturnsSecond) {
 }
 
 TEST(LerpHslTest, HueShortestArc) {
-  // From red (hue=0) to blue (hue=240), shortest arc is 0→240 via 120 (green)
-  // At t=0.5: hue should be near 120° (green-ish)
+  // From red (hue=0°) to blue (hue=240°):
+  //   forward arc = 240° long, backward arc = 120° long
+  //   shortest arc goes backward: 0° → 300° → 240° (through magenta)
+  //   midpoint at t=0.5 should be near 300°
   core::rgbf_t red(1.0f, 0.0f, 0.0f);
   core::rgbf_t blue(0.0f, 0.0f, 1.0f);
   auto mid = lerp_hsl(red, blue, 0.5f);
   auto hsl = color_cast<core::hsl_float_t>(mid);
-  // Shortest arc from 0° to 240° = going forward to 240°, midpoint = 120°
-  EXPECT_NEAR(hsl.h(), 120.0f, 5.0f);
+  EXPECT_NEAR(hsl.h(), 300.0f, 5.0f);
 }
 
 // ── lerp_oklab (OKLab space) ──────────────────────────────────────────────────
