@@ -8,7 +8,7 @@ namespace colorcpp::operations::test {
 using namespace core;
 using namespace conversion;
 
-// ── Identity cast ─────────────────────────────────────────────────────────────
+// Identity cast
 
 TEST(ConversionTest, IdentityCast) {
   rgbf_t c(0.4f, 0.6f, 0.8f);
@@ -18,7 +18,7 @@ TEST(ConversionTest, IdentityCast) {
   EXPECT_FLOAT_EQ(copy.b(), c.b());
 }
 
-// ── sRGB ↔ Linear sRGB ───────────────────────────────────────────────────────
+// sRGB ↔ Linear sRGB
 
 TEST(ConversionTest, LinearizeBlackAndWhite) {
   auto lin_black = color_cast<linear_rgbf_t>(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -46,7 +46,7 @@ TEST(ConversionTest, SrgbLinearRoundTrip) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-4f);
 }
 
-// ── sRGB ↔ HSL ────────────────────────────────────────────────────────────────
+// sRGB ↔ HSL
 
 TEST(ConversionTest, SrgbHslRoundTrip) {
   rgbf_t orig(0.7f, 0.3f, 0.5f);
@@ -64,7 +64,7 @@ TEST(ConversionTest, SrgbHsvRoundTrip) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-4f);
 }
 
-// ── sRGB ↔ OKLab ─────────────────────────────────────────────────────────────
+// sRGB ↔ OKLab
 
 TEST(ConversionTest, BlackToOklab) {
   auto lab = color_cast<oklab_t>(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -88,7 +88,7 @@ TEST(ConversionTest, SrgbOklabRoundTrip) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-3f);
 }
 
-// ── sRGB ↔ CIELAB ─────────────────────────────────────────────────────────────
+// sRGB ↔ CIELAB
 
 TEST(ConversionTest, BlackToCielab) {
   auto lab = color_cast<cielab_t>(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -110,7 +110,7 @@ TEST(ConversionTest, SrgbCielabRoundTrip) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-3f);
 }
 
-// ── OKLab ↔ OKLCh ────────────────────────────────────────────────────────────
+// OKLab ↔ OKLCh
 
 TEST(ConversionTest, OklabOklchRoundTrip) {
   rgbf_t orig(0.8f, 0.3f, 0.1f);
@@ -121,7 +121,7 @@ TEST(ConversionTest, OklabOklchRoundTrip) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-3f);
 }
 
-// ── Alpha handling ────────────────────────────────────────────────────────────
+// Alpha handling
 
 TEST(ConversionTest, AlphaPreservedThroughHslRoundTrip) {
   rgbaf_t orig(0.5f, 0.25f, 0.75f, 0.5f);
@@ -130,7 +130,7 @@ TEST(ConversionTest, AlphaPreservedThroughHslRoundTrip) {
   EXPECT_NEAR(back.a(), orig.a(), 1e-4f);
 }
 
-// ── uint8 ↔ float precision ───────────────────────────────────────────────────
+// uint8 ↔ float precision
 
 TEST(ConversionTest, Rgb8ToRgbfKnownValues) {
   auto f = color_cast<rgbf_t>(rgb8_t{0, 128, 255});
@@ -147,7 +147,7 @@ TEST(ConversionTest, Rgb8RoundTrip) {
   EXPECT_EQ(back.b(), orig.b());
 }
 
-// ── Multi-hop conversions ─────────────────────────────────────────────────────
+// Multi-hop conversions
 
 TEST(ConversionTest, HslToOklabMultiHop) {
   hsl_float_t hsl(180.0f, 0.5f, 0.5f);

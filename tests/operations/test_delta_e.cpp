@@ -8,7 +8,7 @@ namespace colorcpp::operations::test {
 using namespace core;
 using namespace delta_e;
 
-// ── ΔE₇₆ (CIE 1976) ──────────────────────────────────────────────────────────
+// ΔE₇₆ (CIE 1976)
 
 TEST(DeltaE76Test, SameColorIsZero) {
   core::rgbf_t c(0.5f, 0.3f, 0.7f);
@@ -52,7 +52,7 @@ TEST(DeltaE76Test, WorksWithMixedTypes) {
   EXPECT_GE(de, 0.0f);
 }
 
-// ── ΔE₉₄ (CIE 1994) ──────────────────────────────────────────────────────────
+// ΔE₉₄ (CIE 1994)
 
 TEST(DeltaE94Test, SameColorIsZero) {
   core::rgbf_t c(0.4f, 0.7f, 0.2f);
@@ -82,7 +82,7 @@ TEST(DeltaE94Test, IsNonNegative) {
   EXPECT_GE(delta_e_94(a, b), 0.0f);
 }
 
-// ── CIEDE2000 ─────────────────────────────────────────────────────────────────
+// CIEDE2000
 
 TEST(DeltaE2000Test, SameColorIsZero) {
   core::rgbf_t c(0.6f, 0.1f, 0.9f);
@@ -121,7 +121,7 @@ TEST(DeltaE2000Test, PerceivedOrdering) {
   EXPECT_LT(de_small, de_large);
 }
 
-// ── is_visually_same ──────────────────────────────────────────────────────────
+// is_visually_same
 
 TEST(IsVisuallySameTest, SameColorIsTrue) {
   core::rgb8_t c(100, 150, 200);

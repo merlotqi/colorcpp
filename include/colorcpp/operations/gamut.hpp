@@ -7,12 +7,11 @@
 // Gamut checking and mapping for the sRGB destination space.
 //
 // is_in_srgb_gamut — test whether a color lies inside the sRGB unit cube.
-// gamut_clip       — map an out-of-gamut color back into sRGB using one of
-//                    three strategies:
-//   clip          — channel-clamp (fast; may shift hue and lightness)
-//   chroma_reduce — OKLCh chroma bisect (preserves hue and lightness)
-//   css_color4    — CSS Color Level 4 §14.2 algorithm: chroma bisect with
-//                   ΔE_OK ≤ JND acceptance (best perceptual quality)
+// gamut_clip       — map an out-of-gamut color back into sRGB using one of three strategies:
+// clip          — channel-clamp (fast; may shift hue and lightness)
+// chroma_reduce — OKLCh chroma bisect (preserves hue and lightness)
+// css_color4    — CSS Color Level 4 §14.2 algorithm: chroma bisect with ΔE_OK ≤ JND acceptance (best perceptual
+//                 quality)
 //
 // All functions accept any color type registered with color_cast.
 // Internally colors are mapped through OKLab so that the bisection operates
@@ -68,7 +67,7 @@ inline bool linrgb_in_gamut(float r, float g, float b, float eps = 1e-4f) noexce
 
 }  // namespace details
 
-// ── is_in_srgb_gamut ─────────────────────────────────────────────────────────
+// is_in_srgb_gamut
 
 template <typename Color>
 bool is_in_srgb_gamut(const Color& c) {
@@ -80,13 +79,13 @@ bool is_in_srgb_gamut(const Color& c) {
   return details::linrgb_in_gamut(r, g, b);
 }
 
-// ── gamut_clip ────────────────────────────────────────────────────────────────
+// gamut_clip
 
 template <typename Color>
 Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
   using namespace conversion;
 
-  // ── Method: clip ─────────────────────────────────────────────────────────
+  // Method: clip
   if (method == clip_method::clip) {
     auto rgb = color_cast<core::rgbaf_t>(c);
     // color_cast already clamps via from_unit; make the intent explicit.
@@ -95,7 +94,7 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
         std::clamp(rgb.template get_index<2>(), 0.0f, 1.0f), rgb.template get_index<3>()});
   }
 
-  // ── OKLab working representation ─────────────────────────────────────────
+  // OKLab working representation
   auto lab = color_cast<core::oklab_t>(c);
   const float L = lab.template get_index<0>();
   const float a_ok = lab.template get_index<1>();
@@ -117,7 +116,7 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
   constexpr float kEps = 1e-4f;
   float min_C = 0.0f, max_C = C_orig;
 
-  // ── Method: chroma_reduce ─────────────────────────────────────────────────
+  // Method: chroma_reduce
   if (method == clip_method::chroma_reduce) {
     while (max_C - min_C > kEps) {
       const float mid_C = (min_C + max_C) * 0.5f;
@@ -134,7 +133,7 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
     return color_cast<Color>(color_cast<core::rgbaf_t>(core::oklab_t{L, min_C * cos_h, min_C * sin_h}));
   }
 
-  // ── Method: css_color4 ────────────────────────────────────────────────────
+  // Method: css_color4
   // CSS Color Level 4 §14.2: find the largest C for which channel-clipping
   // the candidate produces a ΔE_OK ≤ JND perceptual error.
   {

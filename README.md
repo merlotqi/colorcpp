@@ -1,328 +1,336 @@
 # ColorCpp
 
-A modern, header-only C++ library for compile-time color manipulation and conversion between different color spaces.
+[![CI](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml/badge.svg)](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml)
 
-## 🎨 Features
+A modern, header-only C++ library for color manipulation and conversion between different color spaces. Supports compile-time operations, perceptually uniform color spaces, and comprehensive color operations.
 
-- **Compile-time color operations**: All color conversions and manipulations happen at compile time
-- **Multiple color spaces**: RGB, HSV, HSL, and CMYK support
-- **Type-safe color literals**: Modern C++ user-defined literals for colors
-- **Template-based design**: Zero-runtime overhead with compile-time validation
-- **Comprehensive color palettes**: Built-in web-safe and named colors
-- **Advanced blending operations**: Linear interpolation and standard graphics blending modes
-- **Extensive documentation**: Comprehensive API documentation with examples
+## ✨ Features
 
-## Color Spaces
+- **Header-only**: No build required, just include and use
+- **Multiple color spaces**: RGB, HSV, HSL, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ
+- **Perceptually uniform**: Built-in support for CIELAB and OkLab for perceptual operations
+- **Color operations**: Blending, interpolation, palette generation, accessibility checking
+- **I/O support**: Parse colors from strings, format colors for output
+- **Type-safe literals**: User-defined literals for convenient color creation
+- **Template-based**: Zero-cost abstractions with compile-time validation
+- **C++17+**: Works with any C++17 compatible compiler
 
-### RGB (Red-Green-Blue)
-- 8-bit integer RGB (`rgba8_t`) with values 0-255
-- Floating-point RGB (`rgbaf_t`) with values 0.0-1.0
-- Template-based RGB with compile-time validation
-- **New**: Enhanced literal operators with explicit alpha support
+## 📦 Supported Color Spaces
 
-### HSV (Hue-Saturation-Value)
-- Integer HSV with hue 0-359°, saturation/value 0-100%
-- Floating-point HSV with hue 0-360°, saturation/value 0.0-1.0
-- Natural color manipulation in cylindrical coordinates
-- **New**: Template literal support for compile-time HSV creation
+| Color Space | Description |
+|-------------|-------------|
+| **RGB** | Standard red-green-blue (8-bit and float) |
+| **HSV** | Hue-Saturation-Value (cylindrical) |
+| **HSL** | Hue-Saturation-Lightness (cylindrical) |
+| **CMYK** | Cyan-Magenta-Yellow-Key (printing) |
+| **Linear RGB** | Gamma-corrected RGB (no sRGB transfer) |
+| **CIELAB** | CIE L\*a\*b\* (perceptual uniformity, D65) |
+| **CIELCH** | Cylindrical form of CIELAB |
+| **OkLab** | Modern perceptually uniform space (Björn Ottosson) |
+| **OkLCH** | Cylindrical form of OkLab |
+| **CIE XYZ** | Device-independent reference space (D65) |
 
-### HSL (Hue-Saturation-Lightness)
-- Similar to HSV but with lightness instead of value
-- Better for creating lighter/darker color variants
-- Template-based with compile-time validation
-- **New**: Comprehensive documentation with practical examples
+## 🚀 Quick Start
 
-### CMYK (Cyan-Magenta-Yellow-Key)
-- Professional printing color space
-- Integer and floating-point variants
-- Template-based with compile-time validation
-- **New**: Decimal literal format support (CCCMMMYYYKKK)
+### Installation
 
-## Usage
-
-### Basic Color Creation
-
-```cpp
-#include "color/color.hpp"
-
-using namespace color;
-
-// Create colors using template literals
-constexpr auto red = rgba8<255, 0, 0>;
-constexpr auto blue = rgba8<0, 0, 255>;
-
-// Create colors using user-defined literals
-constexpr auto green = 0x00FF00_rgb;
-constexpr auto yellow = 0xFFFF00_hex;
-
-// Create HSV colors with new template literal support
-constexpr auto orange = 30100100_hsv;  // H=30, S=100, V=100
-constexpr auto purple = 300100100_hsv; // H=300, S=100, V=100
-
-// Create HSL colors with enhanced documentation
-constexpr auto cyan = 180100050_hsl;   // H=180, S=100, L=50
-constexpr auto magenta = 300100050_hsl; // H=300, S=100, L=50
-
-// New: Hue shortcuts for pure colors
-constexpr auto pure_red = 0_hsv_hue;   // HSV(0°, 100%, 100%)
-constexpr auto pure_blue = 240_hsl_hue; // HSL(240°, 100%, 50%)
-```
-
-### Color Conversion
-
-```cpp
-// Convert between color spaces
-constexpr auto hsv_red = to_hsv(red);
-constexpr auto rgb_blue = to_rgb(blue_hsv);
-
-// Automatic type conversion with enhanced error checking
-constexpr auto converted = convert<rgba8_t>(hsv_red);
-
-// New: Template-based conversion with compile-time validation
-constexpr auto hsl_green = to_hsl<1000>(green_rgb);
-constexpr auto cmyk_yellow = to_cmyk<1000>(yellow_rgb);
-```
-
-### Color Operations
-
-```cpp
-// Lighten a color by 20%
-constexpr auto light_red = lighten(red, 20);
-
-// Saturate a color by 30%
-constexpr auto saturated_blue = saturate(blue, 30);
-
-// Shift hue by 45 degrees
-constexpr auto shifted_green = hue_shift(green, 45);
-
-// Blend two colors (50/50 mix)
-constexpr auto mixed = blend(red, blue, 50);
-
-// Advanced blending modes
-constexpr auto multiplied = multiply(red, blue);
-constexpr auto screened = screen(red, blue);
-constexpr auto overlaid = overlay(red, blue);
-
-// New: Enhanced blending with compile-time validation
-constexpr auto linear_blend = blend<rgba8_t>(red, blue, 25); // 25% red, 75% blue
-constexpr auto gamma_corrected = blend_gamma(red, blue, 50);
-```
-
-### Color Palettes
-
-```cpp
-// Use predefined color palettes
-constexpr auto web_black = palettes::web::safe_colors::black;
-constexpr auto web_white = palettes::web::safe_colors::white;
-
-// Grayscale palette
-constexpr auto dark_gray = palettes::grayscale::dark_gray;
-constexpr auto light_gray = palettes::grayscale::light_gray;
-
-// Warm colors
-constexpr auto warm_red = palettes::warm::red;
-constexpr auto warm_orange = palettes::warm::orange;
-
-// Cool colors
-constexpr auto cool_blue = palettes::cool::blue;
-constexpr auto cool_green = palettes::cool::green;
-
-// New: Extended palette support with enhanced documentation
-constexpr auto material_red = palettes::material::red_500;
-constexpr auto bootstrap_primary = palettes::bootstrap::primary;
-```
-
-### Advanced Features
-
-```cpp
-// Compile-time color validation
-static_assert(rgba8<255, 128, 64>.is_valid());
-
-// Template metaprogramming with colors
-template<typename ColorType>
-constexpr auto make_lighter(const ColorType& c) {
-    return lighten(c, 20);
-}
-
-constexpr auto light_red = make_lighter(red);
-
-// New: Enhanced template metaprogramming support
-template<typename T, int Scale>
-constexpr auto adjust_brightness(const basic_rgb<T, Scale>& color, int adjustment) {
-    return lighten(color, adjustment);
-}
-
-constexpr auto brighter_green = adjust_brightness(green, 30);
-```
-
-## Installation
-
-This is a header-only library. Simply include the main header:
-
-```cpp
-#include "color/color.hpp"
-```
-
-Or include specific components:
-
-```cpp
-#include "color/core/rgb.hpp"
-#include "color/conversion/conversion.hpp"
-#include "color/operations/blend.hpp"
-```
-
-## Requirements
-
-- C++17 or later
-- Any C++17-compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-- **Recommended**: C++20 for enhanced template features and concepts support
-
-## Build System Integration
-
-### CMake
-
+**CMake (recommended)**
 ```cmake
 find_package(colorcpp REQUIRED)
 target_link_libraries(your_target PRIVATE colorcpp::colorcpp)
 ```
 
-### Manual Installation
+**Header-only**: Copy `include/colorcpp/` to your project
 
-```bash
-# Copy headers to your project
-cp -r include/color /path/to/your/project/
+### Basic Usage
+
+```cpp
+#include <colorcpp/colorcpp.hpp>
+
+using namespace colorcpp;
+
+// Create colors using type aliases
+constexpr auto red = core::rgba8_t{255, 0, 0, 255};
+constexpr auto blue = core::rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f};
+
+// Convert between color spaces
+auto hsv_red = conversion::color_cast<core::hsv_float_t>(red);
+auto lab_red = conversion::color_cast<core::cielab_t>(red);
+
+// Color operations
+auto blended = blend::blend(red, blue, blend::blend_mode::multiply);
+auto lighter = operations::lighten(red, 20);  // Lighten by 20%
 ```
 
-## Examples
+## 📚 Color Literals
 
-See the `examples/` directory for complete working examples demonstrating:
+```cpp
+using namespace colorcpp::literals;
 
-- Basic color operations
-- Color space conversions
-- Advanced blending techniques
-- Template metaprogramming with colors
-- **New**: Enhanced examples with comprehensive documentation
-- **New**: Performance benchmarks comparing compile-time vs runtime operations
+// RGB/Hex literals
+auto coral = 0xFF6347_rgb;           // → rgba8_t{255, 99, 71, 255}
+auto with_alpha = 0xFF634780_rgba;   // → rgba8_t{255, 99, 71, 128}
+auto argb = 0x80FF6347_argb;         // → rgba8_t{255, 99, 71, 128} (AARRGGBB)
+auto from_hex = "#FF6347"_hex;        // → rgba8_t
 
-## API Reference
+// HSL literals
+auto mint = 160'070'080_hsl;         // → hsl_float_t{160, 70, 80}
+auto with_alpha = 160'070'080'085_hsla; // → hsla_float_t{160, 70, 80, 85}
 
-### Core Types
+// HSV literals
+auto sky = 210'080'090_hsv;          // → hsv_float_t{210, 80, 90}
+auto with_alpha = 210'080'090'075_hsva; // → hsva_float_t{210, 80, 90, 75}
 
-- `basic_rgb<T, Scale>` - Template RGB color type
-- `basic_hsv<T, Scale>` - Template HSV color type  
-- `basic_hsl<T, Scale>` - Template HSL color type
-- `basic_cmyk<T, Scale>` - Template CMYK color type
-- `rgba8_t` - 8-bit RGB with alpha
-- `rgbaf_t` - Floating-point RGB with alpha
+// CMYK literals
+auto teal = 50'030'000'020_cmyk;     // → cmyk8_t{50, 30, 0, 20}
+```
 
-### Conversion Functions
+## 🔄 Color Conversion
 
-- `to_hsv<T, Scale>(color)` - Convert to HSV
-- `to_hsl<T, Scale>(color)` - Convert to HSL
-- `to_rgb<T, Scale>(color)` - Convert to RGB
-- `to_cmyk<T, Scale>(color)` - Convert to CMYK
-- `convert<TargetType>(source)` - Generic conversion
-- **New**: Enhanced conversion with compile-time validation
+```cpp
+using namespace colorcpp::conversion;
 
-### Operations
+// Convert to any color space
+auto lab = color_cast<core::cielab_t>(rgb_color);
+auto oklch = color_cast<core::oklch_t>(rgb_color);
+auto xyz = color_cast<core::xyz_t>(rgb_color);
 
-- `lighten(color, percent)` - Lighten color
-- `saturate(color, percent)` - Saturate color
-- `hue_shift(color, degrees)` - Shift hue
-- `blend(color1, color2, ratio)` - Linear interpolation
-- `blend_gamma(color1, color2, ratio)` - Gamma-corrected blending
-- `multiply(color1, color2)` - Multiply blending
-- `screen(color1, color2)` - Screen blending
-- `overlay(color1, color2)` - Overlay blending
-- **New**: Enhanced blending operations with improved performance
+// sRGB ↔ Linear RGB (gamma handling)
+auto linear = color_cast<core::linear_rgbf_t>(srgb_color);
+auto gamma = color_cast<core::rgba8_t>(linear_color);
 
-### Literals
+// CIELAB ↔ CIELCH (cartesian ↔ polar)
+auto lch = color_cast<core::cielch_t>(lab_color);
+auto cartesian = color_cast<core::cielab_t>(lch_color);
 
-- `_rgb` / `_hex` - RGB color literals (6-digit hex)
-- `_rgba` - RGBA color literals (8-digit hex)
-- `_hsv` - HSV color literals (decimal format)
-- `_hsl` - HSL color literals (decimal format)
-- `_cmyk` - CMYK color literals (decimal format)
-- `_hsv_hue` - HSV hue shortcuts (pure colors)
-- `_hsl_hue` - HSL hue shortcuts (pure colors)
-- **New**: Template literal support for compile-time parsing
+// OkLab ↔ OkLCH
+auto ok = color_cast<core::oklab_t>(lch_color);
+auto polar = color_cast<core::oklch_t>(oklab_color);
 
-## 🚀 Recent Updates
+// Cross-space conversions (automatically routed)
+auto lab_to_ok = color_cast<core::oklab_t>(lab_color);  // via XYZ (no gamut clip)
+```
 
-### v1.1.0 - Enhanced Documentation & Literals (March 2026)
-- **Comprehensive API Documentation**: Added detailed Doxygen-style documentation for all functions
-- **Enhanced Color Literals**: Improved literal operators with explicit alpha support and template variants
-- **Template Literal Support**: New compile-time parsing for HSV, HSL, and CMYK literals
-- **Hue Shortcuts**: Convenient operators for creating pure, saturated colors
-- **Decimal Format Support**: CMYK literals now support decimal format (CCCMMMYYYKKK)
-- **Extensive Examples**: Added practical examples for all color spaces and operations
+## 🎨 Color Operations
 
-### v1.0.0 - Initial Release
-- Complete color space support (RGB, HSV, HSL, CMYK)
-- Compile-time color operations
-- Type-safe color literals
-- Comprehensive color palettes
-- Advanced blending operations
+### Blending
 
-## 📖 Documentation
+```cpp
+using namespace colorcpp::blend;
 
-- **API Reference**: Comprehensive documentation with parameter descriptions and examples
-- **Usage Guide**: Step-by-step tutorials for common color manipulation tasks
-- **Performance Guide**: Best practices for compile-time color operations
-- **Migration Guide**: Instructions for upgrading from previous versions
+// Basic blend modes
+auto normal = blend(red, blue);
+auto multiply = blend(red, blue, blend_mode::multiply);
+auto screen = blend(red, blue, blend_mode::screen);
+auto overlay = blend(red, blue, blend_mode::overlay);
 
-## 🤝 Contributing
+// All modes: normal, multiply, screen, overlay, darken, lighten,
+// addition, subtraction, difference, exclusion, hard_light,
+// soft_light, color_dodge, color_burn, divide
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+// With opacity control
+auto semi_transparent = blend(red, blue, blend_mode::multiply, 0.5f);
 
-### Development Setup
+// Non-separable blends (hue, saturation, color, luminosity)
+auto hue_blend = blend(red, blue, blend_mode::hue);
+```
 
-1. Clone the repository
-2. Install C++17+ compatible compiler
-3. Run tests: `make test`
-4. Build examples: `make examples`
+### Palette Generation
 
-### Guidelines
+```cpp
+using namespace colorcpp::palette;
 
-- Follow existing code style and conventions
-- Add comprehensive tests for new features
-- Update documentation for API changes
-- Ensure all changes maintain compile-time performance
+// Generate color scales
+auto linear_palette = linear_scale(red, blue, 5);
+auto visual_palette = visual_scale(red, blue, 5);           // HSL interpolation
+auto perceptual_palette = perceptual_scale(red, blue, 5); // OkLab interpolation
+
+// Color harmony generators
+auto complementary = generate::complementary(base_color);
+auto analogous = generate::analogous(base_color);
+auto triadic = generate::triadic(base_color);
+auto split_complementary = generate::split_complementary(base_color);
+auto tetradic = generate::tetradic(base_color);
+auto square = generate::square(base_color);
+auto monochromatic = generate::monochromatic(base_color);
+
+// Access palette colors
+for (const auto& color : perceptual_palette) {
+    // ...
+}
+auto first = perceptual_palette[0];
+```
+
+### Interpolation
+
+```cpp
+using namespace colorcpp::interpolate;
+
+// Linear interpolation
+auto mid = lerp(red, blue, 0.5f);
+
+// HSL interpolation (visually smoother)
+auto smooth = lerp_hsl(red, blue, 0.5f);
+
+// Perceptual interpolation via OkLab
+auto perceptual = lerp_oklab(red, blue, 0.5f);
+```
+
+### Accessibility
+
+```cpp
+using namespace colorcpp::accessibility;
+
+// WCAG contrast ratio
+auto ratio = contrast_ratio(foreground, background);
+bool passes_aa = passes_aa_standard(ratio);  // 4.5:1 for normal text
+bool passes_aaa = passes_aaa_standard(ratio); // 7:1 for normal text
+
+// Find accessible colors
+auto accessible = find_contrast_color(foreground, background, 4.5f);
+```
+
+### Vision Simulation
+
+```cpp
+using namespace colorcpp::vision;
+
+// Simulate color blindness
+auto protanopia = simulate_protanopia(color);
+auto deuteranopia = simulate_deuteranopia(color);
+auto tritanopia = simulate_tritanopia(color);
+
+// Check if colors are distinguishable under different conditions
+bool distinguishable = is_distinguishable(c1, c2, deficiency::deuteranopia);
+```
+
+### Gamut Clipping
+
+```cpp
+using namespace colorcpp::gamut;
+
+// Check if color is within sRGB gamut
+bool in_gamut = is_in_gamut(color);
+
+// Clip to sRGB gamut
+auto clipped = clip_to_gamut(color);
+
+// Check clip amount
+auto [clipped_color, distance] = clip_with_distance(color);
+```
+
+### Delta E (Color Difference)
+
+```cpp
+using namespace colorcpp::delta_e;
+
+// Different Delta E metrics
+auto de00 = delta_e_2000(color1, color2);  // CIEDE2000 (best for human perception)
+auto de94 = delta_e_1994(color1, color2);  // CIE94
+auto de76 = delta_e_1976(color1, color2);  // CIE76 (simple Euclidean)
+
+// Threshold comparisons
+bool imperceptible = delta_e_2000(c1, c2) < 1.0f;
+bool acceptable = delta_e_2000(c1, c2) < 3.0f;
+```
+
+### Random Colors
+
+```cpp
+using namespace colorcpp::random;
+
+// Random colors in different spaces
+auto random_rgb = random_rgb_color();        // Random RGB
+auto random_hsl = random_hsl_color();        // Random HSL
+auto random_lab = random_lab_color();        // Random CIELAB (perceptually uniform)
+
+// With seed for reproducibility
+auto seeded = random_rgb_color(seed);
+```
+
+## 📖 I/O Operations
+
+```cpp
+using namespace colorcpp::core::io;
+
+// Output formatting
+std::cout << rgba_color << "\n";          // "255 99 71 255"
+std::cout << std::hex << rgba_color;     // "#ff6347ff"
+
+// Parse from strings
+auto rgb = parse<rgb8_t>("255 99 71");
+auto hsl = parse<hsl_float_t>("hsl(16, 100, 63.9)");
+auto cmyk = parse<cmyk8_t>("cmyk(0, 61, 72, 0)");
+
+// Round-trip: output → re-parse
+std::ostringstream oss;
+oss << color;
+auto recovered = parse<decltype(color)>(oss.str());
+```
+
+## 📁 Project Structure
+
+```
+include/colorcpp/
+├── colorcpp.hpp           # Main header (includes everything)
+├── core/
+│   ├── core.hpp           # Core includes
+│   ├── color_base.hpp     # Base color type definitions
+│   ├── constants.hpp      # Named color constants
+│   ├── rgb.hpp           # RGB color space
+│   ├── hsv.hpp           # HSV color space
+│   ├── hsl.hpp           # HSL color space
+│   ├── cmyk.hpp          # CMYK color space
+│   ├── linear_rgb.hpp     # Linear RGB (no gamma)
+│   ├── cielab.hpp        # CIELAB / CIELCH
+│   ├── oklab.hpp         # OkLab / OkLCH
+│   ├── xyz.hpp           # CIE XYZ
+│   └── io.hpp            # I/O (parsing/formatting)
+├── operations/
+│   ├── operations.hpp     # Operations includes
+│   ├── conversion.hpp     # Color space conversion
+│   ├── blend.hpp          # Blending modes
+│   ├── palette.hpp        # Palette generation
+│   ├── interpolate.hpp    # Color interpolation
+│   ├── delta_e.hpp        # Color difference metrics
+│   ├── gamut.hpp          # Gamut checking/clipping
+│   ├── accessibility.hpp  # WCAG accessibility
+│   ├── vision.hpp         # Color vision simulation
+│   └── random.hpp         # Random color generation
+├── literals/
+│   └── literals.hpp       # User-defined literals
+└── traits/
+    └── concepts.hpp       # Type traits and concepts
+```
+
+## 🔧 Requirements
+
+- **C++17** or later
+- Any C++17-compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- **Optional**: C++20 for enhanced template features
+
+## 📝 Examples
+
+See the `examples/` directory for complete working examples:
+
+- `io_example.cpp` - Parsing and formatting colors
+- `cast_example.cpp` - Color space conversions
+- `blend_example.cpp` - Blending operations
+- `interpolate_example.cpp` - Color interpolation
+- `palette_example.cpp` - Palette generation
+- `random_example.cpp` - Random color generation
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file for details.
 
-## 👥 Authors
+## 👥 Author
 
-- **Merlot.Qi** - *Initial work* - [merlotqi](https://github.com/merlotqi)
+**Merlot.Qi** - [merlotqi](https://github.com/merlotqi)
 
 ## 🙏 Acknowledgments
 
-- Inspired by modern C++ template metaprogramming techniques
-- Built on standard color theory and conversion algorithms
-- Designed for compile-time performance and type safety
-- Special thanks to the C++ community for template metaprogramming advancements
-
-## 📊 Performance
-
-ColorCpp is designed for maximum performance:
-
-- **Compile-time operations**: Zero runtime overhead for color conversions
-- **Template metaprogramming**: Type-safe operations validated at compile time
-- **Optimized algorithms**: Efficient color space conversion implementations
-- **Memory efficient**: No dynamic allocation, minimal memory footprint
-
-## 🔗 Related Projects
-
-- [color-thief-cpp](https://github.com/briangonzalez/color-thief-cpp) - Extract dominant colors from images
-- [FastLED](https://github.com/FastLED/FastLED) - Arduino library for LED color control
-- [OpenColorIO](https://github.com/AcademySoftwareFoundation/OpenColorIO) - Color management for visual effects
-
-## 📞 Support
-
-For support and questions:
-
-- Create an [issue](https://github.com/merlotqi/colorcpp/issues)
-- Join our [Discussions](https://github.com/merlotqi/colorcpp/discussions)
-- Email: merlotqi.mc@gmail.com
+- CIE color space definitions per ISO 11664-4
+- OkLab by [Björn Ottosson](https://bottosson.github.io/posts/oklab/)
+- sRGB gamma per IEC 61966-2-1
+- W3C blend mode specifications

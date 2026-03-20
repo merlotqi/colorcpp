@@ -28,7 +28,7 @@ inline float lerp_angle_deg(float a, float b, float t) {
 
 }  // namespace details
 
-// ── Easing functions ──────────────────────────────────────────────────────
+// Easing functions
 // All functions map t ∈ [0, 1] → [0, 1] (approximately; back overshoots slightly).
 // Pass any of these to ease() / ease_hsl() as the easing functor.
 
@@ -92,7 +92,7 @@ inline float in_out_back(float t) noexcept {
 
 }  // namespace easing
 
-// ── Core interpolation ────────────────────────────────────────────────────
+// Core interpolation
 
 // RGB-space linear interpolation (channel-wise through rgbaf_t).
 // Fast, preserves alpha. Hue transitions may appear "muddy" for vivid colours.
@@ -230,7 +230,7 @@ Color lerp_lch(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// ── Eased interpolation ───────────────────────────────────────────────────
+// Eased interpolation
 
 // Apply any easing curve (from the easing namespace) to an RGB lerp.
 // Example: ease(red, blue, t, easing::in_cubic)
@@ -263,7 +263,7 @@ Color ease_in_out(const Color& a, const Color& b, float t) {
   return ease(a, b, t, easing::smoothstep);
 }
 
-// ── Multi-stop interpolation ──────────────────────────────────────────────
+// Multi-stop interpolation
 
 // Interpolate across N colour stops evenly distributed over [0, 1].
 // t=0 → stops.front(), t=1 → stops.back().
@@ -339,7 +339,7 @@ Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
   return lerp_oklch(lo, hi, local_t);
 }
 
-// ── Batch generation ─────────────────────────────────────────────────────
+// Batch generation
 
 // Generate `count` evenly-spaced colours from a to b inclusive via RGB lerp.
 template <typename Color>

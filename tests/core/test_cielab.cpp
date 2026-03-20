@@ -9,7 +9,7 @@ namespace colorcpp::core::test {
 
 using namespace colorcpp::operations::conversion;
 
-// ── CIELAB Construction ───────────────────────────────────────────────────────
+// CIELAB Construction
 
 TEST(CIELabTest, DefaultConstruction) {
   cielab_t lab;
@@ -47,7 +47,7 @@ TEST(CIELabTest, OutOfRangeThrows) {
   EXPECT_THROW(cielab_t(50.0f, 0.0f, 129.0f), std::out_of_range);
 }
 
-// ── CIELCH Construction ───────────────────────────────────────────────────────
+// CIELCH Construction
 
 TEST(CIELChTest, DefaultConstruction) {
   cielch_t lch;
@@ -64,15 +64,15 @@ TEST(CIELChTest, ParameterizedConstruction) {
 }
 
 TEST(CIELChTest, OutOfRangeThrows) {
-  EXPECT_THROW(cielch_t(-1.0f, 50.0f, 180.0f), std::out_of_range);  // L < 0
-  EXPECT_THROW(cielch_t(101.0f, 50.0f, 180.0f), std::out_of_range); // L > 100
-  EXPECT_THROW(cielch_t(50.0f, -1.0f, 180.0f), std::out_of_range);  // C < 0
-  EXPECT_THROW(cielch_t(50.0f, 201.0f, 180.0f), std::out_of_range); // C > 200
-  EXPECT_THROW(cielch_t(50.0f, 50.0f, -1.0f), std::out_of_range);   // H < 0
-  EXPECT_THROW(cielch_t(50.0f, 50.0f, 361.0f), std::out_of_range);  // H > 360
+  EXPECT_THROW(cielch_t(-1.0f, 50.0f, 180.0f), std::out_of_range);   // L < 0
+  EXPECT_THROW(cielch_t(101.0f, 50.0f, 180.0f), std::out_of_range);  // L > 100
+  EXPECT_THROW(cielch_t(50.0f, -1.0f, 180.0f), std::out_of_range);   // C < 0
+  EXPECT_THROW(cielch_t(50.0f, 201.0f, 180.0f), std::out_of_range);  // C > 200
+  EXPECT_THROW(cielch_t(50.0f, 50.0f, -1.0f), std::out_of_range);    // H < 0
+  EXPECT_THROW(cielch_t(50.0f, 50.0f, 361.0f), std::out_of_range);   // H > 360
 }
 
-// ── Member and indexed access ─────────────────────────────────────────────────
+// Member and indexed access
 
 TEST(CIELabTest, MutableMemberAccess) {
   cielab_t lab(50.0f, 20.0f, -10.0f);
@@ -98,7 +98,7 @@ TEST(CIELabTest, ConstCorrectness) {
   EXPECT_FLOAT_EQ(lab.b(), -20.0f);
 }
 
-// ── Known color conversions: sRGB → CIELAB ───────────────────────────────────
+// Known color conversions: sRGB → CIELAB
 
 TEST(CIELabConversionTest, BlackIsOrigin) {
   auto lab = color_cast<cielab_t>(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -154,7 +154,7 @@ TEST(CIELabConversionTest, BlueHasNegativeB) {
   EXPECT_LT(lab.b(), 0.0f);
 }
 
-// ── Round-trip ────────────────────────────────────────────────────────────────
+// Round-trip
 
 TEST(CIELabConversionTest, FloatRoundTrip) {
   rgbf_t orig(0.5f, 0.3f, 0.7f);
@@ -165,9 +165,7 @@ TEST(CIELabConversionTest, FloatRoundTrip) {
 }
 
 TEST(CIELabConversionTest, PrimaryColorsRoundTrip) {
-  for (auto orig : {rgbf_t{1.0f, 0.0f, 0.0f},
-                    rgbf_t{0.0f, 1.0f, 0.0f},
-                    rgbf_t{0.0f, 0.0f, 1.0f}}) {
+  for (auto orig : {rgbf_t{1.0f, 0.0f, 0.0f}, rgbf_t{0.0f, 1.0f, 0.0f}, rgbf_t{0.0f, 0.0f, 1.0f}}) {
     auto back = color_cast<rgbf_t>(color_cast<cielab_t>(orig));
     EXPECT_NEAR(back.r(), orig.r(), 1e-4f);
     EXPECT_NEAR(back.g(), orig.g(), 1e-4f);
@@ -175,7 +173,7 @@ TEST(CIELabConversionTest, PrimaryColorsRoundTrip) {
   }
 }
 
-// ── CIELAB ↔ CIELCH ───────────────────────────────────────────────────────────
+// CIELAB ↔ CIELCH
 
 TEST(CIELChConversionTest, AchromaticHasZeroChroma) {
   auto lch = color_cast<cielch_t>(rgbf_t{0.5f, 0.5f, 0.5f});
@@ -205,7 +203,7 @@ TEST(CIELChConversionTest, RoundTripLabToLch) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-3f);
 }
 
-// ── Type traits ───────────────────────────────────────────────────────────────
+// Type traits
 
 TEST(CIELabTest, TypeTraits) {
   using cielab_channels = typename traits::model_traits<lab::model::cielab>::channels_type;

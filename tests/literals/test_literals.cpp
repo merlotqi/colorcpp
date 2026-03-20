@@ -9,7 +9,7 @@ namespace colorcpp::literals::test {
 using namespace colorcpp::literals;
 using namespace colorcpp;
 
-// ── _rgb ──────────────────────────────────────────────────────────────────────
+// _rgb
 
 TEST(RgbLiteralTest, TomatoColor) {
   constexpr auto c = 0xFF6347_rgb;
@@ -45,11 +45,9 @@ TEST(RgbLiteralTest, PureBlue) {
   static_assert(c.r() == 0 && c.g() == 0 && c.b() == 255);
 }
 
-TEST(RgbLiteralTest, RuntimeOverflowThrows) {
-  EXPECT_THROW((void)(0x1000000_rgb), std::out_of_range);
-}
+TEST(RgbLiteralTest, RuntimeOverflowThrows) { EXPECT_THROW((void)(0x1000000_rgb), std::out_of_range); }
 
-// ── _rgba ─────────────────────────────────────────────────────────────────────
+// _rgba
 
 TEST(RgbaLiteralTest, WithAlpha128) {
   constexpr auto c = 0xFF634780_rgba;
@@ -72,7 +70,7 @@ TEST(RgbaLiteralTest, White) {
   static_assert(c.r() == 255 && c.g() == 255 && c.b() == 255 && c.a() == 255);
 }
 
-// ── _argb ─────────────────────────────────────────────────────────────────────
+// _argb
 
 TEST(ArgbLiteralTest, SameAlphaAsRgba) {
   // 0xFF634780_rgba and 0x80FF6347_argb should produce the same color
@@ -97,7 +95,7 @@ TEST(ArgbLiteralTest, FullyTransparentBlack) {
   static_assert(c.r() == 0 && c.g() == 0 && c.b() == 0 && c.a() == 0);
 }
 
-// ── _hex (string literal) ─────────────────────────────────────────────────────
+// _hex (string literal)
 
 TEST(HexLiteralTest, FullForm_RRGGBB) {
   auto c = "#FF6347"_hex;
@@ -148,11 +146,11 @@ TEST(HexLiteralTest, White) {
 }
 
 TEST(HexLiteralTest, InvalidLengthThrows) {
-  EXPECT_THROW((void)"#FF635"_hex, std::invalid_argument);   // 5 hex digits (not 3/4/6/8)
-  EXPECT_THROW((void)"#FF63471"_hex, std::invalid_argument); // 7 hex digits (not 3/4/6/8)
+  EXPECT_THROW((void)"#FF635"_hex, std::invalid_argument);    // 5 hex digits (not 3/4/6/8)
+  EXPECT_THROW((void)"#FF63471"_hex, std::invalid_argument);  // 7 hex digits (not 3/4/6/8)
 }
 
-// ── _hsl ──────────────────────────────────────────────────────────────────────
+// _hsl
 
 TEST(HslLiteralTest, GreenHsl) {
   // H=120, S=50%, L=75%  →  stored as (120, 0.50, 0.75)
@@ -190,7 +188,7 @@ TEST(HslLiteralTest, AllZero) {
   EXPECT_FLOAT_EQ(hsl.l(), 0.0f);
 }
 
-// ── _hsla ─────────────────────────────────────────────────────────────────────
+// _hsla
 
 TEST(HslaLiteralTest, WithAlpha) {
   // H=120, S=50%, L=75%, A=100% → (120, 0.5, 0.75, 1.0)
@@ -211,19 +209,19 @@ TEST(HslaLiteralTest, FullyTransparent) {
   EXPECT_FLOAT_EQ(hsla.a(), 0.0f);
 }
 
-// ── _hsv ──────────────────────────────────────────────────────────────────────
+// _hsv
 
 TEST(HsvLiteralTest, NavyBlue) {
   // H=210, S=80%, V=90%  → stored as (210, 0.80, 0.90)
   constexpr auto hsv = 210'080'090_hsv;
-  static_assert(hsv.h() == 210.0f);
+  EXPECT_FLOAT_EQ(hsv.h(), 210.0f);
   EXPECT_FLOAT_EQ(hsv.s(), 0.80f);
   EXPECT_FLOAT_EQ(hsv.v(), 0.90f);
 }
 
 TEST(HsvLiteralTest, FullRed) {
   constexpr auto hsv = 0'100'100_hsv;
-  static_assert(hsv.h() == 0.0f);
+  EXPECT_FLOAT_EQ(hsv.h(), 0.0f);
   EXPECT_FLOAT_EQ(hsv.s(), 1.0f);
   EXPECT_FLOAT_EQ(hsv.v(), 1.0f);
 }
@@ -236,15 +234,15 @@ TEST(HsvLiteralTest, Black) {
 
 TEST(HsvLiteralTest, MaxHue) {
   constexpr auto hsv = 360'050'050_hsv;
-  static_assert(hsv.h() == 360.0f);
+  EXPECT_FLOAT_EQ(hsv.h(), 360.0f);
 }
 
-// ── _hsva ─────────────────────────────────────────────────────────────────────
+// _hsva
 
 TEST(HsvaLiteralTest, WithAlpha75) {
   // H=210, S=80%, V=90%, A=75%  → (210, 0.80, 0.90, 0.75)
   constexpr auto hsva = 210'080'090'075_hsva;
-  static_assert(hsva.h() == 210.0f);
+  EXPECT_FLOAT_EQ(hsva.h(), 210.0f);
   EXPECT_FLOAT_EQ(hsva.s(), 0.80f);
   EXPECT_FLOAT_EQ(hsva.v(), 0.90f);
   EXPECT_FLOAT_EQ(hsva.a(), 0.75f);
@@ -260,7 +258,7 @@ TEST(HsvaLiteralTest, FullyTransparent) {
   EXPECT_FLOAT_EQ(hsva.a(), 0.0f);
 }
 
-// ── _cmyk ─────────────────────────────────────────────────────────────────────
+// _cmyk
 
 TEST(CmykLiteralTest, PrintInk) {
   // C=50, M=30, Y=0, K=20
@@ -300,7 +298,7 @@ TEST(CmykLiteralTest, YellowPrimary) {
   static_assert(cmyk.y() == 100);
 }
 
-// ── Constexpr evaluation ──────────────────────────────────────────────────────
+// Constexpr evaluation
 
 TEST(LiteralConstexprTest, AllLiteralsAreConstexpr) {
   // Verify the compiler evaluates these at compile time
@@ -314,7 +312,7 @@ TEST(LiteralConstexprTest, AllLiteralsAreConstexpr) {
   static_assert((000'000'000'100_cmyk).k() == 100);
 }
 
-// ── _rgb vs _hex consistency ──────────────────────────────────────────────────
+// _rgb vs _hex consistency
 
 TEST(LiteralConsistencyTest, RgbAndHexProduceSameColor) {
   constexpr auto by_rgb = 0xFF6347_rgb;

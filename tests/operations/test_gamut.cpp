@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+
 #include "colorcpp/core/rgb.hpp"
 #include "colorcpp/operations/conversion.hpp"
 
@@ -11,19 +12,13 @@ using namespace core;
 using namespace gamut;
 using namespace conversion;
 
-// ── is_in_srgb_gamut ─────────────────────────────────────────────────────────
+// is_in_srgb_gamut
 
-TEST(GamutTest, BlackIsInGamut) {
-  EXPECT_TRUE(is_in_srgb_gamut(core::rgbf_t{0.0f, 0.0f, 0.0f}));
-}
+TEST(GamutTest, BlackIsInGamut) { EXPECT_TRUE(is_in_srgb_gamut(core::rgbf_t{0.0f, 0.0f, 0.0f})); }
 
-TEST(GamutTest, WhiteIsInGamut) {
-  EXPECT_TRUE(is_in_srgb_gamut(core::rgbf_t{1.0f, 1.0f, 1.0f}));
-}
+TEST(GamutTest, WhiteIsInGamut) { EXPECT_TRUE(is_in_srgb_gamut(core::rgbf_t{1.0f, 1.0f, 1.0f})); }
 
-TEST(GamutTest, MidGrayIsInGamut) {
-  EXPECT_TRUE(is_in_srgb_gamut(core::rgbf_t{0.5f, 0.5f, 0.5f}));
-}
+TEST(GamutTest, MidGrayIsInGamut) { EXPECT_TRUE(is_in_srgb_gamut(core::rgbf_t{0.5f, 0.5f, 0.5f})); }
 
 TEST(GamutTest, PrimaryColorsAreInGamut) {
   EXPECT_TRUE(is_in_srgb_gamut(core::rgbf_t{1.0f, 0.0f, 0.0f}));  // red
@@ -51,7 +46,7 @@ TEST(GamutTest, AchromaticOklabIsInGamut) {
   EXPECT_TRUE(is_in_srgb_gamut(core::oklab_t{1.0f, 0.0f, 0.0f}));
 }
 
-// ── gamut_clip: clip method ───────────────────────────────────────────────────
+// gamut_clip: clip method
 
 TEST(GamutClipTest, InGamutColorUnchangedByClip) {
   rgbaf_t in_gamut(0.5f, 0.3f, 0.7f, 1.0f);
@@ -81,7 +76,7 @@ TEST(GamutClipTest, ClipMethodPreservesWhite) {
   EXPECT_NEAR(result.b(), 1.0f, 1e-4f);
 }
 
-// ── gamut_clip: chroma_reduce method ─────────────────────────────────────────
+// gamut_clip: chroma_reduce method
 
 TEST(GamutClipTest, ChromaReduceProducesInGamutResult) {
   core::oklab_t out_of_gamut(0.5f, 0.4f, 0.0f);
@@ -103,7 +98,7 @@ TEST(GamutClipTest, ChromaReducePreservesBlack) {
   EXPECT_TRUE(is_in_srgb_gamut(result));
 }
 
-// ── gamut_clip: css_color4 method (default) ───────────────────────────────────
+// gamut_clip: css_color4 method (default)
 
 TEST(GamutClipTest, CssColor4ProducesInGamutResult) {
   core::oklab_t out_of_gamut(0.5f, 0.4f, 0.0f);
@@ -131,7 +126,7 @@ TEST(GamutClipTest, CssColor4PreservesLightnessExtreme) {
   EXPECT_NEAR(rgb.b(), 1.0f, 1e-3f);
 }
 
-// ── All methods preserve alpha ────────────────────────────────────────────────
+// All methods preserve alpha
 
 TEST(GamutClipTest, AllMethodsProduceValidRgbOutput) {
   // Verify all three methods don't produce NaN or out-of-range values

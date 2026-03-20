@@ -20,7 +20,7 @@ Color parse(const std::string& s) {
 }
 
 int main() {
-  // ── 1. Output formats ──────────────────────────────────────────────────
+  // 1. Output formats
   section("RGB output: text vs hex");
 
   rgba8_t coral = constants::coral;
@@ -31,7 +31,7 @@ int main() {
   std::cout << "rgba8  hex:  " << std::hex << coral << "\n";
   std::cout << "rgb8   hex:  " << coral3 << "\n" << std::dec;
 
-  // ── 2. All color model output ──────────────────────────────────────────
+  // 2. All color model output
   section("All color models: output");
 
   hsl_float_t hsl = color_cast<hsl_float_t>(coral);
@@ -50,7 +50,7 @@ int main() {
   std::cout << "hsl hex:  " << std::hex << hsl << "\n";
   std::cout << "cmyk hex: " << cmyk << "\n" << std::dec;
 
-  // ── 3. Literals ────────────────────────────────────────────────────────
+  // 3. Literals
   section("Literals");
 
   auto lit_rgb = 0xFF6347_rgb;           // → rgba8_t{255,99,71,255}
@@ -77,7 +77,7 @@ int main() {
   std::cout << "210'080'090'075_hsva:  " << lit_hsva << "\n";
   std::cout << "50'030'000'020_cmyk:   " << lit_cmyk << "\n";
 
-  // ── 4. Parsing from strings ────────────────────────────────────────────
+  // 4. Parsing from strings
   section("Input: parsing from string");
 
   // RGB: bare numbers (no prefix)
@@ -107,7 +107,7 @@ int main() {
   std::cout << "hsv   \"hsv(16,100,100)\":      " << p_hsv << "\n";
   std::cout << "cmyk  \"cmyk(0,61,72,0)\":      " << p_cmyk << "\n";
 
-  // ── 5. Round-trip: output → re-parse → compare ────────────────────────
+  // 5. Round-trip: output → re-parse → compare
   section("Round-trip: output then re-parse");
 
   auto original = constants::steelblue;
@@ -133,7 +133,7 @@ int main() {
   std::cout << "hsl form:       " << oss_hsl.str() << "\n";
   std::cout << "hsl re-parsed:  " << hsl_back << "\n";
 
-  // ── 6. Interactive stdin ───────────────────────────────────────────────
+  // 6. Interactive stdin
   section("Interactive: enter an RGB color (e.g. 255 128 0)");
 
   rgba8_t input_color{};

@@ -10,12 +10,15 @@ using namespace vision;
 
 // Helper: check RGB channels are within [0, 1] (works for any color type via color_cast)
 static void expect_in_range(const rgbaf_t& c) {
-  EXPECT_GE(c.r(), 0.0f); EXPECT_LE(c.r(), 1.0f);
-  EXPECT_GE(c.g(), 0.0f); EXPECT_LE(c.g(), 1.0f);
-  EXPECT_GE(c.b(), 0.0f); EXPECT_LE(c.b(), 1.0f);
+  EXPECT_GE(c.r(), 0.0f);
+  EXPECT_LE(c.r(), 1.0f);
+  EXPECT_GE(c.g(), 0.0f);
+  EXPECT_LE(c.g(), 1.0f);
+  EXPECT_GE(c.b(), 0.0f);
+  EXPECT_LE(c.b(), 1.0f);
 }
 
-// ── simulate_protanopia ───────────────────────────────────────────────────────
+// simulate_protanopia
 
 TEST(ProtanopiaTest, BlackStaysBlack) {
   rgbf_t black(0.0f, 0.0f, 0.0f);
@@ -26,9 +29,8 @@ TEST(ProtanopiaTest, BlackStaysBlack) {
 }
 
 TEST(ProtanopiaTest, OutputAlwaysInRange) {
-  for (auto& c : {rgbaf_t{1,0,0,1}, rgbaf_t{0,1,0,1}, rgbaf_t{0,0,1,1},
-                  rgbaf_t{1,1,0,1}, rgbaf_t{0,1,1,1}, rgbaf_t{1,0,1,1},
-                  rgbaf_t{0.5f,0.5f,0.5f,1}}) {
+  for (auto& c : {rgbaf_t{1, 0, 0, 1}, rgbaf_t{0, 1, 0, 1}, rgbaf_t{0, 0, 1, 1}, rgbaf_t{1, 1, 0, 1},
+                  rgbaf_t{0, 1, 1, 1}, rgbaf_t{1, 0, 1, 1}, rgbaf_t{0.5f, 0.5f, 0.5f, 1}}) {
     auto r = simulate_protanopia(c);
     expect_in_range(r);
   }
@@ -52,7 +54,7 @@ TEST(ProtanopiaTest, WorksWithRgb8) {
   EXPECT_LE(result.b(), 255);
 }
 
-// ── simulate_deuteranopia ─────────────────────────────────────────────────────
+// simulate_deuteranopia
 
 TEST(DeuteranopiaTest, BlackStaysBlack) {
   auto result = simulate_deuteranopia(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -62,8 +64,8 @@ TEST(DeuteranopiaTest, BlackStaysBlack) {
 }
 
 TEST(DeuteranopiaTest, OutputAlwaysInRange) {
-  for (auto& c : {rgbaf_t{1,0,0,1}, rgbaf_t{0,1,0,1}, rgbaf_t{0,0,1,1},
-                  rgbaf_t{1,1,0,1}, rgbaf_t{0.3f,0.6f,0.9f,1}}) {
+  for (auto& c : {rgbaf_t{1, 0, 0, 1}, rgbaf_t{0, 1, 0, 1}, rgbaf_t{0, 0, 1, 1}, rgbaf_t{1, 1, 0, 1},
+                  rgbaf_t{0.3f, 0.6f, 0.9f, 1}}) {
     auto r = simulate_deuteranopia(c);
     expect_in_range(r);
   }
@@ -75,7 +77,7 @@ TEST(DeuteranopiaTest, AlphaPreserved) {
   EXPECT_NEAR(result.a(), 0.4f, 1e-4f);
 }
 
-// ── simulate_tritanopia ───────────────────────────────────────────────────────
+// simulate_tritanopia
 
 TEST(TritanopiaTest, BlackStaysBlack) {
   auto result = simulate_tritanopia(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -85,8 +87,8 @@ TEST(TritanopiaTest, BlackStaysBlack) {
 }
 
 TEST(TritanopiaTest, OutputAlwaysInRange) {
-  for (auto& c : {rgbaf_t{1,0,0,1}, rgbaf_t{0,1,0,1}, rgbaf_t{0,0,1,1},
-                  rgbaf_t{1,1,0,1}, rgbaf_t{0.5f,0.2f,0.8f,1}}) {
+  for (auto& c : {rgbaf_t{1, 0, 0, 1}, rgbaf_t{0, 1, 0, 1}, rgbaf_t{0, 0, 1, 1}, rgbaf_t{1, 1, 0, 1},
+                  rgbaf_t{0.5f, 0.2f, 0.8f, 1}}) {
     auto r = simulate_tritanopia(c);
     expect_in_range(r);
   }
@@ -98,7 +100,7 @@ TEST(TritanopiaTest, AlphaPreserved) {
   EXPECT_NEAR(result.a(), 0.8f, 1e-4f);
 }
 
-// ── simulate_achromatopsia ────────────────────────────────────────────────────
+// simulate_achromatopsia
 
 TEST(AchromatopsiaTest, BlackStaysBlack) {
   auto result = simulate_achromatopsia(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -116,8 +118,8 @@ TEST(AchromatopsiaTest, WhiteStaysWhite) {
 
 TEST(AchromatopsiaTest, AllChannelsEqual) {
   // Achromatopsia always produces a gray: r=g=b
-  for (auto& c : {rgbf_t{1,0,0}, rgbf_t{0,1,0}, rgbf_t{0,0,1},
-                  rgbf_t{0.3f,0.6f,0.1f}, rgbf_t{0.9f,0.2f,0.7f}}) {
+  for (auto& c :
+       {rgbf_t{1, 0, 0}, rgbf_t{0, 1, 0}, rgbf_t{0, 0, 1}, rgbf_t{0.3f, 0.6f, 0.1f}, rgbf_t{0.9f, 0.2f, 0.7f}}) {
     auto r = simulate_achromatopsia(c);
     EXPECT_NEAR(r.r(), r.g(), 1e-5f);
     EXPECT_NEAR(r.g(), r.b(), 1e-5f);
@@ -131,10 +133,10 @@ TEST(AchromatopsiaTest, AlphaPreserved) {
 }
 
 TEST(AchromatopsiaTest, OutputAlwaysInRange) {
-  for (auto& c : {rgbf_t{1,0,0}, rgbf_t{0,1,0}, rgbf_t{0,0,1},
-                  rgbf_t{1,1,1}, rgbf_t{0,0,0}}) {
+  for (auto& c : {rgbf_t{1, 0, 0}, rgbf_t{0, 1, 0}, rgbf_t{0, 0, 1}, rgbf_t{1, 1, 1}, rgbf_t{0, 0, 0}}) {
     auto r = simulate_achromatopsia(c);
-    EXPECT_GE(r.r(), 0.0f); EXPECT_LE(r.r(), 1.0f);
+    EXPECT_GE(r.r(), 0.0f);
+    EXPECT_LE(r.r(), 1.0f);
   }
 }
 
@@ -149,14 +151,13 @@ TEST(AchromatopsiaTest, LuminanceFormula) {
   EXPECT_LT(gray, 1.0f);
 }
 
-// ── Simulation produces different output from input (colored inputs) ───────────
+// Simulation produces different output from input (colored inputs)
 
 TEST(VisionSimulationTest, ProtanopiaChangesRed) {
   rgbf_t red(1.0f, 0.0f, 0.0f);
   auto result = simulate_protanopia(red);
   // A protanope cannot distinguish red from some other color — output differs from input
-  bool changed = (std::abs(result.r() - red.r()) > 0.05f ||
-                  std::abs(result.g() - red.g()) > 0.05f ||
+  bool changed = (std::abs(result.r() - red.r()) > 0.05f || std::abs(result.g() - red.g()) > 0.05f ||
                   std::abs(result.b() - red.b()) > 0.05f);
   EXPECT_TRUE(changed);
 }
@@ -164,8 +165,7 @@ TEST(VisionSimulationTest, ProtanopiaChangesRed) {
 TEST(VisionSimulationTest, DeuteranopiaChangesGreen) {
   rgbf_t green(0.0f, 1.0f, 0.0f);
   auto result = simulate_deuteranopia(green);
-  bool changed = (std::abs(result.r() - green.r()) > 0.05f ||
-                  std::abs(result.g() - green.g()) > 0.05f ||
+  bool changed = (std::abs(result.r() - green.r()) > 0.05f || std::abs(result.g() - green.g()) > 0.05f ||
                   std::abs(result.b() - green.b()) > 0.05f);
   EXPECT_TRUE(changed);
 }

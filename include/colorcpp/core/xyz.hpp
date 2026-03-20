@@ -7,15 +7,15 @@
 // CIE XYZ (CIE 1931, D65 reference white):
 // The device-independent "hub" color space that underlies all CIE-based models.
 // Using D65 for consistency with linear sRGB, CIELAB, and OkLab in this library.
-//   X: [0, 2]  — mix of cone response curves (white point Xn ≈ 0.95047)
-//   Y: [0, 2]  — luminance; exactly 1.0 for D65 white
-//   Z: [0, 2]  — quasi-blue (white point Zn ≈ 1.08883)
+// X: [0, 2]  — mix of cone response curves (white point Xn ≈ 0.95047)
+// Y: [0, 2]  — luminance; exactly 1.0 for D65 white
+// Z: [0, 2]  — quasi-blue (white point Zn ≈ 1.08883)
 //
 // The range [0, 2] covers sRGB, P3-D65, and Rec2020 gamuts.
 // HDR values beyond Y=1 are representable up to the ceiling of 2.
 //
 // Conversion path:  sRGB ↔ Linear sRGB ↔ XYZ ↔ CIELAB
-//                                         XYZ ↔ OkLab  (direct, no gamut clip)
+//                   XYZ ↔ OkLab  (direct, no gamut clip)
 
 namespace colorcpp::core::xyz {
 
