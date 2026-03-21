@@ -1,0 +1,8 @@
+.git
+.github
+**/.cache
+**/build
+**/build-*
+**/_deps
+.cursor
+*.plan.md

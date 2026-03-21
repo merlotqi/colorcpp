@@ -1,0 +1,20 @@
+services:
+  verify:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: verify
+    image: colorcpp:verify
+
+  # Same image, default shell — use: docker compose run --rm dev
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    image: colorcpp:dev
+    tty: true
+    stdin_open: true
+    volumes:
+      - .:/src
+    working_dir: /src

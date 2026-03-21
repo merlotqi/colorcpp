@@ -320,6 +320,38 @@ See the `examples/` directory for complete working examples:
 - `palette_example.cpp` - Palette generation
 - `random_example.cpp` - Random color generation
 
+## ⏱️ Benchmarks
+
+Optional microbenchmarks use [Google Benchmark](https://github.com/google/benchmark), fetched with CMake `FetchContent` when enabled:
+
+```bash
+cmake -B build -DCOLORCPP_BUILD_BENCHMARKS=ON
+cmake --build build
+./build/benchmarks/colorcpp_benchmark   # or: cmake --build build --target run_benchmarks
+```
+
+Sources under `benchmarks/` are split by area: `benchmark_conversion.cpp`, `benchmark_blend.cpp`, `benchmark_interpolate.cpp`, `benchmark_delta_e.cpp`, `benchmark_io.cpp`, `benchmark_gamut_palette.cpp` — all linked into the single `colorcpp_benchmark` binary.
+
+## 🐳 Docker & CI
+
+**Docker** — configure, build examples, and run unit tests inside Ubuntu 24.04:
+
+```bash
+docker build -t colorcpp:verify .
+# or
+docker compose build verify
+```
+
+**Interactive shell** with the repo bind-mounted at `/src`:
+
+```bash
+docker compose run --rm dev
+```
+
+**GitHub Actions** (`.github/workflows/ci.yml`): on push/PR to `main`, `master`, or `channel`, runs a **GCC** and **Clang** matrix (Ninja + CMake) with tests and examples enabled, plus a **Docker** build of the `verify` stage.
+
+**Publishing** (`.github/workflows/docker-publish.yml`): pushing a tag `v*` builds the same `verify` image and pushes it to **GHCR** as `ghcr.io/<owner>/<repo>` (useful as a reproducible toolchain snapshot, not a runtime dependency for consumers).
+
 ## 📄 License
 
 MIT License - see LICENSE file for details.

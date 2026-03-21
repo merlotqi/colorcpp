@@ -35,6 +35,6 @@ if(COLORCPP_BUILD_TESTS)
 
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        COMMENT "Running all memory pool test modules"
+        COMMENT "Running all colorcpp test modules"
     )
 endif()
