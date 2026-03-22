@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(COLORCPP_BUILD_TESTS "Build tests" OFF)
 option(COLORCPP_BUILD_EXAMPLES "Build examples" OFF)
+option(COLORCPP_BUILD_BENCHMARKS "Build microbenchmarks (Google Benchmark via FetchContent)" OFF)
 option(COLORCPP_INSTALL_HEADERS "Install header files" OFF)
 
 file(GLOB_RECURSE COLOR_HEADERS CONFIGURE_DEPENDS
@@ -40,8 +41,9 @@ add_library(colorcpp::colorcpp ALIAS colorcpp)
 
 add_subdirectory(tests)
 add_subdirectory(examples)
+add_subdirectory(benchmarks)
 
-if(INSTALL_HEADERS)
+if(COLORCPP_INSTALL_HEADERS)
   install(DIRECTORY include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.hpp"
@@ -79,7 +81,7 @@ endif()
 
 export(TARGETS colorcpp NAMESPACE colorcpp:: FILE "${CMAKE_CURRENT_BINARY_DIR}/colorcppTargets.cmake")
 
-if(INSTALL_HEADERS)
+if(COLORCPP_INSTALL_HEADERS)
   configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/colorcpp.pc.in"
     "${CMAKE_CURRENT_BINARY_DIR}/colorcpp.pc"

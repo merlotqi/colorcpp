@@ -7,14 +7,14 @@
 // CIELAB (CIE L*a*b*, ISO 11664-4 / ICC):
 // A perceptually uniform color space based on the CIE XYZ model.
 // Reference white: D65 (Xn=0.95047, Yn=1.00000, Zn=1.08883).
-//   L*: [0, 100]    — lightness (0=black, 100=white)
-//   a*: [-128, 128] — green(-) / red(+) axis
-//   b*: [-128, 128] — blue(-) / yellow(+) axis
+// L*: [0, 100]    — lightness (0=black, 100=white)
+// a*: [-128, 128] — green(-) / red(+) axis
+// b*: [-128, 128] — blue(-) / yellow(+) axis
 //
 // CIELCH is the cylindrical form of CIELAB:
-//   L*: [0, 100]    — same lightness
-//   C*: [0, 200]    — chroma (distance from achromatic axis; sRGB gamut ≈ [0, 130])
-//   H:  [0, 360)    — hue angle in degrees
+// L*: [0, 100]    — same lightness
+// C*: [0, 200]    — chroma (distance from achromatic axis; sRGB gamut ≈ [0, 130])
+// H:  [0, 360)    — hue angle in degrees
 //
 // Conversion path: sRGB ↔ Linear sRGB ↔ CIELAB ↔ CIELCH
 // (requires linear_rgb.hpp to be included before conversion.hpp)
@@ -31,11 +31,11 @@ struct h_tag {};  // hue angle (CIELCH)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = static_cast<T>(Min) / static_cast<T>(Den) ... Max/Den
 // Den=1 keeps values in their natural CIE units rather than normalizing to [0,1].
-using lab_l = traits::basic_channel<l_tag, float, 0, 100, 1>;     //  [0,    100]
+using lab_l = traits::basic_channel<l_tag, float, 0, 100, 1>;     // [0,    100]
 using lab_a = traits::basic_channel<a_tag, float, -128, 128, 1>;  // [-128,  128]
 using lab_b = traits::basic_channel<b_tag, float, -128, 128, 1>;  // [-128,  128]
-using lab_c = traits::basic_channel<c_tag, float, 0, 200, 1>;     //  [0,    200]
-using lab_h = traits::basic_channel<h_tag, float, 0, 360, 1>;     //  [0,    360]
+using lab_c = traits::basic_channel<c_tag, float, 0, 200, 1>;     // [0,    200]
+using lab_h = traits::basic_channel<h_tag, float, 0, 360, 1>;     // [0,    360]
 
 }  // namespace channel
 

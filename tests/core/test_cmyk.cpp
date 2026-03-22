@@ -9,7 +9,7 @@ namespace colorcpp::core::test {
 
 using namespace colorcpp::operations::conversion;
 
-// ── Construction ──────────────────────────────────────────────────────────────
+// Construction
 
 TEST(CMYKTest, DefaultConstruction) {
   cmyk_float_t cmyk;
@@ -35,7 +35,7 @@ TEST(CMYKTest, Uint8ParameterizedConstruction) {
   EXPECT_EQ(cmyk.k(), 40);
 }
 
-// ── Boundary values ───────────────────────────────────────────────────────────
+// Boundary values
 
 TEST(CMYKTest, FloatBoundaryMin) {
   cmyk_float_t cmyk(0.0f, 0.0f, 0.0f, 0.0f);
@@ -69,7 +69,7 @@ TEST(CMYKTest, Uint8OutOfRangeThrows) {
   EXPECT_THROW(cmyk8_t(0, 0, 0, 101), std::out_of_range);
 }
 
-// ── Member and indexed access ─────────────────────────────────────────────────
+// Member and indexed access
 
 TEST(CMYKTest, MutableMemberAccess) {
   cmyk_float_t cmyk(0.1f, 0.2f, 0.3f, 0.4f);
@@ -99,7 +99,7 @@ TEST(CMYKTest, ConstCorrectness) {
   EXPECT_FLOAT_EQ(cmyk.k(), 0.0f);
 }
 
-// ── Known color conversions ───────────────────────────────────────────────────
+// Known color conversions
 
 TEST(CMYKConversionTest, WhiteToFloat) {
   // White: RGB(1,1,1) → CMYK(0,0,0,0)
@@ -171,7 +171,7 @@ TEST(CMYKConversionTest, BlackToUint8) {
   EXPECT_EQ(cmyk.k(), 100);
 }
 
-// ── Round-trip ────────────────────────────────────────────────────────────────
+// Round-trip
 
 TEST(CMYKConversionTest, FloatRoundTrip) {
   rgbf_t orig(0.6f, 0.2f, 0.8f);
@@ -191,7 +191,7 @@ TEST(CMYKConversionTest, Uint8RoundTrip) {
   EXPECT_NEAR(back.b(), orig.b(), 1);
 }
 
-// ── Type traits ───────────────────────────────────────────────────────────────
+// Type traits
 
 TEST(CMYKTest, TypeTraits) {
   using cmyk8_channels = typename traits::model_traits<cmyk::model::cmyk_u8>::channels_type;

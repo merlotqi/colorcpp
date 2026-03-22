@@ -9,7 +9,7 @@ namespace colorcpp::core::test {
 
 using namespace colorcpp::operations::conversion;
 
-// ── OKLab Construction ────────────────────────────────────────────────────────
+// OKLab Construction
 
 TEST(OKLabTest, DefaultConstruction) {
   oklab_t lab;
@@ -47,7 +47,7 @@ TEST(OKLabTest, OutOfRangeThrows) {
   EXPECT_THROW(oklab_t(0.5f, 0.0f, 0.6f), std::out_of_range);   // b > 0.5
 }
 
-// ── OKLCh Construction ────────────────────────────────────────────────────────
+// OKLCh Construction
 
 TEST(OKLChTest, DefaultConstruction) {
   oklch_t lch;
@@ -72,7 +72,7 @@ TEST(OKLChTest, OutOfRangeThrows) {
   EXPECT_THROW(oklch_t(0.5f, 0.1f, 361.0f), std::out_of_range);   // H > 360
 }
 
-// ── Member and indexed access ─────────────────────────────────────────────────
+// Member and indexed access
 
 TEST(OKLabTest, MutableMemberAccess) {
   oklab_t lab(0.5f, 0.1f, 0.2f);
@@ -91,7 +91,7 @@ TEST(OKLabTest, IndexAccess) {
   EXPECT_FLOAT_EQ(lab.get_index<2>(), -0.2f);
 }
 
-// ── Known color conversions: sRGB → OKLab ────────────────────────────────────
+// Known color conversions: sRGB → OKLab
 
 TEST(OKLabConversionTest, BlackIsOrigin) {
   auto lab = color_cast<oklab_t>(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -123,7 +123,7 @@ TEST(OKLabConversionTest, LighterColorHasHigherL) {
   EXPECT_LT(dark.l(), light.l());
 }
 
-// ── Round-trip ────────────────────────────────────────────────────────────────
+// Round-trip
 
 TEST(OKLabConversionTest, FloatRoundTrip) {
   rgbf_t orig(0.5f, 0.2f, 0.8f);
@@ -134,9 +134,7 @@ TEST(OKLabConversionTest, FloatRoundTrip) {
 }
 
 TEST(OKLabConversionTest, PrimaryColorsRoundTrip) {
-  for (auto orig : {rgbf_t{1.0f, 0.0f, 0.0f},
-                    rgbf_t{0.0f, 1.0f, 0.0f},
-                    rgbf_t{0.0f, 0.0f, 1.0f}}) {
+  for (auto orig : {rgbf_t{1.0f, 0.0f, 0.0f}, rgbf_t{0.0f, 1.0f, 0.0f}, rgbf_t{0.0f, 0.0f, 1.0f}}) {
     auto back = color_cast<rgbf_t>(color_cast<oklab_t>(orig));
     EXPECT_NEAR(back.r(), orig.r(), 1e-4f);
     EXPECT_NEAR(back.g(), orig.g(), 1e-4f);
@@ -144,7 +142,7 @@ TEST(OKLabConversionTest, PrimaryColorsRoundTrip) {
   }
 }
 
-// ── OKLab ↔ OKLCh ─────────────────────────────────────────────────────────────
+// OKLab ↔ OKLCh
 
 TEST(OKLChConversionTest, AchromaticHasZeroChroma) {
   auto lch = color_cast<oklch_t>(rgbf_t{0.5f, 0.5f, 0.5f});
@@ -174,7 +172,7 @@ TEST(OKLChConversionTest, RoundTripOklabToLch) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-3f);
 }
 
-// ── Type traits ───────────────────────────────────────────────────────────────
+// Type traits
 
 TEST(OKLabTest, TypeTraits) {
   using oklab_channels = typename traits::model_traits<oklab::model::oklab>::channels_type;

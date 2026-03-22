@@ -6,14 +6,14 @@
 
 // Oklab (Björn Ottosson, 2020): a perceptually uniform color space designed
 // as a practical replacement for CIELAB. Channel ranges follow CSS Color Level 4:
-//   L: [0, 1]       — lightness (0=black, 1=white)
-//   a: [-0.5, 0.5]  — green(-) / red(+) axis
-//   b: [-0.5, 0.5]  — blue(-) / yellow(+) axis
+// L: [0, 1]       — lightness (0=black, 1=white)
+// a: [-0.5, 0.5]  — green(-) / red(+) axis
+// b: [-0.5, 0.5]  — blue(-) / yellow(+) axis
 //
 // OkLCH is the cylindrical form of Oklab:
-//   L: [0, 1]       — same lightness
-//   C: [0, 0.4]     — chroma (distance from achromatic axis; sRGB max ≈ 0.32)
-//   H: [0, 360)     — hue angle in degrees
+// L: [0, 1]       — same lightness
+// C: [0, 0.4]     — chroma (distance from achromatic axis; sRGB max ≈ 0.32)
+// H: [0, 360)     — hue angle in degrees
 //
 // Conversion path: sRGB ↔ Linear sRGB ↔ Oklab ↔ OkLCH
 // (requires linear_rgb.hpp to be included before conversion.hpp)
@@ -29,11 +29,11 @@ struct c_tag {};  // chroma (OkLCH)
 struct h_tag {};  // hue angle (OkLCH)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = Min/Den … Max/Den
-using okl = traits::basic_channel<l_tag, float, 0, 1>;          //  [0,    1]
+using okl = traits::basic_channel<l_tag, float, 0, 1>;          // [0,    1]
 using oka = traits::basic_channel<a_tag, float, -50, 50, 100>;  // [-0.5, 0.5]
 using okb = traits::basic_channel<b_tag, float, -50, 50, 100>;  // [-0.5, 0.5]
-using okc = traits::basic_channel<c_tag, float, 0, 40, 100>;    //  [0,   0.4]
-using okh = traits::basic_channel<h_tag, float, 0, 360, 1>;     //  [0, 360]
+using okc = traits::basic_channel<c_tag, float, 0, 40, 100>;    // [0,   0.4]
+using okh = traits::basic_channel<h_tag, float, 0, 360, 1>;     // [0, 360]
 
 }  // namespace channel
 

@@ -62,6 +62,8 @@ There are many ways to contribute to ColorCpp:
    make test
    ```
 
+4. **(Optional) Benchmarks** — enable `-DCOLORCPP_BUILD_BENCHMARKS=ON`, then build target `run_benchmarks` or run `benchmarks/colorcpp_benchmark` from the build tree. Google Benchmark is fetched automatically via `FetchContent`.
+
 ### Development Workflow
 
 1. Create a new branch for your feature/fix:

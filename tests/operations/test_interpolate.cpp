@@ -9,7 +9,7 @@ using namespace core;
 using namespace interpolate;
 using namespace conversion;
 
-// ── lerp (RGB space) ──────────────────────────────────────────────────────────
+// lerp (RGB space)
 
 TEST(LerpTest, TZeroReturnsFirst) {
   core::rgbf_t black(0.0f, 0.0f, 0.0f);
@@ -72,7 +72,7 @@ TEST(LerpTest, WorksWithRgb8) {
   EXPECT_LE(result.r(), 255);
 }
 
-// ── lerp_hsl (HSL space) ──────────────────────────────────────────────────────
+// lerp_hsl (HSL space)
 
 TEST(LerpHslTest, TZeroReturnsFirst) {
   core::rgbf_t red(1.0f, 0.0f, 0.0f);
@@ -94,9 +94,9 @@ TEST(LerpHslTest, TOneReturnsSecond) {
 
 TEST(LerpHslTest, HueShortestArc) {
   // From red (hue=0°) to blue (hue=240°):
-  //   forward arc = 240° long, backward arc = 120° long
-  //   shortest arc goes backward: 0° → 300° → 240° (through magenta)
-  //   midpoint at t=0.5 should be near 300°
+  // forward arc = 240° long, backward arc = 120° long
+  // shortest arc goes backward: 0° → 300° → 240° (through magenta)
+  // midpoint at t=0.5 should be near 300°
   core::rgbf_t red(1.0f, 0.0f, 0.0f);
   core::rgbf_t blue(0.0f, 0.0f, 1.0f);
   auto mid = lerp_hsl(red, blue, 0.5f);
@@ -104,7 +104,7 @@ TEST(LerpHslTest, HueShortestArc) {
   EXPECT_NEAR(hsl.h(), 300.0f, 5.0f);
 }
 
-// ── lerp_oklab (OKLab space) ──────────────────────────────────────────────────
+// lerp_oklab (OKLab space)
 
 TEST(LerpOklabTest, TZeroReturnsFirst) {
   core::rgbf_t a(0.2f, 0.8f, 0.4f);
@@ -134,7 +134,7 @@ TEST(LerpOklabTest, BlackToWhiteMidpointIsGray) {
   EXPECT_NEAR(mid.g(), mid.b(), 5e-3f);
 }
 
-// ── lerp_hsv (HSV space) ──────────────────────────────────────────────────────
+// lerp_hsv (HSV space)
 
 TEST(LerpHsvTest, TZeroReturnsFirst) {
   core::rgbf_t a(1.0f, 0.0f, 0.0f);
@@ -152,7 +152,7 @@ TEST(LerpHsvTest, TOneReturnsSecond) {
   EXPECT_NEAR(result.b(), b.b(), 5e-3f);
 }
 
-// ── Easing functions ──────────────────────────────────────────────────────────
+// Easing functions
 
 TEST(EasingTest, LinearIsIdentity) {
   EXPECT_NEAR(easing::linear(0.0f), 0.0f, 1e-6f);
@@ -180,9 +180,7 @@ TEST(EasingTest, SmoothstepEndpoints) {
   EXPECT_NEAR(easing::smoothstep(1.0f), 1.0f, 1e-6f);
 }
 
-TEST(EasingTest, SmoothstepMidpoint) {
-  EXPECT_NEAR(easing::smoothstep(0.5f), 0.5f, 1e-6f);
-}
+TEST(EasingTest, SmoothstepMidpoint) { EXPECT_NEAR(easing::smoothstep(0.5f), 0.5f, 1e-6f); }
 
 TEST(EasingTest, SmootherStepEndpoints) {
   EXPECT_NEAR(easing::smootherstep(0.0f), 0.0f, 1e-6f);
@@ -195,22 +193,22 @@ TEST(EasingTest, InOutQuadEndpoints) {
 }
 
 TEST(EasingTest, SineEasingsEndpoints) {
-  EXPECT_NEAR(easing::in_sine(0.0f),     0.0f, 1e-5f);
-  EXPECT_NEAR(easing::in_sine(1.0f),     1.0f, 1e-5f);
-  EXPECT_NEAR(easing::out_sine(0.0f),    0.0f, 1e-5f);
-  EXPECT_NEAR(easing::out_sine(1.0f),    1.0f, 1e-5f);
+  EXPECT_NEAR(easing::in_sine(0.0f), 0.0f, 1e-5f);
+  EXPECT_NEAR(easing::in_sine(1.0f), 1.0f, 1e-5f);
+  EXPECT_NEAR(easing::out_sine(0.0f), 0.0f, 1e-5f);
+  EXPECT_NEAR(easing::out_sine(1.0f), 1.0f, 1e-5f);
   EXPECT_NEAR(easing::in_out_sine(0.0f), 0.0f, 1e-5f);
   EXPECT_NEAR(easing::in_out_sine(1.0f), 1.0f, 1e-5f);
 }
 
 TEST(EasingTest, ExpoEasingsEndpoints) {
-  EXPECT_NEAR(easing::in_expo(0.0f),  0.0f, 1e-6f);
-  EXPECT_NEAR(easing::in_expo(1.0f),  1.0f, 1e-5f);
+  EXPECT_NEAR(easing::in_expo(0.0f), 0.0f, 1e-6f);
+  EXPECT_NEAR(easing::in_expo(1.0f), 1.0f, 1e-5f);
   EXPECT_NEAR(easing::out_expo(0.0f), 0.0f, 1e-5f);
   EXPECT_NEAR(easing::out_expo(1.0f), 1.0f, 1e-6f);
 }
 
-// ── lerp_lab (CIELAB space) ───────────────────────────────────────────────────
+// lerp_lab (CIELAB space)
 
 TEST(LerpLabTest, BlackToWhiteMidpointIsAchromatic) {
   core::rgbf_t black(0.0f, 0.0f, 0.0f);

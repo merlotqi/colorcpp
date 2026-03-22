@@ -313,7 +313,7 @@ constexpr To rgb_to_cmyk(const From& src) {
   return pack_to<To>(from_unit<To, 0>(c), from_unit<To, 1>(m), from_unit<To, 2>(y), from_unit<To, 3>(k));
 }
 
-// ── sRGB ↔ Linear sRGB ────────────────────────────────────────────────────
+// sRGB ↔ Linear sRGB
 // Applies the IEC 61966-2-1 (sRGB) piecewise transfer functions.
 
 template <typename To, typename From>
@@ -347,7 +347,7 @@ constexpr To linear_rgb_to_srgb(const From& src) {
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
 }
 
-// ── Linear sRGB ↔ Oklab ───────────────────────────────────────────────────
+// Linear sRGB ↔ Oklab
 // Reference: https://bottosson.github.io/posts/oklab/
 // Matrices and cube-root linearisation per the original specification.
 
@@ -402,7 +402,7 @@ constexpr To oklab_to_linear_rgb(const From& src) {
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
 }
 
-// ── Oklab ↔ OkLCH ─────────────────────────────────────────────────────────
+// Oklab ↔ OkLCH
 
 template <typename To, typename From>
 constexpr To oklab_to_oklch(const From& src) {
@@ -430,7 +430,7 @@ constexpr To oklch_to_oklab(const From& src) {
   return pack_to<To>(from_value<To, 0>(L), from_value<To, 1>(a), from_value<To, 2>(b));
 }
 
-// ── Linear sRGB ↔ CIELAB (via XYZ, D65 reference white) ──────────────────
+// Linear sRGB ↔ CIELAB (via XYZ, D65 reference white)
 // Forward matrix (sRGB IEC 61966-2-1, D65):  sRGB linear → XYZ
 // Inverse matrix:                             XYZ → sRGB linear
 // D65 reference white: Xn=0.95047, Yn=1.00000, Zn=1.08883
@@ -506,7 +506,7 @@ constexpr To lab_to_linear_rgb(const From& src) {
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(gv), from_unit<To, 2>(bv));
 }
 
-// ── CIELAB ↔ CIELCH (polar ↔ cartesian) ──────────────────────────────────
+// CIELAB ↔ CIELCH (polar ↔ cartesian)
 
 template <typename To, typename From>
 constexpr To lab_to_lch(const From& src) {
@@ -534,7 +534,7 @@ constexpr To lch_to_lab(const From& src) {
   return pack_to<To>(from_value<To, 0>(L), from_value<To, 1>(a), from_value<To, 2>(b));
 }
 
-// ── Linear sRGB ↔ CIE XYZ (D65) ──────────────────────────────────────────
+// Linear sRGB ↔ CIE XYZ (D65)
 // Matrix: IEC 61966-2-1 (sRGB specification), D65 reference white.
 // XYZ channels are stored in natural CIE units ([0, 2]), not unit [0,1] space,
 // so from_value / static_cast are used instead of from_unit / to_unit.
@@ -569,7 +569,7 @@ constexpr To xyz_to_linear_rgb(const From& src) {
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
 }
 
-// ── CIE XYZ (D65) ↔ CIELAB ───────────────────────────────────────────────
+// CIE XYZ (D65) ↔ CIELAB
 // XYZ values are read as raw channel values (not unit space).
 // CIELAB output uses from_value (L* ∈ [0,100], a*/b* ∈ [-128,128]).
 
@@ -619,14 +619,14 @@ constexpr To lab_to_xyz(const From& src) {
   return pack_to<To>(from_value<To, 0>(X), from_value<To, 1>(Y), from_value<To, 2>(Z));
 }
 
-// ── CIE XYZ (D65) ↔ OkLab ────────────────────────────────────────────────
+// CIE XYZ (D65) ↔ OkLab
 // Direct conversion without routing through linear sRGB, so no gamut clipping
 // occurs for colors outside the sRGB gamut.
 //
 // M1_xyz (XYZ D65 → OkLab LMS) — from Ottosson 2020 / CSS Color Level 4:
-//   [0.8189330101  0.3618667424 -0.1288597137]
-//   [0.0329845436  0.9293118715  0.0361456387]
-//   [0.0482003018  0.2643662691  0.6338517070]
+// [0.8189330101  0.3618667424 -0.1288597137]
+// [0.0329845436  0.9293118715  0.0361456387]
+// [0.0482003018  0.2643662691  0.6338517070]
 //
 // M2 (cbrt(LMS) → OkLab): same as in linear_rgb_to_oklab.
 //
@@ -700,11 +700,11 @@ struct color_cast_impl {
     using FromCat = details::model_category<FromTag>;
     using ToCat = details::model_category<ToTag>;
 
-    // ── Identity cast: return a copy without any arithmetic ────────────────
+    // Identity cast: return a copy without any arithmetic
     if constexpr (std::is_same_v<From, To>) {
       return src;
 
-      // ── Same space (variant or precision cast) ────────────────────────────
+      // Same space (variant or precision cast)
     } else if constexpr (std::is_same_v<FromTag, ToTag> || (FromCat::is_rgb && ToCat::is_rgb) ||
                          (FromCat::is_hsl && ToCat::is_hsl) || (FromCat::is_hsv && ToCat::is_hsv) ||
                          (FromCat::is_cmyk && ToCat::is_cmyk) || (FromCat::is_linear_rgb && ToCat::is_linear_rgb) ||
@@ -712,7 +712,7 @@ struct color_cast_impl {
                          (FromCat::is_lab && ToCat::is_lab) || (FromCat::is_lch && ToCat::is_lch)) {
       return details::same_model_cast_impl<To>(src, std::make_index_sequence<To::channels>{});
 
-      // ── Direct: sRGB ↔ HSL / HSV / CMYK ─────────────────────────────────
+      // Direct: sRGB ↔ HSL / HSV / CMYK
     } else if constexpr (FromCat::is_hsl && ToCat::is_rgb) {
       return details::hsl_to_rgb<To>(src);
     } else if constexpr (FromCat::is_rgb && ToCat::is_hsl) {
@@ -726,121 +726,121 @@ struct color_cast_impl {
     } else if constexpr (FromCat::is_rgb && ToCat::is_cmyk) {
       return details::rgb_to_cmyk<To>(src);
 
-      // ── Direct: sRGB ↔ Linear sRGB (gamma encode/decode) ─────────────────
+      // Direct: sRGB ↔ Linear sRGB (gamma encode/decode)
     } else if constexpr (FromCat::is_rgb && ToCat::is_linear_rgb) {
       return details::srgb_to_linear_rgb<To>(src);
     } else if constexpr (FromCat::is_linear_rgb && ToCat::is_rgb) {
       return details::linear_rgb_to_srgb<To>(src);
 
-      // ── Direct: Linear sRGB ↔ Oklab (matrix + cbrt) ──────────────────────
+      // Direct: Linear sRGB ↔ Oklab (matrix + cbrt)
     } else if constexpr (FromCat::is_linear_rgb && ToCat::is_oklab) {
       return details::linear_rgb_to_oklab<To>(src);
     } else if constexpr (FromCat::is_oklab && ToCat::is_linear_rgb) {
       return details::oklab_to_linear_rgb<To>(src);
 
-      // ── Direct: Oklab ↔ OkLCH (polar ↔ cartesian) ───────────────────────
+      // Direct: Oklab ↔ OkLCH (polar ↔ cartesian)
     } else if constexpr (FromCat::is_oklab && ToCat::is_oklch) {
       return details::oklab_to_oklch<To>(src);
     } else if constexpr (FromCat::is_oklch && ToCat::is_oklab) {
       return details::oklch_to_oklab<To>(src);
 
-      // ── Multi-hop: sRGB ↔ Oklab  (via Linear sRGB) ───────────────────────
+      // Multi-hop: sRGB ↔ Oklab  (via Linear sRGB)
     } else if constexpr (FromCat::is_rgb && ToCat::is_oklab) {
       return color_cast<To>(color_cast<core::linear_rgbaf_t>(src));
     } else if constexpr (FromCat::is_oklab && ToCat::is_rgb) {
       return color_cast<To>(color_cast<core::linear_rgbaf_t>(src));
 
-      // ── Multi-hop: sRGB ↔ OkLCH (via Oklab) ─────────────────────────────
+      // Multi-hop: sRGB ↔ OkLCH (via Oklab)
     } else if constexpr (FromCat::is_rgb && ToCat::is_oklch) {
       return color_cast<To>(color_cast<core::oklab_t>(src));
     } else if constexpr (FromCat::is_oklch && ToCat::is_rgb) {
       return color_cast<To>(color_cast<core::oklab_t>(src));
 
-      // ── Direct: Linear sRGB ↔ CIELAB (via XYZ, D65) ──────────────────────
+      // Direct: Linear sRGB ↔ CIELAB (via XYZ, D65)
     } else if constexpr (FromCat::is_linear_rgb && ToCat::is_lab) {
       return details::linear_rgb_to_lab<To>(src);
     } else if constexpr (FromCat::is_lab && ToCat::is_linear_rgb) {
       return details::lab_to_linear_rgb<To>(src);
 
-      // ── Direct: CIELAB ↔ CIELCH (polar ↔ cartesian) ──────────────────────
+      // Direct: CIELAB ↔ CIELCH (polar ↔ cartesian)
     } else if constexpr (FromCat::is_lab && ToCat::is_lch) {
       return details::lab_to_lch<To>(src);
     } else if constexpr (FromCat::is_lch && ToCat::is_lab) {
       return details::lch_to_lab<To>(src);
 
-      // ── Multi-hop: sRGB ↔ CIELAB (via Linear sRGB) ───────────────────────
+      // Multi-hop: sRGB ↔ CIELAB (via Linear sRGB)
     } else if constexpr (FromCat::is_rgb && ToCat::is_lab) {
       return color_cast<To>(color_cast<core::linear_rgbf_t>(src));
     } else if constexpr (FromCat::is_lab && ToCat::is_rgb) {
       return color_cast<To>(color_cast<core::linear_rgbf_t>(src));
 
-      // ── Multi-hop: sRGB ↔ CIELCH (via CIELAB) ────────────────────────────
+      // Multi-hop: sRGB ↔ CIELCH (via CIELAB)
     } else if constexpr (FromCat::is_rgb && ToCat::is_lch) {
       return color_cast<To>(color_cast<core::cielab_t>(src));
     } else if constexpr (FromCat::is_lch && ToCat::is_rgb) {
       return color_cast<To>(color_cast<core::cielab_t>(src));
 
-      // ── Direct: Linear sRGB ↔ XYZ D65 (matrix) ───────────────────────────
+      // Direct: Linear sRGB ↔ XYZ D65 (matrix)
     } else if constexpr (FromCat::is_linear_rgb && ToCat::is_xyz) {
       return details::linear_rgb_to_xyz<To>(src);
     } else if constexpr (FromCat::is_xyz && ToCat::is_linear_rgb) {
       return details::xyz_to_linear_rgb<To>(src);
 
-      // ── Direct: XYZ D65 ↔ CIELAB (D65 reference white) ───────────────────
+      // Direct: XYZ D65 ↔ CIELAB (D65 reference white)
     } else if constexpr (FromCat::is_xyz && ToCat::is_lab) {
       return details::xyz_to_lab<To>(src);
     } else if constexpr (FromCat::is_lab && ToCat::is_xyz) {
       return details::lab_to_xyz<To>(src);
 
-      // ── Direct: XYZ D65 ↔ OkLab (no gamut clip) ──────────────────────────
+      // Direct: XYZ D65 ↔ OkLab (no gamut clip)
     } else if constexpr (FromCat::is_xyz && ToCat::is_oklab) {
       return details::xyz_to_oklab<To>(src);
     } else if constexpr (FromCat::is_oklab && ToCat::is_xyz) {
       return details::oklab_to_xyz<To>(src);
 
-      // ── Multi-hop: sRGB ↔ XYZ (via Linear sRGB) ──────────────────────────
+      // Multi-hop: sRGB ↔ XYZ (via Linear sRGB)
     } else if constexpr (FromCat::is_rgb && ToCat::is_xyz) {
       return color_cast<To>(color_cast<core::linear_rgbf_t>(src));
     } else if constexpr (FromCat::is_xyz && ToCat::is_rgb) {
       return color_cast<To>(color_cast<core::linear_rgbf_t>(src));
 
-      // ── Multi-hop: XYZ ↔ CIELCH (via CIELAB) ─────────────────────────────
+      // Multi-hop: XYZ ↔ CIELCH (via CIELAB)
     } else if constexpr (FromCat::is_xyz && ToCat::is_lch) {
       return color_cast<To>(color_cast<core::cielab_t>(src));
     } else if constexpr (FromCat::is_lch && ToCat::is_xyz) {
       return color_cast<To>(color_cast<core::cielab_t>(src));
 
-      // ── Multi-hop: XYZ ↔ OkLCH (via OkLab) ──────────────────────────────
+      // Multi-hop: XYZ ↔ OkLCH (via OkLab)
     } else if constexpr (FromCat::is_xyz && ToCat::is_oklch) {
       return color_cast<To>(color_cast<core::oklab_t>(src));
     } else if constexpr (FromCat::is_oklch && ToCat::is_xyz) {
       return color_cast<To>(color_cast<core::oklab_t>(src));
 
-      // ── Gamut-safe cross-space: CIELAB ↔ OkLab (via XYZ, no sRGB clip) ───
+      // Gamut-safe cross-space: CIELAB ↔ OkLab (via XYZ, no sRGB clip)
     } else if constexpr (FromCat::is_lab && ToCat::is_oklab) {
       return color_cast<To>(color_cast<core::xyz_t>(src));
     } else if constexpr (FromCat::is_oklab && ToCat::is_lab) {
       return color_cast<To>(color_cast<core::xyz_t>(src));
 
-      // ── Gamut-safe cross-space: CIELAB ↔ OkLCH (via XYZ → OkLab) ─────────
+      // Gamut-safe cross-space: CIELAB ↔ OkLCH (via XYZ → OkLab)
     } else if constexpr (FromCat::is_lab && ToCat::is_oklch) {
       return color_cast<To>(color_cast<core::oklab_t>(color_cast<core::xyz_t>(src)));
     } else if constexpr (FromCat::is_oklch && ToCat::is_lab) {
       return color_cast<To>(color_cast<core::xyz_t>(color_cast<core::oklab_t>(src)));
 
-      // ── Gamut-safe cross-space: CIELCH ↔ OkLab (via CIELAB → XYZ) ────────
+      // Gamut-safe cross-space: CIELCH ↔ OkLab (via CIELAB → XYZ)
     } else if constexpr (FromCat::is_lch && ToCat::is_oklab) {
       return color_cast<To>(color_cast<core::xyz_t>(color_cast<core::cielab_t>(src)));
     } else if constexpr (FromCat::is_oklab && ToCat::is_lch) {
       return color_cast<To>(color_cast<core::cielab_t>(color_cast<core::xyz_t>(src)));
 
-      // ── Gamut-safe cross-space: CIELCH ↔ OkLCH (via CIELAB → XYZ → OkLab)
+      // Gamut-safe cross-space: CIELCH ↔ OkLCH (via CIELAB → XYZ → OkLab)
     } else if constexpr (FromCat::is_lch && ToCat::is_oklch) {
       return color_cast<To>(color_cast<core::oklab_t>(color_cast<core::xyz_t>(color_cast<core::cielab_t>(src))));
     } else if constexpr (FromCat::is_oklch && ToCat::is_lch) {
       return color_cast<To>(color_cast<core::cielab_t>(color_cast<core::xyz_t>(color_cast<core::oklab_t>(src))));
 
-      // ── Generic two-hop via sRGBaf ────────────────────────────────────────
+      // Generic two-hop via sRGBaf
       // Handles all remaining cross-category pairs (HSL↔CMYK, linear_rgb↔HSL, etc.)
       // by routing through the sRGB float hub.  Neither side may be sRGB to prevent
       // infinite recursion; the explicit cases above handle sRGB combinations first.

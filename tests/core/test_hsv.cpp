@@ -9,7 +9,7 @@ namespace colorcpp::core::test {
 
 using namespace colorcpp::operations::conversion;
 
-// ── Construction ──────────────────────────────────────────────────────────────
+// Construction
 
 TEST(HSVTest, DefaultConstruction) {
   hsv_float_t hsv;
@@ -33,7 +33,7 @@ TEST(HSVATest, ParameterizedWithAlpha) {
   EXPECT_FLOAT_EQ(hsva.a(), 0.75f);
 }
 
-// ── Boundary values ───────────────────────────────────────────────────────────
+// Boundary values
 
 TEST(HSVTest, BoundaryValuesMin) {
   hsv_float_t hsv(0.0f, 0.0f, 0.0f);
@@ -58,7 +58,7 @@ TEST(HSVTest, OutOfRangeThrows) {
   EXPECT_THROW(hsv_float_t(180.0f, 0.5f, 1.1f), std::out_of_range);
 }
 
-// ── Member and indexed access ─────────────────────────────────────────────────
+// Member and indexed access
 
 TEST(HSVTest, MutableMemberAccess) {
   hsv_float_t hsv(180.0f, 0.5f, 0.5f);
@@ -84,7 +84,7 @@ TEST(HSVTest, ConstCorrectness) {
   EXPECT_FLOAT_EQ(hsv.v(), 0.3f);
 }
 
-// ── Known color conversions ───────────────────────────────────────────────────
+// Known color conversions
 
 TEST(HSVConversionTest, BlackRgbToHsv) {
   auto hsv = color_cast<hsv_float_t>(rgbf_t{0.0f, 0.0f, 0.0f});
@@ -140,7 +140,7 @@ TEST(HSVConversionTest, MagentaRgbToHsv) {
   EXPECT_NEAR(hsv.v(), 1.0f, 1e-4f);
 }
 
-// ── HSV vs HSL: same hue, different value semantics ──────────────────────────
+// HSV vs HSL: same hue, different value semantics
 
 TEST(HSVConversionTest, DarkColorValueVsLightness) {
   // A dark red: RGB (0.5, 0, 0)
@@ -152,7 +152,7 @@ TEST(HSVConversionTest, DarkColorValueVsLightness) {
   EXPECT_NEAR(hsv.v(), 0.5f, 1e-4f);
 }
 
-// ── Round-trip ────────────────────────────────────────────────────────────────
+// Round-trip
 
 TEST(HSVConversionTest, FloatRoundTrip) {
   rgbf_t orig(0.6f, 0.2f, 0.8f);
@@ -179,7 +179,7 @@ TEST(HSVAConversionTest, AlphaPreservedRoundTrip) {
   EXPECT_NEAR(back.a(), orig.a(), 1e-4f);
 }
 
-// ── Achromatic invariant ──────────────────────────────────────────────────────
+// Achromatic invariant
 
 TEST(HSVConversionTest, GrayHasSaturationZero) {
   for (uint8_t v : {0u, 64u, 128u, 192u, 255u}) {
@@ -196,7 +196,7 @@ TEST(HSVConversionTest, GrayValueMatchesChannel) {
   EXPECT_NEAR(hsv.v(), 128.0f / 255.0f, 1e-3f);
 }
 
-// ── Type traits ───────────────────────────────────────────────────────────────
+// Type traits
 
 TEST(HSVTest, TypeTraits) {
   using hsv_channels = typename traits::model_traits<hsv::model::hsv>::channels_type;

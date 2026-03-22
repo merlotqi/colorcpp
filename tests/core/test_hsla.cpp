@@ -9,7 +9,7 @@ namespace colorcpp::core::test {
 
 using namespace colorcpp::operations::conversion;
 
-// ── Construction ──────────────────────────────────────────────────────────────
+// Construction
 
 TEST(HSLTest, DefaultConstruction) {
   hsl_float_t hsl;
@@ -33,7 +33,7 @@ TEST(HSLATest, ParameterizedWithAlpha) {
   EXPECT_FLOAT_EQ(hsla.a(), 0.75f);
 }
 
-// ── Boundary values ───────────────────────────────────────────────────────────
+// Boundary values
 
 TEST(HSLTest, BoundaryValuesMin) {
   hsl_float_t hsl(0.0f, 0.0f, 0.0f);
@@ -58,7 +58,7 @@ TEST(HSLTest, OutOfRangeThrows) {
   EXPECT_THROW(hsl_float_t(180.0f, 0.5f, 1.1f), std::out_of_range);
 }
 
-// ── Mutable and indexed access ────────────────────────────────────────────────
+// Mutable and indexed access
 
 TEST(HSLTest, MutableMemberAccess) {
   hsl_float_t hsl(180.0f, 0.5f, 0.5f);
@@ -85,7 +85,7 @@ TEST(HSLTest, ConstCorrectness) {
   EXPECT_FLOAT_EQ(hsl.l(), 0.3f);
 }
 
-// ── Known color conversions ───────────────────────────────────────────────────
+// Known color conversions
 
 TEST(HSLConversionTest, BlackRgbToHsl) {
   auto hsl = color_cast<hsl_float_t>(rgb8_t{0, 0, 0});
@@ -127,7 +127,7 @@ TEST(HSLConversionTest, YellowRgbToHsl) {
   EXPECT_NEAR(hsl.l(), 0.5f, 1e-4f);
 }
 
-// ── Round-trip tests ──────────────────────────────────────────────────────────
+// Round-trip tests
 
 TEST(HSLConversionTest, FloatRoundTrip) {
   rgbf_t orig(0.6f, 0.2f, 0.8f);
@@ -154,7 +154,7 @@ TEST(HSLAConversionTest, AlphaPreservedRoundTrip) {
   EXPECT_NEAR(back.a(), orig.a(), 1e-4f);
 }
 
-// ── Achromatic invariant ──────────────────────────────────────────────────────
+// Achromatic invariant
 
 TEST(HSLConversionTest, GrayHasSaturationZero) {
   for (uint8_t v : {0u, 64u, 128u, 192u, 255u}) {
