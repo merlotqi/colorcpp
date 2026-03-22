@@ -106,8 +106,8 @@ float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC =
   const double b2s = lb.template get_index<2>();
 
   constexpr double kPi = 3.14159265358979323846;
-  auto deg2rad_d = [kPi](double d) { return d * kPi / 180.0; };
-  auto rad2deg_d = [kPi](double r) { return r * 180.0 / kPi; };
+  auto deg2rad_d = [&](double d) { return d * kPi / 180.0; };
+  auto rad2deg_d = [&](double r) { return r * 180.0 / kPi; };
   auto pow7_d = [](double x) {
     double x2 = x * x, x4 = x2 * x2;
     return x4 * x2 * x;
