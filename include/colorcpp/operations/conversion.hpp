@@ -1,3 +1,11 @@
+/**
+ * @file conversion.hpp
+ * @brief @ref colorcpp::operations::conversion::color_cast — typed conversion between all registered color models.
+ *
+ * Routing uses explicit hubs: linear sRGB, XYZ, and OkLab for perceptual paths. Unsupported pairs trigger a compile-time
+ * @c static_assert with a clear message; specialize @c color_cast_impl to extend.
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -14,6 +22,9 @@
 #include <type_traits>
 #include <utility>
 
+/**
+ * @brief Color space conversion; @ref color_cast is the public entry point.
+ */
 namespace colorcpp::operations::conversion {
 
 // Forward declaration required for two-hop dispatch inside color_cast_impl.
@@ -857,6 +868,15 @@ struct color_cast_impl {
   }
 };
 
+/**
+ * @brief Convert @p src to color type @p To using the library's conversion graph.
+ * @tparam To Destination @ref colorcpp::core::basic_color specialization (or compatible type).
+ * @tparam From Source color type.
+ * @param src Input color.
+ * @return Color in @p To after conversion (may clamp to channel ranges per destination model).
+ * @note Some pairs route via sRGB float; LAB↔OkLab-style pairs may route via XYZ to avoid sRGB gamut clipping.
+ * @note If no path exists, compilation fails with @c static_assert listing unsupported conversion.
+ */
 template <typename To, typename From>
 constexpr To color_cast(const From& src) {
   return color_cast_impl<To, From>::convert(src);

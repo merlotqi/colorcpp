@@ -37,6 +37,9 @@
 #include <cstdint>
 #include <stdexcept>
 
+/**
+ * @brief User-defined literals for compile-time and runtime color construction (RGB hex, HSL/HSV/CMYK encodings).
+ */
 namespace colorcpp::literals {
 
 namespace details {
@@ -122,6 +125,7 @@ constexpr core::rgba8_t parse_hex_string(const char* s, size_t n) {
 
 }  // namespace details
 
+/** @brief UDLs imported with @c using namespace colorcpp::literals (or @c literals::operators). */
 inline namespace operators {
 
 /**
@@ -162,10 +166,7 @@ constexpr auto operator"" _argb() {
   return core::rgba8_t{(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF, (val >> 24) & 0xFF};
 }
 
-/**
- * @brief Numeric literal: RRGGBB hex → rgba8_t (alpha=255)
- * @example 0xFF0000_rgb → rgba8_t{255, 0, 0, 255}
- */
+/** @brief Runtime numeric literal: RRGGBB hex → rgba8_t (alpha=255). See template @c operator"" _rgb for examples. */
 constexpr auto operator"" _rgb(unsigned long long val) {
   if (val > 0xFFFFFF) {
     throw std::out_of_range("colorcpp: _rgb value exceeds 0xFFFFFF (24-bit limit)");
@@ -174,10 +175,7 @@ constexpr auto operator"" _rgb(unsigned long long val) {
                        static_cast<uint8_t>(val & 0xFF), 255};
 }
 
-/**
- * @brief Numeric literal: RRGGBBAA hex → rgba8_t
- * @example 0xFF000080_rgba → rgba8_t{255, 0, 0, 128}
- */
+/** @brief Runtime numeric literal: RRGGBBAA hex → rgba8_t. */
 constexpr auto operator"" _rgba(unsigned long long val) {
   if (val > 0xFFFFFFFF) {
     throw std::out_of_range("colorcpp: _rgba value exceeds 0xFFFFFFFF (32-bit limit)");
@@ -186,10 +184,7 @@ constexpr auto operator"" _rgba(unsigned long long val) {
                        static_cast<uint8_t>((val >> 8) & 0xFF), static_cast<uint8_t>(val & 0xFF)};
 }
 
-/**
- * @brief Numeric literal: AARRGGBB hex → rgba8_t
- * @example 0x80FF0000_argb → rgba8_t{255, 0, 0, 128}
- */
+/** @brief Runtime numeric literal: AARRGGBB hex → rgba8_t. */
 constexpr auto operator"" _argb(unsigned long long val) {
   if (val > 0xFFFFFFFF) {
     throw std::out_of_range("colorcpp: _argb value exceeds 0xFFFFFFFF (32-bit limit)");
@@ -223,6 +218,7 @@ constexpr auto operator"" _hex(const char* str, size_t len) { return details::pa
 // Write: 120'050'075_hsl  (H=120, S=50, L=75)
 //        0'100'050_hsl    (H=0,   S=100, L=50) — leading zero is safe here
 
+/** @brief HSL template literal; encoding documented in the "HSL Literal Operators" block above. */
 template <char... Chars>
 constexpr auto operator"" _hsl() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
@@ -236,6 +232,7 @@ constexpr auto operator"" _hsl() {
   return core::hsl_float_t{static_cast<float>(h), static_cast<float>(s) / 100.0f, static_cast<float>(l) / 100.0f};
 }
 
+/** @brief HSLA template literal (four packed decimal fields; A as 000–100 → stored [0,1]). */
 template <char... Chars>
 constexpr auto operator"" _hsla() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
@@ -265,6 +262,7 @@ constexpr auto operator"" _hsla() {
  * @{
  */
 
+/** @brief HSV template literal; encoding documented in the "HSV Literal Operators" block above. */
 template <char... Chars>
 constexpr auto operator"" _hsv() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
@@ -277,6 +275,7 @@ constexpr auto operator"" _hsv() {
   return core::hsv_float_t{static_cast<float>(h), static_cast<float>(s) / 100.0f, static_cast<float>(v) / 100.0f};
 }
 
+/** @brief HSVA template literal (four packed fields). */
 template <char... Chars>
 constexpr auto operator"" _hsva() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
@@ -303,6 +302,7 @@ constexpr auto operator"" _hsva() {
  * @{
  */
 
+/** @brief CMYK template literal; four 000–100 fields → @ref colorcpp::core::cmyk8_t. */
 template <char... Chars>
 constexpr auto operator"" _cmyk() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();

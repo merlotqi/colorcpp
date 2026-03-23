@@ -10,7 +10,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 - **Multiple color spaces**: RGB, HSV, HSL, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ
 - **Perceptually uniform**: Built-in support for CIELAB and OkLab for perceptual operations
 - **Color operations**: Blending, interpolation, palette generation, accessibility checking
-- **I/O support**: Parse colors from strings, format colors for output
+- **I/O support**: Parse colors from strings, format colors for output; CSS Color 4-style `rgb()` / `hsl()` / hex (see below)
 - **Type-safe literals**: User-defined literals for convenient color creation
 - **Template-based**: Zero-cost abstractions with compile-time validation
 - **C++17+**: Works with any C++17 compatible compiler
@@ -84,6 +84,26 @@ auto with_alpha = 210'080'090'075_hsva; // → hsva_float_t{210, 80, 90, 75}
 // CMYK literals
 auto teal = 50'030'000'020_cmyk;     // → cmyk8_t{50, 30, 0, 20}
 ```
+
+## CSS color parsing
+
+Include [`colorcpp/core/css_color.hpp`](include/colorcpp/core/css_color.hpp) or the umbrella [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp). Parsing returns `std::nullopt` on failure (no exceptions).
+
+```cpp
+#include <colorcpp/colorcpp.hpp>
+
+auto c = colorcpp::core::parse_css_color_rgba8("rgb(255 99 71 / 50%)");
+// or any registered color type:
+auto hsl = colorcpp::core::parse_css_color<colorcpp::core::hsla_float_t>("hsl(120 100% 50%)");
+```
+
+**Supported (subset of CSS Color Module Level 4):**
+
+- Hex: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` (optional surrounding ASCII whitespace).
+- `rgb()` / `rgba()`: legacy commas (`rgb(255, 99, 71)`), modern spaces (`rgb(255 99 71)`), slash alpha (`rgb(255 99 71 / 50%)`), mixing numbers (0–255) and percentages per channel, alpha as number or percentage.
+- `hsl()` / `hsla()`: comma or space syntax; hue with optional `deg`, `grad`, `rad`, `turn` (bare number = degrees); saturation/lightness as `%` or legacy 0–100 number scaled to [0, 1]; optional alpha (comma or `/`).
+
+**Not supported yet:** named colors (`red`, `transparent`, …), `color()`, `lab()` / `lch()` / `oklab()` / `oklch()`, `hwb()`, `device-cmyk()`, relative color syntax (`rgb(from …)`). These may be added in later releases.
 
 ## 🔄 Color Conversion
 
@@ -285,7 +305,8 @@ include/colorcpp/
 │   ├── cielab.hpp        # CIELAB / CIELCH
 │   ├── oklab.hpp         # OkLab / OkLCH
 │   ├── xyz.hpp           # CIE XYZ
-│   └── io.hpp            # I/O (parsing/formatting)
+│   ├── io.hpp            # I/O (parsing/formatting)
+│   └── css_color.hpp     # CSS Color 4 subset (hex, rgb, hsl)
 ├── operations/
 │   ├── operations.hpp     # Operations includes
 │   ├── conversion.hpp     # Color space conversion
@@ -331,6 +352,17 @@ cmake --build build
 ```
 
 Sources under `benchmarks/` are split by area: `benchmark_conversion.cpp`, `benchmark_blend.cpp`, `benchmark_interpolate.cpp`, `benchmark_delta_e.cpp`, `benchmark_io.cpp`, `benchmark_gamut_palette.cpp` — all linked into the single `colorcpp_benchmark` binary.
+
+## API reference (Doxygen)
+
+HTML API documentation is generated from headers with [Doxygen](https://www.doxygen.nl/). Configure with `COLORCPP_BUILD_DOCS=ON`, build the `doc` target, then open `build/doc_doxygen/html/index.html` in a browser:
+
+```bash
+cmake -B build -DCOLORCPP_BUILD_DOCS=ON
+cmake --build build --target doc
+```
+
+Requires `doxygen` on your `PATH`. The Doxygen config template lives in `doxygen/Doxygen.in` (`EXTRACT_ALL` is off so only documented symbols are listed; see `WARN_IF_UNDOCUMENTED` in that file).
 
 ## 🐳 Docker & CI
 

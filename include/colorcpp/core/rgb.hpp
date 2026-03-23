@@ -1,3 +1,11 @@
+/**
+ * @file rgb.hpp
+ * @brief sRGB-style RGB and RGBA: 8-bit channels or float channels in [0, 1].
+ *
+ * Order: R, G, B (optional A). Gamma-encoded for 8-bit and float types here; use @ref linear_rgb.hpp
+ * for scene-linear sRGB primaries.
+ */
+
 #pragma once
 
 #include <cassert>
@@ -77,6 +85,10 @@ struct model_traits<core::rgb::model::rgba_float> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief RGB/RGBA color with @c r(), @c g(), @c b(), and @c a() when alpha is present.
+ * @tparam Model One of rgb::model::rgb8, rgba8, rgb_float, rgba_float.
+ */
 template <typename Model>
 struct basic_rgba : basic_color<Model> {
   using base = basic_color<Model>;
@@ -139,10 +151,14 @@ struct basic_rgba : basic_color<Model> {
   }
 };
 
+/** @brief 8-bit RGB, channels 0–255. */
 using rgb8_t = basic_rgba<rgb::model::rgb8>;
+/** @brief 8-bit RGBA, alpha 0–255. */
 using rgba8_t = basic_rgba<rgb::model::rgba8>;
 
+/** @brief Float RGB in [0, 1]. */
 using rgbf_t = basic_rgba<rgb::model::rgb_float>;
+/** @brief Float RGBA in [0, 1]. */
 using rgbaf_t = basic_rgba<rgb::model::rgba_float>;
 
 }  // namespace colorcpp::core

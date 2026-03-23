@@ -1,11 +1,18 @@
+/**
+ * @file accessibility.hpp
+ * @brief WCAG 2.x relative luminance and contrast helpers (sRGB linearization via @ref conversion::color_cast).
+ */
+
 #pragma once
 
 #include <cmath>
 #include <colorcpp/core/core.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
+/** @brief Luminance and contrast ratio checks per WCAG. */
 namespace colorcpp::operations::accessibility {
 
+/** @brief WCAG relative luminance (Rec. 709 coefficients on linear sRGB). */
 template <typename Color>
 float relative_luminance(const Color& c) {
   using namespace conversion;
@@ -16,6 +23,7 @@ float relative_luminance(const Color& c) {
          0.0722f * lin.template get_index<2>();
 }
 
+/** @brief Contrast ratio @f$(L_{\max}+0.05)/(L_{\min}+0.05)@f$ between two colors. */
 template <typename Color>
 float contrast_ratio(const Color& a, const Color& b) {
   float la = relative_luminance(a);
@@ -28,15 +36,19 @@ float contrast_ratio(const Color& a, const Color& b) {
   return (la + 0.05f) / (lb + 0.05f);
 }
 
+/** @brief WCAG 2 AA vs AAA thresholds. */
 enum class wcag_level {
   aa,
   aaa
 };
+
+/** @brief Normal vs large text minimum ratios (WCAG). */
 enum class text_size {
   normal,
   large
 };
 
+/** @brief True if @ref contrast_ratio meets WCAG for @p level and @p size. */
 template <typename Color>
 bool is_wcag_compliant(const Color& fg, const Color& bg, wcag_level level = wcag_level::aa,
                        text_size size = text_size::normal) {
@@ -51,6 +63,7 @@ bool is_wcag_compliant(const Color& fg, const Color& bg, wcag_level level = wcag
   return ratio >= threshold;
 }
 
+/** @brief @ref constants::black or @ref constants::white whichever contrasts more with @p background. */
 template <typename Color>
 auto contrast_text_color(const Color& background) {
   float ratio_black = contrast_ratio(background, constants::black);

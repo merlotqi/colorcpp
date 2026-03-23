@@ -1,26 +1,18 @@
+/**
+ * @file gamut.hpp
+ * @brief sRGB gamut test and clipping/mapping using OkLab / OkLCH-style chroma reduction.
+ */
+
 #pragma once
 
 #include <algorithm>
 #include <cmath>
 #include <colorcpp/operations/conversion.hpp>
 
-// Gamut checking and mapping for the sRGB destination space.
-//
-// is_in_srgb_gamut — test whether a color lies inside the sRGB unit cube.
-// gamut_clip       — map an out-of-gamut color back into sRGB using one of three strategies:
-// clip          — channel-clamp (fast; may shift hue and lightness)
-// chroma_reduce — OKLCh chroma bisect (preserves hue and lightness)
-// css_color4    — CSS Color Level 4 §14.2 algorithm: chroma bisect with ΔE_OK ≤ JND acceptance (best perceptual
-//                 quality)
-//
-// All functions accept any color type registered with color_cast.
-// Internally colors are mapped through OKLab so that the bisection operates
-// in a perceptually uniform space.  Very out-of-gamut colors whose OKLab
-// a/b components exceed ±0.5 are evaluated at their clamped coordinates;
-// this is only an issue for imaginary / spectral colors far outside sRGB.
-
+/** @brief sRGB gamut queries and remapping via @ref conversion::color_cast. */
 namespace colorcpp::operations::gamut {
 
+/** @brief How @ref gamut_clip maps out-of-gamut colors into sRGB. */
 enum class clip_method {
   clip,           // Channel clamp in sRGB — O(1)
   chroma_reduce,  // OKLCh chroma bisect until in-gamut — O(log 1/ε)
@@ -67,8 +59,7 @@ inline bool linrgb_in_gamut(float r, float g, float b, float eps = 1e-4f) noexce
 
 }  // namespace details
 
-// is_in_srgb_gamut
-
+/** @brief True if @p c maps to linear sRGB channels inside [0, 1] (via OkLab). */
 template <typename Color>
 bool is_in_srgb_gamut(const Color& c) {
   using namespace conversion;
@@ -79,8 +70,9 @@ bool is_in_srgb_gamut(const Color& c) {
   return details::linrgb_in_gamut(r, g, b);
 }
 
-// gamut_clip
-
+/**
+ * @brief Map @p c into displayable sRGB using @p method (default CSS Color 4–style chroma bisection).
+ */
 template <typename Color>
 Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
   using namespace conversion;

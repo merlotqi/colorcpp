@@ -1,21 +1,15 @@
+/**
+ * @file xyz.hpp
+ * @brief CIE XYZ (1931), D65 white. Hub space for LAB and OkLab conversions.
+ *
+ * Channels X, Y, Z use nominal range [0, 2] (float); Y = 1 for D65 white.
+ */
+
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
 #include <tuple>
 #include <type_traits>
-
-// CIE XYZ (CIE 1931, D65 reference white):
-// The device-independent "hub" color space that underlies all CIE-based models.
-// Using D65 for consistency with linear sRGB, CIELAB, and OkLab in this library.
-// X: [0, 2]  — mix of cone response curves (white point Xn ≈ 0.95047)
-// Y: [0, 2]  — luminance; exactly 1.0 for D65 white
-// Z: [0, 2]  — quasi-blue (white point Zn ≈ 1.08883)
-//
-// The range [0, 2] covers sRGB, P3-D65, and Rec2020 gamuts.
-// HDR values beyond Y=1 are representable up to the ceiling of 2.
-//
-// Conversion path:  sRGB ↔ Linear sRGB ↔ XYZ ↔ CIELAB
-//                   XYZ ↔ OkLab  (direct, no gamut clip)
 
 namespace colorcpp::core::xyz {
 
@@ -53,6 +47,10 @@ struct model_traits<core::xyz::model::xyze> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief CIE XYZ with @c x(), @c y(), @c z().
+ * @tparam Model xyz::model::xyze (D65).
+ */
 template <typename Model>
 struct basic_xyz : basic_color<Model> {
   using base = basic_color<Model>;
@@ -102,6 +100,7 @@ struct basic_xyz : basic_color<Model> {
   }
 };
 
+/** @brief CIE XYZ under D65. */
 using xyz_t = basic_xyz<xyz::model::xyze>;
 
 }  // namespace colorcpp::core

@@ -1,3 +1,8 @@
+/**
+ * @file hsl.hpp
+ * @brief HSL / HSLA: hue in degrees [0, 360], saturation and lightness in [0, 1] (not percentages).
+ */
+
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
@@ -50,6 +55,10 @@ struct model_traits<core::hsl::model::hsla> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief HSL/HSLA with @c h(), @c s(), @c l(), and @c a() when alpha is present.
+ * @tparam Model hsl::model::hsl or hsla.
+ */
 template <typename Model>
 struct basic_hsl : basic_color<Model> {
   using base = basic_color<Model>;
@@ -112,7 +121,9 @@ struct basic_hsl : basic_color<Model> {
   }
 };
 
+/** @brief HSL with float channels. */
 using hsl_float_t = basic_hsl<hsl::model::hsl>;
+/** @brief HSLA with float channels. */
 using hsla_float_t = basic_hsl<hsl::model::hsla>;
 
 }  // namespace colorcpp::core

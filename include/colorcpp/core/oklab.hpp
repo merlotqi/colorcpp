@@ -1,22 +1,15 @@
+/**
+ * @file oklab.hpp
+ * @brief Oklab and OkLCH (Björn Ottosson); ranges aligned with CSS Color Level 4.
+ *
+ * Oklab: L [0, 1], a and b in [-0.5, 0.5]. OkLCH: L, C [0, 0.4], H [0, 360).
+ */
+
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
 #include <tuple>
 #include <type_traits>
-
-// Oklab (Björn Ottosson, 2020): a perceptually uniform color space designed
-// as a practical replacement for CIELAB. Channel ranges follow CSS Color Level 4:
-// L: [0, 1]       — lightness (0=black, 1=white)
-// a: [-0.5, 0.5]  — green(-) / red(+) axis
-// b: [-0.5, 0.5]  — blue(-) / yellow(+) axis
-//
-// OkLCH is the cylindrical form of Oklab:
-// L: [0, 1]       — same lightness
-// C: [0, 0.4]     — chroma (distance from achromatic axis; sRGB max ≈ 0.32)
-// H: [0, 360)     — hue angle in degrees
-//
-// Conversion path: sRGB ↔ Linear sRGB ↔ Oklab ↔ OkLCH
-// (requires linear_rgb.hpp to be included before conversion.hpp)
 
 namespace colorcpp::core::oklab {
 
@@ -66,6 +59,10 @@ struct model_traits<core::oklab::model::oklch> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief Oklab or OkLCH: @c l(); @c a(), @c b() for Oklab; @c c(), @c h() for OkLCH.
+ * @tparam Model oklab::model::oklab or oklch.
+ */
 template <typename Model>
 struct basic_oklab : basic_color<Model> {
   using base = basic_color<Model>;
@@ -138,7 +135,9 @@ struct basic_oklab : basic_color<Model> {
   }
 };
 
+/** @brief Oklab rectangular coordinates. */
 using oklab_t = basic_oklab<oklab::model::oklab>;
+/** @brief OkLCH cylindrical coordinates. */
 using oklch_t = basic_oklab<oklab::model::oklch>;
 
 }  // namespace colorcpp::core

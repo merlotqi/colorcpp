@@ -1,3 +1,8 @@
+/**
+ * @file random.hpp
+ * @brief Random color and harmony generators (RGB, HSL/HSV, golden angle, palette helpers).
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -13,8 +18,10 @@
 #include <utility>
 #include <vector>
 
+/** @brief Random colors with configurable engines (@c std::mt19937 by default). */
 namespace colorcpp::operations::random {
 
+/** @brief Harmony layout for @ref harmony_generator. */
 enum class harmony_mode {
   analogous,
   complementary,
@@ -52,6 +59,7 @@ struct color_traits {
 
 }  // namespace details
 
+/** @brief Base: uniform random values per channel within model min/max. */
 template <typename Color, typename Engine = std::mt19937>
 class basic_random_generator {
  protected:
@@ -83,6 +91,7 @@ class basic_random_generator {
   }
 };
 
+/** @brief Fully random RGB-like colors (all channels independent). */
 template <typename Color, typename Engine = std::mt19937>
 class basic_rgb_generator : public basic_random_generator<Color, Engine> {
   using base = basic_random_generator<Color, Engine>;
@@ -102,6 +111,7 @@ class basic_rgb_generator : public basic_random_generator<Color, Engine> {
   }
 };
 
+/** @brief Random HSL or HSV colors with optional per-channel ranges (@ref options). */
 template <typename Color, typename Engine = std::mt19937>
 class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   using base = basic_random_generator<Color, Engine>;
@@ -111,6 +121,7 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   using T = typename base::T;
 
  public:
+  /** @brief Min/max for H, S, and V or L when generating. */
   struct options {
     T h_min{T(0)}, h_max{traits::hue_max()};
     T s_min{T(0)}, s_max{traits::template max_at<1>()};
@@ -171,6 +182,7 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   }
 };
 
+/** @brief Builds harmony-related hues from a base color (@ref harmony_mode). */
 template <typename Color, typename Engine = std::mt19937>
 class harmony_generator : public basic_hsl_generator<Color, Engine> {
   using base = basic_hsl_generator<Color, Engine>;
@@ -273,6 +285,7 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
   }
 };
 
+/** @brief Sequential hues separated by the golden angle on the color wheel. */
 template <typename Color, typename Engine = std::mt19937>
 class golden_angle_generator : public basic_hsl_generator<Color, Engine> {
   using base = basic_hsl_generator<Color, Engine>;
@@ -323,6 +336,7 @@ class golden_angle_generator : public basic_hsl_generator<Color, Engine> {
   }
 };
 
+/** @brief Typedefs for common models. */
 using rgb8_generator = basic_rgb_generator<core::rgb8_t>;
 using rgba8_generator = basic_rgb_generator<core::rgba8_t>;
 using hsl_generator = basic_hsl_generator<core::hsl_float_t>;

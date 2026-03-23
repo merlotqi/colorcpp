@@ -1,3 +1,8 @@
+/**
+ * @file io.hpp
+ * @brief Stream I/O for @ref colorcpp::core::basic_color: text form with optional model prefix, or hex with @c std::hex.
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -18,6 +23,7 @@
 #include <tuple>
 #include <type_traits>
 
+/** @brief Stream formatting and parsing for core color types. */
 namespace colorcpp::core::io {
 
 namespace details {
@@ -125,6 +131,9 @@ inline bool consume_prefix(std::istream& is, std::string_view prefix, bool& has_
 
 }  // namespace details
 
+/**
+ * @brief Text output: @c prefix(ch0, ch1, …) using @ref colorcpp::traits::model_traits::prefix, or @c #RRGGBB… if @c os @c std::hex is set.
+ */
 template <typename Model>
 std::ostream& operator<<(std::ostream& os, const core::basic_color<Model>& c) {
   using Trait = traits::model_traits<Model>;
@@ -144,6 +153,10 @@ std::ostream& operator<<(std::ostream& os, const core::basic_color<Model>& c) {
   return os;
 }
 
+/**
+ * @brief Parse optional prefix and comma-separated channel values; sets @c failbit on failure.
+ * @note Omitted trailing channels may default to max (e.g. alpha) per implementation.
+ */
 template <typename Model>
 std::istream& operator>>(std::istream& is, core::basic_color<Model>& c) {
   using Trait = traits::model_traits<Model>;

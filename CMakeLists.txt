@@ -13,6 +13,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(COLORCPP_BUILD_TESTS "Build tests" OFF)
 option(COLORCPP_BUILD_EXAMPLES "Build examples" OFF)
 option(COLORCPP_BUILD_BENCHMARKS "Build microbenchmarks (Google Benchmark via FetchContent)" OFF)
+option(COLORCPP_BUILD_DOCS "Build API documentation with Doxygen" OFF)
 option(COLORCPP_INSTALL_HEADERS "Install header files" OFF)
 
 file(GLOB_RECURSE COLOR_HEADERS CONFIGURE_DEPENDS
@@ -80,6 +81,26 @@ if(COLORCPP_INSTALL_HEADERS)
 endif()
 
 export(TARGETS colorcpp NAMESPACE colorcpp:: FILE "${CMAKE_CURRENT_BINARY_DIR}/colorcppTargets.cmake")
+
+if(COLORCPP_BUILD_DOCS)
+  find_package(Doxygen)
+  if(DOXYGEN_FOUND)
+    configure_file(
+      "${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxygen.in"
+      "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+      @ONLY
+    )
+    add_custom_target(
+      doc
+      COMMAND "${DOXYGEN_EXECUTABLE}" "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+      COMMENT "Generating ColorCpp API documentation (HTML) with Doxygen"
+      VERBATIM
+    )
+  else()
+    message(WARNING "COLORCPP_BUILD_DOCS is ON but Doxygen was not found; doc target not created")
+  endif()
+endif()
 
 if(COLORCPP_INSTALL_HEADERS)
   configure_file(

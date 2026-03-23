@@ -1,13 +1,16 @@
+/**
+ * @file linear_rgb.hpp
+ * @brief Linear sRGB (scene-linear): same layout as float RGB/RGBA but **no** gamma encoding.
+ *
+ * Distinct from @ref rgb.hpp float types so @ref colorcpp::operations::conversion::color_cast applies the
+ * correct linearize/delinearize steps when converting to/from gamma-encoded sRGB.
+ */
+
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
 #include <tuple>
 #include <type_traits>
-
-// Linear sRGB: same channel layout as rgbf/rgbaf but semantically represents
-// scene-linear light values (no gamma encoding). Keeping it as a separate type
-// (not just a tag on rgbf) ensures that color_cast inserts the correct
-// linearize/delinearize step when converting to/from gamma-encoded sRGB.
 
 namespace colorcpp::core::linear_rgb {
 
@@ -56,6 +59,10 @@ struct model_traits<core::linear_rgb::model::linear_rgbaf> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief Linear RGB/RGBA with @c r(), @c g(), @c b(), @c a() when alpha is present.
+ * @tparam Model linear_rgbf or linear_rgbaf.
+ */
 template <typename Model>
 struct basic_linear_rgba : basic_color<Model> {
   using base = basic_color<Model>;
@@ -114,7 +121,9 @@ struct basic_linear_rgba : basic_color<Model> {
   }
 };
 
+/** @brief Linear RGB, float channels [0, 1]. */
 using linear_rgbf_t = basic_linear_rgba<linear_rgb::model::linear_rgbf>;
+/** @brief Linear RGBA, float channels [0, 1]. */
 using linear_rgbaf_t = basic_linear_rgba<linear_rgb::model::linear_rgbaf>;
 
 }  // namespace colorcpp::core

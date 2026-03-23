@@ -1,3 +1,8 @@
+/**
+ * @file hsv.hpp
+ * @brief HSV / HSVA: hue in degrees [0, 360], saturation and value in [0, 1] (not percentages).
+ */
+
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
@@ -51,6 +56,10 @@ struct model_traits<core::hsv::model::hsva> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief HSV/HSVA with @c h(), @c s(), @c v(), and @c a() when alpha is present.
+ * @tparam Model hsv::model::hsv or hsva.
+ */
 template <typename Model>
 struct basic_hsv : basic_color<Model> {
   using base = basic_color<Model>;
@@ -113,7 +122,9 @@ struct basic_hsv : basic_color<Model> {
   }
 };
 
+/** @brief HSV with float channels. */
 using hsv_float_t = basic_hsv<hsv::model::hsv>;
+/** @brief HSVA with float channels. */
 using hsva_float_t = basic_hsv<hsv::model::hsva>;
 
 }  // namespace colorcpp::core

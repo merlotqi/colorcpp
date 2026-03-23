@@ -107,6 +107,15 @@ int main() {
   std::cout << "hsv   \"hsv(16,100,100)\":      " << p_hsv << "\n";
   std::cout << "cmyk  \"cmyk(0,61,72,0)\":      " << p_cmyk << "\n";
 
+  // 4b. CSS Color 4-style strings (parse_css_color_rgba8)
+  section("CSS strings: parse_css_color_rgba8");
+  auto css_hex = parse_css_color_rgba8("#FF6347");
+  auto css_rgb = parse_css_color_rgba8("rgb(255 99 71 / 80%)");
+  auto css_hsl = parse_css_color_rgba8("hsl(0, 100%, 50%)");
+  if (css_hex) std::cout << "  #FF6347     → " << std::hex << *css_hex << std::dec << "\n";
+  if (css_rgb) std::cout << "  rgb(.../80%) → " << std::hex << *css_rgb << std::dec << "\n";
+  if (css_hsl) std::cout << "  hsl(red)    → " << std::hex << *css_hsl << std::dec << "\n";
+
   // 5. Round-trip: output → re-parse → compare
   section("Round-trip: output then re-parse");
 

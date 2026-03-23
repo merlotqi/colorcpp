@@ -1,3 +1,8 @@
+/**
+ * @file concepts.hpp
+ * @brief Type traits for color models: channels, tags, storage tuples, and @ref colorcpp::traits::model_traits.
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -6,6 +11,9 @@
 #include <tuple>
 #include <type_traits>
 
+/**
+ * @brief Compile-time descriptors for color channels and models used by @ref colorcpp::core::basic_color.
+ */
 namespace colorcpp::traits {
 
 namespace details {
@@ -36,6 +44,7 @@ struct has_channel_tag_impl
 
 }  // namespace details
 
+/** @brief Default [min,max] for a scalar type when a channel does not override range. */
 template <typename T>
 struct default_range {
   static constexpr T min = static_cast<T>(0);
@@ -43,12 +52,17 @@ struct default_range {
   static constexpr T max = std::is_floating_point_v<T> ? static_cast<T>(1) : std::numeric_limits<T>::max();
 };
 
+/** @brief Optional per-channel range override (defaults to @ref default_range). */
 template <typename Channel, typename T>
 struct channel_traits {
   static constexpr T min = default_range<T>::min;
   static constexpr T max = default_range<T>::max;
 };
 
+/**
+ * @brief Declares one channel: tag, scalar type, and inclusive range as rational Min/Den … Max/Den.
+ * @tparam Den Normalization denominator (often 1 for “natural” LAB/XYZ units).
+ */
 template <typename Tag, typename T, int64_t Min, int64_t Max, int64_t Den = Max>
 struct basic_channel {
   static_assert(Den != 0, "colorcpp: channel denominator cannot be zero");
@@ -63,6 +77,9 @@ struct basic_channel {
   static_assert(min <= max, "colorcpp: channel minimum must not exceed maximum");
 };
 
+/**
+ * @brief Primary template; specialize with @c channels_type (tuple of @ref basic_channel), @c channel_size, optional @c prefix for I/O.
+ */
 template <typename Model>
 struct model_traits {
   static constexpr std::string_view prefix = "";
@@ -78,7 +95,7 @@ struct is_model_traits<T, std::void_t<decltype(model_traits<T>::channel_size), t
 template <typename T>
 inline constexpr bool is_model_traits_v = is_model_traits<T>::value;
 
-// has_channel_tag
+/** @brief Whether @p Model's channel tuple includes @p Tag. */
 template <typename Model, typename Tag>
 struct has_channel_tag {
  private:
@@ -91,7 +108,7 @@ struct has_channel_tag {
 template <typename Model, typename Tag>
 inline constexpr bool has_channel_tag_v = has_channel_tag<Model, Tag>::value;
 
-// channel_index
+/** @brief Zero-based index of channel @p Tag in @p Model (compile-time error if missing). */
 template <typename Model, typename Tag>
 struct channel_index {
  private:
@@ -106,14 +123,13 @@ struct channel_index {
 template <typename Model, typename Tag>
 inline constexpr std::size_t channel_index_v = channel_index<Model, Tag>::value;
 
-// Derives a heterogeneous value-storage tuple from a channels_type tuple.
-// channels_type = tuple<Ch0, Ch1, Ch2>  →  storage_type = tuple<Ch0::value_type, Ch1::value_type, Ch2::value_type>
-// This allows each channel to carry its own scalar type (e.g. float L, float a, float b for Lab,
-// or eventually double for high-precision channels), rather than forcing every channel to share
-// the same type as was the case with the previous std::array<value_type, N> layout.
+/**
+ * @brief Maps @c channels_type = @c tuple<Ch0,…> to @c tuple<Ch0::value_type,…> for @ref colorcpp::core::basic_color storage.
+ */
 template <typename ChannelsTuple>
 struct channels_storage;
 
+/** @brief Tuple of each channel's @c value_type. */
 template <typename... Channels>
 struct channels_storage<std::tuple<Channels...>> {
   using type = std::tuple<typename Channels::value_type...>;

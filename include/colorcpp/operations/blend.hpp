@@ -1,3 +1,8 @@
+/**
+ * @file blend.hpp
+ * @brief Porter–Duff–style compositing and W3C-style blend modes between two colors (converted via @ref conversion::color_cast).
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -6,8 +11,10 @@
 
 #include "colorcpp/core/rgb.hpp"
 
+/** @brief Alpha-aware blending in linearized sRGB space with selectable blend mode. */
 namespace colorcpp::operations::blend {
 
+/** @brief Separable RGB blend modes plus HSL-channel blend modes (hue, saturation, color, luminosity). */
 enum class blend_mode {
   normal,
   multiply,
@@ -152,6 +159,14 @@ inline rgb3 ns_luminosity(rgb3 dst, rgb3 src) { return set_lum(dst, lum(src)); }
 
 }  // namespace details
 
+/**
+ * @brief Composite @p src over @p dst using @p mode and effective source alpha scaled by @p opacity.
+ * @tparam Color Any color type supported by @ref conversion::color_cast to @c rgbaf_t.
+ * @param dst Destination (bottom) color.
+ * @param src Source (top) color.
+ * @param mode Blend/compositing mode (W3C-style for RGB; special modes use HSL luminance/saturation decomposition).
+ * @param opacity Extra multiplier on source alpha, clamped to [0, 1].
+ */
 template <typename Color>
 Color blend(const Color& dst, const Color& src, blend_mode mode = blend_mode::normal, float opacity = 1.0f) {
   using namespace conversion;

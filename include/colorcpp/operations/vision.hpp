@@ -1,3 +1,8 @@
+/**
+ * @file vision.hpp
+ * @brief Color vision deficiency simulation (Brettel / Viénot / Mollon) in linear sRGB / LMS space.
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -5,20 +10,10 @@
 #include <cmath>
 #include <colorcpp/operations/conversion.hpp>
 
-// Color vision deficiency (CVD) simulation.
-//
-// All functions accept any color type registered with color_cast and return
-// the same type.  Internally every simulation works in linearized sRGB (via
-// sRGB ↔ LMS) so that the projected values are physically meaningful.
-//
-// References
-// • Brettel, Viénot & Mollon (1997) "Computerized simulation of color
-//   appearance for dichromats", JOSA A 14(10):2647–2655.
-// • Viénot, Brettel & Mollon (1999) "Digital video colourmaps for checking
-//   the legibility of displays by dichromats", Color Research & Application
-//   24(4):243–252.
-// LMS matrix values from the above papers (Hunt–Pointer–Estevez, D65).
-
+/**
+ * @brief CVD simulation; input/output types match via @ref conversion::color_cast (linear sRGB ↔ LMS).
+ * @note References: Brettel et al. 1997; Viénot et al. 1999 (HPE LMS, D65).
+ */
 namespace colorcpp::operations::vision {
 
 namespace details {
@@ -58,9 +53,7 @@ constexpr float kLMStoRGB[3][3] = {
 
 }  // namespace details
 
-// Protanopia (absent L cones — reduced red sensitivity)
-// Viénot 1999: L' = 2.02344·M − 2.52581·S,  M'=M,  S'=S
-
+/** @brief Protanopia simulation (L-cone absence). */
 template <typename Color>
 Color simulate_protanopia(const Color& c) {
   using namespace conversion;
@@ -81,9 +74,7 @@ Color simulate_protanopia(const Color& c) {
       core::rgbaf_t{details::gamma_encode(out[0]), details::gamma_encode(out[1]), details::gamma_encode(out[2]), a});
 }
 
-// Deuteranopia (absent M cones — reduced green sensitivity)
-// Viénot 1999: L'=L,  M' = 0.49421·L + 1.24827·S,  S'=S
-
+/** @brief Deuteranopia simulation (M-cone absence). */
 template <typename Color>
 Color simulate_deuteranopia(const Color& c) {
   using namespace conversion;
@@ -104,15 +95,7 @@ Color simulate_deuteranopia(const Color& c) {
       core::rgbaf_t{details::gamma_encode(out[0]), details::gamma_encode(out[1]), details::gamma_encode(out[2]), a});
 }
 
-// Tritanopia (absent S cones — reduced blue/yellow sensitivity)
-// Brettel, Viénot & Mollon 1997: two-half-plane projection in LMS space.
-// The LMS space is split by a boundary plane containing the achromatic axis;
-// each half uses its own confusion-line projection for the S channel.
-//
-// Boundary normal (n_sep): [0.03476, −0.02797, 0]
-// Plane 1 (n_sep · lms ≥ 0): S' = −0.01224·L + 0.07203·M
-// Plane 2 (n_sep · lms <  0): S' =  0.00316·L + 0.07078·M
-
+/** @brief Tritanopia simulation (S-cone absence; two-plane Brettel model). */
 template <typename Color>
 Color simulate_tritanopia(const Color& c) {
   using namespace conversion;
@@ -137,10 +120,7 @@ Color simulate_tritanopia(const Color& c) {
       core::rgbaf_t{details::gamma_encode(out[0]), details::gamma_encode(out[1]), details::gamma_encode(out[2]), a});
 }
 
-// Achromatopsia (rod monochromacy — complete absence of color vision)
-// Perceived brightness equals CIE Y relative luminance computed in linear light
-// (Rec. 709 / sRGB primaries): Y = 0.2126·R + 0.7152·G + 0.0722·B
-
+/** @brief Achromatopsia: grayscale from linear Rec. 709 luminance. */
 template <typename Color>
 Color simulate_achromatopsia(const Color& c) {
   using namespace conversion;

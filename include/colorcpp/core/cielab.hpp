@@ -1,23 +1,16 @@
+/**
+ * @file cielab.hpp
+ * @brief CIELAB and CIELCH (ISO 11664-4 / ICC), D65 reference white.
+ *
+ * CIELAB: L* [0, 100], a* and b* [-128, 128]. CIELCH: L*, C* [0, 200], H [0, 360).
+ * Conversions compose with linear sRGB and XYZ (include @ref linear_rgb.hpp with @ref conversion.hpp).
+ */
+
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
 #include <tuple>
 #include <type_traits>
-
-// CIELAB (CIE L*a*b*, ISO 11664-4 / ICC):
-// A perceptually uniform color space based on the CIE XYZ model.
-// Reference white: D65 (Xn=0.95047, Yn=1.00000, Zn=1.08883).
-// L*: [0, 100]    — lightness (0=black, 100=white)
-// a*: [-128, 128] — green(-) / red(+) axis
-// b*: [-128, 128] — blue(-) / yellow(+) axis
-//
-// CIELCH is the cylindrical form of CIELAB:
-// L*: [0, 100]    — same lightness
-// C*: [0, 200]    — chroma (distance from achromatic axis; sRGB gamut ≈ [0, 130])
-// H:  [0, 360)    — hue angle in degrees
-//
-// Conversion path: sRGB ↔ Linear sRGB ↔ CIELAB ↔ CIELCH
-// (requires linear_rgb.hpp to be included before conversion.hpp)
 
 namespace colorcpp::core::lab {
 
@@ -68,6 +61,10 @@ struct model_traits<core::lab::model::cielch> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief CIELAB or CIELCH: @c l(); @c a(), @c b() for LAB; @c c(), @c h() for LCH.
+ * @tparam Model lab::model::cielab or cielch.
+ */
 template <typename Model>
 struct basic_lab : basic_color<Model> {
   using base = basic_color<Model>;
@@ -140,7 +137,9 @@ struct basic_lab : basic_color<Model> {
   }
 };
 
+/** @brief CIE L*a*b* (D65). */
 using cielab_t = basic_lab<lab::model::cielab>;
+/** @brief CIE L*C*h* cylindrical LAB (D65). */
 using cielch_t = basic_lab<lab::model::cielch>;
 
 }  // namespace colorcpp::core

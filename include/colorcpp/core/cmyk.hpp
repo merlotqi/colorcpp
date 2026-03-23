@@ -1,3 +1,8 @@
+/**
+ * @file cmyk.hpp
+ * @brief CMYK for print: either 8-bit-style 0–100 integers or float channels in [0, 1].
+ */
+
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
@@ -56,6 +61,10 @@ struct model_traits<core::cmyk::model::cmyk_float> {
 
 namespace colorcpp::core {
 
+/**
+ * @brief CMYK with @c c(), @c m(), @c y(), @c k().
+ * @tparam Model cmyk_u8 (0–100) or cmyk_float ([0, 1]).
+ */
 template <typename Model>
 struct basic_cmyk : basic_color<Model> {
   using base = basic_color<Model>;
@@ -118,7 +127,9 @@ struct basic_cmyk : basic_color<Model> {
   }
 };
 
+/** @brief CMYK with integer channels 0–100. */
 using cmyk8_t = basic_cmyk<cmyk::model::cmyk_u8>;
+/** @brief CMYK with float channels in [0, 1]. */
 using cmyk_float_t = basic_cmyk<cmyk::model::cmyk_float>;
 
 }  // namespace colorcpp::core

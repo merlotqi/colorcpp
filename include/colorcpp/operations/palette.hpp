@@ -1,3 +1,8 @@
+/**
+ * @file palette.hpp
+ * @brief Palettes: ramps between two colors and classical harmony generators (complementary, triadic, etc.).
+ */
+
 #pragma once
 
 #include <cmath>
@@ -7,8 +12,10 @@
 #include <stdexcept>
 #include <vector>
 
+/** @brief Named palettes and gradient scales built on @ref interpolate. */
 namespace colorcpp::operations::palette {
 
+/** @brief Ordered list of colors with wrap indexing and bounds-checked @ref at. */
 template <typename Color>
 class palette_set {
  public:
@@ -64,6 +71,7 @@ constexpr HSLColor modify_hue(const HSLColor& src, float new_h) {
 
 }  // namespace details
 
+/** @brief @p count colors from @p start to @p end via RGB @ref interpolate::lerp. */
 template <typename Color>
 auto linear_scale(const Color& start, const Color& end, size_t count) {
   palette_set<Color> p;
@@ -80,6 +88,7 @@ auto linear_scale(const Color& start, const Color& end, size_t count) {
   return p;
 }
 
+/** @brief @p count colors via HSL @ref interpolate::lerp_hsl (more vivid than @ref linear_scale). */
 template <typename Color>
 auto visual_scale(const Color& start, const Color& end, size_t count) {
   palette_set<Color> p;
@@ -96,8 +105,7 @@ auto visual_scale(const Color& start, const Color& end, size_t count) {
   return p;
 }
 
-// Perceptually uniform scale via OkLab interpolation.
-// Produces smoother brightness and saturation transitions than visual_scale (HSL).
+/** @brief @p count colors via @ref interpolate::lerp_oklab. */
 template <typename Color>
 auto perceptual_scale(const Color& start, const Color& end, size_t count) {
   palette_set<Color> p;
@@ -114,6 +122,7 @@ auto perceptual_scale(const Color& start, const Color& end, size_t count) {
   return p;
 }
 
+/** @brief Static helpers that return @ref palette_set for harmony schemes in HSL hue. */
 struct generate {
   template <typename Color>
   static auto complementary(const Color& base) {

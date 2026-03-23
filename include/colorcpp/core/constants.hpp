@@ -16,6 +16,9 @@
 
 #include <colorcpp/literals/literals.hpp>
 
+/**
+ * @brief Named @ref colorcpp::core::rgba8_t constants (full opacity) for common and W3C color names.
+ */
 namespace colorcpp::constants {
 
 using namespace colorcpp::literals;

@@ -1,3 +1,8 @@
+/**
+ * @file interpolate.hpp
+ * @brief Interpolation and easing between colors in RGB, HSL, HSV, OkLab, OkLCH, CIELAB, and CIELCH spaces.
+ */
+
 #pragma once
 
 #include <algorithm>
@@ -12,6 +17,7 @@
 #include <stdexcept>
 #include <vector>
 
+/** @brief Lerps, multi-stop gradients, and easing helpers built on @ref conversion::color_cast. */
 namespace colorcpp::operations::interpolate {
 
 namespace details {
@@ -28,10 +34,10 @@ inline float lerp_angle_deg(float a, float b, float t) {
 
 }  // namespace details
 
-// Easing functions
-// All functions map t ∈ [0, 1] → [0, 1] (approximately; back overshoots slightly).
-// Pass any of these to ease() / ease_hsl() as the easing functor.
-
+/**
+ * @brief Easing curves mapping @f$t \in [0,1]@f$ → @f$[0,1]@f$ (back easing may overshoot slightly).
+ *        Pass to @ref ease, @ref ease_hsl, @ref ease_oklab, or @ref ease_oklch.
+ */
 namespace easing {
 
 static constexpr float kPi = 3.14159265358979323846f;
@@ -92,10 +98,10 @@ inline float in_out_back(float t) noexcept {
 
 }  // namespace easing
 
-// Core interpolation
-
-// RGB-space linear interpolation (channel-wise through rgbaf_t).
-// Fast, preserves alpha. Hue transitions may appear "muddy" for vivid colours.
+/**
+ * @brief RGB-space linear interpolation (via @c rgbaf_t); fast; vivid hues may look muddy.
+ * @param t Interpolation factor in [0, 1] (clamped).
+ */
 template <typename Color>
 Color lerp(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -112,8 +118,7 @@ Color lerp(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// HSL-space interpolation: hue takes the shortest arc, S/L/A are linear.
-// More perceptually uniform than RGB lerp; keeps colours vivid across the transition.
+/** @brief HSL interpolation with shortest-arc hue; S, L, A linear. */
 template <typename Color>
 Color lerp_hsl(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -131,7 +136,7 @@ Color lerp_hsl(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// HSV-space interpolation: shortest-arc hue, linear S/V/A.
+/** @brief HSV interpolation with shortest-arc hue; S, V, A linear. */
 template <typename Color>
 Color lerp_hsv(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -148,8 +153,7 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// OkLab-space interpolation (perceptually uniform, recommended for UI gradients).
-// L/a/b channels lerp linearly in OkLab; alpha is lerped via the rgba representation.
+/** @brief OkLab interpolation (perceptually uniform); alpha lerped in RGBA. */
 template <typename Color>
 Color lerp_oklab(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -169,7 +173,7 @@ Color lerp_oklab(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// OkLCH-space interpolation: shortest-arc hue, linear L/C; alpha via rgba.
+/** @brief OkLCH interpolation: shortest-arc hue; L, C linear; alpha via RGBA. */
 template <typename Color>
 Color lerp_oklch(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -189,8 +193,7 @@ Color lerp_oklch(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// CIELAB-space interpolation (ISO 11664-4 standard perceptual model).
-// L*/a*/b* channels lerp linearly; alpha is lerped via the rgba representation.
+/** @brief CIELAB interpolation; alpha via RGBA. */
 template <typename Color>
 Color lerp_lab(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -210,7 +213,7 @@ Color lerp_lab(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// CIELCH-space interpolation: shortest-arc hue, linear L*/C*; alpha via rgba.
+/** @brief CIELCH interpolation: shortest-arc hue; L*, C* linear; alpha via RGBA. */
 template <typename Color>
 Color lerp_lch(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -230,44 +233,37 @@ Color lerp_lch(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-// Eased interpolation
-
-// Apply any easing curve (from the easing namespace) to an RGB lerp.
-// Example: ease(red, blue, t, easing::in_cubic)
+/** @brief RGB @ref lerp with @p ef applied to @p t (e.g. @c easing::in_cubic). */
 template <typename Color, typename EasingFunc>
 Color ease(const Color& a, const Color& b, float t, EasingFunc&& ef) {
   return lerp(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
-// Apply any easing curve to an HSL lerp.
+/** @brief HSL @ref lerp_hsl with easing on @p t. */
 template <typename Color, typename EasingFunc>
 Color ease_hsl(const Color& a, const Color& b, float t, EasingFunc&& ef) {
   return lerp_hsl(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
-// Apply any easing curve to an OkLab lerp.
+/** @brief OkLab @ref lerp_oklab with easing on @p t. */
 template <typename Color, typename EasingFunc>
 Color ease_oklab(const Color& a, const Color& b, float t, EasingFunc&& ef) {
   return lerp_oklab(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
-// Apply any easing curve to an OkLCH lerp.
+/** @brief OkLCH @ref lerp_oklch with easing on @p t. */
 template <typename Color, typename EasingFunc>
 Color ease_oklch(const Color& a, const Color& b, float t, EasingFunc&& ef) {
   return lerp_oklch(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
-// Convenience: smoothstep ease-in-out in RGB space (backward-compatible shortcut).
+/** @brief Shorthand for @ref ease with @c easing::smoothstep. */
 template <typename Color>
 Color ease_in_out(const Color& a, const Color& b, float t) {
   return ease(a, b, t, easing::smoothstep);
 }
 
-// Multi-stop interpolation
-
-// Interpolate across N colour stops evenly distributed over [0, 1].
-// t=0 → stops.front(), t=1 → stops.back().
-// Throws std::invalid_argument if fewer than 2 stops are given.
+/** @brief Piecewise @ref lerp across evenly spaced stops on @f$t \in [0,1]@f$; at least two stops required. */
 template <typename Color>
 Color multi_lerp(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp requires at least 2 colour stops");
@@ -285,7 +281,7 @@ Color multi_lerp(std::initializer_list<Color> stops, float t) {
   return lerp(lo, hi, local_t);
 }
 
-// Same as multi_lerp but interpolates in HSL space between adjacent stops.
+/** @brief Piecewise @ref lerp_hsl between adjacent stops. */
 template <typename Color>
 Color multi_lerp_hsl(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_hsl requires at least 2 colour stops");
@@ -303,7 +299,7 @@ Color multi_lerp_hsl(std::initializer_list<Color> stops, float t) {
   return lerp_hsl(lo, hi, local_t);
 }
 
-// Interpolate across N stops in OkLab space (perceptually uniform gradients).
+/** @brief Piecewise @ref lerp_oklab between adjacent stops. */
 template <typename Color>
 Color multi_lerp_oklab(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklab requires at least 2 colour stops");
@@ -321,7 +317,7 @@ Color multi_lerp_oklab(std::initializer_list<Color> stops, float t) {
   return lerp_oklab(lo, hi, local_t);
 }
 
-// Interpolate across N stops in OkLCH space (hue-preserving gradients).
+/** @brief Piecewise @ref lerp_oklch between adjacent stops. */
 template <typename Color>
 Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklch requires at least 2 colour stops");
@@ -339,9 +335,7 @@ Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
   return lerp_oklch(lo, hi, local_t);
 }
 
-// Batch generation
-
-// Generate `count` evenly-spaced colours from a to b inclusive via RGB lerp.
+/** @brief @p count evenly spaced samples from @p a to @p b via @ref lerp. */
 template <typename Color>
 std::vector<Color> lerp_n(const Color& a, const Color& b, std::size_t count) {
   std::vector<Color> out;
@@ -356,7 +350,7 @@ std::vector<Color> lerp_n(const Color& a, const Color& b, std::size_t count) {
   return out;
 }
 
-// Generate `count` evenly-spaced colours from a to b inclusive via HSL lerp.
+/** @brief @p count samples via @ref lerp_hsl. */
 template <typename Color>
 std::vector<Color> lerp_hsl_n(const Color& a, const Color& b, std::size_t count) {
   std::vector<Color> out;
@@ -371,7 +365,7 @@ std::vector<Color> lerp_hsl_n(const Color& a, const Color& b, std::size_t count)
   return out;
 }
 
-// Generate `count` evenly-spaced colours from a to b inclusive via OkLab lerp.
+/** @brief @p count samples via @ref lerp_oklab. */
 template <typename Color>
 std::vector<Color> lerp_oklab_n(const Color& a, const Color& b, std::size_t count) {
   std::vector<Color> out;
@@ -386,7 +380,7 @@ std::vector<Color> lerp_oklab_n(const Color& a, const Color& b, std::size_t coun
   return out;
 }
 
-// Generate `count` evenly-spaced colours from a to b inclusive via OkLCH lerp.
+/** @brief @p count samples via @ref lerp_oklch. */
 template <typename Color>
 std::vector<Color> lerp_oklch_n(const Color& a, const Color& b, std::size_t count) {
   std::vector<Color> out;

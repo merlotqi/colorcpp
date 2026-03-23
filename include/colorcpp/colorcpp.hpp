@@ -1,3 +1,13 @@
+/**
+ * @file colorcpp.hpp
+ * @brief Single-include entry for the ColorCpp library.
+ *
+ * Pulls in core color types, user-defined literals, and operations (conversion,
+ * blending, interpolation, palettes, accessibility, etc.). Prefer this header
+ * for quick integration; individual headers remain available for finer-grained
+ * includes.
+ */
+
 #pragma once
 
 // Include all color core headers
@@ -9,6 +19,12 @@
 // Include color operations header
 #include <colorcpp/operations/operations.hpp>
 
+// CSS Color string parsing (depends on conversion; include after operations)
+#include <colorcpp/core/css_color.hpp>
+
+/**
+ * @brief Root namespace; re-exports @ref colorcpp::core and @ref colorcpp::operations.
+ */
 namespace colorcpp {
 
 using namespace core;

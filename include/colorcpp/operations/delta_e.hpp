@@ -1,28 +1,21 @@
+/**
+ * @file delta_e.hpp
+ * @brief Color difference metrics (ΔE) after conversion to CIELAB D65.
+ */
+
 #pragma once
 
 #include <cmath>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
-// Color-difference metrics (ΔE).
-//
-// All functions accept any two color types registered with color_cast.
-// Both inputs are converted to CIELAB D65 internally.
-//
-// Rough perceptual thresholds (ΔE₂₀₀₀):
-// < 1.0  — imperceptible
-// 1–2    — perceptible only on close inspection
-// 2–10   — perceptible at a glance
-// > 50   — opposite colors
-
+/**
+ * @brief ΔE helpers; inputs are converted with @ref conversion::color_cast to CIELAB (D65).
+ * @note Rule-of-thumb for ΔE2000: &lt;1 imperceptible, 1–2 close inspection, 2–10 obvious, &gt;50 very different.
+ */
 namespace colorcpp::operations::delta_e {
 
-// CIE 1976 (ΔE*ab)
-// Simple Euclidean distance in CIELAB space.
-// Fast but not perceptually uniform — overestimates chroma differences,
-// especially for blues and near-neutral colors.
-// JND (just-noticeable difference) ≈ 2.3 ΔE₇₆.
-
+/** @brief CIE 1976 ΔE*ab — Euclidean distance in LAB (fast; JND ≈ 2.3). */
 template <typename ColorA, typename ColorB>
 float delta_e_76(const ColorA& a, const ColorB& b) {
   using namespace conversion;
@@ -37,15 +30,10 @@ float delta_e_76(const ColorA& a, const ColorB& b) {
   return std::sqrt(dL * dL + da * da + db * db);
 }
 
-// CIE 1994 (ΔE₉₄)
-// Asymmetric improvement over ΔE₇₆: applies chroma- and hue-dependent weighting
-// using color A as the reference (sample). ΔE₉₄(a,b) ≠ ΔE₉₄(b,a) in general.
-// Better than ΔE₇₆ for chroma discrimination; weaker than ΔE₂₀₀₀ for blues.
-//
-// kL/kC/kH and K1/K2 parametrise the application domain:
-// Graphic arts (default): kL=1, kC=1, kH=1, K1=0.045, K2=0.015
-// Textiles:               kL=2, kC=1, kH=1, K1=0.048, K2=0.014
-
+/**
+ * @brief CIE 1994 ΔE; asymmetric in @p a / @p b (reference = @p a).
+ * @param kL,kC,kH,K1,K2 Graphic arts defaults: 1,1,1,0.045,0.015; textiles often kL=2, K1=0.048, K2=0.014.
+ */
 template <typename ColorA, typename ColorB>
 float delta_e_94(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f, float kH = 1.0f, float K1 = 0.045f,
                  float K2 = 0.015f) {
@@ -79,16 +67,10 @@ float delta_e_94(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1
   return std::sqrt(tL * tL + tC * tC + tH * tH);
 }
 
-// CIEDE2000
-// ISO 11664-6 / CIE 142-2001 industrial color-difference standard.
-// Corrects ΔE₇₆ non-uniformities via:
-// • Chroma-dependent a* scaling (G factor)
-// • Lightness (SL), chroma (SC), hue (SH) weighting functions
-// • Hue-rotation correction for blue hues (RT term)
-// References: Sharma et al. (2004) "The CIEDE2000 Color-Difference Formula".
-//
-// kL/kC/kH = 1 (graphic arts / sRGB default; use kL=2 for textiles).
-
+/**
+ * @brief CIEDE2000 (ISO 11664-6 / CIE 142-2001).
+ * @param kL,kC,kH Parametric weights (1,1,1 for graphic arts; kL=2 common for textiles).
+ */
 template <typename ColorA, typename ColorB>
 float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f, float kH = 1.0f) {
   using namespace conversion;
@@ -192,10 +174,7 @@ float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC =
   return static_cast<float>(std::sqrt(term_L * term_L + term_C * term_C + term_H * term_H + RT * term_C * term_H));
 }
 
-// Convenience wrapper
-// Returns true if the CIEDE2000 difference between a and b is below threshold.
-// Default threshold = 1.0 (imperceptible difference).
-
+/** @brief True if @ref delta_e_2000 is below @p threshold (default 1.0 ≈ imperceptible). */
 template <typename ColorA, typename ColorB>
 bool is_visually_same(const ColorA& a, const ColorB& b, float threshold = 1.0f) {
   return delta_e_2000(a, b) < threshold;

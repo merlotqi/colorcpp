@@ -1,3 +1,8 @@
+/**
+ * @file color_base.hpp
+ * @brief @ref colorcpp::core::basic_color — tuple-backed storage for trait-defined color models.
+ */
+
 #pragma once
 
 #include <array>
@@ -9,9 +14,27 @@
 
 namespace colorcpp::core {
 
+/**
+ * @brief Primary template; only specializations for models with @ref colorcpp::traits::model_traits are defined.
+ * @tparam Model A tag type (e.g. rgb::model::rgba8) described by model_traits.
+ */
 template <typename Model, typename = void>
 struct basic_color;
 
+/**
+ * @brief Color value as a heterogeneous tuple of channel scalars (see @ref colorcpp::traits::channels_storage_t).
+ *
+ * @tparam Model Color model tag with @ref colorcpp::traits::model_traits (channels, min/max per channel).
+ *
+ * Channel access:
+ * - @c get<Tag>() / @c get_index<I>() for read/write references.
+ * - @c set<Tag>(v) validates @c v against the channel range; throws @c std::out_of_range if invalid.
+ *
+ * Construction from channel values performs the same range check (throws @c std::out_of_range).
+ *
+ * @note @c value_type aliases the first channel's scalar type (backward compatibility). Use
+ *       @c channel_value_t<I> when channels may differ (e.g. future heterogeneous models).
+ */
 template <typename Model>
 struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   using trait_model = traits::model_traits<Model>;
@@ -116,6 +139,7 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   }
 };
 
+/** @brief Alias for @ref basic_color. */
 template <typename Model>
 using basic_color_t = basic_color<Model>;
 
@@ -123,21 +147,31 @@ using basic_color_t = basic_color<Model>;
 
 namespace colorcpp {
 
+/**
+ * @brief Access a channel by tag on any color type that exposes @c template get<Tag>().
+ * @tparam Tag Channel tag type (e.g. rgb::channel::r_tag).
+ */
 template <typename Tag, typename Color>
 constexpr auto& get(Color& c) {
   return c.template get<Tag>();
 }
 
+/** @overload */
 template <typename Tag, typename Color>
 constexpr const auto& get(const Color& c) {
   return c.template get<Tag>();
 }
 
+/**
+ * @brief Access channel @p I (0-based) on @ref colorcpp::core::basic_color.
+ * @tparam I Channel index less than model_traits<Model>::channel_size.
+ */
 template <std::size_t I, typename Color>
 constexpr auto& get(Color& c) {
   return c.template get_index<I>();
 }
 
+/** @overload */
 template <std::size_t I, typename Color>
 constexpr const auto& get(const Color& c) {
   return c.template get_index<I>();
