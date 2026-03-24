@@ -1,6 +1,6 @@
 /**
  * @file colorcpp.hpp
- * @brief Single-include entry for the ColorCpp library.
+ * @brief Single-include entry for the colorcpp library.
  *
  * Pulls in core color types, user-defined literals, and operations (conversion,
  * blending, interpolation, palettes, accessibility, etc.). Prefer this header

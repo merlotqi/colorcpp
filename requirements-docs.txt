@@ -1,0 +1,2 @@
+# Optional: build HTML reference with Sphinx (see docs/index.rst).
+sphinx>=5.0,<9

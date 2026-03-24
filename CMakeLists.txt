@@ -14,6 +14,7 @@ option(COLORCPP_BUILD_TESTS "Build tests" OFF)
 option(COLORCPP_BUILD_EXAMPLES "Build examples" OFF)
 option(COLORCPP_BUILD_BENCHMARKS "Build microbenchmarks (Google Benchmark via FetchContent)" OFF)
 option(COLORCPP_BUILD_DOCS "Build API documentation with Doxygen" OFF)
+option(COLORCPP_BUILD_SPHINX "Build Sphinx HTML from docs/ (requires sphinx-build)" OFF)
 option(COLORCPP_INSTALL_HEADERS "Install header files" OFF)
 
 file(GLOB_RECURSE COLOR_HEADERS CONFIGURE_DEPENDS
@@ -82,6 +83,22 @@ endif()
 
 export(TARGETS colorcpp NAMESPACE colorcpp:: FILE "${CMAKE_CURRENT_BINARY_DIR}/colorcppTargets.cmake")
 
+if(COLORCPP_BUILD_SPHINX)
+  find_program(SPHINX_BUILD_EXECUTABLE sphinx-build)
+  if(SPHINX_BUILD_EXECUTABLE)
+    set(COLORCPP_SPHINX_OUT "${CMAKE_CURRENT_BINARY_DIR}/doc_sphinx")
+    add_custom_target(
+      sphinx
+      COMMAND "${SPHINX_BUILD_EXECUTABLE}" -b html "${CMAKE_CURRENT_SOURCE_DIR}/docs" "${COLORCPP_SPHINX_OUT}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMENT "Generating colorcpp Sphinx HTML documentation in ${COLORCPP_SPHINX_OUT}"
+      VERBATIM
+    )
+  else()
+    message(WARNING "COLORCPP_BUILD_SPHINX is ON but sphinx-build was not found; sphinx target not created")
+  endif()
+endif()
+
 if(COLORCPP_BUILD_DOCS)
   find_package(Doxygen)
   if(DOXYGEN_FOUND)
@@ -94,7 +111,7 @@ if(COLORCPP_BUILD_DOCS)
       doc
       COMMAND "${DOXYGEN_EXECUTABLE}" "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-      COMMENT "Generating ColorCpp API documentation (HTML) with Doxygen"
+      COMMENT "Generating colorcpp API documentation (HTML) with Doxygen"
       VERBATIM
     )
   else()

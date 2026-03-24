@@ -78,7 +78,8 @@ struct basic_channel {
 };
 
 /**
- * @brief Primary template; specialize with @c channels_type (tuple of @ref basic_channel), @c channel_size, optional @c prefix for I/O.
+ * @brief Primary template; specialize with @c channels_type (tuple of @ref basic_channel), @c channel_size, optional @c
+ * prefix for I/O.
  */
 template <typename Model>
 struct model_traits {
@@ -124,7 +125,8 @@ template <typename Model, typename Tag>
 inline constexpr std::size_t channel_index_v = channel_index<Model, Tag>::value;
 
 /**
- * @brief Maps @c channels_type = @c tuple<Ch0,…> to @c tuple<Ch0::value_type,…> for @ref colorcpp::core::basic_color storage.
+ * @brief Maps @c channels_type = @c tuple<Ch0,…> to @c tuple<Ch0::value_type,…> for @ref colorcpp::core::basic_color
+ * storage.
  */
 template <typename ChannelsTuple>
 struct channels_storage;

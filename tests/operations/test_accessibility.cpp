@@ -1,3 +1,4 @@
+#include <cmath>
 
 #include <gtest/gtest.h>
 
@@ -117,6 +118,40 @@ TEST(AccessibilityTest, BlackBackgroundGetsWhiteText) {
   auto text = contrast_text_color(constants::black);
   float ratio_white = contrast_ratio(text, constants::black);
   EXPECT_GT(ratio_white, 5.0f);
+}
+
+// APCA (SAPC-8 / 0.0.98G-4g style; not comparable to WCAG 2 ratio)
+
+TEST(AccessibilityTest, ApcaLuminanceBlackZeroWhiteOne) {
+  EXPECT_NEAR(apca_luminance(constants::black), 0.0f, 1e-5f);
+  EXPECT_NEAR(apca_luminance(constants::white), 1.0f, 1e-5f);
+}
+
+TEST(AccessibilityTest, ApcaContrastBlackOnWhitePositive) {
+  float lc = apca_contrast(constants::black, constants::white);
+  EXPECT_GT(lc, 100.0f);
+  EXPECT_NEAR(lc, 106.041f, 0.05f);
+}
+
+TEST(AccessibilityTest, ApcaContrastWhiteOnBlackNegative) {
+  float lc = apca_contrast(constants::white, constants::black);
+  EXPECT_LT(lc, -100.0f);
+  EXPECT_NEAR(lc, -107.885f, 0.05f);
+}
+
+TEST(AccessibilityTest, ApcaNotSymmetric) {
+  float a = apca_contrast(constants::red, constants::white);
+  float b = apca_contrast(constants::white, constants::red);
+  EXPECT_GT(std::fabs(a - b), 0.5f);
+}
+
+TEST(AccessibilityTest, ApcaSameColorNearZero) {
+  EXPECT_NEAR(std::fabs(apca_contrast(constants::white, constants::white)), 0.0f, 1.0f);
+}
+
+TEST(AccessibilityTest, ApcaMeetsMinAbsLc) {
+  EXPECT_TRUE(apca_meets_min_abs_lc(constants::black, constants::white, 100.0f));
+  EXPECT_FALSE(apca_meets_min_abs_lc(constants::white, constants::white, 15.0f));
 }
 
 TEST(AccessibilityTest, TextColorIsBlackOrWhite) {

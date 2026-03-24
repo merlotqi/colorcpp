@@ -1,6 +1,6 @@
-# Contributing to ColorCpp
+# Contributing to colorcpp
 
-Thank you for considering contributing to ColorCpp! This document provides guidelines and instructions for contributing to the project.
+Thank you for considering contributing to colorcpp! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 ## How to Contribute
 
-There are many ways to contribute to ColorCpp:
+There are many ways to contribute to colorcpp:
 
 - **Code contributions**: Implement new features, fix bugs, or improve existing code
 - **Documentation**: Improve or expand the documentation
@@ -319,7 +319,7 @@ Clear description of the bug
 ## Environment
 - Compiler: [e.g., GCC 11.2.0]
 - OS: [e.g., Ubuntu 20.04]
-- ColorCpp version: [e.g., v1.1.0]
+- colorcpp version: [e.g., v1.1.0]
 
 ## Minimal Example
 ```cpp
@@ -344,4 +344,4 @@ Contributors will be recognized in:
 - Release notes for significant contributions
 - Special recognition for major features or improvements
 
-Thank you for contributing to ColorCpp! 🎨✨
+Thank you for contributing to colorcpp! 🎨✨

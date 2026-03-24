@@ -1,6 +1,7 @@
 /**
  * @file io.hpp
- * @brief Stream I/O for @ref colorcpp::core::basic_color: text form with optional model prefix, or hex with @c std::hex.
+ * @brief Stream I/O for @ref colorcpp::core::basic_color: text form with optional model prefix, or hex with @c
+ * std::hex.
  */
 
 #pragma once
@@ -132,7 +133,8 @@ inline bool consume_prefix(std::istream& is, std::string_view prefix, bool& has_
 }  // namespace details
 
 /**
- * @brief Text output: @c prefix(ch0, ch1, …) using @ref colorcpp::traits::model_traits::prefix, or @c #RRGGBB… if @c os @c std::hex is set.
+ * @brief Text output: @c prefix(ch0, ch1, …) using @ref colorcpp::traits::model_traits::prefix, or @c #RRGGBB… if @c os
+ * @c std::hex is set.
  */
 template <typename Model>
 std::ostream& operator<<(std::ostream& os, const core::basic_color<Model>& c) {

@@ -1,4 +1,4 @@
-# ColorCpp
+# colorcpp
 
 [![CI](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml/badge.svg)](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml)
 
@@ -29,6 +29,12 @@ A modern, header-only C++ library for color manipulation and conversion between 
 | **OkLab** | Modern perceptually uniform space (Björn Ottosson) |
 | **OkLCH** | Cylindrical form of OkLab |
 | **CIE XYZ** | Device-independent reference space (D65) |
+
+## Documentation
+
+- **Algorithm reference (reStructuredText):** [docs/reference/index.rst](docs/reference/index.rst) — background, conventions, and links to specs/papers for conversions, ΔE, blending, gamut, accessibility (WCAG 2 + APCA), vision simulation, CSS parsing, and related topics. Start from [docs/index.rst](docs/index.rst) for how this relates to other doc outputs.
+- **API reference (Doxygen):** Configure CMake with `-DCOLORCPP_BUILD_DOCS=ON`, build target `doc`, and open the generated HTML (output directory is set in [doxygen/Doxygen.in](doxygen/Doxygen.in)).
+- **Sphinx HTML (optional):** Install Sphinx (`pip install -r requirements-docs.txt`), then run `sphinx-build -b html docs docs/_build/html`, or configure with `-DCOLORCPP_BUILD_SPHINX=ON` and build the `sphinx` CMake target.
 
 ## 🚀 Quick Start
 
@@ -199,14 +205,18 @@ auto perceptual = lerp_oklab(red, blue, 0.5f);
 ### Accessibility
 
 ```cpp
-using namespace colorcpp::accessibility;
+using namespace colorcpp::operations::accessibility;
 
-// WCAG contrast ratio
+// WCAG 2.x contrast ratio (do not compare numerically to APCA Lc)
 auto ratio = contrast_ratio(foreground, background);
 bool passes_aa = passes_aa_standard(ratio);  // 4.5:1 for normal text
 bool passes_aaa = passes_aaa_standard(ratio); // 7:1 for normal text
 
-// Find accessible colors
+// APCA Lc (SAPC / Silver draft style; text vs background order matters; thresholds are not WCAG 2)
+float lc = apca_contrast(foreground, background);
+bool strong_enough = apca_meets_min_abs_lc(foreground, background, 60.0f);
+
+// Find accessible colors (WCAG ratio space)
 auto accessible = find_contrast_color(foreground, background, 4.5f);
 ```
 
@@ -315,7 +325,7 @@ include/colorcpp/
 │   ├── interpolate.hpp    # Color interpolation
 │   ├── delta_e.hpp        # Color difference metrics
 │   ├── gamut.hpp          # Gamut checking/clipping
-│   ├── accessibility.hpp  # WCAG accessibility
+│   ├── accessibility.hpp  # WCAG 2 + APCA Lc
 │   ├── vision.hpp         # Color vision simulation
 │   └── random.hpp         # Random color generation
 ├── literals/

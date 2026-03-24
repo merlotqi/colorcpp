@@ -2,7 +2,8 @@
  * @file conversion.hpp
  * @brief @ref colorcpp::operations::conversion::color_cast — typed conversion between all registered color models.
  *
- * Routing uses explicit hubs: linear sRGB, XYZ, and OkLab for perceptual paths. Unsupported pairs trigger a compile-time
+ * Routing uses explicit hubs: linear sRGB, XYZ, and OkLab for perceptual paths. Unsupported pairs trigger a
+ * compile-time
  * @c static_assert with a clear message; specialize @c color_cast_impl to extend.
  */
 

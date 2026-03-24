@@ -1,6 +1,7 @@
 /**
  * @file blend.hpp
- * @brief Porter–Duff–style compositing and W3C-style blend modes between two colors (converted via @ref conversion::color_cast).
+ * @brief Porter–Duff–style compositing and W3C-style blend modes between two colors (converted via @ref
+ * conversion::color_cast).
  */
 
 #pragma once
