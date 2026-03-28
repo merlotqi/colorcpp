@@ -520,4 +520,165 @@ TEST(LerpAlphaModeTest, MultiplyAlphas) {
   EXPECT_NEAR(result.a(), 0.4f, 1e-3f);
 }
 
+// Position-based multi_lerp tests
+
+TEST(MultiLerpPositionTest, BasicGradient) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t green(0.0f, 1.0f, 0.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  
+  std::vector<stop<core::rgbf_t>> stops = {
+    {red, 0.0f},
+    {green, 0.5f},
+    {blue, 1.0f}
+  };
+  
+  // At t=0, should return red
+  auto result0 = multi_lerp(stops, 0.0f);
+  EXPECT_NEAR(result0.r(), 1.0f, 1e-4f);
+  EXPECT_NEAR(result0.g(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result0.b(), 0.0f, 1e-4f);
+  
+  // At t=0.5, should return green
+  auto result50 = multi_lerp(stops, 0.5f);
+  EXPECT_NEAR(result50.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result50.g(), 1.0f, 1e-4f);
+  EXPECT_NEAR(result50.b(), 0.0f, 1e-4f);
+  
+  // At t=1, should return blue
+  auto result100 = multi_lerp(stops, 1.0f);
+  EXPECT_NEAR(result100.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result100.g(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result100.b(), 1.0f, 1e-4f);
+}
+
+TEST(MultiLerpPositionTest, NonUniformStops) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t black(0.0f, 0.0f, 0.0f);
+  core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  
+  // Non-uniform positions: black at 0, white at 0.25
+  std::vector<stop<core::rgbf_t>> stops = {
+    {black, 0.0f},
+    {white, 0.25f}
+  };
+  
+  // At t=0.125 (halfway between 0 and 0.25), should be gray
+  auto result = multi_lerp(stops, 0.125f);
+  EXPECT_NEAR(result.r(), 0.5f, 1e-4f);
+  EXPECT_NEAR(result.g(), 0.5f, 1e-4f);
+  EXPECT_NEAR(result.b(), 0.5f, 1e-4f);
+}
+
+TEST(MultiLerpPositionTest, MultipleStops) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t yellow(1.0f, 1.0f, 0.0f);
+  core::rgbf_t green(0.0f, 1.0f, 0.0f);
+  core::rgbf_t cyan(0.0f, 1.0f, 1.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  
+  std::vector<stop<core::rgbf_t>> stops = {
+    {red, 0.0f},
+    {yellow, 0.25f},
+    {green, 0.5f},
+    {cyan, 0.75f},
+    {blue, 1.0f}
+  };
+  
+  // Test at various positions
+  auto result25 = multi_lerp(stops, 0.25f);
+  EXPECT_NEAR(result25.r(), 1.0f, 1e-4f);
+  EXPECT_NEAR(result25.g(), 1.0f, 1e-4f);
+  EXPECT_NEAR(result25.b(), 0.0f, 1e-4f);
+  
+  auto result75 = multi_lerp(stops, 0.75f);
+  EXPECT_NEAR(result75.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result75.g(), 1.0f, 1e-4f);
+  EXPECT_NEAR(result75.b(), 1.0f, 1e-4f);
+}
+
+TEST(MultiLerpPositionTest, EdgeCases) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  
+  std::vector<stop<core::rgbf_t>> stops = {
+    {red, 0.0f},
+    {blue, 1.0f}
+  };
+  
+  // t < 0 should clamp to first stop
+  auto result_neg = multi_lerp(stops, -0.5f);
+  EXPECT_NEAR(result_neg.r(), 1.0f, 1e-4f);
+  
+  // t > 1 should clamp to last stop
+  auto result_over = multi_lerp(stops, 1.5f);
+  EXPECT_NEAR(result_over.b(), 1.0f, 1e-4f);
+}
+
+TEST(MultiLerpPositionTest, HslVariant) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  
+  std::vector<stop<core::rgbf_t>> stops = {
+    {red, 0.0f},
+    {blue, 1.0f}
+  };
+  
+  auto result = multi_lerp_hsl(stops, 0.5f);
+  // Should be somewhere between red and blue
+  EXPECT_GT(result.b(), 0.0f);
+  EXPECT_GT(result.r(), 0.0f);
+}
+
+TEST(MultiLerpPositionTest, OklabVariant) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t black(0.0f, 0.0f, 0.0f);
+  core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  
+  std::vector<stop<core::rgbf_t>> stops = {
+    {black, 0.0f},
+    {white, 1.0f}
+  };
+  
+  auto result = multi_lerp_oklab(stops, 0.5f);
+  // OkLab midpoint should be perceptually uniform gray
+  EXPECT_NEAR(result.r(), result.g(), 1e-3f);
+  EXPECT_NEAR(result.g(), result.b(), 1e-3f);
+}
+
+TEST(MultiLerpPositionTest, OklchVariant) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  
+  std::vector<stop<core::rgbf_t>> stops = {
+    {red, 0.0f},
+    {blue, 1.0f}
+  };
+  
+  auto result = multi_lerp_oklch(stops, 0.5f);
+  // Should interpolate in OkLCH space
+  EXPECT_GT(result.b(), 0.0f);
+}
+
+TEST(MultiLerpPositionTest, ThrowsOnTooFewStops) {
+  using namespace colorcpp::operations::interpolate;
+  
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  std::vector<stop<core::rgbf_t>> stops = {{red, 0.0f}};
+  
+  EXPECT_THROW(multi_lerp(stops, 0.5f), std::invalid_argument);
+}
+
 }  // namespace colorcpp::operations::test
