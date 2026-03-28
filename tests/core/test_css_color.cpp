@@ -1,5 +1,6 @@
-#include <colorcpp/colorcpp.hpp>
 #include <gtest/gtest.h>
+
+#include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp::core;
 
@@ -89,4 +90,161 @@ TEST(CssColor, Invalid) {
   EXPECT_FALSE(parse_css_color_rgba8("rgb(1 2)").has_value());
   EXPECT_FALSE(parse_css_color_rgba8("rgb(1,,2)").has_value());
   EXPECT_FALSE(parse_css_color_rgba8("color(srgb 1 0 0)").has_value());
+}
+
+TEST(CssColor, OkLabBasic) {
+  // oklab(L a b) with numbers
+  auto c1 = parse_css_color<oklab_t>("oklab(0.5 0.1 -0.2)");
+  ASSERT_TRUE(c1.has_value());
+  EXPECT_NEAR(c1->l(), 0.5f, 0.01f);
+  EXPECT_NEAR(c1->a(), 0.1f, 0.01f);
+  EXPECT_NEAR(c1->b(), -0.2f, 0.01f);
+
+  // oklab(L a b) with percentages
+  auto c2 = parse_css_color<oklab_t>("oklab(50% 20% -40%)");
+  ASSERT_TRUE(c2.has_value());
+  EXPECT_NEAR(c2->l(), 0.5f, 0.01f);
+  EXPECT_NEAR(c2->a(), 0.1f, 0.01f);
+  EXPECT_NEAR(c2->b(), -0.2f, 0.01f);
+
+  // oklab(L a b / alpha) - alpha is parsed but ignored
+  auto c3 = parse_css_color<oklab_t>("oklab(0.7 0.0 -0.1 / 0.5)");
+  ASSERT_TRUE(c3.has_value());
+  EXPECT_NEAR(c3->l(), 0.7f, 0.01f);
+  EXPECT_NEAR(c3->a(), 0.0f, 0.01f);
+  EXPECT_NEAR(c3->b(), -0.1f, 0.01f);
+}
+
+TEST(CssColor, OkLabEdgeCases) {
+  // Black (L=0)
+  auto black = parse_css_color<oklab_t>("oklab(0 0 0)");
+  ASSERT_TRUE(black.has_value());
+  EXPECT_NEAR(black->l(), 0.0f, 0.01f);
+
+  // White (L=1)
+  auto white = parse_css_color<oklab_t>("oklab(1 0 0)");
+  ASSERT_TRUE(white.has_value());
+  EXPECT_NEAR(white->l(), 1.0f, 0.01f);
+
+  // Case insensitive
+  auto upper = parse_css_color<oklab_t>("OKLAB(0.5 0.1 -0.2)");
+  ASSERT_TRUE(upper.has_value());
+}
+
+TEST(CssColor, OkLChBasic) {
+  // oklch(L C H) with numbers
+  auto c1 = parse_css_color<oklch_t>("oklch(0.7 0.15 200)");
+  ASSERT_TRUE(c1.has_value());
+  EXPECT_NEAR(c1->l(), 0.7f, 0.01f);
+  EXPECT_NEAR(c1->c(), 0.15f, 0.01f);
+  EXPECT_NEAR(c1->h(), 200.0f, 0.5f);
+
+  // oklch(L C H) with percentage for L and C
+  auto c2 = parse_css_color<oklch_t>("oklch(70% 37.5% 180deg)");
+  ASSERT_TRUE(c2.has_value());
+  EXPECT_NEAR(c2->l(), 0.7f, 0.01f);
+  EXPECT_NEAR(c2->c(), 0.15f, 0.01f);
+  EXPECT_NEAR(c2->h(), 180.0f, 0.5f);
+
+  // oklch(L C H / alpha) - alpha is parsed but ignored
+  auto c3 = parse_css_color<oklch_t>("oklch(0.5 0.2 90 / 0.8)");
+  ASSERT_TRUE(c3.has_value());
+  EXPECT_NEAR(c3->l(), 0.5f, 0.01f);
+  EXPECT_NEAR(c3->c(), 0.2f, 0.01f);
+  EXPECT_NEAR(c3->h(), 90.0f, 0.5f);
+}
+
+TEST(CssColor, OkLChHueUnits) {
+  // oklch with different hue units
+  auto deg = parse_css_color<oklch_t>("oklch(0.5 0.1 180deg)");
+  auto grad = parse_css_color<oklch_t>("oklch(0.5 0.1 200grad)");
+  auto rad = parse_css_color<oklch_t>("oklch(0.5 0.1 3.14159rad)");
+  auto turn = parse_css_color<oklch_t>("oklch(0.5 0.1 0.5turn)");
+
+  ASSERT_TRUE(deg.has_value());
+  ASSERT_TRUE(grad.has_value());
+  ASSERT_TRUE(rad.has_value());
+  ASSERT_TRUE(turn.has_value());
+
+  // All should be approximately 180 degrees
+  EXPECT_NEAR(deg->h(), 180.0f, 1.0f);
+  EXPECT_NEAR(grad->h(), 180.0f, 1.0f);
+  EXPECT_NEAR(rad->h(), 180.0f, 1.0f);
+  EXPECT_NEAR(turn->h(), 180.0f, 1.0f);
+}
+
+TEST(CssColor, OkLabInvalid) {
+  // Missing components
+  EXPECT_FALSE(parse_css_color<oklab_t>("oklab()").has_value());
+  EXPECT_FALSE(parse_css_color<oklab_t>("oklab(0.5)").has_value());
+  EXPECT_FALSE(parse_css_color<oklab_t>("oklab(0.5 0.1)").has_value());
+
+  // Invalid format
+  EXPECT_FALSE(parse_css_color<oklab_t>("oklab(0.5, 0.1, -0.2)").has_value());
+}
+
+TEST(CssColor, OkLChInvalid) {
+  // Missing components
+  EXPECT_FALSE(parse_css_color<oklch_t>("oklch()").has_value());
+  EXPECT_FALSE(parse_css_color<oklch_t>("oklch(0.5)").has_value());
+  EXPECT_FALSE(parse_css_color<oklch_t>("oklch(0.5 0.1)").has_value());
+
+  // Invalid format
+  EXPECT_FALSE(parse_css_color<oklch_t>("oklch(0.5, 0.1, 180)").has_value());
+}
+
+TEST(CssColor, DisplayP3Basic) {
+  // color(display-p3 r g b) with numbers
+  auto c1 = parse_css_color<display_p3f_t>("color(display-p3 0.5 0.3 0.2)");
+  ASSERT_TRUE(c1.has_value());
+  EXPECT_NEAR(c1->r(), 0.5f, 0.01f);
+  EXPECT_NEAR(c1->g(), 0.3f, 0.01f);
+  EXPECT_NEAR(c1->b(), 0.2f, 0.01f);
+
+  // color(display-p3 r g b) with percentages
+  auto c2 = parse_css_color<display_p3f_t>("color(display-p3 50% 30% 20%)");
+  ASSERT_TRUE(c2.has_value());
+  EXPECT_NEAR(c2->r(), 0.5f, 0.01f);
+  EXPECT_NEAR(c2->g(), 0.3f, 0.01f);
+  EXPECT_NEAR(c2->b(), 0.2f, 0.01f);
+
+  // color(display-p3 r g b / alpha) - alpha is parsed but ignored
+  auto c3 = parse_css_color<display_p3f_t>("color(display-p3 0.7 0.5 0.3 / 0.5)");
+  ASSERT_TRUE(c3.has_value());
+  EXPECT_NEAR(c3->r(), 0.7f, 0.01f);
+  EXPECT_NEAR(c3->g(), 0.5f, 0.01f);
+  EXPECT_NEAR(c3->b(), 0.3f, 0.01f);
+}
+
+TEST(CssColor, DisplayP3EdgeCases) {
+  // Black (all zeros)
+  auto black = parse_css_color<display_p3f_t>("color(display-p3 0 0 0)");
+  ASSERT_TRUE(black.has_value());
+  EXPECT_NEAR(black->r(), 0.0f, 0.01f);
+  EXPECT_NEAR(black->g(), 0.0f, 0.01f);
+  EXPECT_NEAR(black->b(), 0.0f, 0.01f);
+
+  // White (all ones)
+  auto white = parse_css_color<display_p3f_t>("color(display-p3 1 1 1)");
+  ASSERT_TRUE(white.has_value());
+  EXPECT_NEAR(white->r(), 1.0f, 0.01f);
+  EXPECT_NEAR(white->g(), 1.0f, 0.01f);
+  EXPECT_NEAR(white->b(), 1.0f, 0.01f);
+
+  // Case insensitive
+  auto upper = parse_css_color<display_p3f_t>("COLOR(DISPLAY-P3 0.5 0.3 0.2)");
+  ASSERT_TRUE(upper.has_value());
+}
+
+TEST(CssColor, DisplayP3Invalid) {
+  // Missing components
+  EXPECT_FALSE(parse_css_color<display_p3f_t>("color(display-p3)").has_value());
+  EXPECT_FALSE(parse_css_color<display_p3f_t>("color(display-p3 0.5)").has_value());
+  EXPECT_FALSE(parse_css_color<display_p3f_t>("color(display-p3 0.5 0.3)").has_value());
+
+  // Invalid format
+  EXPECT_FALSE(parse_css_color<display_p3f_t>("color(display-p3 0.5, 0.3, 0.2)").has_value());
+
+  // Wrong color space
+  EXPECT_FALSE(parse_css_color<display_p3f_t>("color(srgb 0.5 0.3 0.2)").has_value());
 }

@@ -18,6 +18,8 @@ Aggregated includes: ``include/colorcpp/core/core.hpp``.
      - ``rgb.hpp``
    * - Linear RGB (linear light, often sRGB primaries)
      - ``linear_rgb.hpp``
+   * - Display P3 (DCI-P3 primaries, D65 white point)
+     - ``display_p3.hpp``
    * - HSV / HSL
      - ``hsv.hpp``, ``hsl.hpp``
    * - CMYK

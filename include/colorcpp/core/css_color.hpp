@@ -1,15 +1,18 @@
 /**
  * @file css_color.hpp
- * @brief Parse CSS Color Level 4 subset: hex, rgb()/rgba(), hsl()/hsla() into @ref colorcpp::core::rgba8_t.
+ * @brief Parse CSS Color Level 4 subset: hex, rgb()/rgba(), hsl()/hsla(), hwb(), oklab(), oklch() into @ref
+ * colorcpp::core::rgba8_t.
  *
- * @note Not supported yet: named colors, @c color(), @c lab()/ @c lch()/ @c oklab()/ @c oklch(), relative syntax,
- *       @c hwb(), @c device-cmyk(). See README "CSS color parsing".
+ * @note Not supported yet: named colors, @c color(), @c lab()/ @c lch(), relative syntax,
+ *       @c device-cmyk(). See README "CSS color parsing".
  */
 
 #pragma once
 
 #include <cctype>
 #include <cmath>
+#include <colorcpp/core/display_p3.hpp>
+#include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <cstdlib>
@@ -205,6 +208,27 @@ struct Cursor {
     return deg;
   }
 
+  // Parse HWB hue angle (CSS Color Level 4 allows degree units)
+  std::optional<double> parse_hwb_hue_angle() {
+    auto num = parse_number();
+    if (!num) return std::nullopt;
+    skip_ws();
+    double deg = *num;
+    if (consume_ci("deg"))
+      ;
+    else if (consume_ci("grad"))
+      deg = *num * (360.0 / 400.0);
+    else if (consume_ci("rad"))
+      deg = *num * (180.0 / 3.14159265358979323846);
+    else if (consume_ci("turn"))
+      deg = *num * 360.0;
+    else
+      deg = *num;
+    deg = std::fmod(deg, 360.0);
+    if (deg < 0.0) deg += 360.0;
+    return deg;
+  }
+
   std::optional<double> parse_hsl_sl() {
     auto cv = parse_component_value();
     if (!cv) return std::nullopt;
@@ -371,6 +395,315 @@ inline std::optional<rgba8_t> parse_hsl_function(Cursor& c) {
   return std::nullopt;
 }
 
+inline std::optional<rgba8_t> parse_hwb_function(Cursor& c) {
+  if (!c.consume_ci("hwb")) return std::nullopt;
+  c.skip_ws();
+  if (!c.consume_char('(')) return std::nullopt;
+  c.skip_ws();
+
+  size_t checkpoint = c.i;
+
+  auto try_comma = [&]() -> std::optional<rgba8_t> {
+    c.i = checkpoint;
+    Cursor d{c.s, c.i};
+    auto h = d.parse_hwb_hue_angle();
+    if (!h) return std::nullopt;
+    d.skip_ws();
+    if (!d.consume_char(',')) return std::nullopt;
+    auto w = d.parse_hsl_sl();  // HWB whiteness is percentage (0-100%)
+    if (!w) return std::nullopt;
+    d.skip_ws();
+    if (!d.consume_char(',')) return std::nullopt;
+    auto b = d.parse_hsl_sl();  // HWB blackness is percentage (0-100%)
+    if (!b) return std::nullopt;
+    float alpha_f = 1.0f;
+    d.skip_ws();
+    if (d.consume_char(',')) {
+      auto av = d.parse_alpha_value();
+      if (!av) return std::nullopt;
+      double a = *av;
+      if (a < 0.0) a = 0.0;
+      if (a > 1.0) a = 1.0;
+      alpha_f = static_cast<float>(a);
+    }
+    d.skip_ws();
+    if (!d.consume_char(')')) return std::nullopt;
+    d.skip_ws();
+    if (!d.eof()) return std::nullopt;
+    hwba_float_t hf{static_cast<float>(*h), static_cast<float>(*w), static_cast<float>(*b), alpha_f};
+    rgba8_t out = operations::conversion::color_cast<rgba8_t>(hf);
+    c.i = d.i;
+    return out;
+  };
+
+  auto try_space = [&]() -> std::optional<rgba8_t> {
+    c.i = checkpoint;
+    Cursor d{c.s, c.i};
+    auto h = d.parse_hwb_hue_angle();
+    if (!h) return std::nullopt;
+    d.skip_ws();
+    auto w = d.parse_hsl_sl();  // HWB whiteness is percentage (0-100%)
+    if (!w) return std::nullopt;
+    d.skip_ws();
+    auto b = d.parse_hsl_sl();  // HWB blackness is percentage (0-100%)
+    if (!b) return std::nullopt;
+    float alpha_f = 1.0f;
+    d.skip_ws();
+    if (d.consume_char('/')) {
+      auto av = d.parse_alpha_value();
+      if (!av) return std::nullopt;
+      double a = *av;
+      if (a < 0.0) a = 0.0;
+      if (a > 1.0) a = 1.0;
+      alpha_f = static_cast<float>(a);
+    }
+    d.skip_ws();
+    if (!d.consume_char(')')) return std::nullopt;
+    d.skip_ws();
+    if (!d.eof()) return std::nullopt;
+    hwba_float_t hf{static_cast<float>(*h), static_cast<float>(*w), static_cast<float>(*b), alpha_f};
+    rgba8_t out = operations::conversion::color_cast<rgba8_t>(hf);
+    c.i = d.i;
+    return out;
+  };
+
+  if (auto r = try_comma()) return r;
+  if (auto r = try_space()) return r;
+  return std::nullopt;
+}
+
+/**
+ * @brief Parse oklab(L a b [/ alpha]) — CSS Color Level 4.
+ *
+ * L: 0-100% or 0-1
+ * a, b: -0.5 to 0.5 (can use % or number)
+ * Optional alpha with /
+ */
+inline std::optional<oklab_t> parse_oklab_function(Cursor& c) {
+  if (!c.consume_ci("oklab")) return std::nullopt;
+  c.skip_ws();
+  if (!c.consume_char('(')) return std::nullopt;
+  c.skip_ws();
+
+  size_t checkpoint = c.i;
+
+  auto try_space = [&]() -> std::optional<oklab_t> {
+    c.i = checkpoint;
+    Cursor d{c.s, c.i};
+
+    // Parse L (lightness): 0-100% or 0-1
+    auto l_cv = d.parse_component_value();
+    if (!l_cv) return std::nullopt;
+    float L = static_cast<float>(l_cv->first);
+    if (l_cv->second) {
+      // Percentage: 0-100% maps to 0-1
+      L = std::clamp(L, 0.0f, 100.0f) / 100.0f;
+    } else {
+      L = std::clamp(L, 0.0f, 1.0f);
+    }
+
+    d.skip_ws();
+
+    // Parse a: -0.5 to 0.5 (can be percentage or number)
+    auto a_cv = d.parse_component_value();
+    if (!a_cv) return std::nullopt;
+    float A = static_cast<float>(a_cv->first);
+    if (a_cv->second) {
+      // Percentage: -100% to 100% maps to -0.5 to 0.5
+      A = std::clamp(A, -100.0f, 100.0f) / 200.0f;
+    } else {
+      A = std::clamp(A, -0.5f, 0.5f);
+    }
+
+    d.skip_ws();
+
+    // Parse b: -0.5 to 0.5 (can be percentage or number)
+    auto b_cv = d.parse_component_value();
+    if (!b_cv) return std::nullopt;
+    float B = static_cast<float>(b_cv->first);
+    if (b_cv->second) {
+      // Percentage: -100% to 100% maps to -0.5 to 0.5
+      B = std::clamp(B, -100.0f, 100.0f) / 200.0f;
+    } else {
+      B = std::clamp(B, -0.5f, 0.5f);
+    }
+
+    d.skip_ws();
+
+    // Parse optional alpha (oklab_t doesn't have alpha channel, so we parse but ignore it)
+    if (d.consume_char('/')) {
+      auto av = d.parse_alpha_value();
+      if (!av) return std::nullopt;
+      // Alpha is parsed but not used since oklab_t doesn't have an alpha channel
+      (void)av;
+    }
+
+    d.skip_ws();
+    if (!d.consume_char(')')) return std::nullopt;
+    d.skip_ws();
+    if (!d.eof()) return std::nullopt;
+
+    c.i = d.i;
+    return oklab_t{L, A, B};
+  };
+
+  if (auto r = try_space()) return r;
+  return std::nullopt;
+}
+
+/**
+ * @brief Parse oklch(L C H [/ alpha]) — CSS Color Level 4.
+ *
+ * L: 0-100% or 0-1
+ * C: 0-0.4 (can use % or number)
+ * H: hue angle with units (deg, grad, rad, turn)
+ * Optional alpha with /
+ */
+inline std::optional<oklch_t> parse_oklch_function(Cursor& c) {
+  if (!c.consume_ci("oklch")) return std::nullopt;
+  c.skip_ws();
+  if (!c.consume_char('(')) return std::nullopt;
+  c.skip_ws();
+
+  size_t checkpoint = c.i;
+
+  auto try_space = [&]() -> std::optional<oklch_t> {
+    c.i = checkpoint;
+    Cursor d{c.s, c.i};
+
+    // Parse L (lightness): 0-100% or 0-1
+    auto l_cv = d.parse_component_value();
+    if (!l_cv) return std::nullopt;
+    float L = static_cast<float>(l_cv->first);
+    if (l_cv->second) {
+      // Percentage: 0-100% maps to 0-1
+      L = std::clamp(L, 0.0f, 100.0f) / 100.0f;
+    } else {
+      L = std::clamp(L, 0.0f, 1.0f);
+    }
+
+    d.skip_ws();
+
+    // Parse C (chroma): 0-0.4 (can be percentage or number)
+    auto c_cv = d.parse_component_value();
+    if (!c_cv) return std::nullopt;
+    float C = static_cast<float>(c_cv->first);
+    if (c_cv->second) {
+      // Percentage: 0-100% maps to 0-0.4
+      C = std::clamp(C, 0.0f, 100.0f) * 0.004f;
+    } else {
+      C = std::clamp(C, 0.0f, 0.4f);
+    }
+
+    d.skip_ws();
+
+    // Parse H (hue angle)
+    auto h = d.parse_hue_angle();
+    if (!h) return std::nullopt;
+    float H = static_cast<float>(*h);
+
+    d.skip_ws();
+
+    // Parse optional alpha (oklch_t doesn't have alpha channel, so we parse but ignore it)
+    if (d.consume_char('/')) {
+      auto av = d.parse_alpha_value();
+      if (!av) return std::nullopt;
+      // Alpha is parsed but not used since oklch_t doesn't have an alpha channel
+      (void)av;
+    }
+
+    d.skip_ws();
+    if (!d.consume_char(')')) return std::nullopt;
+    d.skip_ws();
+    if (!d.eof()) return std::nullopt;
+
+    c.i = d.i;
+    return oklch_t{L, C, H};
+  };
+
+  if (auto r = try_space()) return r;
+  return std::nullopt;
+}
+
+/**
+ * @brief Parse color(display-p3 r g b [/ alpha]) — CSS Color Level 4.
+ *
+ * r, g, b: 0-1 (can use % or number)
+ * Optional alpha with /
+ */
+inline std::optional<display_p3f_t> parse_display_p3_function(Cursor& c) {
+  if (!c.consume_ci("color")) return std::nullopt;
+  c.skip_ws();
+  if (!c.consume_char('(')) return std::nullopt;
+  c.skip_ws();
+
+  if (!c.consume_ci("display-p3")) return std::nullopt;
+  c.skip_ws();
+
+  size_t checkpoint = c.i;
+
+  auto try_space = [&]() -> std::optional<display_p3f_t> {
+    c.i = checkpoint;
+    Cursor d{c.s, c.i};
+
+    // Parse r: 0-1 (can be percentage or number)
+    auto r_cv = d.parse_component_value();
+    if (!r_cv) return std::nullopt;
+    float r = static_cast<float>(r_cv->first);
+    if (r_cv->second) {
+      // Percentage: 0-100% maps to 0-1
+      r = std::clamp(r, 0.0f, 100.0f) / 100.0f;
+    } else {
+      r = std::clamp(r, 0.0f, 1.0f);
+    }
+
+    d.skip_ws();
+
+    // Parse g: 0-1 (can be percentage or number)
+    auto g_cv = d.parse_component_value();
+    if (!g_cv) return std::nullopt;
+    float g = static_cast<float>(g_cv->first);
+    if (g_cv->second) {
+      g = std::clamp(g, 0.0f, 100.0f) / 100.0f;
+    } else {
+      g = std::clamp(g, 0.0f, 1.0f);
+    }
+
+    d.skip_ws();
+
+    // Parse b: 0-1 (can be percentage or number)
+    auto b_cv = d.parse_component_value();
+    if (!b_cv) return std::nullopt;
+    float b = static_cast<float>(b_cv->first);
+    if (b_cv->second) {
+      b = std::clamp(b, 0.0f, 100.0f) / 100.0f;
+    } else {
+      b = std::clamp(b, 0.0f, 1.0f);
+    }
+
+    d.skip_ws();
+
+    // Parse optional alpha (display_p3f_t doesn't have alpha channel, so we parse but ignore it)
+    if (d.consume_char('/')) {
+      auto av = d.parse_alpha_value();
+      if (!av) return std::nullopt;
+      // Alpha is parsed but not used since display_p3f_t doesn't have an alpha channel
+      (void)av;
+    }
+
+    d.skip_ws();
+    if (!d.consume_char(')')) return std::nullopt;
+    d.skip_ws();
+    if (!d.eof()) return std::nullopt;
+
+    c.i = d.i;
+    return display_p3f_t{r, g, b};
+  };
+
+  if (auto r = try_space()) return r;
+  return std::nullopt;
+}
+
 }  // namespace css_details
 
 /**
@@ -388,6 +721,57 @@ inline std::optional<rgba8_t> parse_css_color_rgba8(std::string_view str) {
   if (auto r = parse_rgb_function(c)) return r;
   c.i = 0;
   if (auto r = parse_hsl_function(c)) return r;
+  c.i = 0;
+  if (auto r = parse_hwb_function(c)) return r;
+
+  return std::nullopt;
+}
+
+// Forward declarations for specializations
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str);
+
+/**
+ * @brief Parse CSS color for oklab_t: parse oklab() function directly.
+ */
+template <>
+inline std::optional<oklab_t> parse_css_color<oklab_t>(std::string_view str) {
+  using namespace css_details;
+  trim(str);
+  if (str.empty()) return std::nullopt;
+
+  Cursor c{str, 0};
+  if (auto r = parse_oklab_function(c)) return r;
+
+  return std::nullopt;
+}
+
+/**
+ * @brief Parse CSS color for oklch_t: parse oklch() function directly.
+ */
+template <>
+inline std::optional<oklch_t> parse_css_color<oklch_t>(std::string_view str) {
+  using namespace css_details;
+  trim(str);
+  if (str.empty()) return std::nullopt;
+
+  Cursor c{str, 0};
+  if (auto r = parse_oklch_function(c)) return r;
+
+  return std::nullopt;
+}
+
+/**
+ * @brief Parse CSS color for display_p3f_t: parse color(display-p3 ...) function directly.
+ */
+template <>
+inline std::optional<display_p3f_t> parse_css_color<display_p3f_t>(std::string_view str) {
+  using namespace css_details;
+  trim(str);
+  if (str.empty()) return std::nullopt;
+
+  Cursor c{str, 0};
+  if (auto r = parse_display_p3_function(c)) return r;
 
   return std::nullopt;
 }

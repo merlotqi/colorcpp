@@ -13,8 +13,10 @@
 #include <cmath>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
+#include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
+#include <colorcpp/core/hwb.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
@@ -127,6 +129,9 @@ struct model_category {
   static constexpr bool is_hsv =
       std::is_same_v<ModelTag, core::hsv::model::hsv> || std::is_same_v<ModelTag, core::hsv::model::hsva>;
 
+  static constexpr bool is_hwb =
+      std::is_same_v<ModelTag, core::hwb::model::hwb> || std::is_same_v<ModelTag, core::hwb::model::hwba>;
+
   static constexpr bool is_cmyk =
       std::is_same_v<ModelTag, core::cmyk::model::cmyk_u8> || std::is_same_v<ModelTag, core::cmyk::model::cmyk_float>;
 
@@ -148,6 +153,14 @@ struct model_category {
 
   // CIE XYZ (D65) — device-independent hub space
   static constexpr bool is_xyz = std::is_same_v<ModelTag, core::xyz::model::xyze>;
+
+  // Display P3 (DCI-P3 primaries with D65 white point, sRGB transfer function)
+  static constexpr bool is_display_p3 = std::is_same_v<ModelTag, core::display_p3::model::display_p3> ||
+                                        std::is_same_v<ModelTag, core::display_p3::model::display_p3a>;
+
+  // Linear Display P3 (scene-linear, no gamma)
+  static constexpr bool is_linear_display_p3 = std::is_same_v<ModelTag, core::display_p3::model::linear_display_p3f> ||
+                                               std::is_same_v<ModelTag, core::display_p3::model::linear_display_p3af>;
 };
 
 // --- Conversion functions ---
@@ -325,6 +338,117 @@ constexpr To rgb_to_cmyk(const From& src) {
   return pack_to<To>(from_unit<To, 0>(c), from_unit<To, 1>(m), from_unit<To, 2>(y), from_unit<To, 3>(k));
 }
 
+// HWB (Hue-Whiteness-Blackness) ↔ sRGB
+// Reference: CSS Color Level 4 §4.5
+// HWB is defined as: H (hue in degrees), W (whiteness), B (blackness)
+// Conversion: First convert to HSV, then to RGB
+// If W + B >= 1, the color is achromatic (gray with lightness = W/(W+B))
+
+template <typename To, typename From>
+constexpr To hwb_to_rgb(const From& src) {
+  // HWB channels: H in [0,360], W and B in [0,1]
+  float h = to_unit<From, 0>(src.template get_index<0>());  // [0,1] from [0,360]
+  float w = to_unit<From, 1>(src.template get_index<1>());  // [0,1]
+  float b = to_unit<From, 2>(src.template get_index<2>());  // [0,1]
+  float a = get_src_alpha(src);
+
+  // If whiteness + blackness >= 1, the color is achromatic
+  if (w + b >= 1.0f) {
+    float gray = w / (w + b);
+    if constexpr (To::channels >= 4)
+      return pack_to<To>(from_unit<To, 0>(gray), from_unit<To, 1>(gray), from_unit<To, 2>(gray), from_unit<To, 3>(a));
+    else
+      return pack_to<To>(from_unit<To, 0>(gray), from_unit<To, 1>(gray), from_unit<To, 2>(gray));
+  }
+
+  // Convert HWB to HSV first
+  // HSV: S = 1 - W/(1-B), V = 1 - B
+  float s = 1.0f - w / (1.0f - b);
+  float v = 1.0f - b;
+
+  // Now convert HSV to RGB
+  int i = static_cast<int>(h * 6.0f);
+  float f = h * 6.0f - static_cast<float>(i);
+  float p = v * (1.0f - s);
+  float q = v * (1.0f - f * s);
+  float t = v * (1.0f - (1.0f - f) * s);
+
+  float r = 0, g = 0, bl = 0;
+  switch (i % 6) {
+    case 0:
+      r = v;
+      g = t;
+      bl = p;
+      break;
+    case 1:
+      r = q;
+      g = v;
+      bl = p;
+      break;
+    case 2:
+      r = p;
+      g = v;
+      bl = t;
+      break;
+    case 3:
+      r = p;
+      g = q;
+      bl = v;
+      break;
+    case 4:
+      r = t;
+      g = p;
+      bl = v;
+      break;
+    case 5:
+      r = v;
+      g = p;
+      bl = q;
+      break;
+  }
+
+  if constexpr (To::channels >= 4)
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(bl), from_unit<To, 3>(a));
+  else
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(bl));
+}
+
+template <typename To, typename From>
+constexpr To rgb_to_hwb(const From& src) {
+  float r = to_unit<From, 0>(src.template get_index<0>());
+  float g = to_unit<From, 1>(src.template get_index<1>());
+  float b = to_unit<From, 2>(src.template get_index<2>());
+  float a = get_src_alpha(src);
+
+  // Whiteness = min(R, G, B)
+  // Blackness = 1 - max(R, G, B)
+  float w = std::min({r, g, b});
+  float bk = 1.0f - std::max({r, g, b});
+
+  // Hue: same as HSV hue calculation
+  float max = std::max({r, g, b}), min = std::min({r, g, b});
+  float d = max - min;
+  float h = 0.0f;
+
+  if (max != min) {
+    if (max == r)
+      h = (g - b) / d + (g < b ? 6.0f : 0.0f);
+    else if (max == g)
+      h = (b - r) / d + 2.0f;
+    else
+      h = (r - g) / d + 4.0f;
+    h /= 6.0f;
+  }
+
+  // Convert h from [0,1] to [0,360]
+  h = h * 360.0f;
+
+  if constexpr (To::channels >= 4)
+    return pack_to<To>(from_value<To, 0>(h), from_unit<To, 1>(w), from_unit<To, 2>(bk), from_unit<To, 3>(a));
+  else
+    return pack_to<To>(from_value<To, 0>(h), from_unit<To, 1>(w), from_unit<To, 2>(bk));
+}
+
 // sRGB ↔ Linear sRGB
 // Applies the IEC 61966-2-1 (sRGB) piecewise transfer functions.
 
@@ -355,6 +479,77 @@ constexpr To linear_rgb_to_srgb(const From& src) {
   float a = get_src_alpha(src);
   if constexpr (To::channels >= 4)
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(a));
+  else
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
+}
+
+// Display P3 ↔ Linear Display P3
+// Display P3 uses the same sRGB transfer function (IEC 61966-2-1)
+// but with DCI-P3 primaries and D65 white point.
+
+template <typename To, typename From>
+constexpr To display_p3_to_linear_display_p3(const From& src) {
+  auto linearize = [](float v) noexcept {
+    return (v <= 0.04045f) ? (v / 12.92f) : std::pow((v + 0.055f) / 1.055f, 2.4f);
+  };
+  float r = linearize(to_unit<From, 0>(src.template get_index<0>()));
+  float g = linearize(to_unit<From, 1>(src.template get_index<1>()));
+  float b = linearize(to_unit<From, 2>(src.template get_index<2>()));
+  float a = get_src_alpha(src);
+  if constexpr (To::channels >= 4)
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(a));
+  else
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
+}
+
+template <typename To, typename From>
+constexpr To linear_display_p3_to_display_p3(const From& src) {
+  auto gamma_encode = [](float v) noexcept {
+    v = std::clamp(v, 0.0f, 1.0f);
+    return (v <= 0.0031308f) ? (v * 12.92f) : (1.055f * std::pow(v, 1.0f / 2.4f) - 0.055f);
+  };
+  float r = gamma_encode(to_unit<From, 0>(src.template get_index<0>()));
+  float g = gamma_encode(to_unit<From, 1>(src.template get_index<1>()));
+  float b = gamma_encode(to_unit<From, 2>(src.template get_index<2>()));
+  float a = get_src_alpha(src);
+  if constexpr (To::channels >= 4)
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(a));
+  else
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
+}
+
+// Linear Display P3 ↔ CIE XYZ (D65)
+// Matrix: Display P3 primaries to XYZ (D65 white point)
+// From ICC specification and CSS Color Level 4
+
+template <typename To, typename From>
+constexpr To linear_display_p3_to_xyz(const From& src) {
+  float r = to_unit<From, 0>(src.template get_index<0>());
+  float g = to_unit<From, 1>(src.template get_index<1>());
+  float b = to_unit<From, 2>(src.template get_index<2>());
+
+  // Display P3 linear → XYZ (D65)
+  float X = 0.4865709f * r + 0.2656677f * g + 0.1982173f * b;
+  float Y = 0.2289746f * r + 0.6917385f * g + 0.0792869f * b;
+  float Z = 0.0000000f * r + 0.0451134f * g + 1.0439444f * b;
+
+  return pack_to<To>(from_value<To, 0>(X), from_value<To, 1>(Y), from_value<To, 2>(Z));
+}
+
+template <typename To, typename From>
+constexpr To xyz_to_linear_display_p3(const From& src) {
+  float X = static_cast<float>(src.template get_index<0>());
+  float Y = static_cast<float>(src.template get_index<1>());
+  float Z = static_cast<float>(src.template get_index<2>());
+
+  // XYZ (D65) → Display P3 linear
+  float r = 2.4934969f * X - 0.9313836f * Y - 0.4027108f * Z;
+  float g = -0.8294890f * X + 1.7626641f * Y + 0.0236247f * Z;
+  float b = 0.0358458f * X - 0.0761724f * Y + 0.9568845f * Z;
+
+  // from_unit clamps to [0,1]: out-of-Display-P3-gamut XYZ values are gamut-clipped here.
+  if constexpr (To::channels >= 4)
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(1.0f));
   else
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
 }
@@ -631,6 +826,24 @@ constexpr To lab_to_xyz(const From& src) {
   return pack_to<To>(from_value<To, 0>(X), from_value<To, 1>(Y), from_value<To, 2>(Z));
 }
 
+// Linear sRGB ↔ Linear Display P3 (via XYZ)
+// This allows direct conversion between sRGB and Display P3 without gamut clipping
+// when going through the XYZ hub.
+
+template <typename To, typename From>
+constexpr To linear_rgb_to_linear_display_p3(const From& src) {
+  // Linear sRGB → XYZ → Linear Display P3
+  auto xyz = linear_rgb_to_xyz<core::xyz_t>(src);
+  return xyz_to_linear_display_p3<To>(xyz);
+}
+
+template <typename To, typename From>
+constexpr To linear_display_p3_to_linear_rgb(const From& src) {
+  // Linear Display P3 → XYZ → Linear sRGB
+  auto xyz = linear_display_p3_to_xyz<core::xyz_t>(src);
+  return xyz_to_linear_rgb<To>(xyz);
+}
+
 // CIE XYZ (D65) ↔ OkLab
 // Direct conversion without routing through linear sRGB, so no gamut clipping
 // occurs for colors outside the sRGB gamut.
@@ -719,12 +932,13 @@ struct color_cast_impl {
       // Same space (variant or precision cast)
     } else if constexpr (std::is_same_v<FromTag, ToTag> || (FromCat::is_rgb && ToCat::is_rgb) ||
                          (FromCat::is_hsl && ToCat::is_hsl) || (FromCat::is_hsv && ToCat::is_hsv) ||
-                         (FromCat::is_cmyk && ToCat::is_cmyk) || (FromCat::is_linear_rgb && ToCat::is_linear_rgb) ||
-                         (FromCat::is_oklab && ToCat::is_oklab) || (FromCat::is_oklch && ToCat::is_oklch) ||
-                         (FromCat::is_lab && ToCat::is_lab) || (FromCat::is_lch && ToCat::is_lch)) {
+                         (FromCat::is_hwb && ToCat::is_hwb) || (FromCat::is_cmyk && ToCat::is_cmyk) ||
+                         (FromCat::is_linear_rgb && ToCat::is_linear_rgb) || (FromCat::is_oklab && ToCat::is_oklab) ||
+                         (FromCat::is_oklch && ToCat::is_oklch) || (FromCat::is_lab && ToCat::is_lab) ||
+                         (FromCat::is_lch && ToCat::is_lch)) {
       return details::same_model_cast_impl<To>(src, std::make_index_sequence<To::channels>{});
 
-      // Direct: sRGB ↔ HSL / HSV / CMYK
+      // Direct: sRGB ↔ HSL / HSV / HWB / CMYK
     } else if constexpr (FromCat::is_hsl && ToCat::is_rgb) {
       return details::hsl_to_rgb<To>(src);
     } else if constexpr (FromCat::is_rgb && ToCat::is_hsl) {
@@ -733,6 +947,10 @@ struct color_cast_impl {
       return details::hsv_to_rgb<To>(src);
     } else if constexpr (FromCat::is_rgb && ToCat::is_hsv) {
       return details::rgb_to_hsv<To>(src);
+    } else if constexpr (FromCat::is_hwb && ToCat::is_rgb) {
+      return details::hwb_to_rgb<To>(src);
+    } else if constexpr (FromCat::is_rgb && ToCat::is_hwb) {
+      return details::rgb_to_hwb<To>(src);
     } else if constexpr (FromCat::is_cmyk && ToCat::is_rgb) {
       return details::cmyk_to_rgb<To>(src);
     } else if constexpr (FromCat::is_rgb && ToCat::is_cmyk) {
@@ -750,6 +968,30 @@ struct color_cast_impl {
     } else if constexpr (FromCat::is_oklab && ToCat::is_linear_rgb) {
       return details::oklab_to_linear_rgb<To>(src);
 
+      // Display P3 ↔ Linear Display P3 (gamma encode/decode)
+    } else if constexpr (FromCat::is_display_p3 && ToCat::is_linear_rgb) {
+      return details::display_p3_to_linear_display_p3<To>(src);
+    } else if constexpr (FromCat::is_linear_rgb && ToCat::is_display_p3) {
+      return details::linear_display_p3_to_display_p3<To>(src);
+
+      // Linear Display P3 ↔ XYZ D65 (matrix)
+    } else if constexpr (FromCat::is_linear_display_p3 && ToCat::is_xyz) {
+      return details::linear_display_p3_to_xyz<To>(src);
+    } else if constexpr (FromCat::is_xyz && ToCat::is_linear_display_p3) {
+      return details::xyz_to_linear_display_p3<To>(src);
+
+      // Multi-hop: sRGB ↔ Display P3 (via linear Display P3 and XYZ)
+    } else if constexpr (FromCat::is_rgb && ToCat::is_display_p3) {
+      auto linear = color_cast<core::linear_rgbaf_t>(src);
+      auto xyz = details::linear_rgb_to_xyz<core::xyz_t>(linear);
+      auto linear_p3 = details::xyz_to_linear_display_p3<core::linear_display_p3af_t>(xyz);
+      return details::linear_display_p3_to_display_p3<To>(linear_p3);
+    } else if constexpr (FromCat::is_display_p3 && ToCat::is_rgb) {
+      auto linear_p3 = details::display_p3_to_linear_display_p3<core::linear_display_p3af_t>(src);
+      auto xyz = details::linear_display_p3_to_xyz<core::xyz_t>(linear_p3);
+      auto linear = details::xyz_to_linear_rgb<core::linear_rgbaf_t>(xyz);
+      return details::linear_rgb_to_srgb<To>(linear);
+
       // Direct: Oklab ↔ OkLCH (polar ↔ cartesian)
     } else if constexpr (FromCat::is_oklab && ToCat::is_oklch) {
       return details::oklab_to_oklch<To>(src);
@@ -760,7 +1002,9 @@ struct color_cast_impl {
     } else if constexpr (FromCat::is_rgb && ToCat::is_oklab) {
       return color_cast<To>(color_cast<core::linear_rgbaf_t>(src));
     } else if constexpr (FromCat::is_oklab && ToCat::is_rgb) {
-      return color_cast<To>(color_cast<core::linear_rgbaf_t>(src));
+      // OkLab → Linear RGB → sRGB
+      auto linear = details::oklab_to_linear_rgb<core::linear_rgbaf_t>(src);
+      return details::linear_rgb_to_srgb<To>(linear);
 
       // Multi-hop: sRGB ↔ OkLCH (via Oklab)
     } else if constexpr (FromCat::is_rgb && ToCat::is_oklch) {

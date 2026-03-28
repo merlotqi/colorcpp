@@ -10,7 +10,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 - **Multiple color spaces**: RGB, HSV, HSL, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ
 - **Perceptually uniform**: Built-in support for CIELAB and OkLab for perceptual operations
 - **Color operations**: Blending, interpolation, palette generation, accessibility checking
-- **I/O support**: Parse colors from strings, format colors for output; CSS Color 4-style `rgb()` / `hsl()` / hex (see below)
+- **I/O support**: Parse colors from strings, format colors for output; CSS Color 4-style `rgb()` / `hsl()` / `oklab()` / `oklch()` / `color(display-p3)` / hex (see below)
 - **Type-safe literals**: User-defined literals for convenient color creation
 - **Template-based**: Zero-cost abstractions with compile-time validation
 - **C++17+**: Works with any C++17 compatible compiler
@@ -29,6 +29,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 | **OkLab** | Modern perceptually uniform space (Björn Ottosson) |
 | **OkLCH** | Cylindrical form of OkLab |
 | **CIE XYZ** | Device-independent reference space (D65) |
+| **Display P3** | DCI-P3 primaries with D65 white point (wide gamut) |
 
 ## Documentation
 
@@ -108,8 +109,11 @@ auto hsl = colorcpp::core::parse_css_color<colorcpp::core::hsla_float_t>("hsl(12
 - Hex: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` (optional surrounding ASCII whitespace).
 - `rgb()` / `rgba()`: legacy commas (`rgb(255, 99, 71)`), modern spaces (`rgb(255 99 71)`), slash alpha (`rgb(255 99 71 / 50%)`), mixing numbers (0–255) and percentages per channel, alpha as number or percentage.
 - `hsl()` / `hsla()`: comma or space syntax; hue with optional `deg`, `grad`, `rad`, `turn` (bare number = degrees); saturation/lightness as `%` or legacy 0–100 number scaled to [0, 1]; optional alpha (comma or `/`).
+- `oklab(L a b)`: L as number or percentage, a and b as numbers or percentages; optional alpha with `/`.
+- `oklch(L C H)`: L as number or percentage, C as number or percentage, H as hue angle with optional units; optional alpha with `/`.
+- `color(display-p3 r g b)`: r, g, b as numbers or percentages; optional alpha with `/`.
 
-**Not supported yet:** named colors (`red`, `transparent`, …), `color()`, `lab()` / `lch()` / `oklab()` / `oklch()`, `hwb()`, `device-cmyk()`, relative color syntax (`rgb(from …)`). These may be added in later releases.
+**Not supported yet:** named colors (`red`, `transparent`, …), `color()` (for other color spaces), `lab()` / `lch()`, `hwb()`, `device-cmyk()`, relative color syntax (`rgb(from …)`). These may be added in later releases.
 
 ## 🔄 Color Conversion
 
