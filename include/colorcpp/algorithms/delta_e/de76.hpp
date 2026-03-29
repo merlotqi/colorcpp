@@ -9,7 +9,7 @@
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
-namespace colorcpp::operations::delta_e {
+namespace colorcpp::algorithms::delta_e {
 
 /**
  * @brief CIE 1976 ΔE*ab — Euclidean distance in LAB (fast; JND ≈ 2.3).
@@ -19,7 +19,7 @@ namespace colorcpp::operations::delta_e {
  */
 template <typename ColorA, typename ColorB>
 float delta_e_76(const ColorA& a, const ColorB& b) {
-  using namespace conversion;
+  using namespace operations::conversion;
 
   auto la = color_cast<core::cielab_t>(a);
   auto lb = color_cast<core::cielab_t>(b);
@@ -31,4 +31,4 @@ float delta_e_76(const ColorA& a, const ColorB& b) {
   return std::sqrt(dL * dL + da * da + db * db);
 }
 
-}  // namespace colorcpp::operations::delta_e
+}  // namespace colorcpp::algorithms::delta_e

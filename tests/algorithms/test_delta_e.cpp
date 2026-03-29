@@ -3,7 +3,7 @@
 
 #include <colorcpp/colorcpp.hpp>
 
-namespace colorcpp::operations::test {
+namespace colorcpp::algorithms::test {
 
 using namespace core;
 using namespace delta_e;

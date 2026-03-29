@@ -19,6 +19,9 @@
 // Include color operations header
 #include <colorcpp/operations/operations.hpp>
 
+// Include color algorithms header
+#include <colorcpp/algorithms/algorithms.hpp>
+
 // CSS Color string parsing (depends on conversion; include after operations)
 #include <colorcpp/core/css_color.hpp>
 

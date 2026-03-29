@@ -10,7 +10,7 @@
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
-namespace colorcpp::operations::delta_e {
+namespace colorcpp::algorithms::delta_e {
 
 /**
  * @brief CIE 1994 ΔE; asymmetric in @p a / @p b (reference = @p a).
@@ -26,7 +26,7 @@ namespace colorcpp::operations::delta_e {
 template <typename ColorA, typename ColorB>
 float delta_e_94(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f, float kH = 1.0f, float K1 = 0.045f,
                  float K2 = 0.015f) {
-  using namespace conversion;
+  using namespace operations::conversion;
 
   auto la = color_cast<core::cielab_t>(a);
   auto lb = color_cast<core::cielab_t>(b);
@@ -56,4 +56,4 @@ float delta_e_94(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1
   return std::sqrt(tL * tL + tC * tC + tH * tH);
 }
 
-}  // namespace colorcpp::operations::delta_e
+}  // namespace colorcpp::algorithms::delta_e

@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include <colorcpp/operations/delta_e/de2000.hpp>
-#include <colorcpp/operations/delta_e/de76.hpp>
-#include <colorcpp/operations/delta_e/de94.hpp>
-#include <colorcpp/operations/delta_e/helpers.hpp>
+#include <colorcpp/algorithms/delta_e/de2000.hpp>
+#include <colorcpp/algorithms/delta_e/de76.hpp>
+#include <colorcpp/algorithms/delta_e/de94.hpp>
+#include <colorcpp/algorithms/delta_e/helpers.hpp>

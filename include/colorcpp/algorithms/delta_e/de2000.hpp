@@ -9,7 +9,7 @@
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
-namespace colorcpp::operations::delta_e {
+namespace colorcpp::algorithms::delta_e {
 
 /**
  * @brief CIEDE2000 (ISO 11664-6 / CIE 142-2001).
@@ -23,7 +23,7 @@ namespace colorcpp::operations::delta_e {
  */
 template <typename ColorA, typename ColorB>
 float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f, float kH = 1.0f) {
-  using namespace conversion;
+  using namespace operations::conversion;
 
   auto la = color_cast<core::cielab_t>(a);
   auto lb = color_cast<core::cielab_t>(b);
@@ -124,4 +124,4 @@ float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC =
   return static_cast<float>(std::sqrt(term_L * term_L + term_C * term_C + term_H * term_H + RT * term_C * term_H));
 }
 
-}  // namespace colorcpp::operations::delta_e
+}  // namespace colorcpp::algorithms::delta_e

@@ -1,5 +1,5 @@
 /**
- * @file gamut.hpp
+ * @file srgb.hpp
  * @brief sRGB gamut test and clipping/mapping using OkLab / OkLCH-style chroma reduction.
  */
 
@@ -7,10 +7,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <colorcpp/algorithms/gamut/details.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 /** @brief sRGB gamut queries and remapping via @ref conversion::color_cast. */
-namespace colorcpp::operations::gamut {
+namespace colorcpp::algorithms::gamut {
 
 /** @brief How @ref gamut_clip maps out-of-gamut colors into sRGB. */
 enum class clip_method {
@@ -19,50 +20,10 @@ enum class clip_method {
   css_color4,     // CSS Color Level 4 chroma bisect with ΔE_OK JND — O(log 1/ε)
 };
 
-namespace details {
-
-// OKLab → linear sRGB, without clamping (needed for gamut testing).
-// Coefficients from conversion.hpp (Ottosson 2020, M1 and M2 matrices).
-inline void oklab_to_linrgb(float L, float a, float b, float& r, float& g, float& bl) noexcept {
-  float l_ = L + 0.3939205158f * a + 0.4003836363f * b;
-  float m_ = L - 0.1048460944f * a - 0.1184695156f * b;
-  float s_ = L - 0.0750179025f * a - 2.3961106171f * b;
-
-  const float lms_l = l_ * l_ * l_;
-  const float lms_m = m_ * m_ * m_;
-  const float lms_s = s_ * s_ * s_;
-
-  r = 4.0767416621f * lms_l - 3.3077115913f * lms_m + 0.2309699292f * lms_s;
-  g = -1.2684380046f * lms_l + 2.6097574011f * lms_m - 0.3413193965f * lms_s;
-  bl = -0.0041960863f * lms_l - 0.7034186147f * lms_m + 1.7076147010f * lms_s;
-}
-
-// linear sRGB → OKLab, without range-checking the result.
-// Coefficients match conversion.hpp (same M1/M2 matrices).
-inline void linrgb_to_oklab(float r, float g, float b, float& L, float& a, float& bl) noexcept {
-  float lms_l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b;
-  float lms_m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b;
-  float lms_s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b;
-
-  // Sign-preserving cube root (matches conversion.hpp's safe_cbrt).
-  auto scbrt = [](float x) noexcept { return x >= 0.0f ? std::cbrt(x) : -std::cbrt(-x); };
-  float l_ = scbrt(lms_l), m_ = scbrt(lms_m), s_ = scbrt(lms_s);
-
-  L = 0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_;
-  a = 1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_;
-  bl = 0.0259040371f * l_ + 0.4072456426f * m_ - 0.4331497194f * s_;
-}
-
-inline bool linrgb_in_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
-  return r >= -eps && r <= 1.0f + eps && g >= -eps && g <= 1.0f + eps && b >= -eps && b <= 1.0f + eps;
-}
-
-}  // namespace details
-
 /** @brief True if @p c maps to linear sRGB channels inside [0, 1] (via OkLab). */
 template <typename Color>
 bool is_in_srgb_gamut(const Color& c) {
-  using namespace conversion;
+  using namespace operations::conversion;
   auto lab = color_cast<core::oklab_t>(c);
   float r, g, b;
   details::oklab_to_linrgb(lab.template get_index<0>(), lab.template get_index<1>(), lab.template get_index<2>(), r, g,
@@ -75,7 +36,7 @@ bool is_in_srgb_gamut(const Color& c) {
  */
 template <typename Color>
 Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
-  using namespace conversion;
+  using namespace operations::conversion;
 
   // Method: clip
   if (method == clip_method::clip) {
@@ -174,4 +135,4 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
   }
 }
 
-}  // namespace colorcpp::operations::gamut
+}  // namespace colorcpp::algorithms::gamut

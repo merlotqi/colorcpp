@@ -6,7 +6,7 @@
 #pragma once
 
 #include <array>
-#include <colorcpp/traits/concepts.hpp>
+#include <colorcpp/core/concepts.hpp>
 #include <stdexcept>
 #include <tuple>
 #include <type_traits>
@@ -115,7 +115,29 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
     return std::get<I>(data);
   }
 
+  /**
+   * @brief Exact equality comparison.
+   * @param other Color to compare with.
+   * @return True if all channels are exactly equal.
+   */
+  constexpr bool operator==(const basic_color& other) const noexcept {
+    return equal_impl(other, std::make_index_sequence<channels>{});
+  }
+
+  /**
+   * @brief Exact inequality comparison.
+   * @param other Color to compare with.
+   * @return True if any channel differs.
+   */
+  constexpr bool operator!=(const basic_color& other) const noexcept { return !(*this == other); }
+
  private:
+  // Helper for exact equality comparison
+  template <std::size_t... Is>
+  constexpr bool equal_impl(const basic_color& other, std::index_sequence<Is...>) const noexcept {
+    return ((get_index<Is>() == other.get_index<Is>()) && ...);
+  }
+
   // Constructs the heterogeneous tuple storage from variadic args,
   // casting each arg to the exact value_type declared by its channel.
   template <std::size_t... Is, typename... Args>

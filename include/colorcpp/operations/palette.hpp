@@ -6,7 +6,7 @@
  * - palette_set.hpp: Ordered list of colors with wrap indexing
  * - details.hpp: Internal helper functions
  * - scales.hpp: Gradient scale generators (linear, visual, perceptual)
- * - harmony.hpp: Color harmony generators (complementary, analogous, triadic, etc.)
+ * - generators.hpp: Color harmony generators (complementary, analogous, triadic, etc.)
  * - rainbow.hpp: Rainbow palette generator
  * - temperature.hpp: Warm and cool color palettes
  * - material.hpp: Material Design 3 color system
@@ -15,7 +15,7 @@
 #pragma once
 
 #include <colorcpp/operations/palette/details.hpp>
-#include <colorcpp/operations/palette/harmony.hpp>
+#include <colorcpp/operations/palette/generators.hpp>
 #include <colorcpp/operations/palette/material.hpp>
 #include <colorcpp/operations/palette/palette_set.hpp>
 #include <colorcpp/operations/palette/rainbow.hpp>
