@@ -14,13 +14,13 @@
 
 #pragma once
 
-#include <colorcpp/operations/interpolate/lerp.hpp>
 #include <colorcpp/operations/interpolate/catmull_rom.hpp>
+#include <colorcpp/operations/interpolate/chroma.hpp>
+#include <colorcpp/operations/interpolate/color_lerp.hpp>
 #include <colorcpp/operations/interpolate/cubic.hpp>
 #include <colorcpp/operations/interpolate/gamut.hpp>
 #include <colorcpp/operations/interpolate/hue.hpp>
-#include <colorcpp/operations/interpolate/chroma.hpp>
-#include <colorcpp/operations/interpolate/color_lerp.hpp>
+#include <colorcpp/operations/interpolate/lerp.hpp>
 
 /** @brief Lerps, multi-stop gradients, and easing helpers built on @ref conversion::color_cast. */
 namespace colorcpp::operations::interpolate {
