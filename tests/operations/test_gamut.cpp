@@ -3,9 +3,6 @@
 
 #include <colorcpp/colorcpp.hpp>
 
-#include "colorcpp/core/rgb.hpp"
-#include "colorcpp/operations/conversion.hpp"
-
 namespace colorcpp::operations::test {
 
 using namespace core;

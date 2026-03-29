@@ -164,8 +164,7 @@ Tests are located in the `tests/` directory and organized by feature:
 
 ```cpp
 #include <gtest/gtest.h>
-#include "color/core/rgb.hpp"
-#include "color/conversion/rgb_to_hsv.hpp"
+#include <colorcpp/colorcpp.hpp>
 
 TEST(RGBToHSVTest, BasicConversion) {
     constexpr auto rgb = rgba8<255, 128, 64>;
