@@ -8,6 +8,7 @@
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/io.hpp>
 #include <tuple>
 #include <type_traits>
 
@@ -104,3 +105,14 @@ struct basic_xyz : basic_color<Model> {
 using xyz_t = basic_xyz<xyz::model::xyze>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_xyz
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_xyz<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_xyz<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}

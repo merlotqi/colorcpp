@@ -27,8 +27,8 @@ auto warm_palette(const Color& base, size_t count = 5) {
   float lit = hsl.template get_index<2>();
   float alpha = hsl.template get_index<3>();
 
-  core::hsla_float_t warm_start{0.0f, sat, lit, alpha};    // Red
-  core::hsla_float_t warm_end{60.0f, sat, lit, alpha};     // Yellow
+  core::hsla_float_t warm_start{0.0f, sat, lit, alpha};  // Red
+  core::hsla_float_t warm_end{60.0f, sat, lit, alpha};   // Yellow
 
   return visual_scale(color_cast<Color>(warm_start), color_cast<Color>(warm_end), count);
 }

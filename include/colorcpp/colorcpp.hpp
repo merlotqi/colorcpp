@@ -23,7 +23,7 @@
 #include <colorcpp/algorithms/algorithms.hpp>
 
 // CSS Color string parsing (depends on conversion; include after operations)
-#include <colorcpp/core/css_color.hpp>
+#include <colorcpp/parsers/css_color.hpp>
 
 /**
  * @brief Root namespace; re-exports @ref colorcpp::core and @ref colorcpp::operations.

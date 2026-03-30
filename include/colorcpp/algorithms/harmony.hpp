@@ -10,10 +10,10 @@
 
 #pragma once
 
-#include <colorcpp/operations/harmony/assess.hpp>
-#include <colorcpp/operations/harmony/correct.hpp>
-#include <colorcpp/operations/harmony/suggest.hpp>
+#include <colorcpp/algorithms/harmony/assess.hpp>
+#include <colorcpp/algorithms/harmony/correct.hpp>
+#include <colorcpp/algorithms/harmony/suggest.hpp>
 
-namespace colorcpp::operations::harmony {
+namespace colorcpp::algorithms::harmony {
 // All functionality is provided by the included sub-modules
 }

@@ -12,6 +12,7 @@
 
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
+#include <colorcpp/core/io.hpp>
 
 namespace colorcpp::core::display_p3 {
 
@@ -157,3 +158,14 @@ using linear_display_p3f_t = basic_display_p3<display_p3::model::linear_display_
 using linear_display_p3af_t = basic_display_p3<display_p3::model::linear_display_p3af>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_display_p3
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_display_p3<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_display_p3<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}

@@ -74,23 +74,22 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
 
   /**
    * @brief Generate a color with hue sampled via Poisson disk sampling.
-   * 
+   *
    * Ensures the new hue is at least min_dist away from all existing samples.
    * Uses rejection sampling with configurable attempt limit.
-   * 
+   *
    * @param samples Vector of existing hue samples (modified in place).
    * @param min_dist Minimum angular distance between hues (default: 1/10 of hue range).
    * @param max_attempts Maximum rejection sampling attempts (default: 200).
    * @return Color with Poisson-sampled hue, or random fallback if max_attempts exceeded.
    */
-  Color next_poisson(std::vector<T>& samples, T min_dist = traits::hue_max() / 10,
-                     std::size_t max_attempts = 200) {
+  Color next_poisson(std::vector<T>& samples, T min_dist = traits::hue_max() / 10, std::size_t max_attempts = 200) {
     T h_max = traits::hue_max();
-    
+
     for (std::size_t i = 0; i < max_attempts; ++i) {
       T candidate = this->random_value(T(0), h_max);
       bool ok = true;
-      
+
       // Check distance against all existing samples
       for (T s : samples) {
         T diff = std::abs(candidate - s);
@@ -100,13 +99,13 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
           break;
         }
       }
-      
+
       if (ok) {
         samples.push_back(candidate);
         return construct_from_hue(this->next(), candidate, std::make_index_sequence<traits::size>{});
       }
     }
-    
+
     // Fallback: return random color if max attempts exceeded
     Color fallback = this->next();
     samples.push_back(fallback.template get_index<0>());

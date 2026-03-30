@@ -20,6 +20,8 @@ These pages summarize **what** each part of colorcpp implements, **where** it li
    blend
    interpolate
    palette
+   advanced_scales
+   harmony
    gamut
    accessibility
    vision

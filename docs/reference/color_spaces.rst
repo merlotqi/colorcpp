@@ -22,6 +22,8 @@ Aggregated includes: ``include/colorcpp/core/core.hpp``.
      - ``display_p3.hpp``
    * - HSV / HSL
      - ``hsv.hpp``, ``hsl.hpp``
+   * - HWB
+     - ``hwb.hpp``
    * - CMYK
      - ``cmyk.hpp``
    * - CIE XYZ (D65)

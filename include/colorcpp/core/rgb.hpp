@@ -10,6 +10,7 @@
 
 #include <cassert>
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/io.hpp>
 #include <cstdint>
 #include <tuple>
 #include <type_traits>
@@ -162,3 +163,14 @@ using rgbf_t = basic_rgba<rgb::model::rgb_float>;
 using rgbaf_t = basic_rgba<rgb::model::rgba_float>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_rgba
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_rgba<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_rgba<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}

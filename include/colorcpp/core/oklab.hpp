@@ -8,6 +8,7 @@
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/io.hpp>
 #include <tuple>
 #include <type_traits>
 
@@ -141,3 +142,14 @@ using oklab_t = basic_oklab<oklab::model::oklab>;
 using oklch_t = basic_oklab<oklab::model::oklch>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_oklab
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_oklab<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_oklab<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}

@@ -19,7 +19,7 @@ namespace colorcpp::operations::palette {
 template <typename Color>
 auto rainbow(size_t count = 7) {
   using namespace conversion;
-  
+
   palette_set<Color> p;
   if (count == 0) return p;
 
@@ -41,7 +41,7 @@ auto rainbow(size_t count = 7) {
 template <typename Color>
 auto rainbow_custom(size_t count, float saturation, float lightness) {
   using namespace conversion;
-  
+
   palette_set<Color> p;
   if (count == 0) return p;
 

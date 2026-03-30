@@ -37,8 +37,8 @@ auto material_primary(const Color& base, size_t count = 10) {
   float sat = hsl.template get_index<1>();
 
   // Material primary: high saturation, varying lightness
-  core::hsla_float_t primary_start{hue, sat, 0.1f, 1.0f};   // 10
-  core::hsla_float_t primary_end{hue, sat, 0.99f, 1.0f};    // 99
+  core::hsla_float_t primary_start{hue, sat, 0.1f, 1.0f};  // 10
+  core::hsla_float_t primary_end{hue, sat, 0.99f, 1.0f};   // 99
 
   return visual_scale(color_cast<Color>(primary_start), color_cast<Color>(primary_end), count);
 }

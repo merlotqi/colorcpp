@@ -7,11 +7,11 @@
 
 #include <algorithm>
 #include <cmath>
-#include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/blend/mode.hpp>
 #include <colorcpp/operations/blend/algorithms.hpp>
-#include <colorcpp/operations/blend/non_separable.hpp>
 #include <colorcpp/operations/blend/details.hpp>
+#include <colorcpp/operations/blend/mode.hpp>
+#include <colorcpp/operations/blend/non_separable.hpp>
+#include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::operations::blend {
 

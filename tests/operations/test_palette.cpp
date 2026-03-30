@@ -337,12 +337,92 @@ TEST(MaterialTest, DesignSystem) {
   auto tertiary = material_tertiary(base, 10);
   auto neutral = material_neutral(base, 10);
   auto error = material_error<rgb8_t>(10);
-  
+
   EXPECT_EQ(primary.size(), 10u);
   EXPECT_EQ(secondary.size(), 10u);
   EXPECT_EQ(tertiary.size(), 10u);
   EXPECT_EQ(neutral.size(), 10u);
   EXPECT_EQ(error.size(), 10u);
+}
+
+// ============================================================================
+// Advanced scales tests
+// ============================================================================
+
+TEST(AdvancedScalesTest, EasingScaleLinear) {
+  auto p = easing_scale(rgb8_t{255, 0, 0}, rgb8_t{0, 0, 255}, 5, easing_type::linear);
+  EXPECT_EQ(p.size(), 5u);
+  // Linear should have equal spacing
+  EXPECT_EQ(p[0].r(), 255);
+  EXPECT_EQ(p[4].b(), 255);
+}
+
+TEST(AdvancedScalesTest, EasingScaleEaseIn) {
+  auto p = easing_scale(rgb8_t{255, 0, 0}, rgb8_t{0, 0, 255}, 5, easing_type::ease_in);
+  EXPECT_EQ(p.size(), 5u);
+  // Ease-in should be slower at start
+  auto p_linear = easing_scale(rgb8_t{255, 0, 0}, rgb8_t{0, 0, 255}, 5, easing_type::linear);
+  // First step should be closer to start (higher r value) than linear
+  EXPECT_GT(p[1].r(), p_linear[1].r());
+}
+
+TEST(AdvancedScalesTest, EasingScaleEaseOut) {
+  auto p = easing_scale(rgb8_t{255, 0, 0}, rgb8_t{0, 0, 255}, 5, easing_type::ease_out);
+  EXPECT_EQ(p.size(), 5u);
+}
+
+TEST(AdvancedScalesTest, EasingScaleBounce) {
+  auto p = easing_scale(rgb8_t{255, 0, 0}, rgb8_t{0, 0, 255}, 10, easing_type::bounce);
+  EXPECT_EQ(p.size(), 10u);
+}
+
+TEST(AdvancedScalesTest, SplineScaleBasic) {
+  std::vector<rgb8_t> control;
+  control.push_back(rgb8_t{255, 0, 0});    // Red
+  control.push_back(rgb8_t{255, 255, 0});  // Yellow
+  control.push_back(rgb8_t{0, 255, 0});    // Green
+  control.push_back(rgb8_t{0, 0, 255});    // Blue
+  auto p = spline_scale(control, 10);
+  EXPECT_EQ(p.size(), 10u);
+}
+
+TEST(AdvancedScalesTest, SplineScaleCentripetal) {
+  std::vector<rgb8_t> control;
+  control.push_back(rgb8_t{255, 0, 0});
+  control.push_back(rgb8_t{255, 255, 0});
+  control.push_back(rgb8_t{0, 255, 0});
+  control.push_back(rgb8_t{0, 0, 255});
+  auto p = spline_scale(control, 10, interpolate::cr_mode::centripetal);
+  EXPECT_EQ(p.size(), 10u);
+}
+
+TEST(AdvancedScalesTest, MultiScaleThreeColors) {
+  std::vector<rgb8_t> colors;
+  colors.push_back(rgb8_t{255, 0, 0});  // Red
+  colors.push_back(rgb8_t{0, 255, 0});  // Green
+  colors.push_back(rgb8_t{0, 0, 255});  // Blue
+  auto p = multi_scale(colors, 9);
+  EXPECT_EQ(p.size(), 9u);
+}
+
+TEST(AdvancedScalesTest, MultiScaleHSL) {
+  std::vector<rgb8_t> colors;
+  colors.push_back(rgb8_t{255, 0, 0});
+  colors.push_back(rgb8_t{0, 0, 255});
+  auto p = multi_scale(colors, 5, lerp_method::hsl);
+  EXPECT_EQ(p.size(), 5u);
+}
+
+TEST(AdvancedScalesTest, EmptyInputs) {
+  auto p1 = easing_scale(rgb8_t{255, 0, 0}, rgb8_t{0, 0, 255}, 0, easing_type::linear);
+  EXPECT_TRUE(p1.empty());
+
+  std::vector<rgb8_t> empty;
+  auto p2 = spline_scale(empty, 5);
+  EXPECT_TRUE(p2.empty());
+
+  auto p3 = multi_scale(empty, 5);
+  EXPECT_TRUE(p3.empty());
 }
 
 }  // namespace colorcpp::operations::test

@@ -3,7 +3,7 @@
 #include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp;
-using colorcpp::operations::gamut::is_in_srgb_gamut;
+using colorcpp::algorithms::gamut::is_in_srgb_gamut;
 using colorcpp::operations::palette::perceptual_scale;
 
 static void BM_IsInSrgbGamut_OkLab(benchmark::State& state) {

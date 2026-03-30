@@ -18,6 +18,11 @@ Implemented Features
 * ``visual_scale(start, end, count)`` - HSL interpolation (more vivid)
 * ``perceptual_scale(start, end, count)`` - Oklab interpolation
 
+**Advanced Scales:** (see :doc:`advanced_scales`)
+* ``easing_scale(start, end, count, easing)`` - Gradient with easing functions
+* ``spline_scale(control_points, count)`` - Catmull-Rom spline through control points
+* ``multi_scale(colors, count)`` - Smooth multi-color gradient
+
 **Harmony:**
 * ``generate::complementary(base)`` - 180° rotation
 * ``generate::analogous(base, angle)`` - ±angle rotation (default: 30°)

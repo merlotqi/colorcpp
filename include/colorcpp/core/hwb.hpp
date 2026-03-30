@@ -10,6 +10,7 @@
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/io.hpp>
 
 namespace colorcpp::core::hwb {
 
@@ -131,3 +132,14 @@ using hwb_float_t = basic_hwb<hwb::model::hwb>;
 using hwba_float_t = basic_hwb<hwb::model::hwba>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_hwb
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_hwb<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_hwb<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}
