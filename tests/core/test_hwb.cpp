@@ -11,6 +11,8 @@ using colorcpp::operations::conversion::color_cast;
 
 namespace colorcpp::core::test {
 
+using namespace colorcpp::io::css;
+
 TEST(HWBTest, BasicConstruction) {
   hwb_float_t hwb;
   EXPECT_FLOAT_EQ(hwb.h(), 0.0f);

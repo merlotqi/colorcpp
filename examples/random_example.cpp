@@ -18,9 +18,7 @@ std::string color_block(float r, float g, float b) {
   return "\033[48;2;" + std::to_string(ri) + ";" + std::to_string(gi) + ";" + std::to_string(bi) + "m  " + reset;
 }
 
-std::string color_block(const core::rgbf_t& c) {
-  return color_block(c.r(), c.g(), c.b());
-}
+std::string color_block(const core::rgbf_t& c) { return color_block(c.r(), c.g(), c.b()); }
 
 }  // namespace ansi
 
@@ -39,8 +37,10 @@ int main() {
   std::cout << ansi::bold << "2. Generic Random Color Interface" << ansi::reset << "\n";
   auto rgb_color = random_color<core::rgbf_t>(123);
   auto hsl_color = random_color<core::hsl_float_t>(456);
-  std::cout << "  RGB:  " << ansi::color_block(rgb_color) << " R=" << rgb_color.r() << " G=" << rgb_color.g() << " B=" << rgb_color.b() << "\n";
-  std::cout << "  HSL:  " << ansi::color_block(conversion::color_cast<core::rgbf_t>(hsl_color)) << " H=" << hsl_color.h() << " S=" << hsl_color.s() << " L=" << hsl_color.l() << "\n\n";
+  std::cout << "  RGB:  " << ansi::color_block(rgb_color) << " R=" << rgb_color.r() << " G=" << rgb_color.g()
+            << " B=" << rgb_color.b() << "\n";
+  std::cout << "  HSL:  " << ansi::color_block(conversion::color_cast<core::rgbf_t>(hsl_color))
+            << " H=" << hsl_color.h() << " S=" << hsl_color.s() << " L=" << hsl_color.l() << "\n\n";
 
   // 3. Batch generation
   std::cout << ansi::bold << "3. Batch Generation" << ansi::reset << "\n";
@@ -80,7 +80,7 @@ int main() {
 
     const char* mode_names[] = {"analogous", "complementary", "split_complementary", "triadic", "tetradic", "square"};
     harmony_mode modes[] = {harmony_mode::analogous, harmony_mode::complementary, harmony_mode::split_complementary,
-                            harmony_mode::triadic, harmony_mode::tetradic, harmony_mode::square};
+                            harmony_mode::triadic,   harmony_mode::tetradic,      harmony_mode::square};
 
     for (int i = 0; i < 6; ++i) {
       auto palette = hgen.generate_palette(base, modes[i]);

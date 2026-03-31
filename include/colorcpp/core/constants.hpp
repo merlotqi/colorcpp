@@ -14,14 +14,14 @@
 
 #pragma once
 
-#include <colorcpp/literals/literals.hpp>
+#include <colorcpp/io/literals.hpp>
 
 /**
  * @brief Named @ref colorcpp::core::rgba8_t constants (full opacity) for common and W3C color names.
  */
 namespace colorcpp::constants {
 
-using namespace colorcpp::literals;
+using namespace colorcpp::io::literals;
 
 // Basic RGB colors
 inline constexpr auto black = 0x000000_rgb;

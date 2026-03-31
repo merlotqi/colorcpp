@@ -2,11 +2,10 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
-#include <colorcpp/literals/literals.hpp>
 
-namespace colorcpp::literals::test {
+namespace colorcpp::io::test {
 
-using namespace colorcpp::literals;
+using namespace colorcpp::io::literals;
 using namespace colorcpp;
 
 // _rgb
@@ -332,4 +331,4 @@ TEST(LiteralConsistencyTest, RgbaAndArgbSameColor) {
   static_assert(by_rgba.a() == by_argb.a());
 }
 
-}  // namespace colorcpp::literals::test
+}  // namespace colorcpp::io::test
