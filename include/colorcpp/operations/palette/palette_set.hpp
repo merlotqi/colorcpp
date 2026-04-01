@@ -34,7 +34,7 @@ class palette_set {
 
   Color at(size_t index) const {
     if (index >= colors_.size()) throw std::out_of_range("colorcpp: palette index out of range");
-    return colors_.at(index);
+    return colors_[index];
   }
 
   auto begin() { return colors_.begin(); }

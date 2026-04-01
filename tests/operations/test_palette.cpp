@@ -3,6 +3,8 @@
  * @brief Unit tests for palette operations.
  */
 
+#include <cstddef>
+
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
@@ -38,7 +40,9 @@ TEST(PaletteSetTest, AddColors) {
 TEST(PaletteSetTest, AtBoundsCheck) {
   palette_set<rgb8_t> p{rgb8_t{255, 0, 0}};
   EXPECT_NO_THROW(p.at(0));
-  EXPECT_THROW(p.at(1), std::out_of_range);
+  // volatile: stop constant propagation so GCC -Warray-bounds does not false-positive on EXPECT_THROW.
+  volatile std::size_t out_of_range = 1;
+  EXPECT_THROW(p.at(out_of_range), std::out_of_range);
 }
 
 TEST(PaletteSetTest, OperatorWraparound) {
