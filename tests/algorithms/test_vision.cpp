@@ -170,16 +170,16 @@ TEST(AchromatopsiaTest, LuminanceWeighting) {
   rgb8_t red{255, 0, 0};
   rgb8_t green{0, 255, 0};
   rgb8_t blue{0, 0, 255};
-  
+
   auto gray_r = simulate_achromatopsia(red);
   auto gray_g = simulate_achromatopsia(green);
   auto gray_b = simulate_achromatopsia(blue);
-  
+
   // Green has highest luminance weight (0.7152), should be brightest
   // Blue has lowest weight (0.0722), should be darkest
   EXPECT_GT(gray_g.r(), gray_r.r());
   EXPECT_GT(gray_r.r(), gray_b.r());
-  
+
   // After sRGB gamma encoding, the values are approximately:
   // Red: 0.2126 -> 127, Green: 0.7152 -> 220, Blue: 0.0722 -> 76
   EXPECT_NEAR(gray_r.r(), 127, 2);
@@ -194,11 +194,11 @@ TEST(AchromatopsiaTest, LuminanceWeighting) {
 TEST(VisionTest, MixedColorTypes) {
   rgb8_t rgb{255, 128, 64};
   rgbf_t rgbf{1.0f, 0.5f, 0.25f};
-  
+
   // Should compile and run with different color types
   auto p1 = simulate_protanopia(rgb);
   auto p2 = simulate_protanopia(rgbf);
-  
+
   EXPECT_GE(p1.r(), 0);
   EXPECT_GE(p2.r(), 0.0f);
   EXPECT_LE(p2.r(), 1.0f);

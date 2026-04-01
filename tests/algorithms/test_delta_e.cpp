@@ -145,4 +145,4 @@ TEST(IsVisuallySameTest, CustomThreshold) {
   EXPECT_TRUE(is_visually_same(black, white, 200.0f));
 }
 
-}  // namespace colorcpp::operations::test
+}  // namespace colorcpp::algorithms::test

@@ -5,9 +5,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/io/css/details.hpp>
-#include <algorithm>
 #include <optional>
 #include <string_view>
 

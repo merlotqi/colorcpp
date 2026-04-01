@@ -1,7 +1,6 @@
-#include <cmath>
-
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <colorcpp/colorcpp.hpp>
 
 namespace colorcpp::algorithms::test {
@@ -170,4 +169,4 @@ TEST(AccessibilityTest, TextColorIsBlackOrWhite) {
   EXPECT_TRUE(black_or_white_l);
 }
 
-}  // namespace colorcpp::operations::test
+}  // namespace colorcpp::algorithms::test

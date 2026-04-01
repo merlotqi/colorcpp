@@ -7,14 +7,14 @@
 #pragma once
 
 #include <algorithm>
+#include <colorcpp/core/color_base.hpp>
 #include <cstdint>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
-#include <iomanip>
-#include <colorcpp/core/color_base.hpp>
 
 /** @brief Stream formatting and parsing for core color types. */
 namespace colorcpp::core::io {

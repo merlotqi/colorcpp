@@ -204,4 +204,21 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
  */
 inline bool is_named_color(std::string_view name) { return get_named_color(name).has_value(); }
 
+namespace named_literal {
+
+/**
+ * @brief String literal: CSS named color → rgba8_t.
+ * @example "red"_color → rgba8_t{255, 0, 0, 255}
+ * @example "coral"_color → rgba8_t{255, 127, 80, 255}
+ * @throws std::invalid_argument if the name is not a valid CSS color.
+ */
+inline auto operator"" _color(const char* str, size_t len) {
+  auto result = get_named_color(std::string_view(str, len));
+  if (!result) {
+    throw std::invalid_argument(std::string("colorcpp: unknown named color '") + std::string(str, len) + "'");
+  }
+  return *result;
+}
+}  // namespace named_literal
+
 }  // namespace colorcpp::io::css

@@ -177,13 +177,13 @@ TEST(MultiColorspaceGamutTest, IsInAdobeRGBGamut) {
 TEST(MultiColorspaceGamutTest, GamutClipToGamut) {
   // Test clipping to different gamuts
   core::oklab_t out_of_gamut(0.5f, 0.4f, 0.0f);
-  
+
   auto srgb_result = gamut_clip_to_gamut(out_of_gamut, gamut_type::srgb);
   EXPECT_TRUE(is_in_srgb_gamut(srgb_result));
-  
+
   auto p3_result = gamut_clip_to_gamut(out_of_gamut, gamut_type::display_p3);
   EXPECT_TRUE(is_in_displayp3_gamut(p3_result));
-  
+
   auto argb_result = gamut_clip_to_gamut(out_of_gamut, gamut_type::adobe_rgb);
   EXPECT_TRUE(is_in_adobergb_gamut(argb_result));
 }
@@ -231,7 +231,7 @@ TEST(GamutDistanceTest, IsNearGamutBoundary) {
 TEST(GamutMappingResultTest, InGamutColorResult) {
   rgbf_t in_gamut(0.5f, 0.3f, 0.7f);
   auto result = gamut_clip_with_info(in_gamut, preserve_mode::perceptual);
-  
+
   EXPECT_TRUE(result.was_in_gamut);
   EXPECT_NEAR(result.delta_e, 0.0f, 1e-4f);
   EXPECT_NEAR(result.original_chroma, result.mapped_chroma, 1e-4f);
@@ -242,7 +242,7 @@ TEST(GamutMappingResultTest, InGamutColorResult) {
 TEST(GamutMappingResultTest, OutOfGamutColorResult) {
   core::oklab_t out_of_gamut(0.5f, 0.4f, 0.0f);
   auto result = gamut_clip_with_info(out_of_gamut, preserve_mode::perceptual);
-  
+
   EXPECT_FALSE(result.was_in_gamut);
   EXPECT_GT(result.delta_e, 0.0f);
   EXPECT_LT(result.mapped_chroma, result.original_chroma);
@@ -258,7 +258,7 @@ TEST(PreserveModeTest, LightnessPreservation) {
   core::oklab_t out_of_gamut(0.5f, 0.4f, 0.0f);
   auto result = gamut_clip_preserve_lightness(out_of_gamut);
   EXPECT_TRUE(is_in_srgb_gamut(result));
-  
+
   // Lightness should be preserved (approximately)
   auto lab_result = color_cast<core::oklab_t>(result);
   EXPECT_NEAR(lab_result.l(), 0.5f, 0.01f);
@@ -284,9 +284,9 @@ TEST(PreserveModeTest, PerceptualPreservation) {
 
 TEST(PreserveModeTest, AllPreserveModesProduceValidResults) {
   core::oklab_t out_of_gamut(0.6f, 0.3f, 0.2f);
-  
-  for (auto mode : {preserve_mode::lightness, preserve_mode::hue, 
-                    preserve_mode::saturation, preserve_mode::perceptual}) {
+
+  for (auto mode :
+       {preserve_mode::lightness, preserve_mode::hue, preserve_mode::saturation, preserve_mode::perceptual}) {
     auto result = gamut_clip_preserve(out_of_gamut, mode);
     EXPECT_TRUE(is_in_srgb_gamut(result)) << "mode=" << (int)mode;
   }
@@ -294,9 +294,9 @@ TEST(PreserveModeTest, AllPreserveModesProduceValidResults) {
 
 TEST(PreserveModeTest, GamutClipWithInfo) {
   core::oklab_t out_of_gamut(0.6f, 0.3f, 0.2f);
-  
-  for (auto mode : {preserve_mode::lightness, preserve_mode::hue, 
-                    preserve_mode::saturation, preserve_mode::perceptual}) {
+
+  for (auto mode :
+       {preserve_mode::lightness, preserve_mode::hue, preserve_mode::saturation, preserve_mode::perceptual}) {
     auto result = gamut_clip_with_info(out_of_gamut, mode);
     EXPECT_TRUE(is_in_srgb_gamut(result.mapped_color)) << "mode=" << (int)mode;
     EXPECT_TRUE(result.is_valid()) << "mode=" << (int)mode;

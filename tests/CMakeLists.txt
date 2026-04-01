@@ -21,6 +21,7 @@ if(COLORCPP_BUILD_TESTS)
         get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
         add_executable(${TEST_NAME} ${TEST_SOURCE})
         target_link_libraries(${TEST_NAME} PRIVATE GTest::gtest_main colorcpp)
+        set_target_properties(${TEST_NAME} PROPERTIES FOLDER "tests")
         
         gtest_discover_tests(${TEST_NAME}
             TEST_PREFIX "${TEST_NAME}."

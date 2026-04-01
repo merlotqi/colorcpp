@@ -11,8 +11,8 @@
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
-#include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/io.hpp>
+#include <colorcpp/core/linear_rgb.hpp>
 
 namespace colorcpp::core::display_p3 {
 

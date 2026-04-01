@@ -30,6 +30,7 @@ if(COLORCPP_BUILD_BENCHMARKS)
     get_filename_component(BENCHMARK_NAME ${BENCHMARK_SOURCE} NAME_WE)
     add_executable(${BENCHMARK_NAME} ${BENCHMARK_SOURCE})
     target_link_libraries(${BENCHMARK_NAME} PRIVATE benchmark::benchmark_main colorcpp::colorcpp)
+        set_target_properties(${BENCHMARK_NAME} PROPERTIES FOLDER "benchmarks")
     list(APPEND BENCHMARK_TARGETS ${BENCHMARK_NAME})
   endforeach()
 

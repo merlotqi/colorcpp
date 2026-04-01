@@ -8,13 +8,13 @@
 
 #pragma once
 
-#include <colorcpp/algorithms/gradient/stops.hpp>
-#include <colorcpp/algorithms/gradient/easing.hpp>
+#include <colorcpp/algorithms/gradient/angular.hpp>
 #include <colorcpp/algorithms/gradient/details.hpp>
+#include <colorcpp/algorithms/gradient/easing.hpp>
 #include <colorcpp/algorithms/gradient/linear.hpp>
 #include <colorcpp/algorithms/gradient/radial.hpp>
-#include <colorcpp/algorithms/gradient/angular.hpp>
 #include <colorcpp/algorithms/gradient/sequence.hpp>
+#include <colorcpp/algorithms/gradient/stops.hpp>
 
 /**
  * @brief Gradient generation algorithms.
