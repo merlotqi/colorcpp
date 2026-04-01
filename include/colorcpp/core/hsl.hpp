@@ -6,6 +6,7 @@
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/io.hpp>
 
 namespace colorcpp::core::hsl {
 
@@ -127,3 +128,14 @@ using hsl_float_t = basic_hsl<hsl::model::hsl>;
 using hsla_float_t = basic_hsl<hsl::model::hsla>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_hsl
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_hsl<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_hsl<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}

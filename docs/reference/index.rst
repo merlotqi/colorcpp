@@ -20,9 +20,15 @@ These pages summarize **what** each part of colorcpp implements, **where** it li
    blend
    interpolate
    palette
+   advanced_scales
+   harmony
    gamut
    accessibility
    vision
    random
    css_color
    io
+   serialization
+   binary_io
+   ansi
+   color_temperature

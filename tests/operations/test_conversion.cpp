@@ -147,6 +147,23 @@ TEST(ConversionTest, Rgb8RoundTrip) {
   EXPECT_EQ(back.b(), orig.b());
 }
 
+// Hub + registered edges (8-bit sRGB hub is float sRGB)
+
+TEST(ConversionTest, Rgb8ToLinearRgbfViaRgbfHub) {
+  rgb8_t c(255, 128, 0);
+  auto lin = color_cast<linear_rgbf_t>(c);
+  EXPECT_GT(lin.r(), 0.5f);
+  EXPECT_GT(lin.g(), 0.0f);
+  EXPECT_FLOAT_EQ(lin.b(), 0.0f);
+}
+
+TEST(ConversionTest, Rgb8ToHslViaRegisteredRgbf) {
+  rgb8_t red(255, 0, 0);
+  auto hsl = color_cast<hsl_float_t>(red);
+  EXPECT_NEAR(hsl.h(), 0.0f, 1e-3f);
+  EXPECT_GT(hsl.s(), 0.9f);
+}
+
 // Multi-hop conversions
 
 TEST(ConversionTest, HslToOklabMultiHop) {

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/io.hpp>
 #include <tuple>
 #include <type_traits>
 
@@ -143,3 +144,14 @@ using cielab_t = basic_lab<lab::model::cielab>;
 using cielch_t = basic_lab<lab::model::cielch>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_lab
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_lab<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_lab<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}

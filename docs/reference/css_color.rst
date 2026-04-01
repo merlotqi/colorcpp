@@ -12,7 +12,8 @@ In colorcpp
 Notes
 -----
 
-* **Not implemented** in the current subset: named colors, ``color()``, ``lab()`` / ``lch()`` / ``oklab()`` / ``oklch()``, relative syntax, ``hwb()``, ``device-cmyk()``. See README section *CSS color parsing* for the authoritative list.
+* **Supported formats**: hex (``#rgb``, ``#rgba``, ``#rrggbb``, ``#rrggbbaa``), ``rgb()`` / ``rgba()``, ``hsl()`` / ``hsla()``, ``hwb()``, ``oklab()``, ``oklch()``, ``color(display-p3 ...)``
+* **Not implemented** in the current subset: named colors, ``color()`` (for other color spaces), ``lab()`` / ``lch()``, relative syntax, ``device-cmyk()``. See README section *CSS color parsing* for the authoritative list.
 * Parsing behavior should match the README examples; for full browser behavior always verify against a CSS implementation.
 
 References

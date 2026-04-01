@@ -5,7 +5,7 @@
 using namespace colorcpp;
 using namespace colorcpp::operations::interpolate;
 using namespace colorcpp::operations::conversion;
-using namespace colorcpp::literals;
+using namespace colorcpp::io::literals;
 
 void section(const char* s) { std::cout << "\n=== " << s << " ===\n"; }
 

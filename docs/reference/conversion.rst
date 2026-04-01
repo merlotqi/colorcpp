@@ -8,7 +8,7 @@ In colorcpp
 
 * Header: ``include/colorcpp/operations/conversion.hpp``
 * Entry point: ``colorcpp::operations::conversion::color_cast<To>(from)``
-* Extension point: specialize ``color_cast_impl`` for new models (see header comments).
+* **Extension:** register a direct conversion with ``COLORCPP_REGISTER_CONVERSION`` / ``COLORCPP_REGISTER_CONVERSION_BIDIR`` (see ``include/colorcpp/operations/conversion/registry.hpp``), typically next to other registrations in ``include/colorcpp/operations/conversion/functions/index.hpp``. For automatic multi-hop routing, specialize ``color_traits<YourModel>::hub_type`` in ``include/colorcpp/operations/conversion/color_space_registry.hpp`` (or a header you include after ``traits.hpp``).
 
 Notes
 -----

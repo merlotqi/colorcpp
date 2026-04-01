@@ -4,9 +4,9 @@
 
 using namespace colorcpp;
 using namespace colorcpp::core;
-using namespace colorcpp::core::io;
 using namespace colorcpp::operations::conversion;
-using namespace colorcpp::literals;
+using namespace colorcpp::io::literals;
+using namespace colorcpp::io::css;
 
 static void section(const char* title) { std::cout << "\n── " << title << " ──\n"; }
 

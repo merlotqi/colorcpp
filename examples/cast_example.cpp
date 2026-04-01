@@ -3,7 +3,7 @@
 
 using namespace colorcpp;
 using namespace colorcpp::operations::conversion;
-using namespace colorcpp::literals;
+using namespace colorcpp::io::literals;
 
 int main() {
   auto red_rgba = constants::thistle;

@@ -6,6 +6,7 @@
 #pragma once
 
 #include <colorcpp/core/color_base.hpp>
+#include <colorcpp/core/io.hpp>
 
 namespace colorcpp::core::hsv {
 
@@ -128,3 +129,14 @@ using hsv_float_t = basic_hsv<hsv::model::hsv>;
 using hsva_float_t = basic_hsv<hsv::model::hsva>;
 
 }  // namespace colorcpp::core
+
+// I/O operators for basic_hsv
+template <typename Model>
+std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_hsv<Model>& c) {
+  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
+}
+
+template <typename Model>
+std::istream& operator>>(std::istream& is, colorcpp::core::basic_hsv<Model>& c) {
+  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
+}
