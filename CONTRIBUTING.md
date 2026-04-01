@@ -146,11 +146,10 @@ constexpr auto to_hsv(const basic_rgb<T, Scale>& rgb) {
 
 Tests are located in the `tests/` directory and organized by feature:
 
-- `tests/core/` - Core color type tests
-- `tests/conversion/` - Color space conversion tests
-- `tests/operations/` - Color operation tests
-- `tests/literals/` - Literal operator tests
-- `tests/palettes/` - Color palette tests
+- `tests/core/` — Core color type tests (RGB, HSL, HSV, HWB, CMYK, OkLab, CIELAB)
+- `tests/io/` — I/O tests (CSS parsing, literals, serialization, binary IO, ANSI, named colors)
+- `tests/algorithms/` — Algorithm tests (accessibility, delta_e, gamut, gradient, harmony, vision, color_temperature)
+- `tests/operations/` — Operation tests (blend, compare, conversion, interpolate, palette)
 
 ### Writing Tests
 

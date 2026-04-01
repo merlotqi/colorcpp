@@ -7,11 +7,14 @@ A modern, header-only C++ library for color manipulation and conversion between 
 ## ✨ Features
 
 - **Header-only**: No build required, just include and use
-- **Multiple color spaces**: RGB, HSV, HSL, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ
+- **Multiple color spaces**: RGB, HSV, HSL, HWB, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ, Display P3
 - **Perceptually uniform**: Built-in support for CIELAB and OkLab for perceptual operations
-- **Color operations**: Blending, interpolation, palette generation, accessibility checking
-- **I/O support**: Parse colors from strings, format colors for output; CSS Color 4-style `rgb()` / `hsl()` / `oklab()` / `oklch()` / `color(display-p3)` / hex (see below)
-- **Type-safe literals**: User-defined literals for convenient color creation
+- **Color operations**: Blending, interpolation, palette generation, accessibility checking, color temperature
+- **I/O support**: CSS Color 4 parsing (hex, rgb, hsl, oklab, oklch, display-p3, lab, lch, hwb, named colors)
+- **Serialization**: JSON and MessagePack adapters for network/config integration
+- **Binary IO**: Read/write DaVinci Resolve .cube LUT files (1D and 3D)
+- **ANSI terminal**: Colored swatches, palettes, gradients, WCAG contrast previews for debugging
+- **Type-safe literals**: User-defined literals for RGB, HSL, HSV, CMYK, OkLab, named colors
 - **Template-based**: Zero-cost abstractions with compile-time validation
 - **C++17+**: Works with any C++17 compatible compiler
 
@@ -104,16 +107,20 @@ auto c = colorcpp::core::parse_css_color_rgba8("rgb(255 99 71 / 50%)");
 auto hsl = colorcpp::core::parse_css_color<colorcpp::core::hsla_float_t>("hsl(120 100% 50%)");
 ```
 
-**Supported (subset of CSS Color Module Level 4):**
+**Supported (CSS Color Module Level 4):**
 
-- Hex: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` (optional surrounding ASCII whitespace).
-- `rgb()` / `rgba()`: legacy commas (`rgb(255, 99, 71)`), modern spaces (`rgb(255 99 71)`), slash alpha (`rgb(255 99 71 / 50%)`), mixing numbers (0–255) and percentages per channel, alpha as number or percentage.
-- `hsl()` / `hsla()`: comma or space syntax; hue with optional `deg`, `grad`, `rad`, `turn` (bare number = degrees); saturation/lightness as `%` or legacy 0–100 number scaled to [0, 1]; optional alpha (comma or `/`).
-- `oklab(L a b)`: L as number or percentage, a and b as numbers or percentages; optional alpha with `/`.
-- `oklch(L C H)`: L as number or percentage, C as number or percentage, H as hue angle with optional units; optional alpha with `/`.
-- `color(display-p3 r g b)`: r, g, b as numbers or percentages; optional alpha with `/`.
+- **Hex:** `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`
+- **`rgb()` / `rgba()`:** legacy commas, modern spaces, slash alpha, percentages
+- **`hsl()` / `hsla()`:** hue with `deg`/`grad`/`rad`/`turn`, percentage saturation/lightness
+- **`oklab(L a b)`:** L as number/percentage, a/b as numbers/percentages
+- **`oklch(L C H)`:** L as number/percentage, C as number/percentage, H as hue angle
+- **`lab(L a b)`:** CIE L\*a\*b\* with D65 white point
+- **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
+- **`hwb(H W B)`:** Hue-Whiteness-Blackness
+- **`color(display-p3 r g b)`:** Display P3 primaries
+- **Named colors:** all 140+ CSS Level 4 named colors (`red`, `coral`, `steelblue`, …) — case-insensitive
 
-**Not supported yet:** named colors (`red`, `transparent`, …), `color()` (for other color spaces), `lab()` / `lch()`, `hwb()`, `device-cmyk()`, relative color syntax (`rgb(from …)`). These may be added in later releases.
+**Not supported yet:** `color()` for other color spaces, `device-cmyk()`, relative color syntax (`rgb(from …)`). These may be added in later releases.
 
 ## 🔄 Color Conversion
 
@@ -302,40 +309,143 @@ oss << color;
 auto recovered = parse<decltype(color)>(oss.str());
 ```
 
+### Named Color Literals
+
+```cpp
+using namespace colorcpp::io::css::named_literal;
+
+// CSS named color → rgba8_t
+auto coral = "coral"_color;       // → rgba8_t{255, 127, 80, 255}
+auto red = "red"_color;           // → rgba8_t{255, 0, 0, 255}
+auto steelblue = "steelblue"_color; // → rgba8_t{70, 130, 180, 255}
+
+// Case-insensitive
+auto gold = "GOLD"_color;         // → rgba8_t{255, 215, 0, 255}
+
+// Lookup by name
+auto c = get_named_color("coral");  // → std::optional<rgba8_t>
+bool valid = is_named_color("red"); // → true
+```
+
+### Serialization (JSON / MessagePack)
+
+```cpp
+#include <colorcpp/io/serialization.hpp>
+
+// Specialize json_adapter for your JSON library (e.g. nlohmann::json)
+// Then use to_json / from_json for any color type:
+
+auto j = serialization::to_json<nlohmann::json>(coral_color);
+auto recovered = serialization::from_json<nlohmann::json, rgba8_t>(j);
+
+// Named format with custom channel names
+std::string names[] = {"red", "green", "blue", "alpha"};
+auto j_named = serialization::to_json<nlohmann::json>(coral, names, opts);
+```
+
+### Binary IO (LUT Files)
+
+```cpp
+#include <colorcpp/io/binary_io.hpp>
+
+// Read a DaVinci Resolve .cube LUT file
+auto lut = binary_io::cube::read_3d("grade.cube");
+
+// Apply LUT to a color
+auto graded = binary_io::apply(*lut, 0.5f, 0.3f, 0.8f);
+
+// Write a LUT file
+binary_io::cube::write("output.cube", *lut, "My Grade");
+```
+
+### ANSI Terminal Output
+
+```cpp
+#include <colorcpp/io/ansi.hpp>
+
+// Print colored swatch with info
+auto c = "coral"_color;
+ansi::print_color(std::cout, c, "coral");
+// Output: ██████ coral #ff7f50ff  RGB(255,127,80)
+
+// Print palette
+ansi::print_palette(std::cout, colors, count);
+
+// Print gradient
+ansi::print_gradient(std::cout, "red"_color, "blue"_color);
+
+// Print WCAG contrast check
+ansi::print_contrast(std::cout, "white"_color, "navy"_color);
+// Output:  Aa  #fff on #000080  contrast: 14.4:1  AAA
+```
+
+### Color Temperature
+
+```cpp
+#include <colorcpp/algorithms/color_temperature.hpp>
+
+// Kelvin → sRGB (1000–40000K)
+auto warm = color_temperature::kelvin_to_rgba8(2700.0f);   // Warm white
+auto daylight = color_temperature::kelvin_to_rgba8(6500.0f); // D65 white
+auto cool = color_temperature::kelvin_to_rgba8(10000.0f);  // Overcast sky
+
+// Float version
+auto linear = color_temperature::kelvin_to_linear_rgb(5500.0f);
+auto srgb = color_temperature::kelvin_to_rgb(5500.0f);
+```
+
 ## 📁 Project Structure
 
 ```
 include/colorcpp/
-├── colorcpp.hpp           # Main header (includes everything)
+├── colorcpp.hpp              # Main header (includes everything)
 ├── core/
-│   ├── core.hpp           # Core includes
-│   ├── color_base.hpp     # Base color type definitions
-│   ├── constants.hpp      # Named color constants
-│   ├── rgb.hpp           # RGB color space
-│   ├── hsv.hpp           # HSV color space
-│   ├── hsl.hpp           # HSL color space
-│   ├── cmyk.hpp          # CMYK color space
-│   ├── linear_rgb.hpp     # Linear RGB (no gamma)
-│   ├── cielab.hpp        # CIELAB / CIELCH
-│   ├── oklab.hpp         # OkLab / OkLCH
-│   ├── xyz.hpp           # CIE XYZ
-│   ├── io.hpp            # I/O (parsing/formatting)
-│   └── css_color.hpp     # CSS Color 4 subset (hex, rgb, hsl)
+│   ├── core.hpp              # Core includes
+│   ├── color_base.hpp        # Base color type definitions
+│   ├── concepts.hpp          # Type traits and concepts
+│   ├── constants.hpp         # Named color constants
+│   ├── io.hpp                # Stream I/O operators
+│   ├── rgb.hpp               # RGB / RGBA (8-bit & float)
+│   ├── linear_rgb.hpp        # Linear RGB (no gamma)
+│   ├── hsl.hpp               # HSL / HSLA
+│   ├── hsv.hpp               # HSV / HSVA
+│   ├── hwb.hpp               # HWB / HWBA
+│   ├── cmyk.hpp              # CMYK
+│   ├── cielab.hpp            # CIELAB / CIELCH
+│   ├── oklab.hpp             # OkLab / OkLCH
+│   ├── xyz.hpp               # CIE XYZ
+│   └── display_p3.hpp        # Display P3
+├── algorithms/
+│   ├── algorithms.hpp        # Algorithm includes
+│   ├── accessibility.hpp     # WCAG 2 + APCA Lc
+│   ├── color_temperature.hpp # Kelvin → RGB conversion
+│   ├── delta_e.hpp           # ΔE76 / ΔE94 / ΔE2000
+│   ├── gamut.hpp             # Gamut mapping
+│   ├── gradient.hpp          # Gradient generation
+│   ├── harmony.hpp           # Color harmony
+│   └── vision.hpp            # Color blindness simulation
 ├── operations/
-│   ├── operations.hpp     # Operations includes
-│   ├── conversion.hpp     # Color space conversion
-│   ├── blend.hpp          # Blending modes
-│   ├── palette.hpp        # Palette generation
-│   ├── interpolate.hpp    # Color interpolation
-│   ├── delta_e.hpp        # Color difference metrics
-│   ├── gamut.hpp          # Gamut checking/clipping
-│   ├── accessibility.hpp  # WCAG 2 + APCA Lc
-│   ├── vision.hpp         # Color vision simulation
-│   └── random.hpp         # Random color generation
-├── literals/
-│   └── literals.hpp       # User-defined literals
-└── traits/
-    └── concepts.hpp       # Type traits and concepts
+│   ├── operations.hpp        # Operation includes
+│   ├── conversion.hpp        # Color space conversion
+│   ├── blend.hpp             # Blending modes
+│   ├── compare.hpp           # Color comparison
+│   ├── interpolate.hpp       # Color interpolation
+│   ├── palette.hpp           # Palette generation
+│   ├── harmony.hpp           # Harmony operations
+│   └── random.hpp            # Random color generation
+├── io/
+│   ├── io.hpp                # I/O aggregate
+│   ├── css.hpp               # CSS Color 4 parsing
+│   ├── css/                  # CSS parsing internals
+│   ├── literals.hpp          # User-defined literals
+│   ├── literals/             # Literal operators
+│   ├── serialization.hpp     # JSON / MessagePack adapters
+│   ├── serialization/        # Serialization internals
+│   ├── binary_io.hpp         # LUT file formats
+│   ├── binary_io/            # Binary IO internals
+│   └── ansi.hpp              # ANSI terminal output
+└── algorithms/
+    └── (see above)
 ```
 
 ## 🔧 Requirements

@@ -28,3 +28,7 @@ These pages summarize **what** each part of colorcpp implements, **where** it li
    random
    css_color
    io
+   serialization
+   binary_io
+   ansi
+   color_temperature
