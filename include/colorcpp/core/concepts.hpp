@@ -1,10 +1,11 @@
 /**
  * @file concepts.hpp
- * @brief Type traits for color models: channels, tags, storage tuples, and @ref colorcpp::traits::model_traits.
+ * @brief Type traits for color models: channels, tags, @c std::array storage, and @ref colorcpp::traits::model_traits.
  */
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <string_view>
@@ -43,6 +44,12 @@ struct has_channel_tag_impl
     : std::bool_constant<(find_channel_index_impl<Tuple, Tag>::value < std::tuple_size_v<Tuple>)> {};
 
 }  // namespace details
+
+/** @brief True if every @c Channels::value_type matches @c RefChannel::value_type (required for array storage). */
+template <typename RefChannel, typename... Channels>
+constexpr bool all_same_channel_value_type_as() noexcept {
+  return (std::is_same_v<typename RefChannel::value_type, typename Channels::value_type> && ...);
+}
 
 /** @brief Default [min,max] for a scalar type when a channel does not override range. */
 template <typename T>
@@ -125,16 +132,21 @@ template <typename Model, typename Tag>
 inline constexpr std::size_t channel_index_v = channel_index<Model, Tag>::value;
 
 /**
- * @brief Maps @c channels_type = @c tuple<Ch0,…> to @c tuple<Ch0::value_type,…> for @ref colorcpp::core::basic_color
- * storage.
+ * @brief Maps @c channels_type = @c tuple<Ch0,…> to @c std::array<T,N> where @c T is the shared channel scalar type.
  */
 template <typename ChannelsTuple>
 struct channels_storage;
 
-/** @brief Tuple of each channel's @c value_type. */
+/** @brief Contiguous storage; all @c Channels::value_type must be identical. */
 template <typename... Channels>
 struct channels_storage<std::tuple<Channels...>> {
-  using type = std::tuple<typename Channels::value_type...>;
+  using first_channel = std::tuple_element_t<0, std::tuple<Channels...>>;
+
+  static_assert(sizeof...(Channels) > 0, "colorcpp: model must declare at least one channel");
+  static_assert(all_same_channel_value_type_as<first_channel, Channels...>(),
+                "colorcpp: all basic_channel value_type must match for std::array storage");
+
+  using type = std::array<typename first_channel::value_type, sizeof...(Channels)>;
 };
 
 template <typename ChannelsTuple>

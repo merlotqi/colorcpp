@@ -7,6 +7,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <colorcpp/core/color_base.hpp>
 #include <cstdint>
 #include <iomanip>

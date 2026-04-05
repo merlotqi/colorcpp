@@ -77,13 +77,13 @@ struct basic_lab : basic_color<Model> {
   template <typename Tag>
   constexpr auto& channel() {
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return std::get<idx>(data);
+    return data[idx];
   }
 
   template <typename Tag>
   constexpr const auto& channel() const {
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return std::get<idx>(data);
+    return data[idx];
   }
 
  public:
