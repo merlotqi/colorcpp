@@ -52,4 +52,11 @@ inline std::optional<core::rgba8_t> parse_hex(std::string_view s) {
   return std::nullopt;
 }
 
+/** @brief Hex to float sRGB (exact 0–1 from hex nibbles; no 8-bit round-trip). */
+inline std::optional<core::rgbaf_t> parse_hex_rgbaf(std::string_view s) {
+  auto u8 = parse_hex(s);
+  if (!u8) return std::nullopt;
+  return core::rgbaf_t{u8->r() / 255.0f, u8->g() / 255.0f, u8->b() / 255.0f, u8->a() / 255.0f};
+}
+
 }  // namespace colorcpp::io::css

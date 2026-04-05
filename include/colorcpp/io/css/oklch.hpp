@@ -33,36 +33,40 @@ inline std::optional<core::oklch_t> parse_oklch_function(details::Cursor& c) {
     c.i = checkpoint;
     details::Cursor d{c.s, c.i};
 
-    // Parse L (lightness): 0-100% or 0-1
-    auto l_cv = d.parse_component_value();
-    if (!l_cv) return std::nullopt;
-    float L = static_cast<float>(l_cv->first);
-    if (l_cv->second) {
-      // Percentage: 0-100% maps to 0-1
-      L = std::clamp(L, 0.0f, 100.0f) / 100.0f;
-    } else {
-      L = std::clamp(L, 0.0f, 1.0f);
+    float L = 0.f;
+    if (!d.try_consume_none()) {
+      auto l_cv = d.parse_component_value();
+      if (!l_cv) return std::nullopt;
+      L = static_cast<float>(l_cv->first);
+      if (l_cv->second) {
+        L = std::clamp(L, 0.0f, 100.0f) / 100.0f;
+      } else {
+        L = std::clamp(L, 0.0f, 1.0f);
+      }
     }
 
     d.skip_ws();
 
-    // Parse C (chroma): 0-0.4 (can be percentage or number)
-    auto c_cv = d.parse_component_value();
-    if (!c_cv) return std::nullopt;
-    float C = static_cast<float>(c_cv->first);
-    if (c_cv->second) {
-      // Percentage: 0-100% maps to 0-0.4
-      C = std::clamp(C, 0.0f, 100.0f) * 0.004f;
-    } else {
-      C = std::clamp(C, 0.0f, 0.4f);
+    float C = 0.f;
+    if (!d.try_consume_none()) {
+      auto c_cv = d.parse_component_value();
+      if (!c_cv) return std::nullopt;
+      C = static_cast<float>(c_cv->first);
+      if (c_cv->second) {
+        C = std::clamp(C, 0.0f, 100.0f) * 0.004f;
+      } else {
+        C = std::clamp(C, 0.0f, 0.4f);
+      }
     }
 
     d.skip_ws();
 
-    // Parse H (hue angle)
-    auto h = d.parse_hue_angle();
-    if (!h) return std::nullopt;
-    float H = static_cast<float>(*h);
+    float H = 0.f;
+    if (!d.try_consume_none()) {
+      auto h = d.parse_hue_angle();
+      if (!h) return std::nullopt;
+      H = static_cast<float>(*h);
+    }
 
     d.skip_ws();
 

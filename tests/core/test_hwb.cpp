@@ -183,6 +183,16 @@ TEST(HWBTest, CSSParsing) {
   ASSERT_TRUE(color7.has_value());
   EXPECT_FLOAT_EQ(color6->h(), color7->h());
 
+  // CSS Color 4: W+B > 100% scales proportionally (same sRGB as normalized components)
+  auto norm_gray = parse_css_color<rgba8_t>("hwb(0 50% 50%)");
+  auto sum_gray = parse_css_color<rgba8_t>("hwb(0 80% 80%)");
+  ASSERT_TRUE(norm_gray.has_value());
+  ASSERT_TRUE(sum_gray.has_value());
+  EXPECT_EQ(norm_gray->r(), sum_gray->r());
+  EXPECT_EQ(norm_gray->g(), sum_gray->g());
+  EXPECT_EQ(norm_gray->b(), sum_gray->b());
+  EXPECT_EQ(norm_gray->a(), sum_gray->a());
+
   // Invalid HWB syntax
   EXPECT_FALSE(parse_css_color<hwb_float_t>("hwb()").has_value());
   EXPECT_FALSE(parse_css_color<hwb_float_t>("hwb(120)").has_value());

@@ -29,7 +29,6 @@ class golden_angle_generator {
                 "golden_angle_generator requires a color type with hue channel (HSL, HSV, HWB, OkLCH, CIELCH)");
 
   using traits = details::color_traits<Color>;
-  using T = typename Color::value_type;
 
   mutable Engine rng;
   mutable float current_hue;

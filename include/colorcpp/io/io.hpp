@@ -9,6 +9,7 @@
 #include <colorcpp/io/ansi.hpp>
 #include <colorcpp/io/binary_io.hpp>
 #include <colorcpp/io/css.hpp>
+#include <colorcpp/io/css/format.hpp>
 #include <colorcpp/io/literals.hpp>
 #include <colorcpp/io/serialization.hpp>
 
