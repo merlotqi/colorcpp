@@ -15,20 +15,23 @@ These pages summarize **what** each part of colorcpp implements, **where** it li
    :caption: Topics
 
    color_spaces
-   conversion
-   delta_e
-   blend
+    conversion
+    compare
+    delta_e
+    blend
    interpolate
-   palette
-   advanced_scales
-   harmony
+    palette
+    advanced_scales
+    gradient
+    harmony
    gamut
    accessibility
    vision
    random
-   css_color
-   io
-   serialization
+    css_color
+    io
+    literals
+    serialization
    binary_io
    ansi
    color_temperature

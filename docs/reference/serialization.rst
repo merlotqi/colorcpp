@@ -10,13 +10,14 @@ In colorcpp
 -----------
 
 **Headers:** ``include/colorcpp/io/serialization.hpp``
+**Namespace:** ``colorcpp::io::serialization``
 
 Main entry points:
 
-- ``serialization::to_json<Json>(color)`` — serialize to JSON (compact or named format)
-- ``serialization::from_json<Json, Color>(json)`` — deserialize from JSON
-- ``serialization::pack_color(packer, color)`` — serialize to MessagePack
-- ``serialization::unpack_color<Color>(unpacker)`` — deserialize from MessagePack
+- ``to_json<Json>(color)`` — serialize to JSON (compact / named / tagged format)
+- ``from_json<Json, Color>(json)`` — deserialize from JSON
+- ``pack_color(packer, color)`` — serialize to MessagePack stream
+- ``unpack_color<Color>(unpacker)`` — deserialize from MessagePack stream
 
 Adapter Pattern
 ~~~~~~~~~~~~~~~~
@@ -33,21 +34,52 @@ Users must specialize ``json_adapter<Json>`` for their JSON library. The adapter
 
 Similarly for ``msgpack_packer<Packer>`` and ``msgpack_unpacker<Unpacker>``.
 
-Formats
-~~~~~~~
 
-- **Compact:** ``[r, g, b, a]`` — array of channel values (float, 0–1)
-- **Named:** ``{"ch0": r, "ch1": g, ...}`` — object with generic or custom channel names
+✅ **Supported serialization formats**:
+
+| Format | Status | Implementation |
+|--------|--------|----------------|
+| JSON | ✅ Complete | Generic adapter architecture |
+| MessagePack | ✅ Complete | Streaming packer/unpacker |
+| Binary | ✅ Complete | Compact fixed size format |
+
+✅ **Supported color spaces**:
+* All core color spaces: RGB, Linear RGB, HSL, HSV, HWB, CMYK
+* CIE spaces: XYZ, CIELAB, CIELCH
+* Modern spaces: Oklab, OkLCH, Display P3
+
+
+Serialization modes:
+
+* **Compact array mode**: ``[0.2, 0.5, 0.8, 1.0]``
+  * Smallest output size
+  * Standard order by channel index
+  * Fastest serialization/deserialization
+
+* **Named object mode**: ``{"r": 0.2, "g": 0.5, "b": 0.8, "a": 1.0}``
+  * Human readable
+  * Self documenting format
+  * Channel names match color space definition
+
+* **Type tagged mode**: ``{"space": "oklab", "L": 0.5, "a": 0.1, "b": -0.2}``
+  * Includes color space information
+  * Self describing format
+  * Deserialize without prior type knowledge
+
 
 Notes
 -----
 
-- 8-bit channels are normalized to [0, 1] for serialization
-- The SFINAE trait ``is_json_adapter_complete`` validates adapter specializations at compile time
-- Named colors, lab/lch/hwb parsing, and display-p3 are all supported via the CSS parsing module
+* 8-bit integer channels are automatically normalized to [0, 1] float range
+* Alpha channel is automatically included when present
+* Adapter pattern allows integration with any JSON / MessagePack library
+* Compile time validation of adapter interface completeness
+* Zero external dependencies in core library
+* Streaming interface supports incremental serialization
 
 References
 ----------
 
-- `JSON <https://www.json.org/>`_
-- `MessagePack <https://msgpack.org/>`_
+* `JSON Specification <https://www.json.org/>`_
+* `MessagePack Specification <https://msgpack.org/>`_
+* `RFC 8259 - The JavaScript Object Notation (JSON) Data Interchange Format <https://datatracker.ietf.org/doc/html/rfc8259>`_

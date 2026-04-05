@@ -7,14 +7,38 @@ In colorcpp
 ------------
 
 * Header: ``include/colorcpp/operations/interpolate.hpp``
-* Typical entry points: ``lerp``, ``lerp_hsl``, ``lerp_oklab``, ``lerp_oklch``, ``gradient``, ``ease`` / ``ease_*`` variants.
+
+Available interpolation algorithms:
+
+  * **Basic interpolation**:
+    * ``lerp()`` - Linear interpolation
+    * ``lerp_hue()`` - Hue interpolation with shortest/longest path selection
+    * ``lerp_preserve_chroma()`` - Chroma preserving interpolation
+
+  * **Advanced cubic interpolation**:
+    * ``cubic_interpolate()`` - Cubic Hermite spline
+    * ``catmull_rom_interpolate()`` - Catmull-Rom spline (C2 continuous)
+
+  * **Interpolation modifiers**:
+    * Hue interpolation mode: ``shorter`` / ``longer`` / ``increasing`` / ``decreasing``
+    * Gamut clamping options
+    * Chroma preservation strategies
+
 
 Notes
 -----
 
-* **Hue** paths use **shortest arc** in degree space (see ``lerp_angle_deg`` in the header).
-* **RGB lerp** is light-linear only after conversion; the API converts via ``color_cast`` as documented per overload.
-* **OkLab / CIELAB** lerps are often **more perceptually even** than RGB for many palettes but are not a substitute for spectral mixing.
+* Hue paths support 4 different interpolation directions
+* Catmull-Rom interpolation passes exactly through all control points
+* Oklab space provides the most perceptually uniform interpolation results
+* All interpolators work across all color spaces automatically
+
+References
+----------
+
+* `CSS Color Module Level 4 — Color Interpolation <https://www.w3.org/TR/css-color-4/#interpolation>`__
+* `Catmull-Rom Splines <https://en.wikipedia.org/wiki/Cubic_Hermite_spline#Catmull%E2%80%93Rom_spline>`__
+* `Oklab Perceptual Uniformity <https://bottosson.github.io/posts/oklab/>`__
 
 References
 ----------

@@ -7,13 +7,37 @@ In colorcpp
 ------------
 
 * Header: ``include/colorcpp/operations/blend.hpp``
-* Main API: ``blend`` / overloads taking ``blend_mode`` (normal, multiply, screen, overlay, HSL-channel modes, etc.)
+
+Available blend modes:
+
+  * **Separable blend modes** (per-channel operation):
+    * ``normal``, ``multiply``, ``screen``, ``overlay``
+    * ``darken``, ``lighten``, ``color_dodge``, ``color_burn``
+    * ``hard_light``, ``soft_light``, ``difference``, ``exclusion``
+
+  * **Non-separable blend modes**:
+    * ``hue`` - Preserve destination lightness & saturation, use source hue
+    * ``saturation`` - Preserve destination hue & lightness, use source saturation
+    * ``color`` - Preserve destination lightness, use source hue & saturation
+    * ``luminosity`` - Preserve destination hue & saturation, use source lightness
+
+  * **Compositing operations**:
+    * Full Porter-Duff compositing operators
+
 
 Notes
 -----
 
-* Modes such as **overlay**, **soft_light**, and **hard_light** follow **W3C**-style definitions where noted in source comments.
-* **Hue / saturation / color / luminosity** modes operate by converting to a cylindrical space (HSL-style separation) for those channels.
+* All blending operations are performed in linearized sRGB space
+* Non-separable modes use Oklch space for perceptually accurate channel separation
+* Blend modes follow W3C Compositing and Blending Level 1 specification exactly
+
+References
+----------
+
+* `Compositing and Blending Level 1 <https://www.w3.org/TR/compositing-1/>`__
+* Porter, T., & Duff, T. (1984). *Compositing digital images.* SIGGRAPH '84.
+* `CSS Blending Modes <https://www.w3.org/TR/compositing-1/#blending>`__
 
 References
 ----------

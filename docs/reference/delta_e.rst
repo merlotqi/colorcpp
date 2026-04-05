@@ -1,25 +1,54 @@
 Color difference (ΔE)
 ======================
 
-ΔE metrics compare two colors after conversion to **CIELAB** (D65). They answer “how far apart” two colors are in a perceptually motivated space, not whether they match under a specific print or viewing condition.
+Perceptual color difference metrics for measuring how visually distinct two colors appear.
 
 In colorcpp
 ------------
 
-* Header: ``include/colorcpp/operations/delta_e.hpp``
-* Functions: ``delta_e_76``, ``delta_e_94``, ``delta_e_2000`` (and related overloads as documented in the header).
+* Header: ``include/colorcpp/algorithms/delta_e.hpp``
+* Namespace: ``colorcpp::algorithms::delta_e``
+
+Available metrics:
+
+  * **CIE Standard Metrics**:
+    * ``delta_e_76()`` - CIE 1976 Euclidean distance in LAB space
+    * ``delta_e_94()`` - CIE 94 weighted metric (graphic arts)
+    * ``delta_e_2000()`` - CIEDE2000 industry standard metric
+
+  * **Modern Perceptual Metric**:
+    * ``delta_e_ok()`` - Oklab Euclidean distance
+    * Fast, uniform, and well-behaved across the entire color space
+    * Recommended for most new applications
+
+  * **Utility constants**:
+    * ``oklab_jnd_typical`` - Typical just noticeable difference threshold (~0.02)
+
+
+Typical threshold values for ΔE2000:
+
+| Value | Perception |
+|-------|------------|
+| < 1   | Imperceptible to human eye |
+| 1-2   | Only visible through close inspection |
+| 2-5   | Clearly noticeable difference |
+| 5-10  | Significant visual difference |
+| > 50  | Completely different colors |
+
 
 Notes
 -----
 
-* **ΔE76** is Euclidean distance in LAB: fast but non-uniform across hue and chroma.
-* **ΔE94** is asymmetric: the reference sample is the first argument.
-* **ΔE2000** follows **ISO 11664-6 / CIE 142-2001**; the implementation uses **double** internally to reduce accumulation error near the achromatic axis.
-* Rule-of-thumb bands for ΔE2000 are summarized in the header Doxygen (JND-scale comments).
+* ΔE94 is asymmetric: reference color is the first parameter
+* ΔE2000 uses double precision internally for accuracy near neutral axis
+* ΔE_OK values are approximately 2.5x smaller scale than ΔE2000
+* All metrics work automatically across all input color spaces
+
 
 References
 ----------
 
-* `CIE 1976 LAB Euclidean metric (historical ΔE) <https://cie.co.at/>`__ — see CIE 015 and related CIE publications
-* `ISO 11664-6:2022 — CIEDE2000 formula <https://www.iso.org/standard/78907.html>`__
-* Sharma, G., Wu, W., & Dalal, E. N. (2005). *The CIEDE2000 color-difference formula: Implementation notes, supplementary test data, and mathematical observations.* `DOI 10.1002/col.20070 <https://doi.org/10.1002/col.20070>`__
+* `CIE 15:2018 Colorimetry <https://cie.co.at/publications/cie-0152018-colorimetry-4th-edition>`__
+* `ISO 11664-6:2022 CIEDE2000 Formula <https://www.iso.org/standard/78907.html>`__
+* Sharma, G. et al. (2005) The CIEDE2000 color-difference formula
+* `Oklab Perceptual Color Space <https://bottosson.github.io/posts/oklab/>`__
