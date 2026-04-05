@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cctype>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/oklab.hpp>
@@ -23,7 +24,6 @@
 #include <colorcpp/io/css/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/interpolate/lerp.hpp>
-#include <cctype>
 #include <optional>
 #include <string_view>
 #include <utility>

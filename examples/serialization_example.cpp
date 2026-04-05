@@ -16,6 +16,7 @@
 using namespace colorcpp;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::serialization;
+using namespace colorcpp::io::ansi;
 
 // =============================================================================
 // Step 1: Specialize json_adapter for nlohmann::json
@@ -51,7 +52,9 @@ struct colorcpp::io::serialization::json_adapter<nlohmann::json> {
 // Step 2: Use to_json / from_json
 // =============================================================================
 
-static void section(const char* title) { std::cout << "\n── " << title << " ──\n"; }
+static void section(const char* title) {
+  std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n';
+}
 
 int main() {
   // --- Compact format (array) ---
@@ -64,7 +67,9 @@ int main() {
   // Deserialize back
   auto recovered = from_json<nlohmann::json, rgba8_t>(j_compact);
   if (recovered) {
-    std::cout << "recovered: " << std::hex << *recovered << std::dec << "\n";
+    std::cout << "recovered: ";
+    print_color(std::cout, *recovered);
+    std::cout << "  (" << std::hex << *recovered << std::dec << ")\n";
   }
 
   // --- Named format (object) ---
@@ -78,7 +83,9 @@ int main() {
   // Deserialize with auto-detect (works for both compact and named)
   auto recovered_named = from_json<nlohmann::json, rgba8_t>(j_named);
   if (recovered_named) {
-    std::cout << "recovered: " << std::hex << *recovered_named << std::dec << "\n";
+    std::cout << "recovered: ";
+    print_color(std::cout, *recovered_named);
+    std::cout << "  (" << std::hex << *recovered_named << std::dec << ")\n";
   }
 
   // --- Custom channel names ---
@@ -90,7 +97,9 @@ int main() {
 
   auto recovered_custom = from_json<nlohmann::json, rgba8_t>(j_custom, names);
   if (recovered_custom) {
-    std::cout << "recovered: " << std::hex << *recovered_custom << std::dec << "\n";
+    std::cout << "recovered: ";
+    print_color(std::cout, *recovered_custom);
+    std::cout << "  (" << std::hex << *recovered_custom << std::dec << ")\n";
   }
 
   // --- Different color spaces ---
@@ -113,6 +122,8 @@ int main() {
     palette.push_back(to_json<nlohmann::json>(c));
   }
   std::cout << "palette: " << palette.dump(2) << "\n";
+  std::cout << "swatches: ";
+  print_palette(std::cout, colors, sizeof colors / sizeof colors[0], 3);
 
   return 0;
 }

@@ -129,3 +129,21 @@ TEST(ColorTemperature, MonotonicBlue) {
   EXPECT_LE(t2.b(), t3.b());
   EXPECT_LE(t3.b(), t4.b());
 }
+
+TEST(ColorTemperature, RgbToKelvinRoundTripRgb) {
+  for (float k : {2700.0f, 4500.0f, 6500.0f, 9000.0f}) {
+    auto rgb = kelvin_to_rgb(k);
+    float k_est = rgb_to_kelvin_estimate(rgb);
+    auto rgb2 = kelvin_to_rgb(k_est);
+    EXPECT_NEAR(rgb.r(), rgb2.r(), 0.06f) << "K=" << k;
+    EXPECT_NEAR(rgb.g(), rgb2.g(), 0.06f) << "K=" << k;
+    EXPECT_NEAR(rgb.b(), rgb2.b(), 0.06f) << "K=" << k;
+  }
+}
+
+TEST(ColorTemperature, LinearRgbToKelvinConsistent) {
+  auto lin = kelvin_to_linear_rgb(5500.0f);
+  float k_est = linear_rgb_to_kelvin_estimate(lin);
+  EXPECT_GT(k_est, 4000.0f);
+  EXPECT_LT(k_est, 7000.0f);
+}

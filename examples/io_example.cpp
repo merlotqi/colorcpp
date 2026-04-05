@@ -7,8 +7,11 @@ using namespace colorcpp::core;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::literals;
 using namespace colorcpp::io::css;
+using namespace colorcpp::io::ansi;
 
-static void section(const char* title) { std::cout << "\n── " << title << " ──\n"; }
+static void section(const char* title) {
+  std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n';
+}
 
 // Parse a color from a string and return it; prints a failure notice on error.
 template <typename Color>
@@ -26,7 +29,9 @@ int main() {
   rgba8_t coral = constants::coral;
   rgb8_t coral3 = color_cast<rgb8_t>(coral);
 
-  std::cout << "rgba8  text: " << coral << "\n";  // uses rgb prefix? no — rgb8 has no prefix
+  print_color(std::cout, coral, "coral");
+  std::cout << "\n";
+  std::cout << "rgba8  text: " << coral << "\n";
   std::cout << "rgb8   text: " << coral3 << "\n";
   std::cout << "rgba8  hex:  " << std::hex << coral << "\n";
   std::cout << "rgb8   hex:  " << coral3 << "\n" << std::dec;
@@ -112,9 +117,33 @@ int main() {
   auto css_hex = parse_css_color_rgba8("#FF6347");
   auto css_rgb = parse_css_color_rgba8("rgb(255 99 71 / 80%)");
   auto css_hsl = parse_css_color_rgba8("hsl(0, 100%, 50%)");
-  if (css_hex) std::cout << "  #FF6347     → " << std::hex << *css_hex << std::dec << "\n";
-  if (css_rgb) std::cout << "  rgb(.../80%) → " << std::hex << *css_rgb << std::dec << "\n";
-  if (css_hsl) std::cout << "  hsl(red)    → " << std::hex << *css_hsl << std::dec << "\n";
+  if (css_hex) {
+    std::cout << "  #FF6347      ";
+    print_color(std::cout, *css_hex);
+    std::cout << '\n';
+  }
+  if (css_rgb) {
+    std::cout << "  rgb(.../80%) ";
+    print_color(std::cout, *css_rgb);
+    std::cout << '\n';
+  }
+  if (css_hsl) {
+    std::cout << "  hsl(red)     ";
+    print_color(std::cout, *css_hsl);
+    std::cout << '\n';
+  }
+
+  section("CSS: color-mix and float RGBA");
+  if (auto mix = parse_css_color_rgba8("color-mix(in srgb, red, blue 50%)")) {
+    std::cout << "  color-mix(red, blue 50%): ";
+    print_color(std::cout, *mix);
+    std::cout << '\n';
+  }
+  if (auto f = parse_css_color_rgbaf("rgb(255 99 71 / 0.5)")) {
+    std::cout << "  parse_css_color_rgbaf:  ";
+    print_color(std::cout, color_cast<rgba8_t>(*f));
+    std::cout << "  (alpha " << f->a() << " in rgbaf)\n";
+  }
 
   // 5. Round-trip: output → re-parse → compare
   section("Round-trip: output then re-parse");
@@ -128,7 +157,9 @@ int main() {
   auto recovered_text = parse<rgba8_t>(oss_text.str());
   auto recovered_hex = parse<rgba8_t>(oss_hex.str());
 
-  std::cout << "original:       " << std::hex << original << "\n";
+  std::cout << "original:       ";
+  print_color(std::cout, original);
+  std::cout << "\n";
   std::cout << "text form:      " << oss_text.str() << "\n";
   std::cout << "re-parsed:      " << recovered_text << "\n";
   std::cout << "hex form:       " << oss_hex.str() << "\n";
@@ -147,6 +178,8 @@ int main() {
 
   rgba8_t input_color{};
   if (std::cin >> input_color) {
+    print_color(std::cout, input_color, "input");
+    std::cout << "\n";
     std::cout << "text: " << input_color << "\n";
     std::cout << "hex:  " << std::hex << input_color << "\n" << std::dec;
     std::cout << "hsl:  " << color_cast<hsl_float_t>(input_color) << "\n";

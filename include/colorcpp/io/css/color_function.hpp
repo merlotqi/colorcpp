@@ -83,7 +83,7 @@ inline std::optional<float> parse_optional_slash_alpha(details::Cursor& d) {
 }
 
 inline std::optional<core::rgba8_t> finish_color_paren(details::Cursor& c, size_t after_coords,
-                                                         const core::rgbaf_t& premul) {
+                                                       const core::rgbaf_t& premul) {
   details::Cursor d{c.s, after_coords};
   d.skip_ws();
   if (!d.consume_char(')')) return std::nullopt;
@@ -108,7 +108,12 @@ inline std::optional<core::rgba8_t> parse_color_function_rgba8(details::Cursor& 
 
   details::Cursor d{c.s, c.i};
 
-  enum class Space { srgb_linear, srgb, xyz_d65, display_p3 } space{};
+  enum class Space {
+    srgb_linear,
+    srgb,
+    xyz_d65,
+    display_p3
+  } space{};
 
   if (d.consume_ci("srgb-linear")) {
     space = Space::srgb_linear;
@@ -172,7 +177,12 @@ inline std::optional<core::rgbaf_t> parse_color_function_rgbaf(details::Cursor& 
 
   details::Cursor d{c.s, c.i};
 
-  enum class Space { srgb_linear, srgb, xyz_d65, display_p3 } space{};
+  enum class Space {
+    srgb_linear,
+    srgb,
+    xyz_d65,
+    display_p3
+  } space{};
 
   if (d.consume_ci("srgb-linear")) {
     space = Space::srgb_linear;

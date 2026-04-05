@@ -2,6 +2,11 @@
  * @file algorithms.hpp
  * @brief Aggregates color algorithms: accessibility, color temperature, delta E, gamut mapping, gradient, harmony,
  * vision simulation.
+ *
+ * @par Color difference
+ * - @ref delta_e::delta_e_76 / @ref delta_e::delta_e_94 / @ref delta_e::delta_e_2000: **CIELAB D65** metrics.
+ * - @ref delta_e::delta_e_ok: **Oklab** Euclidean distance; threshold @ref delta_e::oklab_jnd_typical matches the
+ *   ~0.02 scale used in @ref gamut::gamut_clip_perceptual (not comparable numerically to ΔE2000).
  */
 
 #pragma once

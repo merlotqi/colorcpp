@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <colorcpp/algorithms/delta_e/oklab.hpp>
 #include <colorcpp/algorithms/gamut/details.hpp>
 #include <colorcpp/algorithms/gamut/distance.hpp>
 #include <colorcpp/algorithms/gamut/mapping_result.hpp>
@@ -22,7 +23,8 @@ enum class preserve_mode {
   lightness,   ///< Preserve lightness (L in OKLab)
   hue,         ///< Preserve hue (angle in OKLCh)
   saturation,  ///< Preserve chroma/saturation
-  perceptual,  ///< Minimize perceptual difference (ΔE_OK)
+  perceptual,  ///< Minimize Oklab Euclidean distance (@ref delta_e::delta_e_ok); bisection uses ~ @ref
+               ///< delta_e::oklab_jnd_typical
 };
 
 namespace details {
@@ -238,7 +240,7 @@ Color gamut_clip_perceptual(const Color& c) {
   const float sin_h = std::sin(H);
 
   // CSS Color 4 style: find largest chroma where clipping produces ΔE_OK ≤ JND
-  constexpr float kJND = 0.02f;
+  constexpr float kJND = delta_e::oklab_jnd_typical;
   constexpr float kEps = 1e-4f;
 
   float min_C = 0.0f;

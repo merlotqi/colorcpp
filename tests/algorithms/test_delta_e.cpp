@@ -145,4 +145,25 @@ TEST(IsVisuallySameTest, CustomThreshold) {
   EXPECT_TRUE(is_visually_same(black, white, 200.0f));
 }
 
+// Oklab ΔE_OK
+
+TEST(DeltaEOkTest, SameColorIsZero) {
+  core::rgbf_t c(0.4f, 0.5f, 0.6f);
+  EXPECT_NEAR(delta_e_ok(c, c), 0.0f, 1e-5f);
+}
+
+TEST(DeltaEOkTest, SymmetricNonNegative) {
+  core::rgb8_t a(200, 100, 50);
+  core::rgb8_t b(50, 100, 200);
+  float d1 = delta_e_ok(a, b);
+  float d2 = delta_e_ok(b, a);
+  EXPECT_NEAR(d1, d2, 1e-4f);
+  EXPECT_GE(d1, 0.0f);
+}
+
+TEST(DeltaEOkTest, VisuallySameOkUsesJnd) {
+  core::rgb8_t x(128, 128, 128);
+  EXPECT_TRUE(is_visually_same_ok(x, x));
+}
+
 }  // namespace colorcpp::algorithms::test

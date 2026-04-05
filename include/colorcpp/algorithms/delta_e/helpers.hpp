@@ -1,6 +1,6 @@
 /**
  * @file helpers.hpp
- * @brief Helper functions for color difference evaluation.
+ * @brief Helpers for **ΔE2000** (CIELAB). For Oklab distance helpers see @ref oklab.hpp (@c is_visually_same_ok).
  */
 
 #pragma once
