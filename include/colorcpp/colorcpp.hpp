@@ -21,13 +21,3 @@
 
 // Include color io header
 #include <colorcpp/io/io.hpp>
-
-/**
- * @brief Root namespace; re-exports @ref colorcpp::core and @ref colorcpp::operations.
- */
-namespace colorcpp {
-
-using namespace core;
-using namespace operations;
-
-}  // namespace colorcpp

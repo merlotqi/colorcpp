@@ -1,5 +1,5 @@
 /**
- * @file helpers.hpp
+ * @file detail.hpp
  * @brief Helper functions for color space conversion.
  */
 

@@ -199,4 +199,169 @@ TEST(HWBTest, CSSParsing) {
   EXPECT_FALSE(parse_css_color<hwb_float_t>("hwb(120 30%)").has_value());
 }
 
+TEST(HWBTest, CopyConstructors) {
+  hwb_float_t original(120.0f, 0.2f, 0.3f);
+  hwb_float_t copy(original);
+  
+  EXPECT_FLOAT_EQ(copy.h(), 120.0f);
+  EXPECT_FLOAT_EQ(copy.w(), 0.2f);
+  EXPECT_FLOAT_EQ(copy.b(), 0.3f);
+}
+
+TEST(HWBTest, CopyAssignment) {
+  hwb_float_t original(120.0f, 0.2f, 0.3f);
+  hwb_float_t copy(0.0f, 0.0f, 0.0f);
+  copy = original;
+  
+  EXPECT_FLOAT_EQ(copy.h(), 120.0f);
+  EXPECT_FLOAT_EQ(copy.w(), 0.2f);
+  EXPECT_FLOAT_EQ(copy.b(), 0.3f);
+}
+
+TEST(HWBTest, MoveSemantics) {
+  hwb_float_t original(120.0f, 0.2f, 0.3f);
+  hwb_float_t moved(std::move(original));
+  
+  EXPECT_FLOAT_EQ(moved.h(), 120.0f);
+  EXPECT_FLOAT_EQ(moved.w(), 0.2f);
+  EXPECT_FLOAT_EQ(moved.b(), 0.3f);
+}
+
+TEST(HWBTest, MoveAssignment) {
+  hwb_float_t original(120.0f, 0.2f, 0.3f);
+  hwb_float_t moved(0.0f, 0.0f, 0.0f);
+  moved = std::move(original);
+  
+  EXPECT_FLOAT_EQ(moved.h(), 120.0f);
+  EXPECT_FLOAT_EQ(moved.w(), 0.2f);
+  EXPECT_FLOAT_EQ(moved.b(), 0.3f);
+}
+
+TEST(HWBTest, EqualityComparison) {
+  hwb_float_t color1(120.0f, 0.2f, 0.3f);
+  hwb_float_t color2(120.0f, 0.2f, 0.3f);
+  hwb_float_t color3(130.0f, 0.2f, 0.3f);
+  
+  EXPECT_TRUE(color1 == color2);
+  EXPECT_FALSE(color1 == color3);
+  EXPECT_TRUE(color1 != color3);
+}
+
+TEST(HWBTest, ConstexprBoundaryValues) {
+  constexpr hwb_float_t min_color(0.0f, 0.0f, 0.0f);
+  static_assert(min_color.h() == 0.0f);
+  static_assert(min_color.w() == 0.0f);
+  static_assert(min_color.b() == 0.0f);
+  
+  constexpr hwb_float_t max_color(360.0f, 1.0f, 1.0f);
+  static_assert(max_color.h() == 360.0f);
+  static_assert(max_color.w() == 1.0f);
+  static_assert(max_color.b() == 1.0f);
+}
+
+TEST(HWBATest, CopyConstructors) {
+  hwba_float_t original(180.0f, 0.1f, 0.2f, 0.5f);
+  hwba_float_t copy(original);
+  
+  EXPECT_FLOAT_EQ(copy.h(), 180.0f);
+  EXPECT_FLOAT_EQ(copy.w(), 0.1f);
+  EXPECT_FLOAT_EQ(copy.b(), 0.2f);
+  EXPECT_FLOAT_EQ(copy.a(), 0.5f);
+}
+
+TEST(HWBATest, CopyAssignment) {
+  hwba_float_t original(180.0f, 0.1f, 0.2f, 0.5f);
+  hwba_float_t copy(0.0f, 0.0f, 0.0f, 0.0f);
+  copy = original;
+  
+  EXPECT_FLOAT_EQ(copy.h(), 180.0f);
+  EXPECT_FLOAT_EQ(copy.w(), 0.1f);
+  EXPECT_FLOAT_EQ(copy.b(), 0.2f);
+  EXPECT_FLOAT_EQ(copy.a(), 0.5f);
+}
+
+TEST(HWBATest, MoveSemantics) {
+  hwba_float_t original(180.0f, 0.1f, 0.2f, 0.5f);
+  hwba_float_t moved(std::move(original));
+  
+  EXPECT_FLOAT_EQ(moved.h(), 180.0f);
+  EXPECT_FLOAT_EQ(moved.w(), 0.1f);
+  EXPECT_FLOAT_EQ(moved.b(), 0.2f);
+  EXPECT_FLOAT_EQ(moved.a(), 0.5f);
+}
+
+TEST(HWBATest, MoveAssignment) {
+  hwba_float_t original(180.0f, 0.1f, 0.2f, 0.5f);
+  hwba_float_t moved(0.0f, 0.0f, 0.0f, 0.0f);
+  moved = std::move(original);
+  
+  EXPECT_FLOAT_EQ(moved.h(), 180.0f);
+  EXPECT_FLOAT_EQ(moved.w(), 0.1f);
+  EXPECT_FLOAT_EQ(moved.b(), 0.2f);
+  EXPECT_FLOAT_EQ(moved.a(), 0.5f);
+}
+
+TEST(HWBATest, EqualityComparison) {
+  hwba_float_t color1(180.0f, 0.1f, 0.2f, 0.5f);
+  hwba_float_t color2(180.0f, 0.1f, 0.2f, 0.5f);
+  hwba_float_t color3(180.0f, 0.1f, 0.2f, 0.6f);
+  
+  EXPECT_TRUE(color1 == color2);
+  EXPECT_FALSE(color1 == color3);
+  EXPECT_TRUE(color1 != color3);
+}
+
+TEST(HWBTest, BoundaryValues) {
+  hwb_float_t min_color(0.0f, 0.0f, 0.0f);
+  EXPECT_FLOAT_EQ(min_color.h(), 0.0f);
+  EXPECT_FLOAT_EQ(min_color.w(), 0.0f);
+  EXPECT_FLOAT_EQ(min_color.b(), 0.0f);
+
+  hwb_float_t max_color(360.0f, 1.0f, 1.0f);
+  EXPECT_FLOAT_EQ(max_color.h(), 360.0f);
+  EXPECT_FLOAT_EQ(max_color.w(), 1.0f);
+  EXPECT_FLOAT_EQ(max_color.b(), 1.0f);
+}
+
+TEST(HWBTest, OutOfRangeThrows) {
+  EXPECT_THROW(hwb_float_t(-1.0f, 0.5f, 0.5f), std::out_of_range);  // H < 0
+  EXPECT_THROW(hwb_float_t(361.0f, 0.5f, 0.5f), std::out_of_range); // H > 360
+  EXPECT_THROW(hwb_float_t(180.0f, -0.1f, 0.5f), std::out_of_range); // W < 0
+  EXPECT_THROW(hwb_float_t(180.0f, 1.1f, 0.5f), std::out_of_range);  // W > 1
+  EXPECT_THROW(hwb_float_t(180.0f, 0.5f, -0.1f), std::out_of_range); // B < 0
+  EXPECT_THROW(hwb_float_t(180.0f, 0.5f, 1.1f), std::out_of_range);  // B > 1
+}
+
+TEST(HWBTest, MemberAccess) {
+  hwb_float_t hwb(120.0f, 0.2f, 0.3f);
+  
+  EXPECT_FLOAT_EQ(hwb.h(), 120.0f);
+  EXPECT_FLOAT_EQ(hwb.w(), 0.2f);
+  EXPECT_FLOAT_EQ(hwb.b(), 0.3f);
+  
+  hwb.h() = 150.0f;
+  hwb.w() = 0.4f;
+  hwb.b() = 0.5f;
+  
+  EXPECT_FLOAT_EQ(hwb.h(), 150.0f);
+  EXPECT_FLOAT_EQ(hwb.w(), 0.4f);
+  EXPECT_FLOAT_EQ(hwb.b(), 0.5f);
+}
+
+TEST(HWBTest, IndexAccess) {
+  hwb_float_t hwb(120.0f, 0.2f, 0.3f);
+  
+  EXPECT_FLOAT_EQ(hwb.get_index<0>(), 120.0f);
+  EXPECT_FLOAT_EQ(hwb.get_index<1>(), 0.2f);
+  EXPECT_FLOAT_EQ(hwb.get_index<2>(), 0.3f);
+}
+
+TEST(HWBTest, ConstCorrectness) {
+  const hwb_float_t hwb(120.0f, 0.2f, 0.3f);
+  
+  EXPECT_FLOAT_EQ(hwb.h(), 120.0f);
+  EXPECT_FLOAT_EQ(hwb.w(), 0.2f);
+  EXPECT_FLOAT_EQ(hwb.b(), 0.3f);
+}
+
 }  // namespace colorcpp::core::test

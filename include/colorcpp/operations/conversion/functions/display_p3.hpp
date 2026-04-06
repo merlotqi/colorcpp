@@ -9,7 +9,7 @@
 #include <cmath>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/rgb.hpp>
-#include <colorcpp/operations/conversion/helpers.hpp>
+#include <colorcpp/operations/conversion/detail.hpp>
 
 namespace colorcpp::operations::conversion::details {
 

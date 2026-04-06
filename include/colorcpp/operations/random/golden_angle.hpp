@@ -1,6 +1,13 @@
 /**
  * @file golden_angle.hpp
  * @brief Golden angle-based sequential color generator.
+ *
+ * @par First sample
+ * The first `next()` returns the initial random hue set at construction. Each following `next()` advances the hue by the
+ * golden angle (137.50776405°) on `[0, 360)`.
+ *
+ * @par Thread safety
+ * Not thread-safe: uses a `mutable` engine and hue state.
  */
 
 #pragma once
@@ -32,6 +39,7 @@ class golden_angle_generator {
 
   mutable Engine rng;
   mutable float current_hue;
+  mutable bool first_next_{true};
   float saturation;
   float lightness;
 
@@ -41,7 +49,7 @@ class golden_angle_generator {
  public:
   /**
    * @brief Construct from engine and saturation/lightness values.
-   * @param e Random engine.
+   * @param e Engine to copy.
    * @param sat Saturation value in [0, 1] (default: 1.0).
    * @param light Lightness/value value in [0, 1] (default: 0.5).
    */
@@ -75,13 +83,12 @@ class golden_angle_generator {
   }
 
   Color next() const {
-    // Advance hue by golden angle
-    current_hue = std::fmod(current_hue + kGoldenAngle, 360.0f);
-
-    // Create HSL color with current hue
+    if (!first_next_) {
+      current_hue = std::fmod(current_hue + kGoldenAngle, 360.0f);
+    } else {
+      first_next_ = false;
+    }
     core::hsl_float_t hsl{current_hue, saturation, lightness};
-
-    // Convert to target color space
     return conversion::color_cast<Color>(hsl);
   }
 

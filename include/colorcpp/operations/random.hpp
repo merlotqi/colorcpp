@@ -4,6 +4,24 @@
  *
  * This is an aggregate header that includes all random generation components.
  * Individual components can be included separately for faster compilation.
+ *
+ * @par Thread safety
+ * A single generator object is **not** thread-safe: implementations use a `mutable` random engine and `const` member
+ * functions such as `next()` still advance that engine. Use one generator per thread, external locking, or separate
+ * instances. `harmony_generator::next_poisson` also mutates the caller's `samples` vector; synchronize access to that
+ * vector if it is shared.
+ *
+ * @par Perceptual / display spaces
+ * `basic_random_generator` draws each channel uniformly in its declared range. For OkLab, CIELAB, OkLCH, CIELCH, etc.,
+ * that is an **axis-aligned box** in those coordinates; samples are **not** restricted to sRGB, Display P3, or other
+ * display gamuts (clip or map separately if needed).
+ *
+ * @par HSLA / HSVA / HWBA
+ * `basic_hsl_generator` randomizes alpha for four-channel models using `options::a_min` / `a_max` (default full range).
+ *
+ * @par Convenience functions
+ * `random_color` / `random_colors` build a new generator per call. The default seed uses `std::random_device{}()` each
+ * time, which is implementation-defined (quality, blocking, and performance vary by platform).
  */
 
 #pragma once
@@ -94,7 +112,7 @@ namespace colorcpp::operations {
  * and returns a single random color.
  *
  * @tparam Color Color type to generate.
- * @param seed Optional seed for reproducibility (default: random_device).
+ * @param seed Seed for reproducibility. The default constructs a new `std::random_device` per call (see file note).
  * @return Random color of the specified type.
  *
  * Example:
@@ -114,7 +132,7 @@ Color random_color(typename std::mt19937::result_type seed = std::random_device{
  *
  * @tparam Color Color type to generate.
  * @param count Number of colors to generate.
- * @param seed Optional seed for reproducibility (default: random_device).
+ * @param seed Seed for reproducibility. The default constructs a new `std::random_device` per call (see file note).
  * @return Vector of random colors.
  */
 template <typename Color>

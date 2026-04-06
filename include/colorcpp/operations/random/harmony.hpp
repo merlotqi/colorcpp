@@ -1,6 +1,11 @@
 /**
  * @file harmony.hpp
  * @brief Harmony-based color generator.
+ *
+ * @par next_poisson
+ * Modifies the caller's `samples` vector; synchronize if shared. On rejection exhaustion, extra hue-only attempts are
+ * made before giving up. If no hue satisfies `min_dist`, the returned color is still random but **nothing is appended**
+ * to `samples` (so the list is not polluted with a violating hue).
  */
 
 #pragma once
@@ -24,6 +29,20 @@ enum class harmony_mode {
   tetradic,
   square
 };
+
+namespace details {
+
+template <typename T>
+bool hue_spacing_ok(T candidate, const std::vector<T>& samples, T min_dist, T h_max) {
+  for (T s : samples) {
+    T diff = std::abs(candidate - s);
+    T circular_diff = std::min(diff, h_max - diff);
+    if (circular_diff < min_dist) return false;
+  }
+  return true;
+}
+
+}  // namespace details
 
 /**
  * @brief Builds harmony-related hues from a base color.
@@ -81,35 +100,30 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
    * @param samples Vector of existing hue samples (modified in place).
    * @param min_dist Minimum angular distance between hues (default: 1/10 of hue range).
    * @param max_attempts Maximum rejection sampling attempts (default: 200).
-   * @return Color with Poisson-sampled hue, or random fallback if max_attempts exceeded.
+   * @return Color with Poisson-sampled hue, or a random color if no valid hue is found; `samples` is only updated when
+   *         a valid spaced hue is found (including after extra fallback attempts).
    */
   Color next_poisson(std::vector<T>& samples, T min_dist = traits::hue_max() / 10, std::size_t max_attempts = 200) {
     T h_max = traits::hue_max();
 
     for (std::size_t i = 0; i < max_attempts; ++i) {
       T candidate = this->random_value(T(0), h_max);
-      bool ok = true;
+      if (!details::hue_spacing_ok(candidate, samples, min_dist, h_max)) continue;
 
-      // Check distance against all existing samples
-      for (T s : samples) {
-        T diff = std::abs(candidate - s);
-        T circular_diff = std::min(diff, h_max - diff);  // Handle wrap-around
-        if (circular_diff < min_dist) {
-          ok = false;
-          break;
-        }
-      }
+      samples.push_back(candidate);
+      return construct_from_hue(this->next(), candidate, std::make_index_sequence<traits::size>{});
+    }
 
-      if (ok) {
+    Color slab = this->next();
+    for (std::size_t j = 0; j < max_attempts; ++j) {
+      T candidate = this->random_value(T(0), h_max);
+      if (details::hue_spacing_ok(candidate, samples, min_dist, h_max)) {
         samples.push_back(candidate);
-        return construct_from_hue(this->next(), candidate, std::make_index_sequence<traits::size>{});
+        return construct_from_hue(slab, candidate, std::make_index_sequence<traits::size>{});
       }
     }
 
-    // Fallback: return random color if max attempts exceeded
-    Color fallback = this->next();
-    samples.push_back(fallback.template get_index<0>());
-    return fallback;
+    return slab;
   }
 
   // Returns the complete set of colors for the given harmony mode.

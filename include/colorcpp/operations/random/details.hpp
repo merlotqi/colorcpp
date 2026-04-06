@@ -1,6 +1,8 @@
 /**
  * @file details.hpp
  * @brief Helper traits for random color generation.
+ *
+ * Used by @ref basic_random_generator and related templates; see @ref random.hpp for thread-safety and gamut notes.
  */
 
 #pragma once
