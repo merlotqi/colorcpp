@@ -10,7 +10,7 @@
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
-#include <colorcpp/operations/conversion/helpers.hpp>
+#include <colorcpp/operations/conversion/detail.hpp>
 
 namespace colorcpp::operations::conversion::details {
 

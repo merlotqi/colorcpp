@@ -214,4 +214,125 @@ TEST(HSVTest, TypeTraits) {
   static_assert(traits::has_channel_tag_v<hsv::model::hsva, hsv::channel::a_tag>);
 }
 
+TEST(HSVTest, CopyConstructors) {
+  hsv_float_t original(120.0f, 0.8f, 0.6f);
+  hsv_float_t copy(original);
+  
+  EXPECT_FLOAT_EQ(copy.h(), 120.0f);
+  EXPECT_FLOAT_EQ(copy.s(), 0.8f);
+  EXPECT_FLOAT_EQ(copy.v(), 0.6f);
+}
+
+TEST(HSVTest, CopyAssignment) {
+  hsv_float_t original(120.0f, 0.8f, 0.6f);
+  hsv_float_t copy(0.0f, 0.0f, 0.0f);
+  copy = original;
+  
+  EXPECT_FLOAT_EQ(copy.h(), 120.0f);
+  EXPECT_FLOAT_EQ(copy.s(), 0.8f);
+  EXPECT_FLOAT_EQ(copy.v(), 0.6f);
+}
+
+TEST(HSVTest, MoveSemantics) {
+  hsv_float_t original(120.0f, 0.8f, 0.6f);
+  hsv_float_t moved(std::move(original));
+  
+  EXPECT_FLOAT_EQ(moved.h(), 120.0f);
+  EXPECT_FLOAT_EQ(moved.s(), 0.8f);
+  EXPECT_FLOAT_EQ(moved.v(), 0.6f);
+}
+
+TEST(HSVTest, MoveAssignment) {
+  hsv_float_t original(120.0f, 0.8f, 0.6f);
+  hsv_float_t moved(0.0f, 0.0f, 0.0f);
+  moved = std::move(original);
+  
+  EXPECT_FLOAT_EQ(moved.h(), 120.0f);
+  EXPECT_FLOAT_EQ(moved.s(), 0.8f);
+  EXPECT_FLOAT_EQ(moved.v(), 0.6f);
+}
+
+TEST(HSVTest, EqualityComparison) {
+  hsv_float_t color1(120.0f, 0.8f, 0.6f);
+  hsv_float_t color2(120.0f, 0.8f, 0.6f);
+  hsv_float_t color3(130.0f, 0.8f, 0.6f);
+  
+  EXPECT_TRUE(color1 == color2);
+  EXPECT_FALSE(color1 == color3);
+  EXPECT_TRUE(color1 != color3);
+}
+
+TEST(HSVTest, ConstexprBoundaryValues) {
+  constexpr hsv_float_t min_color(0.0f, 0.0f, 0.0f);
+  static_assert(min_color.h() == 0.0f);
+  static_assert(min_color.s() == 0.0f);
+  static_assert(min_color.v() == 0.0f);
+  
+  constexpr hsv_float_t max_color(360.0f, 1.0f, 1.0f);
+  static_assert(max_color.h() == 360.0f);
+  static_assert(max_color.s() == 1.0f);
+  static_assert(max_color.v() == 1.0f);
+}
+
+TEST(HSVATest, CopyConstructors) {
+  hsva_float_t original(240.0f, 1.0f, 0.5f, 0.75f);
+  hsva_float_t copy(original);
+  
+  EXPECT_FLOAT_EQ(copy.h(), 240.0f);
+  EXPECT_FLOAT_EQ(copy.s(), 1.0f);
+  EXPECT_FLOAT_EQ(copy.v(), 0.5f);
+  EXPECT_FLOAT_EQ(copy.a(), 0.75f);
+}
+
+TEST(HSVATest, CopyAssignment) {
+  hsva_float_t original(240.0f, 1.0f, 0.5f, 0.75f);
+  hsva_float_t copy(0.0f, 0.0f, 0.0f, 0.0f);
+  copy = original;
+  
+  EXPECT_FLOAT_EQ(copy.h(), 240.0f);
+  EXPECT_FLOAT_EQ(copy.s(), 1.0f);
+  EXPECT_FLOAT_EQ(copy.v(), 0.5f);
+  EXPECT_FLOAT_EQ(copy.a(), 0.75f);
+}
+
+TEST(HSVATest, MoveSemantics) {
+  hsva_float_t original(240.0f, 1.0f, 0.5f, 0.75f);
+  hsva_float_t moved(std::move(original));
+  
+  EXPECT_FLOAT_EQ(moved.h(), 240.0f);
+  EXPECT_FLOAT_EQ(moved.s(), 1.0f);
+  EXPECT_FLOAT_EQ(moved.v(), 0.5f);
+  EXPECT_FLOAT_EQ(moved.a(), 0.75f);
+}
+
+TEST(HSVATest, MoveAssignment) {
+  hsva_float_t original(240.0f, 1.0f, 0.5f, 0.75f);
+  hsva_float_t moved(0.0f, 0.0f, 0.0f, 0.0f);
+  moved = std::move(original);
+  
+  EXPECT_FLOAT_EQ(moved.h(), 240.0f);
+  EXPECT_FLOAT_EQ(moved.s(), 1.0f);
+  EXPECT_FLOAT_EQ(moved.v(), 0.5f);
+  EXPECT_FLOAT_EQ(moved.a(), 0.75f);
+}
+
+TEST(HSVATest, EqualityComparison) {
+  hsva_float_t color1(240.0f, 1.0f, 0.5f, 0.75f);
+  hsva_float_t color2(240.0f, 1.0f, 0.5f, 0.75f);
+  hsva_float_t color3(240.0f, 1.0f, 0.5f, 0.5f);
+  
+  EXPECT_TRUE(color1 == color2);
+  EXPECT_FALSE(color1 == color3);
+  EXPECT_TRUE(color1 != color3);
+}
+
+TEST(HSVTest, HueAngleEquivalence) {
+  // Test 0° and 360° are equivalent for red hue
+  hsv_float_t color1(0.0f, 1.0f, 1.0f);
+  hsv_float_t color2(360.0f, 1.0f, 1.0f);
+  
+  EXPECT_NEAR(color1.h(), 0.0f, 1e-6f);
+  EXPECT_NEAR(color2.h(), 360.0f, 1e-6f);
+}
+
 }  // namespace colorcpp::core::test

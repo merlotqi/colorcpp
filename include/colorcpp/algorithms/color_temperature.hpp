@@ -128,6 +128,55 @@ inline core::rgba8_t kelvin_to_rgba8(float kelvin, uint8_t alpha = 255) {
   };
 }
 
+namespace details {
+
+inline float linear_rgb_distance_sq(const core::rgbf_t& a, const core::rgbf_t& b) {
+  const float dr = a.r() - b.r();
+  const float dg = a.g() - b.g();
+  const float db = a.b() - b.b();
+  return dr * dr + dg * dg + db * db;
+}
+
+}  // namespace details
+
+/**
+ * @brief Estimate correlated color temperature (K) from **linear** sRGB in [0, 1].
+ *
+ * Minimizes Euclidean distance to @ref kelvin_to_linear_rgb over [1000, 40000] K. Saturated colors not on the
+ * Planckian locus still get a best-fit K (useful for warm/cool sliders, not spectrally accurate CCT).
+ */
+inline float linear_rgb_to_kelvin_estimate(const core::rgbf_t& linear_srgb) {
+  float best_k = 6500.0f;
+  float best_e = 1e30f;
+  for (float k = 1000.0f; k <= 40000.0f; k += 250.0f) {
+    const float e = details::linear_rgb_distance_sq(kelvin_to_linear_rgb(k), linear_srgb);
+    if (e < best_e) {
+      best_e = e;
+      best_k = k;
+    }
+  }
+  float lo = std::max(1000.0f, best_k - 400.0f);
+  float hi = std::min(40000.0f, best_k + 400.0f);
+  for (int i = 0; i < 28; ++i) {
+    const float m1 = lo + (hi - lo) / 3.0f;
+    const float m2 = hi - (hi - lo) / 3.0f;
+    const float e1 = details::linear_rgb_distance_sq(kelvin_to_linear_rgb(m1), linear_srgb);
+    const float e2 = details::linear_rgb_distance_sq(kelvin_to_linear_rgb(m2), linear_srgb);
+    if (e1 < e2)
+      hi = m2;
+    else
+      lo = m1;
+  }
+  return (lo + hi) * 0.5f;
+}
+
+/** @brief Estimate K from gamma-encoded sRGB in [0, 1]. */
+inline float rgb_to_kelvin_estimate(const core::rgbf_t& srgb) {
+  const core::rgbf_t lin{details::srgb_to_linear(srgb.r()), details::srgb_to_linear(srgb.g()),
+                         details::srgb_to_linear(srgb.b())};
+  return linear_rgb_to_kelvin_estimate(lin);
+}
+
 }  // namespace color_temperature
 
 }  // namespace colorcpp::algorithms

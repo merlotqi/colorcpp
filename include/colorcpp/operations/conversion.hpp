@@ -15,7 +15,7 @@
 #include <colorcpp/operations/conversion/cast_impl.hpp>
 #include <colorcpp/operations/conversion/color_space_registry.hpp>
 #include <colorcpp/operations/conversion/functions/index.hpp>
-#include <colorcpp/operations/conversion/helpers.hpp>
+#include <colorcpp/operations/conversion/detail.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 
 namespace colorcpp::operations::conversion {

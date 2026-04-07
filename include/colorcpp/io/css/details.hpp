@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -133,6 +134,23 @@ struct Cursor {
     return static_cast<int>(std::lround(v));
   }
 
+  /** sRGB @c rgb() / @c rgba() channel as linearized 0–1 float (no 8-bit quantization). */
+  float channel_float_01_from_rgb_component(const std::pair<double, bool>& cv) {
+    double v = cv.first;
+    if (cv.second) {
+      v = std::clamp(v, 0.0, 100.0) / 100.0;
+      return static_cast<float>(v);
+    }
+    v = std::clamp(v, 0.0, 255.0);
+    return static_cast<float>(v / 255.0);
+  }
+
+  /** Consume case-insensitive @c none (CSS Color 4 missing component); @ref skip_ws first. */
+  bool try_consume_none() {
+    skip_ws();
+    return consume_ci("none");
+  }
+
   uint8_t alpha_byte_from_double(double a) {
     if (a < 0.0) a = 0.0;
     if (a > 1.0) a = 1.0;
@@ -197,5 +215,57 @@ struct Cursor {
     return x / 100.0;
   }
 };
+
+/**
+ * @brief CSS Color 4 HWB: if whiteness + blackness exceeds 100%, scale both so the sum is 100%.
+ * @param w In/out: whiteness as a fraction in [0, 1] (e.g. after @ref Cursor::parse_hsl_sl).
+ * @param b In/out: blackness as a fraction in [0, 1].
+ * @see https://www.w3.org/TR/css-color-4/#hwb-to-srgb
+ */
+inline void normalize_hwb_whiteness_blackness(double& w, double& b) {
+  const double sum = w + b;
+  if (sum > 1.0) {
+    w /= sum;
+    b /= sum;
+  }
+}
+
+/** @brief Index of first top-level comma in @p s at or after @p start (parenthesis depth only). */
+inline size_t find_top_level_comma(std::string_view s, size_t start = 0) {
+  int depth = 0;
+  for (size_t i = start; i < s.size(); ++i) {
+    const char ch = s[i];
+    if (ch == '(') {
+      ++depth;
+    } else if (ch == ')') {
+      if (depth > 0) --depth;
+    } else if (ch == ',' && depth == 0) {
+      return i;
+    }
+  }
+  return std::string_view::npos;
+}
+
+/**
+ * @brief After optional whitespace, consume @c '(' and return inner contents up to matching @c ')'.
+ * @post On success, @p c.i is immediately after the closing @c ')'.
+ */
+inline std::optional<std::string_view> consume_parenthesized_contents(Cursor& c) {
+  c.skip_ws();
+  if (!c.consume_char('(')) return std::nullopt;
+  const size_t start = c.i;
+  int depth = 1;
+  while (c.i < c.s.size()) {
+    const char ch = c.s[c.i++];
+    if (ch == '(') {
+      ++depth;
+    } else if (ch == ')') {
+      if (--depth == 0) {
+        return c.s.substr(start, c.i - 1 - start);
+      }
+    }
+  }
+  return std::nullopt;
+}
 
 }  // namespace colorcpp::io::css::details

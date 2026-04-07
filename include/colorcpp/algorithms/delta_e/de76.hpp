@@ -1,6 +1,7 @@
 /**
  * @file de76.hpp
- * @brief CIE 1976 ΔE*ab color difference metric.
+ * @brief CIE 1976 ΔE*ab color difference metric (CIELAB D65).
+ * @see oklab.hpp for Oklab Euclidean @c delta_e_ok (not comparable to ΔE*ab numerically).
  */
 
 #pragma once

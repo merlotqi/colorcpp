@@ -1,6 +1,16 @@
 /**
  * @file basic.hpp
  * @brief Basic random color generator with configurable engine.
+ *
+ * @par Thread safety
+ * Not thread-safe: the engine is `mutable` and `const` methods (`next`, `random_value`) advance it. Do not share one
+ * instance across threads without synchronization.
+ *
+ * @par Floating-point ranges
+ * `std::uniform_real_distribution` yields values in **[a, b)**; the upper bound is not included (negligible for floats).
+ *
+ * @par Lab-like spaces
+ * Independent uniform channels define a box in that space; results may lie outside common RGB display gamuts.
  */
 
 #pragma once
@@ -22,6 +32,8 @@ namespace colorcpp::operations::random {
  *
  * @tparam Color Color type.
  * @tparam Engine Random engine type (default: std::mt19937).
+ *
+ * @note `next() const` still consumes randomness (see file-level thread-safety note).
  */
 template <typename Color, typename Engine = std::mt19937>
 class basic_random_generator {

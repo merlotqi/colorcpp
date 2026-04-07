@@ -15,6 +15,7 @@
 using namespace colorcpp;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::serialization;
+using namespace colorcpp::io::ansi;
 
 // =============================================================================
 // Minimal in-memory MessagePack packer (for demonstration only)
@@ -222,7 +223,9 @@ struct colorcpp::io::serialization::msgpack_unpacker<simple_unpacker> {
 // Usage
 // =============================================================================
 
-static void section(const char* title) { std::cout << "\n── " << title << " ──\n"; }
+static void section(const char* title) {
+  std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n';
+}
 
 int main() {
   section("Pack color to MessagePack (array format)");
@@ -240,7 +243,9 @@ int main() {
   simple_unpacker unpacker{packer.buf.data(), packer.buf.size()};
   auto recovered = unpack_color<simple_unpacker, rgba8_t>(unpacker);
   if (recovered) {
-    std::cout << "recovered: " << std::hex << *recovered << std::dec << "\n";
+    std::cout << "recovered: ";
+    print_color(std::cout, *recovered);
+    std::cout << "  (" << std::hex << *recovered << std::dec << ")\n";
   }
 
   section("Pack color (named map format)");
@@ -258,7 +263,9 @@ int main() {
   simple_unpacker unpacker2{packer2.buf.data(), packer2.buf.size()};
   auto recovered2 = unpack_color_named<simple_unpacker, rgba8_t>(unpacker2, names);
   if (recovered2) {
-    std::cout << "recovered: " << std::hex << *recovered2 << std::dec << "\n";
+    std::cout << "recovered: ";
+    print_color(std::cout, *recovered2);
+    std::cout << "  (" << std::hex << *recovered2 << std::dec << ")\n";
   }
 
   return 0;

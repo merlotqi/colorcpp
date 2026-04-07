@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+#include <string>
+#include <vector>
 
 namespace colorcpp::io::test {
 
@@ -379,6 +381,90 @@ TEST(Css, DisplayP3Invalid) {
 
   // Wrong color space
   EXPECT_FALSE(parse_css_color<display_p3f_t>("color(srgb 0.5 0.3 0.2)").has_value());
+}
+
+TEST(Css, ColorFunctionSrgbAndLinear) {
+  auto c = parse_css_color_rgba8("color(srgb 1 0 0)");
+  ASSERT_TRUE(c);
+  expect_rgba(*c, 255, 0, 0, 255);
+
+  auto lin = parse_css_color_rgba8("color(srgb-linear 1 0 0)");
+  ASSERT_TRUE(lin);
+  expect_rgba(*lin, 255, 0, 0, 255);
+}
+
+TEST(Css, ColorFunctionXyzD65) {
+  auto c = parse_css_color_rgba8("color(xyz-d65 0.4 0.45 0.05)");
+  ASSERT_TRUE(c);
+}
+
+TEST(Css, ColorFunctionAlpha) {
+  auto c = parse_css_color_rgba8("color(srgb 1 0 0 / 50%)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->r(), 255);
+  EXPECT_EQ(c->a(), 128);
+}
+
+TEST(Css, ParseRgbafWideGamut) {
+  auto f = parse_css_color<rgbaf_t>("color(display-p3 1 0 0)");
+  ASSERT_TRUE(f);
+  EXPECT_GT(f->r(), 0.99f);
+}
+
+TEST(Css, ColorMixInSrgb) {
+  auto c = parse_css_color_rgba8("color-mix(in srgb, red, blue 50%)");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(static_cast<double>(c->r()), 128.0, 2.0);
+  EXPECT_NEAR(static_cast<double>(c->b()), 128.0, 2.0);
+}
+
+TEST(Css, LightDarkExplicit) {
+  auto light = parse_css_color_light_dark_rgba8("light-dark(red, blue)", false);
+  ASSERT_TRUE(light);
+  expect_rgba(*light, 255, 0, 0, 255);
+  auto dark = parse_css_color_light_dark_rgba8("light-dark(red, blue)", true);
+  ASSERT_TRUE(dark);
+  expect_rgba(*dark, 0, 0, 255, 255);
+}
+
+TEST(Css, DeviceCmyk) {
+  auto c = parse_css_color_rgba8("device-cmyk(0 1 1 0)");
+  ASSERT_TRUE(c);
+}
+
+TEST(Css, NoneComponents) {
+  auto c = parse_css_color_rgba8("rgb(none 255 0)");
+  ASSERT_TRUE(c);
+  expect_rgba(*c, 0, 255, 0, 255);
+  ASSERT_TRUE(parse_css_color_rgba8("lab(none 10 10)").has_value());
+  ASSERT_TRUE(parse_css_color_rgba8("hsl(none 100% 50%)").has_value());
+}
+
+TEST(Css, ToCssColorStringRoundTrip) {
+  rgba8_t tomato{255, 99, 71, 255};
+  auto s = to_css_color_string(tomato);
+  auto back = parse_css_color_rgba8(s);
+  ASSERT_TRUE(back);
+  expect_rgba(*back, 255, 99, 71, 255);
+}
+
+struct CssTableCase {
+  std::string input;
+  uint8_t r, g, b, a;
+};
+
+TEST(Css, WptStyleTable) {
+  const std::vector<CssTableCase> cases = {
+      {"#00ff00", 0, 255, 0, 255},
+      {"color(srgb 0 1 0)", 0, 255, 0, 255},
+      {"color-mix(in srgb, red, red)", 255, 0, 0, 255},
+      {"color-mix(in srgb, black, white)", 128, 128, 128, 255},
+  };
+  for (const auto& row : cases) {
+    auto c = parse_css_color_rgba8(row.input);
+    ASSERT_TRUE(c) << row.input;
+    expect_rgba(*c, row.r, row.g, row.b, row.a);
+  }
 }
 
 }  // namespace colorcpp::io::test

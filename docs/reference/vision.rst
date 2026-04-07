@@ -6,14 +6,41 @@ Simulations approximate how some viewers perceive colors under **protanopia**, *
 In colorcpp
 ------------
 
-* Header: ``include/colorcpp/operations/vision.hpp``
-* Entry points: ``simulate_protanopia``, ``simulate_deuteranopia``, ``simulate_tritanopia``, ``is_distinguishable``, etc.
+* Header: ``include/colorcpp/algorithms/vision.hpp``
+
+Available simulations:
+
+  * **Dichromacy** (full color deficiency):
+    * ``simulate_protanopia()`` - L-cone absence (red blindness)
+    * ``simulate_deuteranopia()`` - M-cone absence (green blindness)
+    * ``simulate_tritanopia()`` - S-cone absence (blue blindness)
+    * ``simulate_achromatopsia()`` - Total color blindness
+
+  * **Machado 2009 Model** (variable severity):
+    * ``simulate_protanopia_machado()`` with severity parameter [0.0, 1.0]
+    * ``simulate_deuteranopia_machado()``
+    * ``simulate_tritanopia_machado()``
+    * Supports anomalous trichromacy to full dichromacy continuum
+
+  * **Utility functions**:
+    * ``is_distinguishable_for_cvd()``
+    * ``color_difference_for_cvd()``
+
 
 Notes
 -----
 
-* Matrices cite **Viénot, Brettel, Mollon**-style formulations (see file header): linearization uses **IEC 61966-2-1** piecewise sRGB.
-* Simulations are **educational / design aids**; they do not capture individual variation, acquired deficiencies, or display calibration.
+* Brettel / Viénot model operates in LMS cone response space
+* Machado model uses optimized RGB matrices for GPU-friendly implementation
+* Severity 0.0 = normal vision, 1.0 = full dichromacy
+* Simulations are design aids, not medical accurate representation of individual vision
+
+References
+----------
+
+* Brettel, H., Viénot, F., & Mollon, J. D. (1997). *Computerized simulation of color appearance for dichromats.*
+* Viénot, F., Brettel, H., & Mollon, J. D. (1999). *Digital video colourmaps for checking the legibility of displays by dichromats.*
+* Machado, G. M., Oliveira, M. M., & Fernandes, L. A. (2009). *A Physiologically-Based Model for Simulation of Color Vision Deficiency.*
 
 References
 ----------

@@ -1,6 +1,13 @@
 /**
  * @file hsl.hpp
  * @brief Random HSL/HSV color generator with configurable options.
+ *
+ * @par Thread safety
+ * Same as @ref basic_random_generator: not thread-safe across threads on one object.
+ *
+ * @par Four-channel models (HSLA, HSVA, HWBA)
+ * Alpha is drawn uniformly in `[a_min, a_max]` (defaults `[0, 1]`). `set_options` validates `a_min <= a_max` when the
+ * color type has four channels.
  */
 
 #pragma once
@@ -29,25 +36,22 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   using T = typename base::T;
 
  public:
-  /** @brief Min/max for H, S, and V or L when generating. */
+  /** @brief Min/max for H, S, and V or L when generating; for 4-channel types, also @a a_min / @a a_max for alpha. */
   struct options {
     T h_min{T(0)}, h_max{traits::hue_max()};
     T s_min{T(0)}, s_max{traits::template max_at<1>()};
     T l_min{T(0)}, l_max{traits::template max_at<2>()};
+    T a_min{T(0)}, a_max{T(1)};
   };
 
  protected:
   options opts{};
 
  public:
-  basic_hsl_generator(Engine& e, const options& o = {}) : base(e), opts(o) {
-    if (opts.h_min > opts.h_max || opts.s_min > opts.s_max || opts.l_min > opts.l_max)
-      throw std::invalid_argument("colorcpp: generator options min must not exceed max");
-  }
+  basic_hsl_generator(Engine& e, const options& o = {}) : base(e), opts(o) { validate_options(opts); }
 
   explicit basic_hsl_generator(typename Engine::result_type seed, const options& o = {}) : base(seed), opts(o) {
-    if (opts.h_min > opts.h_max || opts.s_min > opts.s_max || opts.l_min > opts.l_max)
-      throw std::invalid_argument("colorcpp: generator options min must not exceed max");
+    validate_options(opts);
   }
 
   Color next() const { return next_impl(std::make_index_sequence<traits::size>{}); }
@@ -69,9 +73,22 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   }
 
   const options& get_options() const { return opts; }
-  void set_options(const options& o) { opts = o; }
+
+  /** @brief Replace options; throws `std::invalid_argument` if any min > max (including alpha for 4-channel types). */
+  void set_options(const options& o) {
+    validate_options(o);
+    opts = o;
+  }
 
  private:
+  static void validate_options(const options& o) {
+    if (o.h_min > o.h_max || o.s_min > o.s_max || o.l_min > o.l_max)
+      throw std::invalid_argument("colorcpp: generator options min must not exceed max");
+    if constexpr (traits::size >= 4) {
+      if (o.a_min > o.a_max) throw std::invalid_argument("colorcpp: generator alpha min must not exceed max");
+    }
+  }
+
   template <std::size_t I>
   T get_channel_val() const {
     if constexpr (I == 0)
@@ -80,6 +97,8 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
       return this->random_value(opts.s_min, opts.s_max);
     else if constexpr (I == 2)
       return this->random_value(opts.l_min, opts.l_max);
+    else if constexpr (I == 3 && traits::size >= 4)
+      return this->random_value(opts.a_min, opts.a_max);
     else
       return traits::template max_at<I>();
   }

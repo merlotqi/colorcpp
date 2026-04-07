@@ -33,6 +33,18 @@ if(COLORCPP_BUILD_EXAMPLES)
   add_executable(ansi_example ansi_example.cpp)
   target_link_libraries(ansi_example colorcpp::colorcpp)
 
-  add_executable(flow_example flow_example.cpp)
-  target_link_libraries(flow_example colorcpp::colorcpp)
+  add_executable(gamut_example gamut_example.cpp)
+  target_link_libraries(gamut_example colorcpp::colorcpp)
+
+  add_executable(delta_e_example delta_e_example.cpp)
+  target_link_libraries(delta_e_example colorcpp::colorcpp)
+
+  add_executable(vision_example vision_example.cpp)
+  target_link_libraries(vision_example colorcpp::colorcpp)
+
+  add_executable(accessibility_example accessibility_example.cpp)
+  target_link_libraries(accessibility_example colorcpp::colorcpp)
+
+  add_executable(color_temperature_example color_temperature_example.cpp)
+  target_link_libraries(color_temperature_example colorcpp::colorcpp)
 endif()

@@ -33,36 +33,40 @@ inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c) {
     c.i = checkpoint;
     details::Cursor d{c.s, c.i};
 
-    // Parse L (lightness): 0-100% or 0-100
-    auto l_cv = d.parse_component_value();
-    if (!l_cv) return std::nullopt;
-    float L = static_cast<float>(l_cv->first);
-    if (l_cv->second) {
-      // Percentage: 0-100% maps to 0-100
-      L = std::clamp(L, 0.0f, 100.0f);
-    } else {
-      L = std::clamp(L, 0.0f, 100.0f);
+    float L = 0.f;
+    if (!d.try_consume_none()) {
+      auto l_cv = d.parse_component_value();
+      if (!l_cv) return std::nullopt;
+      L = static_cast<float>(l_cv->first);
+      if (l_cv->second) {
+        L = std::clamp(L, 0.0f, 100.0f);
+      } else {
+        L = std::clamp(L, 0.0f, 100.0f);
+      }
     }
 
     d.skip_ws();
 
-    // Parse C (chroma): 0-150 or 0-150%
-    auto c_cv = d.parse_component_value();
-    if (!c_cv) return std::nullopt;
-    float C = static_cast<float>(c_cv->first);
-    if (c_cv->second) {
-      // Percentage: 0-100% maps to 0-150
-      C = std::clamp(C, 0.0f, 100.0f) * 1.5f;
-    } else {
-      C = std::clamp(C, 0.0f, 150.0f);
+    float C = 0.f;
+    if (!d.try_consume_none()) {
+      auto c_cv = d.parse_component_value();
+      if (!c_cv) return std::nullopt;
+      C = static_cast<float>(c_cv->first);
+      if (c_cv->second) {
+        C = std::clamp(C, 0.0f, 100.0f) * 1.5f;
+      } else {
+        C = std::clamp(C, 0.0f, 150.0f);
+      }
     }
 
     d.skip_ws();
 
-    // Parse H (hue angle)
-    auto h = d.parse_hue_angle();
-    if (!h) return std::nullopt;
-    float H = static_cast<float>(*h);
+    float H = 0.f;
+    if (!d.try_consume_none()) {
+      auto h = d.parse_hue_angle();
+      if (!h) return std::nullopt;
+      H = static_cast<float>(*h);
+    }
 
     d.skip_ws();
 

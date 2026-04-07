@@ -3,11 +3,10 @@
  * @brief Unit tests for palette operations.
  */
 
-#include <cstddef>
-
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+#include <cstddef>
 
 namespace colorcpp::operations::test {
 

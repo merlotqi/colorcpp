@@ -6,7 +6,7 @@
 #pragma once
 
 #include <colorcpp/operations/conversion/functions/index.hpp>
-#include <colorcpp/operations/conversion/helpers.hpp>
+#include <colorcpp/operations/conversion/detail.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 #include <colorcpp/operations/conversion/traits.hpp>
 #include <type_traits>

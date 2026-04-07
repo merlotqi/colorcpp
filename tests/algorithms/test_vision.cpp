@@ -212,4 +212,29 @@ TEST(VisionTest, HSVTypes) {
   EXPECT_LE(result.h(), 360.0f);
 }
 
+// ============================================================================
+// Machado et al. (severity)
+// ============================================================================
+
+TEST(MachadoTest, SeverityZeroIsIdentity) {
+  rgb8_t green{0, 255, 0};
+  auto d = simulate_deutan_machado(green, 0.0f);
+  EXPECT_EQ(d.r(), green.r());
+  EXPECT_EQ(d.g(), green.g());
+  EXPECT_EQ(d.b(), green.b());
+}
+
+TEST(MachadoTest, FullSeverityChangesRed) {
+  rgb8_t red{255, 0, 0};
+  auto p = simulate_protan_machado(red, 1.0f);
+  EXPECT_LT(p.r(), 255);
+  EXPECT_GT(p.g(), 0);
+}
+
+TEST(MachadoTest, PreservesAlpha) {
+  rgba8_t c{255, 0, 0, 100};
+  auto out = simulate_tritan_machado(c, 0.5f);
+  EXPECT_EQ(out.a(), 100);
+}
+
 }  // namespace colorcpp::algorithms::vision::test

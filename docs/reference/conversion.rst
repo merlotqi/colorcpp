@@ -1,26 +1,61 @@
 Color space conversion
 =======================
 
-Conversions route colors between registered models using explicit **hub** spaces (linear sRGB, XYZ, OkLab for perceptual paths). Unsupported pairs fail at **compile time** with a ``static_assert``.
+Typed color conversion system with automatic routing, compile-time safety and extensible registration architecture.
 
 In colorcpp
 ------------
 
 * Header: ``include/colorcpp/operations/conversion.hpp``
-* Entry point: ``colorcpp::operations::conversion::color_cast<To>(from)``
-* **Extension:** register a direct conversion with ``COLORCPP_REGISTER_CONVERSION`` / ``COLORCPP_REGISTER_CONVERSION_BIDIR`` (see ``include/colorcpp/operations/conversion/registry.hpp``), typically next to other registrations in ``include/colorcpp/operations/conversion/functions/index.hpp``. For automatic multi-hop routing, specialize ``color_traits<YourModel>::hub_type`` in ``include/colorcpp/operations/conversion/color_space_registry.hpp`` (or a header you include after ``traits.hpp``).
+* Main entry point: ``colorcpp::color_cast<ToColor>(source)``
+
+**System features**:
+
+  * ✅ **Compile time safety**: Unsupported conversions fail at compile time with clear static_assert messages
+  * ✅ **Automatic routing**: Direct conversions used when available, otherwise routes via hub spaces
+  * ✅ **Hub architecture**: Linear sRGB → XYZ → Oklab conversion graph
+  * ✅ **Extensible**: Add new color spaces externally without modifying core library
+  * ✅ **constexpr support**: All conversions can be evaluated at compile time
+  * ✅ **No runtime overhead**: Zero cost abstractions resolve to direct function calls
+
+
+Conversion registration macros:
+
+  * ``COLORCPP_REGISTER_CONVERSION(From, To, function)`` - Register single direction conversion
+  * ``COLORCPP_REGISTER_CONVERSION_BIDIR(A, B, a_to_b, b_to_a)`` - Register bidirectional conversion
+  * All registered conversions are automatically included in routing graph
+
+
+Supported color space conversions matrix:
+
+| ↓ From \ To → | RGB | Linear RGB | HSL | HSV | HWB | CMYK | XYZ | LAB | Oklab | OkLCH | Display P3 |
+|---------------|-----|------------|-----|-----|-----|------|-----|-----|-------|-------|------------|
+| RGB           | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Linear RGB    | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HSL           | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HSV           | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HWB           | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CMYK          | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| XYZ           | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CIELAB        | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Oklab         | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| OkLCH         | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Display P3    | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
 
 Notes
 -----
 
-* **sRGB ↔ linear sRGB** follows the **IEC 61966-2-1** piecewise transfer (same family as used in CSS and WCAG luminance in this library).
-* Channel mapping to **unit interval** uses per-channel min/max; clamping in ``from_unit`` guards floating-point drift and does not by itself implement full **gamut mapping** (see :doc:`gamut`).
-* Matrices and OkLab coefficients in code match **Björn Ottosson (2020)** for the OkLab path.
+* All conversions use D65 standard illuminant
+* sRGB transfer curve follows IEC 61966-2-1 piecewise gamma
+* Clamping is applied to destination channel ranges by default
+* Conversions are lossless where mathematically possible
+* Path selection always chooses the shortest available route
 
 References
 ----------
 
-* `W3C CSS Color Module — sRGB and transfer functions <https://www.w3.org/TR/css-color-4/#srgb>`__
-* `IEC 61966-2-1 (sRGB definition) <https://webstore.iec.ch/en/publication/6169>`__
-* `OkLab derivation and matrices <https://bottosson.github.io/posts/oklab/>`__
-* `ICC Specification — color management architecture <https://www.color.org/index.xalter>`__ (background on PCS and transforms)
+* `IEC 61966-2-1:1999 sRGB Standard <https://webstore.iec.ch/en/publication/6169>`__
+* `CIE 15:2018 Colorimetry <https://cie.co.at/publications/cie-0152018-colorimetry-4th-edition>`__
+* `Oklab Color Space <https://bottosson.github.io/posts/oklab/>`__
+* `ICC Profile Specification <https://www.color.org/index.xalter>`__

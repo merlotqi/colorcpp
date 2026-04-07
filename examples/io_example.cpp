@@ -13,6 +13,7 @@ using namespace colorcpp::core;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::literals;
 using namespace colorcpp::io::css;
+using namespace colorcpp::io::ansi;
 
 static void section(const char* title) {
   std::cout << "\n" << ::colorcpp::io::ansi::bold() << "── " << title << " ──" << ::colorcpp::io::ansi::reset() << "\n";
