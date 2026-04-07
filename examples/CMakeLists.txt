@@ -32,4 +32,7 @@ if(COLORCPP_BUILD_EXAMPLES)
 
   add_executable(ansi_example ansi_example.cpp)
   target_link_libraries(ansi_example colorcpp::colorcpp)
+
+  add_executable(flow_example flow_example.cpp)
+  target_link_libraries(flow_example colorcpp::colorcpp)
 endif()
