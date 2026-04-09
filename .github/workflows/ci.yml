@@ -48,7 +48,70 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
+  install-consume:
+    name: Install + consumer smoke test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build g++
+
+      - name: Configure install build
+        run: |
+          cmake -G Ninja -B build-install -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_INSTALL_HEADERS=ON \
+            -DCOLORCPP_BUILD_TESTS=OFF \
+            -DCOLORCPP_BUILD_EXAMPLES=OFF \
+            -DCOLORCPP_BUILD_BENCHMARKS=OFF \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/colorcpp-prefix"
+
+      - name: Install package
+        run: cmake --build build-install --target install --parallel
+
+      - name: Create consumer project
+        run: |
+          mkdir -p "$RUNNER_TEMP/colorcpp-consumer"
+          cat > "$RUNNER_TEMP/colorcpp-consumer/CMakeLists.txt" <<'EOF'
+          cmake_minimum_required(VERSION 3.10)
+          project(colorcpp_consumer LANGUAGES CXX)
+
+          set(CMAKE_CXX_STANDARD 17)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          set(CMAKE_CXX_EXTENSIONS OFF)
+
+          find_package(colorcpp REQUIRED)
+
+          add_executable(colorcpp_consumer main.cpp)
+          target_link_libraries(colorcpp_consumer PRIVATE colorcpp::colorcpp)
+          EOF
+          cat > "$RUNNER_TEMP/colorcpp-consumer/main.cpp" <<'EOF'
+          #include <colorcpp/colorcpp.hpp>
+
+          int main() {
+            colorcpp::core::rgba8_t red{255, 0, 0, 255};
+            auto hsv = colorcpp::operations::conversion::color_cast<colorcpp::core::hsva_float_t>(red);
+            return hsv.h() >= 0.0f ? 0 : 1;
+          }
+          EOF
+
+      - name: Configure consumer
+        run: |
+          cmake -G Ninja \
+            -S "$RUNNER_TEMP/colorcpp-consumer" \
+            -B "$RUNNER_TEMP/colorcpp-consumer/build" \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/colorcpp-prefix"
+
+      - name: Build consumer
+        run: cmake --build "$RUNNER_TEMP/colorcpp-consumer/build" --parallel
+
+      - name: Run consumer
+        run: "$RUNNER_TEMP/colorcpp-consumer/build/colorcpp_consumer"
 
   docker:
     name: Docker build

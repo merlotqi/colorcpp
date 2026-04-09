@@ -25,7 +25,7 @@
  * vision (each is a nested namespace).
  */
 
-/** @brief Re-exports nested @c colorcpp::algorithms::* into @c colorcpp when using the umbrella header. */
+/** @brief Convenience re-export into @c colorcpp; canonical docs use @c colorcpp::algorithms::* explicitly. */
 namespace colorcpp {
 
 using namespace algorithms;

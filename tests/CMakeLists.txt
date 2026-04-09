@@ -12,7 +12,6 @@ if(COLORCPP_BUILD_TESTS)
         FetchContent_MakeAvailable(googletest)
     endif()
 
-    enable_testing()
     include(GoogleTest)
 
     file(GLOB_RECURSE TEST_MODULES "*.cpp")
@@ -35,7 +34,7 @@ if(COLORCPP_BUILD_TESTS)
     endforeach()
 
     add_custom_target(run_all_tests
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir ${CMAKE_BINARY_DIR} --output-on-failure
         COMMENT "Running all colorcpp test modules"
     )
 endif()

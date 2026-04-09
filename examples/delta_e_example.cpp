@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <iostream>
 
-using namespace colorcpp;
+using namespace colorcpp::core;
 using namespace colorcpp::algorithms::delta_e;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::literals;

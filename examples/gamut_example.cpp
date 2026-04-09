@@ -7,7 +7,7 @@
 #include <iostream>
 #include <iomanip>
 
-using namespace colorcpp;
+using namespace colorcpp::core;
 using namespace colorcpp::algorithms::gamut;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;
