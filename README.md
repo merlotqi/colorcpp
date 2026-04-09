@@ -52,30 +52,46 @@ target_link_libraries(your_target PRIVATE colorcpp::colorcpp)
 
 **Header-only**: Copy `include/colorcpp/` to your project
 
+### API Layout
+
+Canonical public namespaces:
+
+- `colorcpp::core` for color types, constants, and stream I/O
+- `colorcpp::operations::{conversion, blend, interpolate, palette, flow, random, compare}`
+- `colorcpp::algorithms::{accessibility, color_temperature, delta_e, gamut, gradient, harmony, vision}`
+- `colorcpp::io::{css, literals, serialization, binary_io, ansi}`
+
+When you include [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp), `core`, `operations`, and `algorithms`
+are also re-exported into `colorcpp` for convenience, so `colorcpp::conversion`-style code remains valid. The docs and
+examples below use the canonical nested namespaces; `colorcpp::io` stays under `colorcpp::io`.
+
 ### Basic Usage
 
 ```cpp
 #include <colorcpp/colorcpp.hpp>
 
-using namespace colorcpp;
+using namespace colorcpp::core;
+using namespace colorcpp::operations::blend;
+using namespace colorcpp::operations::conversion;
+using namespace colorcpp::operations::flow;
 
 // Create colors using type aliases
-constexpr auto red = core::rgba8_t{255, 0, 0, 255};
-constexpr auto blue = core::rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f};
+constexpr auto red = rgba8_t{255, 0, 0, 255};
+constexpr auto blue = rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f};
 
 // Convert between color spaces
-auto hsv_red = conversion::color_cast<core::hsv_float_t>(red);
-auto lab_red = conversion::color_cast<core::cielab_t>(red);
+auto hsv_red = color_cast<hsv_float_t>(red);
+auto lab_red = color_cast<cielab_t>(red);
 
 // Color operations
-auto blended = blend::blend(red, blue, blend::blend_mode::multiply);
-auto lighter = operations::lighten(red, 20);  // Lighten by 20%
+auto blended = blend(red, blue, blend_mode::multiply);
+auto lighter = make(red).lighten(20).to_rgba8();
 ```
 
 ## 📚 Color Literals
 
 ```cpp
-using namespace colorcpp::literals;
+using namespace colorcpp::io::literals;
 
 // RGB/Hex literals
 auto coral = 0xFF6347_rgb;           // → rgba8_t{255, 99, 71, 255}
@@ -97,55 +113,62 @@ auto teal = 50'030'000'020_cmyk;     // → cmyk8_t{50, 30, 0, 20}
 
 ## CSS color parsing
 
-Include [`colorcpp/core/css_color.hpp`](include/colorcpp/core/css_color.hpp) or the umbrella [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp). Parsing returns `std::nullopt` on failure (no exceptions).
+Include [`colorcpp/io/css.hpp`](include/colorcpp/io/css.hpp) or the umbrella [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp). Parsing returns `std::nullopt` on failure (no exceptions).
 
 ```cpp
 #include <colorcpp/colorcpp.hpp>
 
-auto c = colorcpp::core::parse_css_color_rgba8("rgb(255 99 71 / 50%)");
-// or any registered color type:
-auto hsl = colorcpp::core::parse_css_color<colorcpp::core::hsla_float_t>("hsl(120 100% 50%)");
+using namespace colorcpp::io::css;
+
+auto c = parse_css_color_rgba8("rgb(255 99 71 / 50%)");
+auto hsl = parse_css_color<colorcpp::core::hsla_float_t>("hsl(120 100% 50%)");
+auto dark = parse_css_color_light_dark_rgba8("light-dark(white, black)", true);
 ```
 
-**Supported (CSS Color Module Level 4):**
+**Supported (CSS Color Module Level 4 plus selected Level 5 helpers):**
 
 - **Hex:** `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`
 - **`rgb()` / `rgba()`:** legacy commas, modern spaces, slash alpha, percentages
 - **`hsl()` / `hsla()`:** hue with `deg`/`grad`/`rad`/`turn`, percentage saturation/lightness
+- **`hwb()`**
 - **`oklab(L a b)`:** L as number/percentage, a/b as numbers/percentages
 - **`oklch(L C H)`:** L as number/percentage, C as number/percentage, H as hue angle
 - **`lab(L a b)`:** CIE L\*a\*b\* with D65 white point
 - **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
-- **`hwb(H W B)`:** Hue-Whiteness-Blackness
-- **`color(display-p3 r g b)`:** Display P3 primaries
+- **`color(srgb ...)`, `color(srgb-linear ...)`, `color(xyz-d65 ...)`, `color(display-p3 ...)`**
+- **`color-mix(in srgb, ...)`**
+- **`device-cmyk(...)`:** supported subset, converted through the CMYK model to sRGB
+- **`light-dark(light, dark)`:** available through `parse_css_color_light_dark_rgba8(..., dark_theme)`
+- **Missing components:** `none` is accepted in supported functional syntaxes
 - **Named colors:** all 140+ CSS Level 4 named colors (`red`, `coral`, `steelblue`, …) — case-insensitive
 
-**Not supported yet:** `color()` for other color spaces, `device-cmyk()`, relative color syntax (`rgb(from …)`). These may be added in later releases.
+**Not supported yet:** arbitrary `color()` spaces beyond the implemented set above, relative color syntax (`rgb(from ...)`), and automatic theme resolution for `light-dark()` without an explicit `dark_theme` choice.
 
 ## 🔄 Color Conversion
 
 ```cpp
-using namespace colorcpp::conversion;
+using namespace colorcpp::core;
+using namespace colorcpp::operations::conversion;
 
 // Convert to any color space
-auto lab = color_cast<core::cielab_t>(rgb_color);
-auto oklch = color_cast<core::oklch_t>(rgb_color);
-auto xyz = color_cast<core::xyz_t>(rgb_color);
+auto lab = color_cast<cielab_t>(rgb_color);
+auto oklch = color_cast<oklch_t>(rgb_color);
+auto xyz = color_cast<xyz_t>(rgb_color);
 
 // sRGB ↔ Linear RGB (gamma handling)
-auto linear = color_cast<core::linear_rgbf_t>(srgb_color);
-auto gamma = color_cast<core::rgba8_t>(linear_color);
+auto linear = color_cast<linear_rgbf_t>(srgb_color);
+auto gamma = color_cast<rgba8_t>(linear_color);
 
 // CIELAB ↔ CIELCH (cartesian ↔ polar)
-auto lch = color_cast<core::cielch_t>(lab_color);
-auto cartesian = color_cast<core::cielab_t>(lch_color);
+auto lch = color_cast<cielch_t>(lab_color);
+auto cartesian = color_cast<cielab_t>(lch_color);
 
 // OkLab ↔ OkLCH
-auto ok = color_cast<core::oklab_t>(lch_color);
-auto polar = color_cast<core::oklch_t>(oklab_color);
+auto ok = color_cast<oklab_t>(lch_color);
+auto polar = color_cast<oklch_t>(oklab_color);
 
 // Cross-space conversions (automatically routed)
-auto lab_to_ok = color_cast<core::oklab_t>(lab_color);  // via XYZ (no gamut clip)
+auto lab_to_ok = color_cast<oklab_t>(lab_color);  // via XYZ (no gamut clip)
 ```
 
 ## 🎨 Color Operations
@@ -153,7 +176,7 @@ auto lab_to_ok = color_cast<core::oklab_t>(lab_color);  // via XYZ (no gamut cli
 ### Blending
 
 ```cpp
-using namespace colorcpp::blend;
+using namespace colorcpp::operations::blend;
 
 // Basic blend modes
 auto normal = blend(red, blue);
@@ -175,7 +198,7 @@ auto hue_blend = blend(red, blue, blend_mode::hue);
 ### Palette Generation
 
 ```cpp
-using namespace colorcpp::palette;
+using namespace colorcpp::operations::palette;
 
 // Generate color scales
 auto linear_palette = linear_scale(red, blue, 5);
@@ -201,7 +224,7 @@ auto first = perceptual_palette[0];
 ### Interpolation
 
 ```cpp
-using namespace colorcpp::interpolate;
+using namespace colorcpp::operations::interpolate;
 
 // Linear interpolation
 auto mid = lerp(red, blue, 0.5f);
@@ -216,59 +239,61 @@ auto perceptual = lerp_oklab(red, blue, 0.5f);
 ### Accessibility
 
 ```cpp
-using namespace colorcpp::operations::accessibility;
+using namespace colorcpp::algorithms::accessibility;
 
 // WCAG 2.x contrast ratio (do not compare numerically to APCA Lc)
 auto ratio = contrast_ratio(foreground, background);
-bool passes_aa = passes_aa_standard(ratio);  // 4.5:1 for normal text
-bool passes_aaa = passes_aaa_standard(ratio); // 7:1 for normal text
+bool passes_aa = is_wcag_compliant(foreground, background, wcag_level::aa, text_size::normal);
+bool passes_aaa = is_wcag_compliant(foreground, background, wcag_level::aaa, text_size::normal);
 
 // APCA Lc (SAPC / Silver draft style; text vs background order matters; thresholds are not WCAG 2)
 float lc = apca_contrast(foreground, background);
 bool strong_enough = apca_meets_min_abs_lc(foreground, background, 60.0f);
 
-// Find accessible colors (WCAG ratio space)
-auto accessible = find_contrast_color(foreground, background, 4.5f);
+// Pick black or white text for a background
+auto recommended_text = contrast_text_color(background);
 ```
 
 ### Vision Simulation
 
 ```cpp
-using namespace colorcpp::vision;
+using namespace colorcpp::algorithms::vision;
 
 // Simulate color blindness
 auto protanopia = simulate_protanopia(color);
 auto deuteranopia = simulate_deuteranopia(color);
 auto tritanopia = simulate_tritanopia(color);
 
-// Check if colors are distinguishable under different conditions
-bool distinguishable = is_distinguishable(c1, c2, deficiency::deuteranopia);
+// Check if colors remain distinguishable under common CVD models
+bool distinguishable = is_accessible_for_deuteranopia(c1, c2);
+bool robust = is_accessible_for_all_cvd(c1, c2);
 ```
 
 ### Gamut Clipping
 
 ```cpp
-using namespace colorcpp::gamut;
+using namespace colorcpp::algorithms::gamut;
 
 // Check if color is within sRGB gamut
-bool in_gamut = is_in_gamut(color);
+bool in_gamut = is_in_srgb_gamut(color);
 
 // Clip to sRGB gamut
-auto clipped = clip_to_gamut(color);
+auto clipped = gamut_clip(color);
 
-// Check clip amount
-auto [clipped_color, distance] = clip_with_distance(color);
+// Inspect mapping metadata
+float distance = gamut_distance(color);
+auto info = gamut_clip_with_info(color);
 ```
 
 ### Delta E (Color Difference)
 
 ```cpp
-using namespace colorcpp::delta_e;
+using namespace colorcpp::algorithms::delta_e;
 
 // Different Delta E metrics
 auto de00 = delta_e_2000(color1, color2);  // CIEDE2000 (best for human perception)
-auto de94 = delta_e_1994(color1, color2);  // CIE94
-auto de76 = delta_e_1976(color1, color2);  // CIE76 (simple Euclidean)
+auto de94 = delta_e_94(color1, color2);    // CIE94
+auto de76 = delta_e_76(color1, color2);    // CIE76 (simple Euclidean)
 
 // Threshold comparisons
 bool imperceptible = delta_e_2000(c1, c2) < 1.0f;
@@ -278,20 +303,25 @@ bool acceptable = delta_e_2000(c1, c2) < 3.0f;
 ### Random Colors
 
 ```cpp
-using namespace colorcpp::random;
+using namespace colorcpp::core;
+using namespace colorcpp::operations;
+using namespace colorcpp::operations::random;
 
 // Random colors in different spaces
-auto random_rgb = random_rgb_color();        // Random RGB
-auto random_hsl = random_hsl_color();        // Random HSL
-auto random_lab = random_lab_color();        // Random CIELAB (perceptually uniform)
+auto random_rgb = random_color<rgbf_t>();
+auto random_hsl = random_color<hsl_float_t>();
+auto random_lab = random_color<cielab_t>();
 
 // With seed for reproducibility
-auto seeded = random_rgb_color(seed);
+auto seeded = random_color<rgbf_t>(seed);
+rgb8_generator generator(seed);
+auto sample = generator.next();
 ```
 
 ## 📖 I/O Operations
 
 ```cpp
+using namespace colorcpp::core;
 using namespace colorcpp::core::io;
 
 // Output formatting
@@ -332,15 +362,18 @@ bool valid = is_named_color("red"); // → true
 ```cpp
 #include <colorcpp/io/serialization.hpp>
 
+using namespace colorcpp::core;
+using namespace colorcpp::io::serialization;
+
 // Specialize json_adapter for your JSON library (e.g. nlohmann::json)
 // Then use to_json / from_json for any color type:
 
-auto j = serialization::to_json<nlohmann::json>(coral_color);
-auto recovered = serialization::from_json<nlohmann::json, rgba8_t>(j);
+auto j = to_json<nlohmann::json>(coral_color);
+auto recovered = from_json<nlohmann::json, rgba8_t>(j);
 
 // Named format with custom channel names
 std::string names[] = {"red", "green", "blue", "alpha"};
-auto j_named = serialization::to_json<nlohmann::json>(coral, names, opts);
+auto j_named = to_json<nlohmann::json>(coral, names, opts);
 ```
 
 ### Binary IO (LUT Files)
@@ -348,14 +381,16 @@ auto j_named = serialization::to_json<nlohmann::json>(coral, names, opts);
 ```cpp
 #include <colorcpp/io/binary_io.hpp>
 
+using namespace colorcpp::io::binary_io;
+
 // Read a DaVinci Resolve .cube LUT file
-auto lut = binary_io::cube::read_3d("grade.cube");
+auto lut = cube::read_3d("grade.cube");
 
 // Apply LUT to a color
-auto graded = binary_io::apply(*lut, 0.5f, 0.3f, 0.8f);
+auto graded = apply(*lut, 0.5f, 0.3f, 0.8f);
 
 // Write a LUT file
-binary_io::cube::write("output.cube", *lut, "My Grade");
+cube::write("output.cube", *lut, "My Grade");
 ```
 
 ### ANSI Terminal Output
@@ -363,19 +398,22 @@ binary_io::cube::write("output.cube", *lut, "My Grade");
 ```cpp
 #include <colorcpp/io/ansi.hpp>
 
+using namespace colorcpp::io::ansi;
+using namespace colorcpp::io::css::named_literal;
+
 // Print colored swatch with info
 auto c = "coral"_color;
-ansi::print_color(std::cout, c, "coral");
+print_color(std::cout, c, "coral");
 // Output: ██████ coral #ff7f50ff  RGB(255,127,80)
 
 // Print palette
-ansi::print_palette(std::cout, colors, count);
+print_palette(std::cout, colors.data(), colors.size());
 
 // Print gradient
-ansi::print_gradient(std::cout, "red"_color, "blue"_color);
+print_gradient(std::cout, "red"_color, "blue"_color);
 
 // Print WCAG contrast check
-ansi::print_contrast(std::cout, "white"_color, "navy"_color);
+print_contrast(std::cout, "white"_color, "navy"_color);
 // Output:  Aa  #fff on #000080  contrast: 14.4:1  AAA
 ```
 
@@ -384,14 +422,16 @@ ansi::print_contrast(std::cout, "white"_color, "navy"_color);
 ```cpp
 #include <colorcpp/algorithms/color_temperature.hpp>
 
+using namespace colorcpp::algorithms::color_temperature;
+
 // Kelvin → sRGB (1000–40000K)
-auto warm = color_temperature::kelvin_to_rgba8(2700.0f);   // Warm white
-auto daylight = color_temperature::kelvin_to_rgba8(6500.0f); // D65 white
-auto cool = color_temperature::kelvin_to_rgba8(10000.0f);  // Overcast sky
+auto warm = kelvin_to_rgba8(2700.0f);     // Warm white
+auto daylight = kelvin_to_rgba8(6500.0f); // D65 white
+auto cool = kelvin_to_rgba8(10000.0f);    // Overcast sky
 
 // Float version
-auto linear = color_temperature::kelvin_to_linear_rgb(5500.0f);
-auto srgb = color_temperature::kelvin_to_rgb(5500.0f);
+auto linear = kelvin_to_linear_rgb(5500.0f);
+auto srgb = kelvin_to_rgb(5500.0f);
 ```
 
 ## 📁 Project Structure
@@ -429,9 +469,9 @@ include/colorcpp/
 │   ├── conversion.hpp        # Color space conversion
 │   ├── blend.hpp             # Blending modes
 │   ├── compare.hpp           # Color comparison
+│   ├── flow.hpp              # Fluent pipeline / themes / export
 │   ├── interpolate.hpp       # Color interpolation
 │   ├── palette.hpp           # Palette generation
-│   ├── harmony.hpp           # Harmony operations
 │   └── random.hpp            # Random color generation
 ├── io/
 │   ├── io.hpp                # I/O aggregate
@@ -444,8 +484,6 @@ include/colorcpp/
 │   ├── binary_io.hpp         # LUT file formats
 │   ├── binary_io/            # Binary IO internals
 │   └── ansi.hpp              # ANSI terminal output
-└── algorithms/
-    └── (see above)
 ```
 
 ## 🔧 Requirements
@@ -460,22 +498,34 @@ See the `examples/` directory for complete working examples:
 
 - `io_example.cpp` - Parsing and formatting colors
 - `cast_example.cpp` - Color space conversions
-- `blend_example.cpp` - Blending operations
 - `interpolate_example.cpp` - Color interpolation
 - `palette_example.cpp` - Palette generation
 - `random_example.cpp` - Random color generation
+- `flow_example.cpp` - Fluent theme / export API
+- `accessibility_example.cpp` - WCAG 2 and APCA helpers
+- `gamut_example.cpp` - Gamut mapping and clipping
+- `delta_e_example.cpp` - Color difference metrics
+- `vision_example.cpp` - Vision deficiency simulation
+- `serialization_example.cpp` - JSON and MessagePack adapters
 
 ## ⏱️ Benchmarks
 
 Optional microbenchmarks use [Google Benchmark](https://github.com/google/benchmark), fetched with CMake `FetchContent` when enabled:
 
 ```bash
-cmake -B build -DCOLORCPP_BUILD_BENCHMARKS=ON
+cmake -B build -DCOLORCPP_BUILD_BENCHMARKS=ON -DCOLORCPP_ENABLE_SIMD=ON
 cmake --build build
-./build/benchmarks/colorcpp_benchmark   # or: cmake --build build --target run_benchmarks
+./build/benchmarks/benchmark_conversion
+# or: cmake --build build --target run_all_benchmarks
 ```
 
-Sources under `benchmarks/` are split by area: `benchmark_conversion.cpp`, `benchmark_blend.cpp`, `benchmark_interpolate.cpp`, `benchmark_delta_e.cpp`, `benchmark_io.cpp`, `benchmark_gamut_palette.cpp` — all linked into the single `colorcpp_benchmark` binary.
+Sources under `benchmarks/` are split by area and each builds into its own executable, such as
+`benchmark_conversion`, `benchmark_blend`, `benchmark_interpolate`, `benchmark_delta_e`, `benchmark_io`, and
+`benchmark_gamut_palette`.
+
+`COLORCPP_ENABLE_SIMD=ON` is currently an opt-in fast path for selected operations. Confirmed accelerated paths cover
+selected separable `blend()` modes. `delta_e_ok()` also has an experimental SIMD-backed implementation; unsupported
+targets and all other modes keep the scalar implementation.
 
 ## API reference (Doxygen)
 
@@ -504,7 +554,7 @@ docker compose build verify
 docker compose run --rm dev
 ```
 
-**GitHub Actions** (`.github/workflows/ci.yml`): on push/PR to `main`, `master`, or `channel`, runs a **GCC** and **Clang** matrix (Ninja + CMake) with tests and examples enabled, plus a **Docker** build of the `verify` stage.
+**GitHub Actions** (`.github/workflows/ci.yml`): on push/PR to `main`, `master`, or `channel`, runs a **GCC** and **Clang** matrix (Ninja + CMake) with tests and examples enabled, plus an **install + consumer** smoke test and a **Docker** build of the `verify` stage.
 
 **Publishing** (`.github/workflows/docker-publish.yml`): pushing a tag `v*` builds the same `verify` image and pushes it to **GHCR** as `ghcr.io/<owner>/<repo>` (useful as a reproducible toolchain snapshot, not a runtime dependency for consumers).
 

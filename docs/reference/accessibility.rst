@@ -7,7 +7,8 @@ In colorcpp
 ------------
 
 * Header: ``include/colorcpp/algorithms/accessibility.hpp``
-* WCAG 2: ``relative_luminance``, ``contrast_ratio``, ``is_wcag_compliant``, helpers such as ``contrast_text_color``, ``find_contrast_color``
+* Namespace: ``colorcpp::algorithms::accessibility``
+* WCAG 2: ``relative_luminance``, ``contrast_ratio``, ``is_wcag_compliant``, ``contrast_text_color``
 * APCA: ``apca_luminance``, ``apca_contrast``, ``apca_meets_min_abs_lc``
 
 ✅ **WCAG 2 API**:

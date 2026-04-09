@@ -18,20 +18,25 @@ In colorcpp
 Core functions
 --------------
 
-* ``is_in_gamut<GamutType>()`` — check if color is in specified gamut
-* ``gamut_clip()`` — map color to gamut using various methods:
+* ``is_in_srgb_gamut()`` — fast sRGB gamut check
+* ``is_in_gamut(color, gamut_type)`` — check against sRGB / Display P3 / Adobe RGB
+* ``gamut_clip()`` — map color into sRGB using various methods:
 
   * ``clip_method::clip`` — per-channel clamp (fastest)
   * ``clip_method::chroma_reduce`` — chroma reduction bisection algorithm
   * ``clip_method::css_color4`` — CSS Color Level 4 standard gamut mapping
 
+* ``gamut_distance()`` — perceptual distance from the sRGB gamut boundary
+* ``gamut_clip_with_info()`` — mapped color plus metadata
+* ``gamut_clip_to_gamut(color, gamut_type)`` — simple clipping for non-sRGB target gamuts
+
 Multi-colorspace support
 -------------------------
 
 Supported gamut types:
-* ``gamut::srgb`` — Standard RGB
-* ``gamut::display_p3`` — Apple Display P3 wide gamut
-* ``gamut::adobe_rgb`` — Adobe RGB (1998)
+* ``gamut_type::srgb`` — Standard RGB
+* ``gamut_type::display_p3`` — Apple Display P3 wide gamut
+* ``gamut_type::adobe_rgb`` — Adobe RGB (1998)
 
 Preservation strategies
 -----------------------
@@ -42,6 +47,13 @@ Advanced mapping with perceptual priority:
 * ``preserve_mode::hue`` — Prioritize hue preservation
 * ``preserve_mode::saturation`` — Prioritize saturation levels
 * ``preserve_mode::perceptual`` — Minimize overall ΔE difference
+
+Related helpers:
+
+* ``gamut_clip_preserve_lightness()``
+* ``gamut_clip_preserve_hue()``
+* ``gamut_clip_preserve_saturation()``
+* ``gamut_clip_perceptual()``
 
 Mapping result information
 --------------------------

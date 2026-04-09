@@ -1,7 +1,7 @@
 CSS Color Parsing & Formatting
 ==============================
 
-Full CSS Color Level 4 compliant parser and formatter with support for all modern color space formats.
+CSS Color 4 parsing with selected Color 5 helpers, plus CSS string formatting for sRGB outputs.
 
 In colorcpp
 ------------
@@ -14,12 +14,11 @@ In colorcpp
   * ``parse_css_color<ColorType>()`` - Generic parser for any color space
   * ``parse_css_color_rgba8()`` - Parse to 8-bit sRGB
   * ``parse_css_color_rgbaf()`` - Parse to floating point sRGB
+  * ``parse_css_color_light_dark_rgba8()`` - Resolve ``light-dark()`` with an explicit theme choice
 
 **Formatting API**:
 
-  * ``format_css_color()`` - Format color to CSS string
-  * ``format_css_color_hex()`` - Format as hexadecimal notation
-  * ``format_css_color_function()`` - Format as css function notation
+  * ``to_css_color_string()`` - Format ``rgba8_t`` / ``rgbaf_t`` as canonical CSS ``rgb()`` strings
 
 
 ✅ **Fully implemented formats**:
@@ -35,12 +34,17 @@ In colorcpp
     * ``hwb()`` - hue/whiteness/blackness
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
     * ``lab()`` / ``lch()`` - CIE LAB space
-    * ``color(display-p3)`` - Display P3 wide gamut
-    * ``device-cmyk()`` - CMYK device colors
+    * ``color(srgb)``, ``color(srgb-linear)``, ``color(xyz-d65)``, ``color(display-p3)``
+    * ``color-mix(in srgb, ...)`` - sRGB mixing helper
+    * ``device-cmyk()`` - supported subset, converted to sRGB
+    * ``light-dark()`` - supported through the explicit ``parse_css_color_light_dark_rgba8()`` entry point
 
   * **Named colors**:
     * Full SVG / CSS Level 4 named color table (148 colors)
     * Case insensitive lookup
+
+  * **Missing components**:
+    * ``none`` is accepted in supported functional syntaxes and mapped to the documented per-space defaults
 
 
 Parser features:
@@ -54,11 +58,12 @@ Parser features:
 Notes
 -----
 
-* Parser is fully CSS Color Level 4 specification compliant
+* The parser covers the implemented subset of CSS Color 4 and selected Color 5 helpers used in modern CSS workflows
 * All percentage values are properly normalized
 * Angle units support: ``deg``, ``rad``, ``grad``, ``turn``
 * Parser accepts both legacy comma syntax and modern space-separated syntax
-* Formatter produces canonical CSS output format
+* General relative color syntax such as ``rgb(from ...)`` is not implemented
+* Formatter produces canonical ``rgb()`` output for sRGB colors
 
 
 References

@@ -42,6 +42,7 @@ Notes
 * ΔE94 is asymmetric: reference color is the first parameter
 * ΔE2000 uses double precision internally for accuracy near neutral axis
 * ΔE_OK values are approximately 2.5x smaller scale than ΔE2000
+* ``delta_e_ok()`` has an optional experimental SIMD-backed path for Oklab inputs when ``COLORCPP_ENABLE_SIMD=ON`` on supported targets
 * All metrics work automatically across all input color spaces
 
 

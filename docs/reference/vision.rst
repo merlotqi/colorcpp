@@ -7,6 +7,7 @@ In colorcpp
 ------------
 
 * Header: ``include/colorcpp/algorithms/vision.hpp``
+* Namespace: ``colorcpp::algorithms::vision``
 
 Available simulations:
 
@@ -17,14 +18,17 @@ Available simulations:
     * ``simulate_achromatopsia()`` - Total color blindness
 
   * **Machado 2009 Model** (variable severity):
-    * ``simulate_protanopia_machado()`` with severity parameter [0.0, 1.0]
-    * ``simulate_deuteranopia_machado()``
-    * ``simulate_tritanopia_machado()``
+    * ``simulate_protan_machado()`` with severity parameter [0.0, 1.0]
+    * ``simulate_deutan_machado()``
+    * ``simulate_tritan_machado()``
     * Supports anomalous trichromacy to full dichromacy continuum
 
   * **Utility functions**:
-    * ``is_distinguishable_for_cvd()``
-    * ``color_difference_for_cvd()``
+    * ``is_accessible_for_protanopia()``
+    * ``is_accessible_for_deuteranopia()``
+    * ``is_accessible_for_tritanopia()``
+    * ``is_accessible_for_achromatopsia()``
+    * ``is_accessible_for_all_cvd()``
 
 
 Notes
@@ -34,13 +38,6 @@ Notes
 * Machado model uses optimized RGB matrices for GPU-friendly implementation
 * Severity 0.0 = normal vision, 1.0 = full dichromacy
 * Simulations are design aids, not medical accurate representation of individual vision
-
-References
-----------
-
-* Brettel, H., Viénot, F., & Mollon, J. D. (1997). *Computerized simulation of color appearance for dichromats.*
-* Viénot, F., Brettel, H., & Mollon, J. D. (1999). *Digital video colourmaps for checking the legibility of displays by dichromats.*
-* Machado, G. M., Oliveira, M. M., & Fernandes, L. A. (2009). *A Physiologically-Based Model for Simulation of Color Vision Deficiency.*
 
 References
 ----------
