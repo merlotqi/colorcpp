@@ -13,9 +13,7 @@ using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::literals;
 using namespace colorcpp::io::ansi;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 static const char* band_label(float diff) {
   if (diff < 1.0f) return "[imperceptible]";
@@ -60,11 +58,7 @@ int main() {
 
   section("Pairs with ΔE2000 + swatches");
   std::vector<std::pair<rgba8_t, rgba8_t>> pairs = {
-      {red, dark_red},
-      {tomato, coral},
-      {red, green},
-      {red, blue},
-      {green, blue},
+      {red, dark_red}, {tomato, coral}, {red, green}, {red, blue}, {green, blue},
   };
 
   for (auto& pair : pairs) {
@@ -85,8 +79,8 @@ int main() {
   }
 
   section("Rainbow: adjacent OKLab ΔE");
-  std::vector<rgba8_t> palette = {0xFF0000_rgb, 0xFF7F00_rgb, 0xFFFF00_rgb, 0x00FF00_rgb, 0x0000FF_rgb,
-                                   0x4B0082_rgb,  0x9400D3_rgb};
+  std::vector<rgba8_t> palette = {0xFF0000_rgb, 0xFF7F00_rgb, 0xFFFF00_rgb, 0x00FF00_rgb,
+                                  0x0000FF_rgb, 0x4B0082_rgb, 0x9400D3_rgb};
   std::cout << "  ";
   print_palette(std::cout, palette.data(), palette.size(), 3);
   for (size_t i = 0; i + 1 < palette.size(); ++i) {

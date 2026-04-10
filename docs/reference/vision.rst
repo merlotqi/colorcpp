@@ -17,9 +17,9 @@ Available simulations:
     * ``simulate_achromatopsia()`` - Total color blindness
 
   * **Machado 2009 Model** (variable severity):
-    * ``simulate_protanopia_machado()`` with severity parameter [0.0, 1.0]
-    * ``simulate_deuteranopia_machado()``
-    * ``simulate_tritanopia_machado()``
+    * ``simulate_protan_machado()`` with severity parameter [0.0, 1.0]
+    * ``simulate_deutan_machado()``
+    * ``simulate_tritan_machado()``
     * Supports anomalous trichromacy to full dichromacy continuum
 
   * **Utility functions**:
@@ -33,6 +33,8 @@ Notes
 * Brettel / Viénot model operates in LMS cone response space
 * Machado model uses optimized RGB matrices for GPU-friendly implementation
 * Severity 0.0 = normal vision, 1.0 = full dichromacy
+* Machado remains scalar by default; the current SIMD path is experimental and requires
+  ``COLORCPP_ENABLE_SIMD=ON`` plus ``COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD=ON``
 * Simulations are design aids, not medical accurate representation of individual vision
 
 References

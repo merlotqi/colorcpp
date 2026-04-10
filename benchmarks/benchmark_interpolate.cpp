@@ -4,11 +4,11 @@
 
 using namespace colorcpp;
 using operations::interpolate::lerp;
+using operations::interpolate::lerp_catmull_rom;
 using operations::interpolate::lerp_hsl;
 using operations::interpolate::lerp_oklab;
 using operations::interpolate::multi_lerp;
 using operations::interpolate::multi_lerp_oklab;
-using operations::interpolate::lerp_catmull_rom;
 
 // Single interpolation - RGB
 static void BM_LerpRGB(benchmark::State& state) {

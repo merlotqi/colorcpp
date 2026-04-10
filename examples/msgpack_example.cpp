@@ -223,9 +223,7 @@ struct colorcpp::io::serialization::msgpack_unpacker<simple_unpacker> {
 // Usage
 // =============================================================================
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n'; }
 
 int main() {
   section("Pack color to MessagePack (array format)");

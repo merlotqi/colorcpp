@@ -20,6 +20,9 @@ option(COLORCPP_ENABLE_SIMD "Enable opt-in SIMD fast paths for selected stable o
 option(COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD
   "Enable the experimental SIMD fast path for delta_e_ok()"
   OFF)
+option(COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD
+  "Enable the experimental SIMD fast path for vision::simulate_*_machado()"
+  OFF)
 
 file(GLOB_RECURSE COLOR_HEADERS CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
@@ -44,6 +47,15 @@ elseif(COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD)
   message(WARNING
     "COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD is ON, but COLORCPP_ENABLE_SIMD is OFF; "
     "the experimental delta_e_ok() fast path will remain disabled"
+  )
+endif()
+
+if(COLORCPP_ENABLE_SIMD AND COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD)
+  target_compile_definitions(colorcpp INTERFACE COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD=1)
+elseif(COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD)
+  message(WARNING
+    "COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD is ON, but COLORCPP_ENABLE_SIMD is OFF; "
+    "the experimental vision::simulate_*_machado() fast path will remain disabled"
   )
 endif()
 

@@ -11,9 +11,7 @@ using namespace colorcpp::io::ansi;
 using namespace colorcpp::io::css;
 using namespace colorcpp::io::literals;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n'; }
 
 int main() {
   using namespace named_literal;

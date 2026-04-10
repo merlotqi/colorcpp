@@ -8,9 +8,7 @@ using namespace colorcpp::operations::random;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 template <typename Color>
 void print_rgbf_row(const std::vector<Color>& colors) {

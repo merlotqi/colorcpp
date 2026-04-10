@@ -1,7 +1,7 @@
 CSS Color Parsing & Formatting
 ==============================
 
-Full CSS Color Level 4 compliant parser and formatter with support for all modern color space formats.
+CSS color parser and formatter with broad CSS Color 4 coverage and selected CSS Color 5 functions.
 
 In colorcpp
 ------------
@@ -35,12 +35,14 @@ In colorcpp
     * ``hwb()`` - hue/whiteness/blackness
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
     * ``lab()`` / ``lch()`` - CIE LAB space
-    * ``color(display-p3)`` - Display P3 wide gamut
+    * ``color(...)`` - ``srgb``, ``srgb-linear``, ``display-p3``, ``display-p3-linear``, ``a98-rgb``,
+      ``prophoto-rgb``, ``rec2020``, ``xyz``, ``xyz-d50``, ``xyz-d65``
     * ``device-cmyk()`` - CMYK device colors
 
   * **Named colors**:
     * Full SVG / CSS Level 4 named color table (148 colors)
     * Case insensitive lookup
+    * ``transparent`` keyword
 
 
 Parser features:
@@ -54,11 +56,12 @@ Parser features:
 Notes
 -----
 
-* Parser is fully CSS Color Level 4 specification compliant
+* Absolute CSS colors are broadly supported; context-dependent CSS colors remain partial
 * All percentage values are properly normalized
 * Angle units support: ``deg``, ``rad``, ``grad``, ``turn``
 * Parser accepts both legacy comma syntax and modern space-separated syntax
 * Formatter produces canonical CSS output format
+* Remaining gaps include ``currentColor``, system colors, relative color syntax, and generic ``light-dark()`` context
 
 
 References

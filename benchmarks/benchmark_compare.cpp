@@ -3,8 +3,8 @@
 #include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp;
-using operations::compare::perceptual_equal;
 using operations::compare::epsilon_equal;
+using operations::compare::perceptual_equal;
 
 // Exact equality
 static void BM_Compare_Exact(benchmark::State& state) {
