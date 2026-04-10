@@ -38,6 +38,7 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
       {"firebrick", core::rgba8_t{178, 34, 34, 255}},
       {"red", core::rgba8_t{255, 0, 0, 255}},
       {"darkred", core::rgba8_t{139, 0, 0, 255}},
+      {"lightcoral", core::rgba8_t{240, 128, 128, 255}},
 
       // Orange colors
       {"coral", core::rgba8_t{255, 127, 80, 255}},
@@ -78,6 +79,7 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
       {"darkslateblue", core::rgba8_t{72, 61, 139, 255}},
       {"slateblue", core::rgba8_t{106, 90, 205, 255}},
       {"mediumslateblue", core::rgba8_t{123, 104, 238, 255}},
+      {"rebeccapurple", core::rgba8_t{102, 51, 153, 255}},
 
       // Green colors
       {"greenyellow", core::rgba8_t{173, 255, 47, 255}},
@@ -123,7 +125,6 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
       {"deepskyblue", core::rgba8_t{0, 191, 255, 255}},
       {"dodgerblue", core::rgba8_t{30, 144, 255, 255}},
       {"cornflowerblue", core::rgba8_t{100, 149, 237, 255}},
-      {"mediumslateblue", core::rgba8_t{123, 104, 238, 255}},
       {"royalblue", core::rgba8_t{65, 105, 225, 255}},
       {"blue", core::rgba8_t{0, 0, 255, 255}},
       {"mediumblue", core::rgba8_t{0, 0, 205, 255}},

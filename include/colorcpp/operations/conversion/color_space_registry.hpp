@@ -158,15 +158,15 @@ struct color_traits<core::xyz::model::xyze> {
   using hub_type = void;
 };
 
-// Display P3 uses Linear RGB as hub
+// Display P3 uses Linear Display P3 as hub
 template <>
 struct color_traits<core::display_p3::model::display_p3> {
-  using hub_type = core::linear_rgbf_t;
+  using hub_type = core::linear_display_p3f_t;
 };
 
 template <>
 struct color_traits<core::display_p3::model::display_p3a> {
-  using hub_type = core::linear_rgbaf_t;
+  using hub_type = core::linear_display_p3af_t;
 };
 
 // Linear Display P3 uses XYZ as hub

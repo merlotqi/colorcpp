@@ -16,8 +16,18 @@ namespace colorcpp::io::css {
 template <typename Color>
 inline std::optional<Color> parse_css_color(std::string_view str);
 
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str, const parse_css_color_context& context);
+
+namespace parse_templates_detail {
+
+template <typename Color>
+inline std::optional<Color> parse_exact_css_color(std::string_view) {
+  return std::nullopt;
+}
+
 template <>
-inline std::optional<core::cielab_t> parse_css_color<core::cielab_t>(std::string_view str) {
+inline std::optional<core::cielab_t> parse_exact_css_color<core::cielab_t>(std::string_view str) {
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
@@ -26,7 +36,7 @@ inline std::optional<core::cielab_t> parse_css_color<core::cielab_t>(std::string
 }
 
 template <>
-inline std::optional<core::cielch_t> parse_css_color<core::cielch_t>(std::string_view str) {
+inline std::optional<core::cielch_t> parse_exact_css_color<core::cielch_t>(std::string_view str) {
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
@@ -35,7 +45,7 @@ inline std::optional<core::cielch_t> parse_css_color<core::cielch_t>(std::string
 }
 
 template <>
-inline std::optional<core::oklab_t> parse_css_color<core::oklab_t>(std::string_view str) {
+inline std::optional<core::oklab_t> parse_exact_css_color<core::oklab_t>(std::string_view str) {
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
@@ -44,7 +54,7 @@ inline std::optional<core::oklab_t> parse_css_color<core::oklab_t>(std::string_v
 }
 
 template <>
-inline std::optional<core::oklch_t> parse_css_color<core::oklch_t>(std::string_view str) {
+inline std::optional<core::oklch_t> parse_exact_css_color<core::oklch_t>(std::string_view str) {
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
@@ -53,13 +63,31 @@ inline std::optional<core::oklch_t> parse_css_color<core::oklch_t>(std::string_v
 }
 
 template <>
-inline std::optional<core::display_p3f_t> parse_css_color<core::display_p3f_t>(std::string_view str) {
+inline std::optional<core::display_p3f_t> parse_exact_css_color<core::display_p3f_t>(std::string_view str) {
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
   if (auto r = parse_display_p3_function(c)) return r;
   return std::nullopt;
 }
+
+template <typename Color>
+inline std::optional<Color> parse_css_color_impl(std::string_view str) {
+  if (auto exact = parse_exact_css_color<Color>(str)) return exact;
+  auto parsed = parse_css_color_rgbaf(str);
+  if (!parsed) return std::nullopt;
+  return operations::conversion::color_cast<Color>(*parsed);
+}
+
+template <typename Color>
+inline std::optional<Color> parse_css_color_impl(std::string_view str, const parse_css_color_context& context) {
+  if (auto exact = parse_exact_css_color<Color>(str)) return exact;
+  auto parsed = parse_css_color_rgbaf(str, context);
+  if (!parsed) return std::nullopt;
+  return operations::conversion::color_cast<Color>(*parsed);
+}
+
+}  // namespace parse_templates_detail
 
 template <>
 inline std::optional<core::rgbaf_t> parse_css_color<core::rgbaf_t>(std::string_view str) {
@@ -68,9 +96,19 @@ inline std::optional<core::rgbaf_t> parse_css_color<core::rgbaf_t>(std::string_v
 
 template <typename Color>
 inline std::optional<Color> parse_css_color(std::string_view str) {
-  auto r = parse_css_color_rgba8(str);
-  if (!r) return std::nullopt;
-  return operations::conversion::color_cast<Color>(*r);
+  return parse_templates_detail::parse_css_color_impl<Color>(str);
+}
+
+template <>
+inline std::optional<core::rgbaf_t> parse_css_color<core::rgbaf_t>(
+    std::string_view str,
+    const parse_css_color_context& context) {
+  return parse_css_color_rgbaf(str, context);
+}
+
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str, const parse_css_color_context& context) {
+  return parse_templates_detail::parse_css_color_impl<Color>(str, context);
 }
 
 }  // namespace colorcpp::io::css

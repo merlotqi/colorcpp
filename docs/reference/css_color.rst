@@ -14,6 +14,7 @@ In colorcpp
   * ``parse_css_color<ColorType>()`` - Generic parser for any color space
   * ``parse_css_color_rgba8()`` - Parse to 8-bit sRGB
   * ``parse_css_color_rgbaf()`` - Parse to floating point sRGB
+  * ``parse_css_color_context`` - Ambient values for ``currentColor``, system colors, and theme-dependent parsing
 
 **Formatting API**:
 
@@ -36,7 +37,8 @@ In colorcpp
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
     * ``lab()`` / ``lch()`` - CIE LAB space
     * ``color(display-p3)`` - Display P3 wide gamut
-    * ``device-cmyk()`` - CMYK device colors
+    * ``device-cmyk()`` - CMYK device colors with optional alpha
+    * ``light-dark()`` - Theme-aware color selection through context-aware parsing
 
   * **Named colors**:
     * Full SVG / CSS Level 4 named color table (148 colors)
@@ -49,12 +51,13 @@ Parser features:
   * Whitespace tolerant
   * Graceful error handling
   * No exceptions, returns optional types
+  * Context-aware parsing for ``currentColor`` and CSS system colors
 
 
 Notes
 -----
 
-* Parser is fully CSS Color Level 4 specification compliant
+* Context-sensitive colors require the overloads that take ``parse_css_color_context``
 * All percentage values are properly normalized
 * Angle units support: ``deg``, ``rad``, ``grad``, ``turn``
 * Parser accepts both legacy comma syntax and modern space-separated syntax

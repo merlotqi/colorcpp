@@ -11,6 +11,7 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/io/css/color_function.hpp>
+#include <colorcpp/io/css/context.hpp>
 #include <colorcpp/io/css/details.hpp>
 #include <colorcpp/io/css/device_cmyk.hpp>
 #include <colorcpp/io/css/hex.hpp>
@@ -31,7 +32,9 @@
 namespace colorcpp::io::css {
 
 std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str);
+std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str, const parse_css_color_context& context);
 std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str);
+std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str, const parse_css_color_context& context);
 
 namespace css_parse_detail {
 
@@ -69,7 +72,37 @@ inline std::optional<std::pair<std::string_view, float>> split_color_and_optiona
   return std::pair<std::string_view, float>{color, w2};
 }
 
-inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c) {
+inline std::optional<core::rgbaf_t> resolve_context_color_rgbaf(std::string_view t, const parse_css_color_context& context) {
+  if (details::equals_ci(t, "currentcolor")) return context.current_color;
+  if (details::equals_ci(t, "accentcolor")) return context.accent_color;
+  if (details::equals_ci(t, "accentcolortext")) return context.accent_color_text;
+  if (details::equals_ci(t, "activetext")) return context.active_text;
+  if (details::equals_ci(t, "buttonborder")) return context.button_border;
+  if (details::equals_ci(t, "buttonface")) return context.button_face;
+  if (details::equals_ci(t, "buttontext")) return context.button_text;
+  if (details::equals_ci(t, "canvas")) return context.canvas;
+  if (details::equals_ci(t, "canvastext")) return context.canvas_text;
+  if (details::equals_ci(t, "field")) return context.field;
+  if (details::equals_ci(t, "fieldtext")) return context.field_text;
+  if (details::equals_ci(t, "graytext")) return context.gray_text;
+  if (details::equals_ci(t, "highlight")) return context.highlight;
+  if (details::equals_ci(t, "highlighttext")) return context.highlight_text;
+  if (details::equals_ci(t, "linktext")) return context.link_text;
+  if (details::equals_ci(t, "mark")) return context.mark;
+  if (details::equals_ci(t, "marktext")) return context.mark_text;
+  if (details::equals_ci(t, "selecteditem")) return context.selected_item;
+  if (details::equals_ci(t, "selecteditemtext")) return context.selected_item_text;
+  if (details::equals_ci(t, "visitedtext")) return context.visited_text;
+  return std::nullopt;
+}
+
+inline std::optional<core::rgba8_t> resolve_context_color_rgba8(std::string_view t, const parse_css_color_context& context) {
+  auto color = resolve_context_color_rgbaf(t, context);
+  if (!color) return std::nullopt;
+  return operations::conversion::color_cast<core::rgba8_t>(*color);
+}
+
+inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c, const parse_css_color_context& context) {
   size_t a = c.i;
   while (a < c.s.size() && details::is_space(c.s[a])) ++a;
   size_t b = c.s.size();
@@ -82,6 +115,14 @@ inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c) 
     if (!r) return std::nullopt;
     c.i = b;
     return r;
+  }
+  if (details::equals_ci(t, "transparent")) {
+    c.i = b;
+    return core::rgba8_t{0, 0, 0, 0};
+  }
+  if (auto contextual = resolve_context_color_rgba8(t, context)) {
+    c.i = b;
+    return contextual;
   }
   if (auto named = get_named_color(t)) {
     c.i = b;
@@ -145,16 +186,28 @@ inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c) 
   return std::nullopt;
 }
 
-inline std::optional<core::rgba8_t> parse_css_color_rgba8_atomic_eof(std::string_view str) {
+inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c) {
+  static const parse_css_color_context empty_context{};
+  return try_atomic_rgba8_cursor(c, empty_context);
+}
+
+inline std::optional<core::rgba8_t> parse_css_color_rgba8_atomic_eof(
+    std::string_view str,
+    const parse_css_color_context& context) {
   details::Cursor c{str, 0};
-  auto r = try_atomic_rgba8_cursor(c);
+  auto r = try_atomic_rgba8_cursor(c, context);
   if (!r) return std::nullopt;
   c.skip_ws();
   if (!c.eof()) return std::nullopt;
   return r;
 }
 
-inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c) {
+inline std::optional<core::rgba8_t> parse_css_color_rgba8_atomic_eof(std::string_view str) {
+  static const parse_css_color_context empty_context{};
+  return parse_css_color_rgba8_atomic_eof(str, empty_context);
+}
+
+inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c, const parse_css_color_context& context) {
   const size_t a0 = c.i;
   size_t a = a0;
   while (a < c.s.size() && details::is_space(c.s[a])) ++a;
@@ -168,6 +221,14 @@ inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c) 
     if (!r) return std::nullopt;
     c.i = b;
     return r;
+  }
+  if (details::equals_ci(t, "transparent")) {
+    c.i = b;
+    return core::rgbaf_t{0.0f, 0.0f, 0.0f, 0.0f};
+  }
+  if (auto contextual = resolve_context_color_rgbaf(t, context)) {
+    c.i = b;
+    return contextual;
   }
   if (auto named = get_named_color(t)) {
     c.i = b;
@@ -223,24 +284,98 @@ inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c) 
     return r;
   }
   sub.i = 0;
-  if (auto r = parse_device_cmyk_function(sub)) {
+  if (auto r = parse_device_cmyk_function_rgbaf(sub)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgbaf_t>(*r);
+    return r;
   }
   return std::nullopt;
 }
 
-inline std::optional<core::rgbaf_t> parse_css_color_rgbaf_atomic_eof(std::string_view str) {
+inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c) {
+  static const parse_css_color_context empty_context{};
+  return try_atomic_rgbaf_cursor(c, empty_context);
+}
+
+inline std::optional<core::rgbaf_t> parse_css_color_rgbaf_atomic_eof(
+    std::string_view str,
+    const parse_css_color_context& context) {
   details::Cursor c{str, 0};
-  auto r = try_atomic_rgbaf_cursor(c);
+  auto r = try_atomic_rgbaf_cursor(c, context);
   if (!r) return std::nullopt;
   c.skip_ws();
   if (!c.eof()) return std::nullopt;
   return r;
 }
 
-inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Cursor& c) {
+inline std::optional<core::rgbaf_t> parse_css_color_rgbaf_atomic_eof(std::string_view str) {
+  static const parse_css_color_context empty_context{};
+  return parse_css_color_rgbaf_atomic_eof(str, empty_context);
+}
+
+inline std::optional<core::rgba8_t> parse_light_dark_rgba8(details::Cursor& c, const parse_css_color_context& context) {
+  const size_t save = c.i;
+  if (!c.consume_ci("light-dark")) {
+    c.i = save;
+    return std::nullopt;
+  }
+  auto inner_opt = details::consume_parenthesized_contents(c);
+  if (!inner_opt) {
+    c.i = save;
+    return std::nullopt;
+  }
+  std::string_view inner = *inner_opt;
+  details::trim(inner);
+  const size_t comma = details::find_top_level_comma(inner, 0);
+  if (comma == std::string_view::npos) {
+    c.i = save;
+    return std::nullopt;
+  }
+  std::string_view t1 = inner.substr(0, comma);
+  std::string_view t2 = inner.substr(comma + 1);
+  details::trim(t1);
+  details::trim(t2);
+  auto light = parse_css_color_rgba8(t1, context);
+  auto dark = parse_css_color_rgba8(t2, context);
+  if (!light || !dark) {
+    c.i = save;
+    return std::nullopt;
+  }
+  return context.dark_theme ? dark : light;
+}
+
+inline std::optional<core::rgbaf_t> parse_light_dark_rgbaf(details::Cursor& c, const parse_css_color_context& context) {
+  const size_t save = c.i;
+  if (!c.consume_ci("light-dark")) {
+    c.i = save;
+    return std::nullopt;
+  }
+  auto inner_opt = details::consume_parenthesized_contents(c);
+  if (!inner_opt) {
+    c.i = save;
+    return std::nullopt;
+  }
+  std::string_view inner = *inner_opt;
+  details::trim(inner);
+  const size_t comma = details::find_top_level_comma(inner, 0);
+  if (comma == std::string_view::npos) {
+    c.i = save;
+    return std::nullopt;
+  }
+  std::string_view t1 = inner.substr(0, comma);
+  std::string_view t2 = inner.substr(comma + 1);
+  details::trim(t1);
+  details::trim(t2);
+  auto light = parse_css_color_rgbaf(t1, context);
+  auto dark = parse_css_color_rgbaf(t2, context);
+  if (!light || !dark) {
+    c.i = save;
+    return std::nullopt;
+  }
+  return context.dark_theme ? dark : light;
+}
+
+inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Cursor& c, const parse_css_color_context& context) {
   const size_t save = c.i;
   if (!c.consume_ci("color-mix")) {
     c.i = save;
@@ -279,7 +414,7 @@ inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Curso
   std::string_view t2 = inner.substr(comma + 1);
   details::trim(t1);
   details::trim(t2);
-  auto c1 = parse_css_color_rgba8(t1);
+  auto c1 = parse_css_color_rgba8(t1, context);
   if (!c1) {
     c.i = save;
     return std::nullopt;
@@ -289,7 +424,7 @@ inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Curso
     c.i = save;
     return std::nullopt;
   }
-  auto col2 = parse_css_color_rgba8_atomic_eof(t2split->first);
+  auto col2 = parse_css_color_rgba8_atomic_eof(t2split->first, context);
   if (!col2) {
     c.i = save;
     return std::nullopt;
@@ -299,7 +434,12 @@ inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Curso
   return operations::conversion::color_cast<core::rgba8_t>(mixed);
 }
 
-inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Cursor& c) {
+inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Cursor& c) {
+  static const parse_css_color_context empty_context{};
+  return parse_color_mix_in_srgb_rgba8(c, empty_context);
+}
+
+inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Cursor& c, const parse_css_color_context& context) {
   const size_t save = c.i;
   if (!c.consume_ci("color-mix")) {
     c.i = save;
@@ -338,7 +478,7 @@ inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Curso
   std::string_view t2 = inner.substr(comma + 1);
   details::trim(t1);
   details::trim(t2);
-  auto c1 = parse_css_color_rgbaf(t1);
+  auto c1 = parse_css_color_rgbaf(t1, context);
   if (!c1) {
     c.i = save;
     return std::nullopt;
@@ -348,12 +488,17 @@ inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Curso
     c.i = save;
     return std::nullopt;
   }
-  auto col2 = parse_css_color_rgbaf_atomic_eof(t2split->first);
+  auto col2 = parse_css_color_rgbaf_atomic_eof(t2split->first, context);
   if (!col2) {
     c.i = save;
     return std::nullopt;
   }
   return operations::interpolate::lerp(*c1, *col2, t2split->second);
+}
+
+inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Cursor& c) {
+  static const parse_css_color_context empty_context{};
+  return parse_color_mix_in_srgb_rgbaf(c, empty_context);
 }
 
 }  // namespace css_parse_detail

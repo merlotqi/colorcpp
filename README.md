@@ -97,14 +97,20 @@ auto teal = 50'030'000'020_cmyk;     // → cmyk8_t{50, 30, 0, 20}
 
 ## CSS color parsing
 
-Include [`colorcpp/core/css_color.hpp`](include/colorcpp/core/css_color.hpp) or the umbrella [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp). Parsing returns `std::nullopt` on failure (no exceptions).
+Include [`colorcpp/io/css.hpp`](include/colorcpp/io/css.hpp) or the umbrella [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp). Parsing returns `std::nullopt` on failure (no exceptions).
 
 ```cpp
 #include <colorcpp/colorcpp.hpp>
 
-auto c = colorcpp::core::parse_css_color_rgba8("rgb(255 99 71 / 50%)");
+auto c = colorcpp::io::css::parse_css_color_rgba8("rgb(255 99 71 / 50%)");
 // or any registered color type:
-auto hsl = colorcpp::core::parse_css_color<colorcpp::core::hsla_float_t>("hsl(120 100% 50%)");
+auto hsl = colorcpp::io::css::parse_css_color<colorcpp::core::hsla_float_t>("hsl(120, 100%, 50%)");
+
+colorcpp::io::css::parse_css_color_context css_context;
+css_context.dark_theme = true;
+css_context.current_color = colorcpp::core::rgbaf_t{1.0f, 0.0f, 0.0f, 0.5f};
+css_context.canvas_text = colorcpp::core::rgbaf_t{1.0f, 1.0f, 1.0f, 1.0f};
+auto resolved = colorcpp::io::css::parse_css_color_rgba8("light-dark(currentColor, CanvasText)", css_context);
 ```
 
 **Supported (CSS Color Module Level 4):**
@@ -117,10 +123,13 @@ auto hsl = colorcpp::core::parse_css_color<colorcpp::core::hsla_float_t>("hsl(12
 - **`lab(L a b)`:** CIE L\*a\*b\* with D65 white point
 - **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
 - **`hwb(H W B)`:** Hue-Whiteness-Blackness
-- **`color(display-p3 r g b)`:** Display P3 primaries
-- **Named colors:** all 140+ CSS Level 4 named colors (`red`, `coral`, `steelblue`, …) — case-insensitive
+- **`color(...)`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`
+- **`device-cmyk(...)`:** CMYK device colors, including slash alpha
+- **Named colors and keywords:** all 140+ CSS named colors plus `transparent` — case-insensitive
 
-**Not supported yet:** `color()` for other color spaces, `device-cmyk()`, relative color syntax (`rgb(from …)`). These may be added in later releases.
+**Context-aware support:** `currentColor`, CSS system colors, and `light-dark()` are available through the overloads that accept `parse_css_color_context`.
+
+**Still pending:** relative color syntax (`rgb(from …)`, `color(from …)`), broader `color-mix()` coverage, and the remaining context-sensitive CSS color features that depend on authoring-time style state.
 
 ## 🔄 Color Conversion
 
