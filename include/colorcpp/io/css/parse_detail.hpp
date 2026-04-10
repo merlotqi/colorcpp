@@ -281,10 +281,6 @@ inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c,
     c.i = b;
     return r;
   }
-  if (details::equals_ci(t, "transparent")) {
-    c.i = b;
-    return core::rgba8_t{0, 0, 0, 0};
-  }
   if (auto contextual = resolve_context_color_rgba8(t, context)) {
     c.i = b;
     return contextual;
@@ -386,10 +382,6 @@ inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c,
     if (!r) return std::nullopt;
     c.i = b;
     return r;
-  }
-  if (details::equals_ci(t, "transparent")) {
-    c.i = b;
-    return core::rgbaf_t{0.0f, 0.0f, 0.0f, 0.0f};
   }
   if (auto contextual = resolve_context_color_rgbaf(t, context)) {
     c.i = b;
