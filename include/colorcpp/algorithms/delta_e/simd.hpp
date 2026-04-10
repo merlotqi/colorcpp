@@ -19,15 +19,22 @@ inline float delta_e_ok_scalar(const core::oklab_t& a, const core::oklab_t& b) n
   return std::sqrt(dL * dL + da * da + db * db);
 }
 
-inline constexpr bool has_delta_e_ok_fast_path() noexcept {
-#if defined(COLORCPP_ENABLE_SIMD) && (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
+// This path stays behind an extra opt-in for now: on the current AoS oklab_t layout,
+// tested x86_64 targets did not show a win over the scalar implementation.
+inline constexpr bool delta_e_ok_fast_path_requested() noexcept {
+#if defined(COLORCPP_ENABLE_SIMD) && defined(COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD)
   return true;
 #else
   return false;
 #endif
 }
 
-#if defined(COLORCPP_ENABLE_SIMD) && (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
+inline constexpr bool has_delta_e_ok_fast_path() noexcept {
+  return delta_e_ok_fast_path_requested() && colorcpp::detail::simd::has_sse2;
+}
+
+#if defined(COLORCPP_ENABLE_SIMD) && defined(COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD) && \
+    (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
 
 inline __m128 load_oklab_x_sse2(const core::oklab_t& c) {
   return _mm_setr_ps(c.template get_index<0>(), c.template get_index<1>(), c.template get_index<2>(), 0.0f);
@@ -44,7 +51,8 @@ inline float delta_e_ok_sse2(const core::oklab_t& a, const core::oklab_t& b) noe
 #endif
 
 inline bool try_delta_e_ok_fast_path(float& out, const core::oklab_t& a, const core::oklab_t& b) noexcept {
-#if defined(COLORCPP_ENABLE_SIMD) && (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
+#if defined(COLORCPP_ENABLE_SIMD) && defined(COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD) && \
+    (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
   out = delta_e_ok_sse2(a, b);
   return true;
 #else

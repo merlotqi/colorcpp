@@ -1,7 +1,6 @@
-#include <array>
-
 #include <gtest/gtest.h>
 
+#include <array>
 #include <colorcpp/colorcpp.hpp>
 
 namespace colorcpp::algorithms::test {
@@ -17,8 +16,9 @@ float delta_e_ok_scalar_reference(const oklab_t& a, const oklab_t& b) {
 
 }  // namespace
 
-TEST(DeltaEOkSimdTest, FastPathAvailabilityMatchesCurrentBackend) {
-  EXPECT_EQ(delta_e::details::has_delta_e_ok_fast_path(), colorcpp::detail::simd::has_sse2);
+TEST(DeltaEOkSimdTest, FastPathAvailabilityMatchesExplicitOptIn) {
+  EXPECT_EQ(delta_e::details::has_delta_e_ok_fast_path(),
+            delta_e::details::delta_e_ok_fast_path_requested() && colorcpp::detail::simd::has_sse2);
 }
 
 TEST(DeltaEOkSimdTest, OklabInputMatchesScalarReference) {

@@ -16,7 +16,10 @@ option(COLORCPP_BUILD_BENCHMARKS "Build microbenchmarks (Google Benchmark via Fe
 option(COLORCPP_BUILD_DOCS "Build API documentation with Doxygen" OFF)
 option(COLORCPP_BUILD_SPHINX "Build Sphinx HTML from docs/ (requires sphinx-build)" OFF)
 option(COLORCPP_INSTALL_HEADERS "Install header files" OFF)
-option(COLORCPP_ENABLE_SIMD "Enable opt-in SIMD fast paths for selected operations" OFF)
+option(COLORCPP_ENABLE_SIMD "Enable opt-in SIMD fast paths for selected stable operations" OFF)
+option(COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD
+  "Enable the experimental SIMD fast path for delta_e_ok()"
+  OFF)
 
 file(GLOB_RECURSE COLOR_HEADERS CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
@@ -33,6 +36,15 @@ target_compile_features(colorcpp INTERFACE cxx_std_17)
 
 if(COLORCPP_ENABLE_SIMD)
   target_compile_definitions(colorcpp INTERFACE COLORCPP_ENABLE_SIMD=1)
+endif()
+
+if(COLORCPP_ENABLE_SIMD AND COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD)
+  target_compile_definitions(colorcpp INTERFACE COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD=1)
+elseif(COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD)
+  message(WARNING
+    "COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD is ON, but COLORCPP_ENABLE_SIMD is OFF; "
+    "the experimental delta_e_ok() fast path will remain disabled"
+  )
 endif()
 
 if(MSVC)

@@ -50,6 +50,32 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure --no-tests=error
 
+  build-test-simd:
+    name: SIMD-on (GCC)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build g++
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build-simd -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON \
+            -DCOLORCPP_ENABLE_SIMD=ON
+
+      - name: Build
+        run: cmake --build build-simd --parallel
+
+      - name: Test
+        run: ctest --test-dir build-simd --output-on-failure --no-tests=error
+
   install-consume:
     name: Install + consumer smoke test
     runs-on: ubuntu-24.04
