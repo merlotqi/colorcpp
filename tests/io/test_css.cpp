@@ -144,6 +144,38 @@ TEST(Css, ParseTemplateSpecializationsFallbackToGenericInputs) {
   EXPECT_NEAR(srgb_display_p3->b(), expected_display_p3.b(), 0.001f);
 }
 
+TEST(Css, GenericColorFunctionPreservesWideGamutForTypedTargets) {
+  auto xyz_from_p3 = parse_css_color<xyz_t>("color(display-p3 1 0 0)");
+  ASSERT_TRUE(xyz_from_p3);
+  auto expected_xyz_from_p3 = operations::conversion::color_cast<xyz_t>(display_p3f_t{1.0f, 0.0f, 0.0f});
+  EXPECT_NEAR(xyz_from_p3->x(), expected_xyz_from_p3.x(), 0.002f);
+  EXPECT_NEAR(xyz_from_p3->y(), expected_xyz_from_p3.y(), 0.002f);
+  EXPECT_NEAR(xyz_from_p3->z(), expected_xyz_from_p3.z(), 0.002f);
+
+  auto xyz_from_rec2020 = parse_css_color<xyz_t>("color(rec2020 1 0 0)");
+  ASSERT_TRUE(xyz_from_rec2020);
+  EXPECT_NEAR(xyz_from_rec2020->x(), 0.6369580f, 0.002f);
+  EXPECT_NEAR(xyz_from_rec2020->y(), 0.2627002f, 0.002f);
+  EXPECT_NEAR(xyz_from_rec2020->z(), 0.0f, 0.002f);
+}
+
+TEST(Css, GenericColorFunctionPreservesAlphaForAlphaAwareTargets) {
+  auto p3_alpha = parse_css_color<display_p3af_t>("color(display-p3 0.7 0.5 0.3 / 0.5)");
+  ASSERT_TRUE(p3_alpha);
+  EXPECT_NEAR(p3_alpha->r(), 0.7f, 0.01f);
+  EXPECT_NEAR(p3_alpha->g(), 0.5f, 0.01f);
+  EXPECT_NEAR(p3_alpha->b(), 0.3f, 0.01f);
+  EXPECT_NEAR(p3_alpha->a(), 0.5f, 0.002f);
+
+  auto rec2020_alpha = parse_css_color<display_p3af_t>("color(rec2020 1 0 0 / 25%)");
+  ASSERT_TRUE(rec2020_alpha);
+  auto expected = operations::conversion::color_cast<display_p3af_t>(xyz_t{0.6369580f, 0.2627002f, 0.0f});
+  EXPECT_NEAR(rec2020_alpha->r(), expected.r(), 0.02f);
+  EXPECT_NEAR(rec2020_alpha->g(), expected.g(), 0.02f);
+  EXPECT_NEAR(rec2020_alpha->b(), expected.b(), 0.02f);
+  EXPECT_NEAR(rec2020_alpha->a(), 0.25f, 0.002f);
+}
+
 TEST(Css, Invalid) {
   EXPECT_FALSE(parse_css_color_rgba8("").has_value());
   EXPECT_FALSE(parse_css_color_rgba8("rgb(1 2)").has_value());
@@ -552,6 +584,16 @@ TEST(Css, ColorMixInSrgb) {
   ASSERT_TRUE(c);
   EXPECT_NEAR(static_cast<double>(c->r()), 128.0, 2.0);
   EXPECT_NEAR(static_cast<double>(c->b()), 128.0, 2.0);
+
+  auto weighted = parse_css_color_rgba8("color-mix(in srgb, red 25%, blue)");
+  ASSERT_TRUE(weighted);
+  EXPECT_NEAR(static_cast<double>(weighted->r()), 64.0, 2.0);
+  EXPECT_NEAR(static_cast<double>(weighted->b()), 191.0, 2.0);
+
+  auto normalized = parse_css_color_rgba8("color-mix(in srgb, red 20%, blue 20%)");
+  ASSERT_TRUE(normalized);
+  EXPECT_NEAR(static_cast<double>(normalized->r()), 128.0, 2.0);
+  EXPECT_NEAR(static_cast<double>(normalized->b()), 128.0, 2.0);
 }
 
 TEST(Css, ColorMixNestedAndInvalidForms) {
@@ -565,9 +607,26 @@ TEST(Css, ColorMixNestedAndInvalidForms) {
   EXPECT_GT(transparent_mix->r(), 100);
   EXPECT_GT(transparent_mix->a(), 100);
 
-  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in lab, red, blue)").has_value());
+  auto nested_second = parse_css_color_rgba8("color-mix(in srgb, red, light-dark(blue, green))");
+  ASSERT_TRUE(nested_second);
+  EXPECT_GT(nested_second->b(), 100);
+
+  auto oklab_mix = parse_css_color_rgbaf("color-mix(in oklab, red, blue)");
+  ASSERT_TRUE(oklab_mix);
+  auto expected_oklab =
+      operations::interpolate::lerp_oklab<rgbaf_t>(rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f}, rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f}, 0.5f);
+  expect_rgbaf_near(*oklab_mix, expected_oklab.r(), expected_oklab.g(), expected_oklab.b(), expected_oklab.a(), 0.02f);
+
+  auto linear_mix = parse_css_color_rgbaf("color-mix(in srgb-linear, red, blue)");
+  ASSERT_TRUE(linear_mix);
+
+  auto p3_mix = parse_css_color_rgbaf("color-mix(in display-p3, red, blue)");
+  ASSERT_TRUE(p3_mix);
+
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb red, blue)").has_value());
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in unknown-space, red, blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red 0%, blue 0%)").has_value());
 }
 
 TEST(Css, LightDarkExplicit) {
@@ -636,7 +695,11 @@ TEST(Css, ContextAwareLightDarkAndColorMixUseAmbientValues) {
 
   auto mixed = parse_css_color_rgba8("color-mix(in srgb, currentColor, Canvas 50%)", light_context);
   ASSERT_TRUE(mixed);
-  expect_rgba(*mixed, 255, 128, 128, 192);
+  expect_rgba(*mixed, 255, 128, 128, 191);
+
+  auto lab_mixed = parse_css_color_rgba8("color-mix(in lab, currentColor 25%, Canvas)", light_context);
+  ASSERT_TRUE(lab_mixed);
+  EXPECT_GT(lab_mixed->r(), 150);
 
   auto dark_context = light_context;
   dark_context.dark_theme = true;
@@ -711,6 +774,7 @@ TEST(Css, WptStyleExactCorpus) {
       {"device-cmyk(none none none 100%)", 0, 0, 0, 255},
       {"color-mix(in srgb, red, red)", 255, 0, 0, 255},
       {"color-mix(in srgb, black, white)", 128, 128, 128, 255},
+      {"color-mix(in srgb, red 20%, blue 20%)", 128, 0, 128, 255},
       {"color-mix(in srgb, transparent, transparent)", 0, 0, 0, 0},
       {"color-mix(in srgb, red, transparent 0%)", 255, 0, 0, 255},
       {" \n color(srgb 1 0 0 / 50%) \t", 255, 0, 0, 128},
@@ -751,6 +815,8 @@ TEST(Css, InvalidCorpusRejectsMalformedInputs) {
       {"device-cmyk(0, 1, 1, 0)"},
       {"device-cmyk(0 1 1)"},
       {"device-cmyk(0 1 1 0 /)"},
+      {"color-mix(in unknown-space, red, blue)"},
+      {"color-mix(in srgb, red 0%, blue 0%)"},
       {"color-mix(in srgb red, blue)"},
       {"color-mix(in srgb, red blue)"},
       {"color-mix(in srgb, red, blue 50%) trailing"},

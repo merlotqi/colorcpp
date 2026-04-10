@@ -37,6 +37,7 @@ In colorcpp
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
     * ``lab()`` / ``lch()`` - CIE LAB space
     * ``color(display-p3)`` - Display P3 wide gamut
+    * ``color-mix()`` - interpolation in ``srgb``, ``srgb-linear``, ``display-p3``, ``display-p3-linear``, ``lab``, ``lch``, ``oklab``, ``oklch``, and ``xyz``
     * ``device-cmyk()`` - CMYK device colors with optional alpha
     * ``light-dark()`` - Theme-aware color selection through context-aware parsing
 
@@ -52,6 +53,7 @@ Parser features:
   * Graceful error handling
   * No exceptions, returns optional types
   * Context-aware parsing for ``currentColor`` and CSS system colors
+  * ``parse_css_color<ColorType>()`` keeps ``color(...)`` inputs in their predefined space until the final conversion step, which avoids forcing wide-gamut inputs through sRGB first
 
 
 Notes

@@ -73,7 +73,11 @@ inline std::optional<core::display_p3f_t> parse_exact_css_color<core::display_p3
 
 template <typename Color>
 inline std::optional<Color> parse_css_color_impl(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
   if (auto exact = parse_exact_css_color<Color>(str)) return exact;
+  details::Cursor c{str, 0};
+  if (auto typed = parse_color_function_as<Color>(c)) return typed;
   auto parsed = parse_css_color_rgbaf(str);
   if (!parsed) return std::nullopt;
   return operations::conversion::color_cast<Color>(*parsed);
@@ -81,7 +85,11 @@ inline std::optional<Color> parse_css_color_impl(std::string_view str) {
 
 template <typename Color>
 inline std::optional<Color> parse_css_color_impl(std::string_view str, const parse_css_color_context& context) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
   if (auto exact = parse_exact_css_color<Color>(str)) return exact;
+  details::Cursor c{str, 0};
+  if (auto typed = parse_color_function_as<Color>(c)) return typed;
   auto parsed = parse_css_color_rgbaf(str, context);
   if (!parsed) return std::nullopt;
   return operations::conversion::color_cast<Color>(*parsed);
@@ -100,9 +108,8 @@ inline std::optional<Color> parse_css_color(std::string_view str) {
 }
 
 template <>
-inline std::optional<core::rgbaf_t> parse_css_color<core::rgbaf_t>(
-    std::string_view str,
-    const parse_css_color_context& context) {
+inline std::optional<core::rgbaf_t> parse_css_color<core::rgbaf_t>(std::string_view str,
+                                                                   const parse_css_color_context& context) {
   return parse_css_color_rgbaf(str, context);
 }
 

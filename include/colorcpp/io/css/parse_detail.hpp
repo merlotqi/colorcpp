@@ -38,13 +38,29 @@ std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str, const p
 
 namespace css_parse_detail {
 
-inline std::optional<std::pair<std::string_view, float>> split_color_and_optional_percent(std::string_view s) {
+struct color_mix_operand {
+  std::string_view color;
+  std::optional<float> weight;
+};
+
+enum class color_mix_space {
+  srgb,
+  srgb_linear,
+  lab,
+  lch,
+  oklab,
+  oklch,
+  xyz,
+  display_p3,
+  display_p3_linear,
+};
+
+inline std::optional<color_mix_operand> split_color_and_optional_percent(std::string_view s) {
   details::trim(s);
   if (s.empty()) return std::nullopt;
-  if (s.back() != '%') return std::make_optional(std::pair<std::string_view, float>(s, 0.5f));
+  if (s.back() != '%') return color_mix_operand{s, std::nullopt};
   size_t i = s.size() - 1;
   if (i == 0) return std::nullopt;
-  size_t num_tail = i;
   --i;
   while (i < s.size() && details::is_space(s[i])) --i;
   if (i >= s.size()) return std::nullopt;
@@ -68,11 +84,158 @@ inline std::optional<std::pair<std::string_view, float>> split_color_and_optiona
   std::string_view color = s.substr(0, color_end);
   details::trim(color);
   if (color.empty()) return std::nullopt;
-  const float w2 = static_cast<float>(std::clamp(*num, 0.0, 100.0) / 100.0);
-  return std::pair<std::string_view, float>{color, w2};
+  const float weight = static_cast<float>(std::clamp(*num, 0.0, 100.0) / 100.0);
+  return color_mix_operand{color, weight};
 }
 
-inline std::optional<core::rgbaf_t> resolve_context_color_rgbaf(std::string_view t, const parse_css_color_context& context) {
+inline std::optional<std::pair<float, float>> resolve_color_mix_weights(const color_mix_operand& first,
+                                                                        const color_mix_operand& second) {
+  std::optional<float> w1 = first.weight;
+  std::optional<float> w2 = second.weight;
+
+  if (!w1 && !w2) {
+    w1 = 0.5f;
+    w2 = 0.5f;
+  } else if (w1 && !w2) {
+    w2 = 1.0f - *w1;
+  } else if (!w1 && w2) {
+    w1 = 1.0f - *w2;
+  }
+
+  const float a = std::clamp(*w1, 0.0f, 1.0f);
+  const float b = std::clamp(*w2, 0.0f, 1.0f);
+  const float sum = a + b;
+  if (sum <= 0.0f) return std::nullopt;
+  return std::pair<float, float>{a / sum, b / sum};
+}
+
+inline std::optional<color_mix_space> parse_color_mix_space(details::Cursor& c) {
+  if (c.consume_ci("srgb-linear")) return color_mix_space::srgb_linear;
+  if (c.consume_ci("srgb")) return color_mix_space::srgb;
+  if (c.consume_ci("display-p3-linear")) return color_mix_space::display_p3_linear;
+  if (c.consume_ci("display-p3")) return color_mix_space::display_p3;
+  if (c.consume_ci("lab")) return color_mix_space::lab;
+  if (c.consume_ci("lch")) return color_mix_space::lch;
+  if (c.consume_ci("oklab")) return color_mix_space::oklab;
+  if (c.consume_ci("oklch")) return color_mix_space::oklch;
+  if (c.consume_ci("xyz-d50")) return color_mix_space::xyz;
+  if (c.consume_ci("xyz-d65")) return color_mix_space::xyz;
+  if (c.consume_ci("xyz")) return color_mix_space::xyz;
+  return std::nullopt;
+}
+
+inline core::rgbaf_t mix_alpha(const core::rgbaf_t& out, const core::rgbaf_t& a, const core::rgbaf_t& b, float t) {
+  auto with_alpha = out;
+  with_alpha.a() = a.a() + (b.a() - a.a()) * t;
+  return with_alpha;
+}
+
+template <typename Color3>
+inline core::rgbaf_t mix_in_three_channel_space(const core::rgbaf_t& a, const core::rgbaf_t& b, float t) {
+  auto ca = operations::conversion::color_cast<Color3>(a);
+  auto cb = operations::conversion::color_cast<Color3>(b);
+  Color3 mid{
+      ca.template get_index<0>() + (cb.template get_index<0>() - ca.template get_index<0>()) * t,
+      ca.template get_index<1>() + (cb.template get_index<1>() - ca.template get_index<1>()) * t,
+      ca.template get_index<2>() + (cb.template get_index<2>() - ca.template get_index<2>()) * t,
+  };
+  return mix_alpha(operations::conversion::color_cast<core::rgbaf_t>(mid), a, b, t);
+}
+
+inline core::rgbaf_t mix_colors_in_space(color_mix_space space, const core::rgbaf_t& a, const core::rgbaf_t& b,
+                                         float t) {
+  switch (space) {
+    case color_mix_space::srgb:
+      return operations::interpolate::lerp(a, b, t);
+    case color_mix_space::srgb_linear:
+      return mix_in_three_channel_space<core::linear_rgbf_t>(a, b, t);
+    case color_mix_space::lab:
+      return operations::interpolate::lerp_lab<core::rgbaf_t>(a, b, t);
+    case color_mix_space::lch:
+      return operations::interpolate::lerp_lch<core::rgbaf_t>(a, b, t);
+    case color_mix_space::oklab:
+      return operations::interpolate::lerp_oklab<core::rgbaf_t>(a, b, t);
+    case color_mix_space::oklch:
+      return operations::interpolate::lerp_oklch<core::rgbaf_t>(a, b, t);
+    case color_mix_space::xyz:
+      return mix_in_three_channel_space<core::xyz_t>(a, b, t);
+    case color_mix_space::display_p3:
+      return mix_in_three_channel_space<core::display_p3f_t>(a, b, t);
+    case color_mix_space::display_p3_linear:
+      return mix_in_three_channel_space<core::linear_display_p3f_t>(a, b, t);
+  }
+
+  return operations::interpolate::lerp(a, b, t);
+}
+
+inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, const parse_css_color_context& context) {
+  const size_t save = c.i;
+  if (!c.consume_ci("color-mix")) {
+    c.i = save;
+    return std::nullopt;
+  }
+  c.skip_ws();
+  auto inner_opt = details::consume_parenthesized_contents(c);
+  if (!inner_opt) {
+    c.i = save;
+    return std::nullopt;
+  }
+  std::string_view inner = *inner_opt;
+  details::trim(inner);
+  details::Cursor ic{inner, 0};
+  if (!ic.consume_ci("in")) {
+    c.i = save;
+    return std::nullopt;
+  }
+  ic.skip_ws();
+  auto space = parse_color_mix_space(ic);
+  if (!space) {
+    c.i = save;
+    return std::nullopt;
+  }
+  ic.skip_ws();
+  if (!ic.consume_char(',')) {
+    c.i = save;
+    return std::nullopt;
+  }
+
+  const size_t first_start = ic.i;
+  const size_t comma = details::find_top_level_comma(inner, first_start);
+  if (comma == std::string_view::npos) {
+    c.i = save;
+    return std::nullopt;
+  }
+
+  std::string_view raw_first = inner.substr(first_start, comma - first_start);
+  std::string_view raw_second = inner.substr(comma + 1);
+  details::trim(raw_first);
+  details::trim(raw_second);
+
+  const auto first = split_color_and_optional_percent(raw_first);
+  const auto second = split_color_and_optional_percent(raw_second);
+  if (!first || !second) {
+    c.i = save;
+    return std::nullopt;
+  }
+
+  const auto weights = resolve_color_mix_weights(*first, *second);
+  if (!weights) {
+    c.i = save;
+    return std::nullopt;
+  }
+
+  auto c1 = parse_css_color_rgbaf(first->color, context);
+  auto c2 = parse_css_color_rgbaf(second->color, context);
+  if (!c1 || !c2) {
+    c.i = save;
+    return std::nullopt;
+  }
+
+  return mix_colors_in_space(*space, *c1, *c2, weights->second);
+}
+
+inline std::optional<core::rgbaf_t> resolve_context_color_rgbaf(std::string_view t,
+                                                                const parse_css_color_context& context) {
   if (details::equals_ci(t, "currentcolor")) return context.current_color;
   if (details::equals_ci(t, "accentcolor")) return context.accent_color;
   if (details::equals_ci(t, "accentcolortext")) return context.accent_color_text;
@@ -96,13 +259,15 @@ inline std::optional<core::rgbaf_t> resolve_context_color_rgbaf(std::string_view
   return std::nullopt;
 }
 
-inline std::optional<core::rgba8_t> resolve_context_color_rgba8(std::string_view t, const parse_css_color_context& context) {
+inline std::optional<core::rgba8_t> resolve_context_color_rgba8(std::string_view t,
+                                                                const parse_css_color_context& context) {
   auto color = resolve_context_color_rgbaf(t, context);
   if (!color) return std::nullopt;
   return operations::conversion::color_cast<core::rgba8_t>(*color);
 }
 
-inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c, const parse_css_color_context& context) {
+inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c,
+                                                            const parse_css_color_context& context) {
   size_t a = c.i;
   while (a < c.s.size() && details::is_space(c.s[a])) ++a;
   size_t b = c.s.size();
@@ -191,9 +356,8 @@ inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c) 
   return try_atomic_rgba8_cursor(c, empty_context);
 }
 
-inline std::optional<core::rgba8_t> parse_css_color_rgba8_atomic_eof(
-    std::string_view str,
-    const parse_css_color_context& context) {
+inline std::optional<core::rgba8_t> parse_css_color_rgba8_atomic_eof(std::string_view str,
+                                                                     const parse_css_color_context& context) {
   details::Cursor c{str, 0};
   auto r = try_atomic_rgba8_cursor(c, context);
   if (!r) return std::nullopt;
@@ -207,7 +371,8 @@ inline std::optional<core::rgba8_t> parse_css_color_rgba8_atomic_eof(std::string
   return parse_css_color_rgba8_atomic_eof(str, empty_context);
 }
 
-inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c, const parse_css_color_context& context) {
+inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c,
+                                                            const parse_css_color_context& context) {
   const size_t a0 = c.i;
   size_t a = a0;
   while (a < c.s.size() && details::is_space(c.s[a])) ++a;
@@ -297,9 +462,8 @@ inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c) 
   return try_atomic_rgbaf_cursor(c, empty_context);
 }
 
-inline std::optional<core::rgbaf_t> parse_css_color_rgbaf_atomic_eof(
-    std::string_view str,
-    const parse_css_color_context& context) {
+inline std::optional<core::rgbaf_t> parse_css_color_rgbaf_atomic_eof(std::string_view str,
+                                                                     const parse_css_color_context& context) {
   details::Cursor c{str, 0};
   auto r = try_atomic_rgbaf_cursor(c, context);
   if (!r) return std::nullopt;
@@ -375,63 +539,11 @@ inline std::optional<core::rgbaf_t> parse_light_dark_rgbaf(details::Cursor& c, c
   return context.dark_theme ? dark : light;
 }
 
-inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Cursor& c, const parse_css_color_context& context) {
-  const size_t save = c.i;
-  if (!c.consume_ci("color-mix")) {
-    c.i = save;
-    return std::nullopt;
-  }
-  c.skip_ws();
-  auto inner_opt = details::consume_parenthesized_contents(c);
-  if (!inner_opt) {
-    c.i = save;
-    return std::nullopt;
-  }
-  std::string_view inner = *inner_opt;
-  details::trim(inner);
-  details::Cursor ic{inner, 0};
-  if (!ic.consume_ci("in")) {
-    c.i = save;
-    return std::nullopt;
-  }
-  ic.skip_ws();
-  if (!ic.consume_ci("srgb")) {
-    c.i = save;
-    return std::nullopt;
-  }
-  ic.skip_ws();
-  if (!ic.consume_char(',')) {
-    c.i = save;
-    return std::nullopt;
-  }
-  const size_t p = ic.i;
-  const size_t comma = details::find_top_level_comma(inner, p);
-  if (comma == std::string_view::npos) {
-    c.i = save;
-    return std::nullopt;
-  }
-  std::string_view t1 = inner.substr(p, comma - p);
-  std::string_view t2 = inner.substr(comma + 1);
-  details::trim(t1);
-  details::trim(t2);
-  auto c1 = parse_css_color_rgba8(t1, context);
-  if (!c1) {
-    c.i = save;
-    return std::nullopt;
-  }
-  const auto t2split = split_color_and_optional_percent(t2);
-  if (!t2split) {
-    c.i = save;
-    return std::nullopt;
-  }
-  auto col2 = parse_css_color_rgba8_atomic_eof(t2split->first, context);
-  if (!col2) {
-    c.i = save;
-    return std::nullopt;
-  }
-  const float w2 = t2split->second;
-  auto mixed = operations::interpolate::lerp(*c1, *col2, w2);
-  return operations::conversion::color_cast<core::rgba8_t>(mixed);
+inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Cursor& c,
+                                                                  const parse_css_color_context& context) {
+  auto mixed = parse_color_mix_rgbaf(c, context);
+  if (!mixed) return std::nullopt;
+  return operations::conversion::color_cast<core::rgba8_t>(*mixed);
 }
 
 inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Cursor& c) {
@@ -439,61 +551,9 @@ inline std::optional<core::rgba8_t> parse_color_mix_in_srgb_rgba8(details::Curso
   return parse_color_mix_in_srgb_rgba8(c, empty_context);
 }
 
-inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Cursor& c, const parse_css_color_context& context) {
-  const size_t save = c.i;
-  if (!c.consume_ci("color-mix")) {
-    c.i = save;
-    return std::nullopt;
-  }
-  c.skip_ws();
-  auto inner_opt = details::consume_parenthesized_contents(c);
-  if (!inner_opt) {
-    c.i = save;
-    return std::nullopt;
-  }
-  std::string_view inner = *inner_opt;
-  details::trim(inner);
-  details::Cursor ic{inner, 0};
-  if (!ic.consume_ci("in")) {
-    c.i = save;
-    return std::nullopt;
-  }
-  ic.skip_ws();
-  if (!ic.consume_ci("srgb")) {
-    c.i = save;
-    return std::nullopt;
-  }
-  ic.skip_ws();
-  if (!ic.consume_char(',')) {
-    c.i = save;
-    return std::nullopt;
-  }
-  const size_t p = ic.i;
-  const size_t comma = details::find_top_level_comma(inner, p);
-  if (comma == std::string_view::npos) {
-    c.i = save;
-    return std::nullopt;
-  }
-  std::string_view t1 = inner.substr(p, comma - p);
-  std::string_view t2 = inner.substr(comma + 1);
-  details::trim(t1);
-  details::trim(t2);
-  auto c1 = parse_css_color_rgbaf(t1, context);
-  if (!c1) {
-    c.i = save;
-    return std::nullopt;
-  }
-  const auto t2split = split_color_and_optional_percent(t2);
-  if (!t2split) {
-    c.i = save;
-    return std::nullopt;
-  }
-  auto col2 = parse_css_color_rgbaf_atomic_eof(t2split->first, context);
-  if (!col2) {
-    c.i = save;
-    return std::nullopt;
-  }
-  return operations::interpolate::lerp(*c1, *col2, t2split->second);
+inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Cursor& c,
+                                                                  const parse_css_color_context& context) {
+  return parse_color_mix_rgbaf(c, context);
 }
 
 inline std::optional<core::rgbaf_t> parse_color_mix_in_srgb_rgbaf(details::Cursor& c) {

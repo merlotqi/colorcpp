@@ -13,6 +13,8 @@
 #include <colorcpp/io/css/details.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <optional>
+#include <type_traits>
+#include <utility>
 
 namespace colorcpp::io::css {
 
@@ -180,6 +182,23 @@ enum class Space {
   xyz_d65
 };
 
+struct parsed_color_function {
+  Space space;
+  float c1;
+  float c2;
+  float c3;
+  float alpha;
+};
+
+template <typename T, typename = void>
+struct has_alpha_accessor : std::false_type {};
+
+template <typename T>
+struct has_alpha_accessor<T, std::void_t<decltype(std::declval<T&>().a())>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_alpha_accessor_v = has_alpha_accessor<T>::value;
+
 inline std::optional<Space> parse_predefined_space(details::Cursor& d) {
   if (d.consume_ci("srgb-linear")) return Space::srgb_linear;
   if (d.consume_ci("srgb")) return Space::srgb;
@@ -194,7 +213,7 @@ inline std::optional<Space> parse_predefined_space(details::Cursor& d) {
   return std::nullopt;
 }
 
-inline std::optional<core::rgbaf_t> parse_color_function_rgbaf_impl(details::Cursor& c) {
+inline std::optional<parsed_color_function> parse_color_function_raw_impl(details::Cursor& c) {
   if (!c.consume_ci("color")) return std::nullopt;
   c.skip_ws();
   if (!c.consume_char('(')) return std::nullopt;
@@ -227,7 +246,34 @@ inline std::optional<core::rgbaf_t> parse_color_function_rgbaf_impl(details::Cur
   if (!d.eof()) return std::nullopt;
   c.i = d.i;
 
-  switch (space) {
+  return parsed_color_function{space, r, g, b, a};
+}
+
+inline float clamp_unit_channel(float v) { return std::clamp(v, 0.0f, 1.0f); }
+
+inline float clamp_xyz_channel(float v) { return std::clamp(v, 0.0f, 2.0f); }
+
+template <typename Color>
+inline Color apply_alpha_if_supported(Color out, float alpha) {
+  if constexpr (Color::channels >= 4 && has_alpha_accessor_v<Color>) {
+    out.a() = operations::conversion::details::from_unit<Color, 3>(std::clamp(alpha, 0.0f, 1.0f));
+  }
+  return out;
+}
+
+template <typename Color, typename Source>
+inline std::optional<Color> color_cast_from_css_source(const Source& src, float alpha) {
+  auto out = operations::conversion::color_cast<Color>(src);
+  return apply_alpha_if_supported(out, alpha);
+}
+
+inline core::rgbaf_t parsed_color_function_to_rgbaf(const parsed_color_function& parsed) {
+  const float r = parsed.c1;
+  const float g = parsed.c2;
+  const float b = parsed.c3;
+  const float a = parsed.alpha;
+
+  switch (parsed.space) {
     case Space::srgb_linear:
       return linear_srgb_to_rgbaf(r, g, b, a);
     case Space::srgb:
@@ -252,7 +298,71 @@ inline std::optional<core::rgbaf_t> parse_color_function_rgbaf_impl(details::Cur
       return xyz_d65_to_rgbaf(r, g, b, a);
   }
 
+  return core::rgbaf_t{};
+}
+
+template <typename Color>
+inline std::optional<Color> parsed_color_function_to_color(const parsed_color_function& parsed) {
+  const float r = parsed.c1;
+  const float g = parsed.c2;
+  const float b = parsed.c3;
+  const float a = parsed.alpha;
+
+  switch (parsed.space) {
+    case Space::srgb:
+      return color_cast_from_css_source<Color>(
+          core::rgbf_t{clamp_unit_channel(r), clamp_unit_channel(g), clamp_unit_channel(b)}, a);
+    case Space::srgb_linear:
+      return color_cast_from_css_source<Color>(
+          core::linear_rgbf_t{clamp_unit_channel(r), clamp_unit_channel(g), clamp_unit_channel(b)}, a);
+    case Space::display_p3:
+      return color_cast_from_css_source<Color>(
+          core::display_p3f_t{clamp_unit_channel(r), clamp_unit_channel(g), clamp_unit_channel(b)}, a);
+    case Space::display_p3_linear:
+      return color_cast_from_css_source<Color>(
+          core::linear_display_p3f_t{clamp_unit_channel(r), clamp_unit_channel(g), clamp_unit_channel(b)}, a);
+    case Space::xyz_d65:
+      return color_cast_from_css_source<Color>(
+          core::xyz_t{clamp_xyz_channel(r), clamp_xyz_channel(g), clamp_xyz_channel(b)}, a);
+    case Space::xyz_d50: {
+      const auto xyz = xyz_d50_to_d65(r, g, b);
+      return color_cast_from_css_source<Color>(
+          core::xyz_t{clamp_xyz_channel(xyz.x), clamp_xyz_channel(xyz.y), clamp_xyz_channel(xyz.z)}, a);
+    }
+    case Space::a98_rgb: {
+      const auto xyz = linear_a98_to_xyz_d65(gamma_decode_a98(r), gamma_decode_a98(g), gamma_decode_a98(b));
+      return color_cast_from_css_source<Color>(
+          core::xyz_t{clamp_xyz_channel(xyz.x), clamp_xyz_channel(xyz.y), clamp_xyz_channel(xyz.z)}, a);
+    }
+    case Space::prophoto_rgb: {
+      const auto xyz_d50 =
+          linear_prophoto_to_xyz_d50(gamma_decode_prophoto(r), gamma_decode_prophoto(g), gamma_decode_prophoto(b));
+      const auto xyz = xyz_d50_to_d65(xyz_d50.x, xyz_d50.y, xyz_d50.z);
+      return color_cast_from_css_source<Color>(
+          core::xyz_t{clamp_xyz_channel(xyz.x), clamp_xyz_channel(xyz.y), clamp_xyz_channel(xyz.z)}, a);
+    }
+    case Space::rec2020: {
+      const auto xyz =
+          linear_rec2020_to_xyz_d65(gamma_decode_rec2020(r), gamma_decode_rec2020(g), gamma_decode_rec2020(b));
+      return color_cast_from_css_source<Color>(
+          core::xyz_t{clamp_xyz_channel(xyz.x), clamp_xyz_channel(xyz.y), clamp_xyz_channel(xyz.z)}, a);
+    }
+  }
+
   return std::nullopt;
+}
+
+inline std::optional<core::rgbaf_t> parse_color_function_rgbaf_impl(details::Cursor& c) {
+  auto parsed = parse_color_function_raw_impl(c);
+  if (!parsed) return std::nullopt;
+  return parsed_color_function_to_rgbaf(*parsed);
+}
+
+template <typename Color>
+inline std::optional<Color> parse_color_function_typed_impl(details::Cursor& c) {
+  auto parsed = parse_color_function_raw_impl(c);
+  if (!parsed) return std::nullopt;
+  return parsed_color_function_to_color<Color>(*parsed);
 }
 
 }  // namespace details_color_fn
@@ -274,6 +384,18 @@ inline std::optional<core::rgba8_t> parse_color_function_rgba8(details::Cursor& 
  */
 inline std::optional<core::rgbaf_t> parse_color_function_rgbaf(details::Cursor& c) {
   return details_color_fn::parse_color_function_rgbaf_impl(c);
+}
+
+/**
+ * @brief Parse @c color( ... ) directly into a specific destination color type.
+ *
+ * Unlike @ref parse_color_function_rgbaf, this path keeps the original predefined color
+ * space as long as possible before converting to @p Color, which avoids collapsing wide-gamut
+ * inputs through sRGB first.
+ */
+template <typename Color>
+inline std::optional<Color> parse_color_function_as(details::Cursor& c) {
+  return details_color_fn::parse_color_function_typed_impl<Color>(c);
 }
 
 }  // namespace colorcpp::io::css
