@@ -1,7 +1,6 @@
 #include <benchmark/benchmark.h>
 
 #include <colorcpp/colorcpp.hpp>
-
 #include <sstream>
 #include <string>
 

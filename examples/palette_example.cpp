@@ -6,9 +6,7 @@ using namespace colorcpp::operations::palette;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 template <typename Color>
 static void dump_palette_row(const char* title, const palette_set<Color>& p) {

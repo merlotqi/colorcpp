@@ -52,9 +52,7 @@ struct colorcpp::io::serialization::json_adapter<nlohmann::json> {
 // Step 2: Use to_json / from_json
 // =============================================================================
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "── " << title << " ──" << reset() << '\n'; }
 
 int main() {
   // --- Compact format (array) ---

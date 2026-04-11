@@ -2,14 +2,13 @@
 #include <iostream>
 #include <vector>
 
-using namespace colorcpp;
+using namespace colorcpp::core;
+using namespace colorcpp::operations;
 using namespace colorcpp::operations::random;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 template <typename Color>
 void print_rgbf_row(const std::vector<Color>& colors) {
@@ -29,8 +28,8 @@ int main() {
   std::cout << '\n';
 
   section("Generic random_color");
-  auto rgb_color = random_color<core::rgbf_t>(123);
-  auto hsl_color = random_color<core::hsl_float_t>(456);
+  auto rgb_color = random_color<rgbf_t>(123);
+  auto hsl_color = random_color<hsl_float_t>(456);
   std::cout << "  RGB:  ";
   print_swatch(std::cout, color_cast<rgba8_t>(rgb_color), 2);
   std::cout << " R=" << rgb_color.r() << " G=" << rgb_color.g() << " B=" << rgb_color.b() << "\n";
@@ -39,7 +38,7 @@ int main() {
   std::cout << " H=" << hsl_color.h() << " S=" << hsl_color.s() << " L=" << hsl_color.l() << "\n";
 
   section("Batch generation");
-  auto batch = random_colors<core::rgbf_t>(5, 789);
+  auto batch = random_colors<rgbf_t>(5, 789);
   std::cout << "  " << batch.size() << " colors: ";
   print_rgbf_row(batch);
 

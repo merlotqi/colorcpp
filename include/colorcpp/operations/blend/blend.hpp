@@ -11,6 +11,7 @@
 #include <colorcpp/operations/blend/details.hpp>
 #include <colorcpp/operations/blend/mode.hpp>
 #include <colorcpp/operations/blend/non_separable.hpp>
+#include <colorcpp/operations/blend/simd.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::operations::blend {
@@ -29,6 +30,11 @@ Color blend(const Color& dst, const Color& src, blend_mode mode = blend_mode::no
 
   auto d = color_cast<core::rgbaf_t>(dst);
   auto s = color_cast<core::rgbaf_t>(src);
+
+  core::rgbaf_t fast_result;
+  if (details::try_blend_rgbaf_fast_path(fast_result, d, s, mode, opacity)) {
+    return color_cast<Color>(fast_result);
+  }
 
   float da = d.template get_index<3>();
   float sa = s.template get_index<3>() * std::clamp(opacity, 0.0f, 1.0f);

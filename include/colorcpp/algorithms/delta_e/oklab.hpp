@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include <cmath>
+#include <colorcpp/algorithms/delta_e/simd.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
@@ -28,14 +28,15 @@ template <typename ColorA, typename ColorB>
 float delta_e_ok(const ColorA& a, const ColorB& b) {
   using namespace operations::conversion;
 
-  auto la = color_cast<core::oklab_t>(a);
-  auto lb = color_cast<core::oklab_t>(b);
+  const auto la = color_cast<core::oklab_t>(a);
+  const auto lb = color_cast<core::oklab_t>(b);
 
-  const float dL = la.template get_index<0>() - lb.template get_index<0>();
-  const float da = la.template get_index<1>() - lb.template get_index<1>();
-  const float db = la.template get_index<2>() - lb.template get_index<2>();
+  float out = 0.0f;
+  if (details::try_delta_e_ok_fast_path(out, la, lb)) {
+    return out;
+  }
 
-  return std::sqrt(dL * dL + da * da + db * db);
+  return details::delta_e_ok_scalar(la, lb);
 }
 
 /**

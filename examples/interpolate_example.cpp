@@ -8,9 +8,7 @@ using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::literals;
 using namespace colorcpp::io::ansi;
 
-static void section(const char* s) {
-  std::cout << '\n' << bold() << "=== " << s << " ===" << reset() << '\n';
-}
+static void section(const char* s) { std::cout << '\n' << bold() << "=== " << s << " ===" << reset() << '\n'; }
 
 int main() {
   auto red = 0xFF0000_rgb;

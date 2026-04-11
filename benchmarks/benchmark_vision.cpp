@@ -3,10 +3,10 @@
 #include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp;
-using algorithms::vision::simulate_protanopia;
-using algorithms::vision::simulate_deuteranopia;
-using algorithms::vision::simulate_tritanopia;
 using algorithms::vision::simulate_achromatopsia;
+using algorithms::vision::simulate_deuteranopia;
+using algorithms::vision::simulate_protanopia;
+using algorithms::vision::simulate_tritanopia;
 
 // Protanopia simulation
 static void BM_Vision_Protanopia(benchmark::State& state) {

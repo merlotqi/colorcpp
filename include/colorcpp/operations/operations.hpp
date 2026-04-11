@@ -1,7 +1,7 @@
 /**
  * @file operations.hpp
- * @brief Aggregates color algorithms: conversion, blending, interpolation, palettes, ΔE, gamut, WCAG, vision, random,
- * compare.
+ * @brief Aggregates the operational modules: conversion, blending, comparison, flow, interpolation, palettes, and
+ * random generation.
  */
 
 #pragma once
@@ -16,11 +16,11 @@
 
 /**
  * @namespace colorcpp::operations
- * @brief Library algorithms: @c blend, @c conversion, @c interpolate, @c palette, @c delta_e, @c gamut,
- *        @c accessibility, @c vision, @c random (each is a nested namespace).
+ * @brief Operational building blocks: @c blend, @c compare, @c conversion, @c flow, @c interpolate, @c palette,
+ *        @c random (each is a nested namespace).
  */
 
-/** @brief Re-exports nested @c colorcpp::operations::* into @c colorcpp when using the umbrella header. */
+/** @brief Convenience re-export into @c colorcpp; canonical docs use @c colorcpp::operations::* explicitly. */
 namespace colorcpp {
 
 using namespace operations;

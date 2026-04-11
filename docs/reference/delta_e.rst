@@ -20,6 +20,8 @@ Available metrics:
     * ``delta_e_ok()`` - Oklab Euclidean distance
     * Fast, uniform, and well-behaved across the entire color space
     * Recommended for most new applications
+    * Remains scalar by default; the current SIMD path is experimental and requires
+      ``COLORCPP_ENABLE_SIMD=ON`` plus ``COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD=ON``
 
   * **Utility constants**:
     * ``oklab_jnd_typical`` - Typical just noticeable difference threshold (~0.02)

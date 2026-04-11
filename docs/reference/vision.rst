@@ -37,6 +37,8 @@ Notes
 * Brettel / Viénot model operates in LMS cone response space
 * Machado model uses optimized RGB matrices for GPU-friendly implementation
 * Severity 0.0 = normal vision, 1.0 = full dichromacy
+* Machado remains scalar by default; the current SIMD path is experimental and requires
+  ``COLORCPP_ENABLE_SIMD=ON`` plus ``COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD=ON``
 * Simulations are design aids, not medical accurate representation of individual vision
 
 References
