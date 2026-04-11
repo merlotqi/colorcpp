@@ -7,7 +7,8 @@ In colorcpp
 ------------
 
 * Header: ``include/colorcpp/operations/random.hpp``
-* Namespace: ``colorcpp::operations::random``
+* Generator namespace: ``colorcpp::operations::random``
+* Convenience functions: ``colorcpp::operations::random_color`` / ``colorcpp::operations::random_colors``
 
 Thread safety
 -------------

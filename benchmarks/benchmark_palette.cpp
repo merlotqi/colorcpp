@@ -3,16 +3,16 @@
 #include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp;
+using operations::palette::easing_scale;
+using operations::palette::easing_type;
 using operations::palette::generate;
+using operations::palette::lerp_method;
 using operations::palette::linear_scale;
-using operations::palette::visual_scale;
+using operations::palette::multi_scale;
 using operations::palette::perceptual_scale;
 using operations::palette::rainbow;
-using operations::palette::easing_scale;
 using operations::palette::spline_scale;
-using operations::palette::multi_scale;
-using operations::palette::easing_type;
-using operations::palette::lerp_method;
+using operations::palette::visual_scale;
 
 // Complementary palette
 static void BM_Palette_Complementary(benchmark::State& state) {

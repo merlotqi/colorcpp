@@ -13,9 +13,9 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <colorcpp/algorithms/vision/details.hpp>
+#include <colorcpp/algorithms/vision/simd.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::algorithms::vision {
@@ -43,37 +43,18 @@ inline constexpr mat3 kTritanopia = {{
     {0.004733f, 0.691367f, 0.303900f},
 }};
 
-inline void blend_identity_matrix(float s, const mat3& m, float out[3][3]) {
-  s = std::clamp(s, 0.0f, 1.0f);
-  const float t = 1.0f - s;
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      out[i][j] = (i == j ? t : 0.0f) + s * m[static_cast<size_t>(i)][static_cast<size_t>(j)];
-    }
-  }
-}
-
-inline details::vec3 mat_mul(const float m[3][3], const details::vec3& v) {
-  return {m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2], m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
-          m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2]};
-}
-
 template <typename Color>
 Color simulate_machado_impl(const Color& c, float severity, const mat3& m_full) {
   using namespace operations::conversion;
-  float m[3][3];
-  blend_identity_matrix(severity, m_full, m);
+  if (severity <= 0.0f) return c;
 
   auto rgb = color_cast<core::rgbaf_t>(c);
-  const float a = rgb.template get_index<3>();
+  core::rgbaf_t out{};
+  if (details::try_simulate_machado_rgbaf_fast_path(out, rgb, severity, m_full)) {
+    return color_cast<Color>(out);
+  }
 
-  const details::vec3 lin = {details::linearize(rgb.template get_index<0>()),
-                             details::linearize(rgb.template get_index<1>()),
-                             details::linearize(rgb.template get_index<2>())};
-
-  const details::vec3 out_lin = mat_mul(m, lin);
-  return color_cast<Color>(core::rgbaf_t{details::gamma_encode(out_lin[0]), details::gamma_encode(out_lin[1]),
-                                         details::gamma_encode(out_lin[2]), a});
+  return color_cast<Color>(details::simulate_machado_rgbaf_scalar(rgb, severity, m_full));
 }
 
 }  // namespace machado_detail

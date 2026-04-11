@@ -18,6 +18,14 @@ namespace colorcpp::io::css::details {
 
 constexpr bool is_space(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f'; }
 
+inline bool equals_ci(std::string_view a, std::string_view b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i]))) return false;
+  }
+  return true;
+}
+
 inline void trim(std::string_view& s) {
   while (!s.empty() && is_space(s.front())) s.remove_prefix(1);
   while (!s.empty() && is_space(s.back())) s.remove_suffix(1);

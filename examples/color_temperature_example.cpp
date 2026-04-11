@@ -12,9 +12,7 @@ using namespace colorcpp::algorithms::color_temperature;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 int main() {
   std::cout << std::fixed << std::setprecision(0);

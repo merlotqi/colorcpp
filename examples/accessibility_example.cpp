@@ -7,14 +7,12 @@
 #include <iomanip>
 #include <iostream>
 
-using namespace colorcpp;
 using namespace colorcpp::algorithms::accessibility;
+using namespace colorcpp::constants;
 using namespace colorcpp::io::ansi;
 using namespace colorcpp::io::literals;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 int main() {
   std::cout << std::fixed << std::setprecision(2);
@@ -29,7 +27,7 @@ int main() {
   std::cout << '\n';
 
   section("contrast_text_color (pick black or white on background)");
-  auto panel = constants::steelblue;
+  auto panel = steelblue;
   auto txt = contrast_text_color(panel);
   std::cout << "  background: ";
   print_color(std::cout, panel);
@@ -40,9 +38,9 @@ int main() {
   std::cout << '\n';
 
   section("More WCAG previews (same helpers as ansi_example, different API surface)");
-  print_contrast(std::cout, constants::white, constants::black);
+  print_contrast(std::cout, white, black);
   std::cout << '\n';
-  print_contrast(std::cout, constants::yellow, constants::white);
+  print_contrast(std::cout, yellow, white);
   std::cout << '\n';
 
   return 0;

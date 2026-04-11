@@ -8,7 +8,7 @@ In colorcpp
 
 Header path: ``<colorcpp/io/literals.hpp>``
 
-Import namespace: ``using namespace colorcpp::literals;``
+Import namespace: ``using namespace colorcpp::io::literals;``
 
 Available literal suffixes:
 
@@ -27,18 +27,20 @@ Usage example:
 
     #include <colorcpp/io/literals.hpp>
 
-    using namespace colorcpp::literals;
+    using namespace colorcpp::io::literals;
 
     // Simple RGB
-    auto red = 0xff0000_rgb;
-    auto transparent_blue = 0x0000ffaa_rgba;
+    auto red = 0xFF0000_rgb;
+    auto transparent_blue = 0x0000FF80_rgba;
 
     // HSL
-    auto green = 120_hsl;
-    auto light_purple = 270_deg 70% 50% _hsl;
+    auto green = 120'100'050_hsl;
+    auto light_purple = 270'070'065_hsla;
 
-    // Oklab
-    auto neutral_gray = 0.5_oklab;
+    // HSV / CMYK / Oklab
+    auto sky = 210'080'090_hsv;
+    auto print_teal = 50'030'000'020_cmyk;
+    auto neutral = 050'050'050_oklab;
 
 
 Notes
@@ -46,9 +48,9 @@ Notes
 
 All literals are constexpr and can be used at compile time.
 
-Integer literals accept both hexadecimal (0xRRGGBB) and decimal values.
+RGB-style literals use hexadecimal forms such as ``0xRRGGBB_rgb`` and ``0xRRGGBBAA_rgba``.
 
-Floating point literals support percentage syntax with ``%`` suffix when used with C++14 or later.
+HSL / HSV / HWB / CMYK / Oklab literals use packed decimal groups as documented in the header comments.
 
 
 References

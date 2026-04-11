@@ -22,6 +22,7 @@ if(COLORCPP_BUILD_BENCHMARKS)
     benchmark_vision.cpp
     benchmark_palette.cpp
     benchmark_compare.cpp
+    benchmark_simd_candidates.cpp
   )
 
   # Create individual executable for each benchmark

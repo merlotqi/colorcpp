@@ -2,6 +2,9 @@
  * @file io.hpp
  * @brief Aggregates color I/O: CSS color parsing, user-defined literals, binary LUT formats, serialization
  * (JSON/MessagePack), ANSI terminal output.
+ *
+ * Public entry points remain under @c colorcpp::io::*; unlike @c core / @c operations /
+ * @c algorithms, this aggregate does not flatten its namespaces into @c colorcpp.
  */
 
 #pragma once

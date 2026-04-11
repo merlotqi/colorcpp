@@ -3,13 +3,13 @@
 #include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp;
-using algorithms::accessibility::contrast_ratio;
 using algorithms::accessibility::apca_contrast;
+using algorithms::accessibility::contrast_ratio;
 
 // WCAG contrast ratio - high contrast
 static void BM_WCAGContrast_High(benchmark::State& state) {
-  rgba8_t fg{0, 0, 0, 255};      // Black
-  rgba8_t bg{255, 255, 255, 255}; // White
+  rgba8_t fg{0, 0, 0, 255};        // Black
+  rgba8_t bg{255, 255, 255, 255};  // White
   for (auto _ : state) {
     benchmark::DoNotOptimize(contrast_ratio(fg, bg));
   }

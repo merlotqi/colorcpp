@@ -6,9 +6,7 @@ using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::literals;
 using namespace colorcpp::io::ansi;
 
-static void section(const char* title) {
-  std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n';
-}
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 int main() {
   section("RGBA and channel casts");

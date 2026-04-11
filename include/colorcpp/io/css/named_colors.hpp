@@ -1,6 +1,6 @@
 /**
  * @file named_colors.hpp
- * @brief CSS named colors parsing (140+ predefined color names).
+ * @brief CSS named colors and the @c transparent keyword.
  */
 
 #pragma once
@@ -13,13 +13,15 @@
 namespace colorcpp::io::css {
 
 /**
- * @brief Get the RGBA value for a CSS named color.
+ * @brief Get the RGBA value for a CSS named color or the @c transparent keyword.
  * @param name The color name (case-insensitive)
  * @return The RGBA value if found, std::nullopt otherwise
  */
 inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
-  // CSS Color Level 4 named colors (140+ colors)
+  // CSS Color Level 4 named colors plus the transparent keyword.
   static const std::unordered_map<std::string_view, core::rgba8_t> named_colors = {
+      {"transparent", core::rgba8_t{0, 0, 0, 0}},
+
       // Pink colors
       {"pink", core::rgba8_t{255, 192, 203, 255}},
       {"lightpink", core::rgba8_t{255, 182, 193, 255}},
@@ -78,6 +80,7 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
       {"darkslateblue", core::rgba8_t{72, 61, 139, 255}},
       {"slateblue", core::rgba8_t{106, 90, 205, 255}},
       {"mediumslateblue", core::rgba8_t{123, 104, 238, 255}},
+      {"rebeccapurple", core::rgba8_t{102, 51, 153, 255}},
 
       // Green colors
       {"greenyellow", core::rgba8_t{173, 255, 47, 255}},
@@ -123,7 +126,6 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
       {"deepskyblue", core::rgba8_t{0, 191, 255, 255}},
       {"dodgerblue", core::rgba8_t{30, 144, 255, 255}},
       {"cornflowerblue", core::rgba8_t{100, 149, 237, 255}},
-      {"mediumslateblue", core::rgba8_t{123, 104, 238, 255}},
       {"royalblue", core::rgba8_t{65, 105, 225, 255}},
       {"blue", core::rgba8_t{0, 0, 255, 255}},
       {"mediumblue", core::rgba8_t{0, 0, 205, 255}},
@@ -198,7 +200,7 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
 }
 
 /**
- * @brief Check if a string is a valid CSS named color.
+ * @brief Check if a string is a valid CSS named color or the @c transparent keyword.
  * @param name The color name (case-insensitive)
  * @return true if it's a valid named color, false otherwise
  */

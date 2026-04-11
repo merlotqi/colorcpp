@@ -1,9 +1,9 @@
 /**
  * @file core.hpp
- * @brief Aggregates all core color space definitions and I/O helpers.
+ * @brief Aggregates all core color space definitions and core stream I/O helpers.
  *
- * Includes RGB/HSV/HSL/HWB/CMYK, linear RGB, CIELAB/CIELCH, OkLab/OkLCH, XYZ, shared
- * @ref colorcpp::core::basic_color machinery, constants, and string parsing/formatting.
+ * Includes RGB/HSV/HSL/HWB/CMYK, linear RGB, CIELAB/CIELCH, OkLab/OkLCH, XYZ, Display_P3, shared
+ * @ref colorcpp::core::basic_color machinery, constants, and basic stream formatting/parsing support.
  */
 
 #pragma once
@@ -12,6 +12,7 @@
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/constants.hpp>
+#include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
