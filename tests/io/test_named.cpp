@@ -54,10 +54,23 @@ TEST(NamedColor, InvalidName) {
   EXPECT_FALSE(get_named_color("redd").has_value());
 }
 
+TEST(NamedColor, TransparentKeyword) {
+  auto transparent = get_named_color("transparent");
+  auto transparent_upper = get_named_color("TRANSPARENT");
+  ASSERT_TRUE(transparent.has_value());
+  ASSERT_TRUE(transparent_upper.has_value());
+  EXPECT_EQ(*transparent, *transparent_upper);
+  EXPECT_EQ(transparent->r(), 0);
+  EXPECT_EQ(transparent->g(), 0);
+  EXPECT_EQ(transparent->b(), 0);
+  EXPECT_EQ(transparent->a(), 0);
+}
+
 TEST(NamedColor, IsNamedColor) {
   EXPECT_TRUE(is_named_color("red"));
   EXPECT_TRUE(is_named_color("CORAL"));
   EXPECT_TRUE(is_named_color("steelblue"));
+  EXPECT_TRUE(is_named_color("transparent"));
   EXPECT_FALSE(is_named_color("notacolor"));
   EXPECT_FALSE(is_named_color(""));
 }
@@ -119,9 +132,12 @@ TEST(NamedColor, LiteralInvalidThrows) {
 }
 
 TEST(NamedColor, LiteralTransparent) {
-  // transparent is not a CSS Level 4 named color, but let's verify
-  // it's not in the map
-  EXPECT_FALSE(is_named_color("transparent"));
+  using namespace colorcpp::io::css::named_literal;
+  auto c = "transparent"_color;
+  EXPECT_EQ(c.r(), 0);
+  EXPECT_EQ(c.g(), 0);
+  EXPECT_EQ(c.b(), 0);
+  EXPECT_EQ(c.a(), 0);
 }
 
 // ===== Additional named colors =====

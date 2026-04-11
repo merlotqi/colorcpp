@@ -118,11 +118,15 @@ Include [`colorcpp/io/css.hpp`](include/colorcpp/io/css.hpp) or the umbrella [`c
 ```cpp
 #include <colorcpp/colorcpp.hpp>
 
-using namespace colorcpp::io::css;
+auto c = colorcpp::io::css::parse_css_color_rgba8("rgb(255 99 71 / 50%)");
+// or any registered color type:
+auto hsl = colorcpp::io::css::parse_css_color<colorcpp::core::hsla_float_t>("hsl(120, 100%, 50%)");
 
-auto c = parse_css_color_rgba8("rgb(255 99 71 / 50%)");
-auto hsl = parse_css_color<colorcpp::core::hsla_float_t>("hsl(120 100% 50%)");
-auto dark = parse_css_color_light_dark_rgba8("light-dark(white, black)", true);
+colorcpp::io::css::parse_css_color_context css_context;
+css_context.dark_theme = true;
+css_context.current_color = colorcpp::core::rgbaf_t{1.0f, 0.0f, 0.0f, 0.5f};
+css_context.canvas_text = colorcpp::core::rgbaf_t{1.0f, 1.0f, 1.0f, 1.0f};
+auto resolved = colorcpp::io::css::parse_css_color_rgba8("light-dark(currentColor, CanvasText)", css_context);
 ```
 
 **Supported (CSS Color Module Level 4 plus selected Level 5 helpers):**
@@ -135,14 +139,15 @@ auto dark = parse_css_color_light_dark_rgba8("light-dark(white, black)", true);
 - **`oklch(L C H)`:** L as number/percentage, C as number/percentage, H as hue angle
 - **`lab(L a b)`:** CIE L\*a\*b\* with D65 white point
 - **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
-- **`color(srgb ...)`, `color(srgb-linear ...)`, `color(xyz-d65 ...)`, `color(display-p3 ...)`**
-- **`color-mix(in srgb, ...)`**
-- **`device-cmyk(...)`:** supported subset, converted through the CMYK model to sRGB
-- **`light-dark(light, dark)`:** available through `parse_css_color_light_dark_rgba8(..., dark_theme)`
-- **Missing components:** `none` is accepted in supported functional syntaxes
-- **Named colors:** all 140+ CSS Level 4 named colors (`red`, `coral`, `steelblue`, …) — case-insensitive
+- **`hwb(H W B)`:** Hue-Whiteness-Blackness
+- **`color(...)`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`
+- **`color-mix()`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, `xyz`
+- **`device-cmyk(...)`:** CMYK device colors, including slash alpha
+- **Named colors and keywords:** all 140+ CSS named colors plus `transparent` — case-insensitive
 
-**Not supported yet:** arbitrary `color()` spaces beyond the implemented set above, relative color syntax (`rgb(from ...)`), and automatic theme resolution for `light-dark()` without an explicit `dark_theme` choice.
+**Context-aware support:** `currentColor`, CSS system colors, and `light-dark()` are available through the overloads that accept `parse_css_color_context`.
+
+**Still pending:** relative color syntax (`rgb(from …)`, `color(from …)`), advanced `color-mix()` features such as hue interpolation keywords, and the remaining context-sensitive CSS color features that depend on authoring-time style state.
 
 ## 🔄 Color Conversion
 

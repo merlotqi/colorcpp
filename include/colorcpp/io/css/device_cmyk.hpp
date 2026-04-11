@@ -1,6 +1,6 @@
 /**
  * @file device_cmyk.hpp
- * @brief CSS @c device-cmyk() subset (four components, optional alpha ignored).
+ * @brief CSS @c device-cmyk() subset (four components plus optional alpha).
  */
 
 #pragma once
@@ -14,7 +14,7 @@
 
 namespace colorcpp::io::css {
 
-inline std::optional<core::rgba8_t> parse_device_cmyk_function(details::Cursor& c) {
+inline std::optional<core::rgbaf_t> parse_device_cmyk_function_rgbaf(details::Cursor& c) {
   if (!c.consume_ci("device-cmyk")) return std::nullopt;
   c.skip_ws();
   if (!c.consume_char('(')) return std::nullopt;
@@ -39,10 +39,11 @@ inline std::optional<core::rgba8_t> parse_device_cmyk_function(details::Cursor& 
     d.skip_ws();
   }
 
+  float alpha = 1.0f;
   if (d.consume_char('/')) {
     auto av = d.parse_alpha_value();
     if (!av) return std::nullopt;
-    (void)av;
+    alpha = static_cast<float>(std::clamp(*av, 0.0, 1.0));
   }
   d.skip_ws();
   if (!d.consume_char(')')) return std::nullopt;
@@ -51,7 +52,15 @@ inline std::optional<core::rgba8_t> parse_device_cmyk_function(details::Cursor& 
   c.i = d.i;
 
   core::cmyk_float_t ink{cc, m, y, k};
-  return operations::conversion::color_cast<core::rgba8_t>(ink);
+  auto out = operations::conversion::color_cast<core::rgbaf_t>(ink);
+  out.a() = alpha;
+  return out;
+}
+
+inline std::optional<core::rgba8_t> parse_device_cmyk_function(details::Cursor& c) {
+  auto out = parse_device_cmyk_function_rgbaf(c);
+  if (!out) return std::nullopt;
+  return operations::conversion::color_cast<core::rgba8_t>(*out);
 }
 
 }  // namespace colorcpp::io::css
