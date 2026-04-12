@@ -1,6 +1,7 @@
 # colorcpp
 
-[![CI](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml/badge.svg)](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml)
+[![GitHub CI](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml/badge.svg)](https://github.com/merlotqi/colorcpp/actions/workflows/ci.yml)
+[![Travis CI](https://app.travis-ci.com/merlotqi/colorcpp.svg?branch=main)](https://app.travis-ci.com/merlotqi/colorcpp)
 
 A modern, header-only C++ library for color manipulation and conversion between different color spaces. Supports compile-time operations, perceptually uniform color spaces, and comprehensive color operations.
 
