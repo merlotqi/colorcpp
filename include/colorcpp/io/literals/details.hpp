@@ -64,8 +64,8 @@ constexpr uint64_t parse_dec_template() {
 }
 
 constexpr uint8_t hex_expand(char c) {
-  unsigned v = static_cast<uint8_t>(char_to_hex(c));
-  return (v << 4) | v;
+  const uint8_t v = static_cast<uint8_t>(char_to_hex(c) & 0xFFu);
+  return static_cast<uint8_t>((static_cast<unsigned>(v) << 4u) | static_cast<unsigned>(v));
 }
 
 constexpr core::rgba8_t parse_hex_string(const char* s, size_t n) {

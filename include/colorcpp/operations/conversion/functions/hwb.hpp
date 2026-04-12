@@ -26,11 +26,11 @@ constexpr To hwb_to_rgb(const From& src) {
 
   // If whiteness + blackness >= 1, the color is achromatic
   if (w + b >= 1.0f) {
-    float gray = w / (w + b);
+    float grayf = w / (w + b);
     if constexpr (To::channels >= 4)
-      return pack_to<To>(from_unit<To, 0>(gray), from_unit<To, 1>(gray), from_unit<To, 2>(gray), from_unit<To, 3>(a));
+      return pack_to<To>(from_unit<To, 0>(grayf), from_unit<To, 1>(grayf), from_unit<To, 2>(grayf), from_unit<To, 3>(a));
     else
-      return pack_to<To>(from_unit<To, 0>(gray), from_unit<To, 1>(gray), from_unit<To, 2>(gray));
+      return pack_to<To>(from_unit<To, 0>(grayf), from_unit<To, 1>(grayf), from_unit<To, 2>(grayf));
   }
 
   // Convert HWB to HSV first

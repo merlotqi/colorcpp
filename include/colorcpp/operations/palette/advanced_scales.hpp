@@ -86,9 +86,10 @@ inline float apply_easing(float t, easing_type easing) {
 
     case easing_type::elastic: {
       if (t == 0.0f || t == 1.0f) return t;
+      constexpr float two_pi = 6.283185307179586476925286766559f;
       float p = 0.3f;
       float s = p / 4.0f;
-      return std::pow(2.0f, -10.0f * t) * std::sin((t - s) * (2.0f * M_PI) / p) + 1.0f;
+      return std::pow(2.0f, -10.0f * t) * std::sin((t - s) * two_pi / p) + 1.0f;
     }
 
     case easing_type::bounce: {

@@ -15,7 +15,7 @@ namespace colorcpp::io::css {
 namespace details_rgb {
 
 inline std::optional<uint8_t> parse_rgb8_channel(details::Cursor& d) {
-  if (d.try_consume_none()) return 0;
+  if (d.try_consume_none()) return uint8_t{0};
   auto a = d.parse_component_value();
   if (!a) return std::nullopt;
   return static_cast<uint8_t>(d.channel_from_component(*a));

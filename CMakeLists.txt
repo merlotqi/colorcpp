@@ -36,6 +36,9 @@ target_include_directories(colorcpp
 )
 
 target_compile_features(colorcpp INTERFACE cxx_std_17)
+if(WIN32)
+  target_compile_definitions(colorcpp INTERFACE _USE_MATH_DEFINES)
+endif()
 
 if(COLORCPP_ENABLE_SIMD)
   target_compile_definitions(colorcpp INTERFACE COLORCPP_ENABLE_SIMD=1)
@@ -60,7 +63,8 @@ elseif(COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD)
 endif()
 
 if(MSVC)
-  target_compile_options(colorcpp INTERFACE /W4 /WX)
+  # /utf-8: treat sources as UTF-8 (avoids C4819 on non-ASCII comments/strings under CP936).
+  target_compile_options(colorcpp INTERFACE /W4 /WX /utf-8)
 else()
   target_compile_options(colorcpp INTERFACE 
     -Wall -Wextra -Wpedantic -Werror

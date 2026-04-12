@@ -21,7 +21,10 @@ struct algorithms {
   static constexpr float lighten(float a, float b) { return std::max(a, b); }
   static constexpr float addition(float a, float b) { return std::min(1.0f, a + b); }
   static constexpr float subtraction(float a, float b) { return std::max(0.0f, a - b); }
-  static constexpr float difference(float a, float b) { return std::fabs(a - b); }
+  static constexpr float difference(float a, float b) {
+    const float d = a - b;
+    return (d < 0.0f) ? -d : d;
+  }
   static constexpr float exclusion(float a, float b) { return a + b - 2.0f * a * b; }
 
   static constexpr float overlay(float a, float b) {

@@ -116,8 +116,8 @@ TEST(CIELabConversionTest, WhiteIsLOneHundred) {
 
 TEST(CIELabConversionTest, AchromaticHasZeroChroma) {
   // All grays: a*≈0, b*≈0
-  for (uint8_t v : {64u, 128u, 192u}) {
-    rgb8_t gray(v, v, v);
+  for (const int v : {64, 128, 192}) {
+    rgb8_t gray(static_cast<uint8_t>(v), static_cast<uint8_t>(v), static_cast<uint8_t>(v));
     auto lab = color_cast<cielab_t>(gray);
     EXPECT_NEAR(lab.a(), 0.0f, 1e-2f) << "gray=" << (int)v;
     EXPECT_NEAR(lab.b(), 0.0f, 1e-2f) << "gray=" << (int)v;

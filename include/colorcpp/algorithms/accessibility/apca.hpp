@@ -73,7 +73,9 @@ inline float apca_contrast(float txtY, float bgY) {
   constexpr float delta_y_min = 0.0005f;
   constexpr float lo_clip = 0.1f;
 
-  auto soft_clamp_y = [](float y) { return (y > blk_thrs) ? y : y + std::pow(blk_thrs - y, blk_clmp); };
+  auto soft_clamp_y = [blk_thrs, blk_clmp](float y) {
+    return (y > blk_thrs) ? y : y + std::pow(blk_thrs - y, blk_clmp);
+  };
   txtY = soft_clamp_y(txtY);
   bgY = soft_clamp_y(bgY);
 

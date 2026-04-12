@@ -24,7 +24,8 @@ if(COLORCPP_BUILD_TESTS)
         
         gtest_discover_tests(${TEST_NAME}
             TEST_PREFIX "${TEST_NAME}."
-            PROPERTIES DISCOVERY_TIMEOUT 10
+            DISCOVERY_TIMEOUT 60
+            DISCOVERY_MODE PRE_TEST
         )
 
         if(MEMPOOL_ENABLE_COVERAGE AND (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang"))

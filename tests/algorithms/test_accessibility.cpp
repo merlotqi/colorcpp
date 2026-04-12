@@ -95,7 +95,7 @@ TEST(AccessibilityTest, LargeTextHasLowerThreshold) {
 
   bool pass_normal = is_wcag_compliant(constants::white, mid_gray, wcag_level::aa, text_size::normal);
   bool pass_large = is_wcag_compliant(constants::white, mid_gray, wcag_level::aa, text_size::large);
-
+  EXPECT_TRUE(pass_large);
   // large-text threshold (3.0) is less strict than normal (4.5)
   if (!pass_normal) {
     // If it fails normal, large should be evaluated independently

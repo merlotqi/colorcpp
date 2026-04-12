@@ -182,8 +182,8 @@ TEST(HSVAConversionTest, AlphaPreservedRoundTrip) {
 // Achromatic invariant
 
 TEST(HSVConversionTest, GrayHasSaturationZero) {
-  for (uint8_t v : {0u, 64u, 128u, 192u, 255u}) {
-    rgb8_t gray(v, v, v);
+  for (const int v : {0, 64, 128, 192, 255}) {
+    rgb8_t gray(static_cast<uint8_t>(v), static_cast<uint8_t>(v), static_cast<uint8_t>(v));
     auto hsv = color_cast<hsv_float_t>(gray);
     EXPECT_NEAR(hsv.s(), 0.0f, 1e-4f) << "v=" << (int)v;
   }
