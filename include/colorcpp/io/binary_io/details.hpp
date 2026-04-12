@@ -51,7 +51,7 @@ inline std::optional<float> parse_float(std::string_view s) {
   if (s.empty()) return std::nullopt;
   float result;
 
-#if defined(__APPLE__) && _LIBCPP_VERSION < 190000
+#if defined(__APPLE__)
   char* end_ptr = nullptr;
   result = std::strtof(s.data(), &end_ptr);
 
