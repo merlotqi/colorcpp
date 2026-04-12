@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master, channel]
+    branches: [main]
   pull_request:
-    branches: [main, master, channel]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -36,6 +36,58 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build g++ clang
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
+  build-test-windows:
+    name: MSVC + Ninja (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: choco install ninja -y --no-progress
+
+      - name: Enable MSVC + Ninja environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
+  build-test-macos:
+    name: Clang + Ninja (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: brew install ninja
 
       - name: Configure
         run: |
