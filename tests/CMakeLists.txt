@@ -25,7 +25,8 @@ if(COLORCPP_BUILD_TESTS)
         gtest_discover_tests(${TEST_NAME}
             TEST_PREFIX "${TEST_NAME}."
             DISCOVERY_TIMEOUT 60
-            DISCOVERY_MODE PRE_TEST
+            # Disable PRE_TEST mode on Windows to avoid MSBuild file name parsing bug with [ ] characters
+            $<$<NOT:$<PLATFORM_ID:Windows>>:DISCOVERY_MODE PRE_TEST>
         )
 
         if(MEMPOOL_ENABLE_COVERAGE AND (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang"))

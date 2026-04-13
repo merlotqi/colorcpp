@@ -80,6 +80,32 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure --no-tests=error
 
+  build-test-windows-vs2022:
+    name: MSVC + Visual Studio 17 2022 (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
+        run: |
+          cmake -G "Visual Studio 17 2022" -A x64 -B build-vs2022 -S . \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build-vs2022 --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build-vs2022 --build-config Release --output-on-failure --no-tests=error
+
   build-test-macos:
     name: Clang + Ninja (macOS)
     runs-on: macos-latest
@@ -190,6 +216,46 @@ jobs:
 
       - name: Run consumer
         run: "$RUNNER_TEMP/colorcpp-consumer/build/colorcpp_consumer"
+
+  docs:
+    name: Docs (Sphinx + Doxygen)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build doxygen
+          python3 -m pip install -r requirements-docs.txt
+
+      - name: Configure docs build
+        run: |
+          cmake -G Ninja -B build-docs -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_BUILD_TESTS=OFF \
+            -DCOLORCPP_BUILD_EXAMPLES=OFF \
+            -DCOLORCPP_BUILD_BENCHMARKS=OFF \
+            -DCOLORCPP_BUILD_DOCS=ON \
+            -DCOLORCPP_BUILD_SPHINX=ON
+
+      - name: Build Doxygen docs
+        run: cmake --build build-docs --target doc --parallel
+
+      - name: Build Sphinx docs
+        run: cmake --build build-docs --target sphinx --parallel
+
+      - name: Verify generated docs
+        run: |
+          test -f build-docs/doc_doxygen/html/index.html
+          test -f build-docs/doc_sphinx/index.html
 
   docker:
     name: Docker build
