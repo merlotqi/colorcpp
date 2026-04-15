@@ -50,4 +50,13 @@ if(COLORCPP_BUILD_EXAMPLES)
 
   add_executable(color_temperature_example color_temperature_example.cpp)
   target_link_libraries(color_temperature_example colorcpp::colorcpp)
+
+  add_executable(blend_example blend_example.cpp)
+  target_link_libraries(blend_example colorcpp::colorcpp)
+
+  add_executable(apca_example apca_example.cpp)
+  target_link_libraries(apca_example colorcpp::colorcpp)
+
+  add_executable(compare_example compare_example.cpp)
+  target_link_libraries(compare_example colorcpp::colorcpp)
 endif()
