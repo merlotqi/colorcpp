@@ -442,54 +442,34 @@ auto srgb = kelvin_to_rgb(5500.0f);
 ## 📁 Project Structure
 
 ```
-include/colorcpp/
-├── colorcpp.hpp              # Main header (includes everything)
-├── core/
-│   ├── core.hpp              # Core includes
-│   ├── color_base.hpp        # Base color type definitions
-│   ├── concepts.hpp          # Type traits and concepts
-│   ├── constants.hpp         # Named color constants
-│   ├── io.hpp                # Stream I/O operators
-│   ├── rgb.hpp               # RGB / RGBA (8-bit & float)
-│   ├── linear_rgb.hpp        # Linear RGB (no gamma)
-│   ├── hsl.hpp               # HSL / HSLA
-│   ├── hsv.hpp               # HSV / HSVA
-│   ├── hwb.hpp               # HWB / HWBA
-│   ├── cmyk.hpp              # CMYK
-│   ├── cielab.hpp            # CIELAB / CIELCH
-│   ├── oklab.hpp             # OkLab / OkLCH
-│   ├── xyz.hpp               # CIE XYZ
-│   └── display_p3.hpp        # Display P3
-├── algorithms/
-│   ├── algorithms.hpp        # Algorithm includes
-│   ├── accessibility.hpp     # WCAG 2 + APCA Lc
-│   ├── color_temperature.hpp # Kelvin → RGB conversion
-│   ├── delta_e.hpp           # ΔE76 / ΔE94 / ΔE2000
-│   ├── gamut.hpp             # Gamut mapping
-│   ├── gradient.hpp          # Gradient generation
-│   ├── harmony.hpp           # Color harmony
-│   └── vision.hpp            # Color blindness simulation
-├── operations/
-│   ├── operations.hpp        # Operation includes
-│   ├── conversion.hpp        # Color space conversion
-│   ├── blend.hpp             # Blending modes
-│   ├── compare.hpp           # Color comparison
-│   ├── flow.hpp              # Fluent pipeline / themes / export
-│   ├── interpolate.hpp       # Color interpolation
-│   ├── palette.hpp           # Palette generation
-│   └── random.hpp            # Random color generation
-├── io/
-│   ├── io.hpp                # I/O aggregate
-│   ├── css.hpp               # CSS Color 4 parsing
-│   ├── css/                  # CSS parsing internals
-│   ├── literals.hpp          # User-defined literals
-│   ├── literals/             # Literal operators
-│   ├── serialization.hpp     # JSON / MessagePack adapters
-│   ├── serialization/        # Serialization internals
-│   ├── binary_io.hpp         # LUT file formats
-│   ├── binary_io/            # Binary IO internals
-│   └── ansi.hpp              # ANSI terminal output
+.
+├── include/colorcpp/         # Public header-only library
+│   ├── colorcpp.hpp          # Umbrella header
+│   ├── core/                 # Color types, constants, stream I/O
+│   ├── operations/           # Conversion, blend, compare, flow, interpolate, palette, random
+│   ├── algorithms/           # Accessibility, delta_e, gamut, gradient, harmony, vision, color_temperature
+│   ├── io/                   # CSS parsing, literals, serialization, binary IO, ANSI helpers
+│   └── detail/               # Internal shared helpers (for example SIMD support)
+├── examples/                 # Small runnable examples for major features
+├── tests/                    # GoogleTest suites
+│   ├── core/                 # Core color space types and primitives
+│   ├── operations/           # Conversion, blend, compare, flow, interpolate, palette, random
+│   ├── algorithms/           # Delta E, gamut, gradient, harmony, accessibility, vision, etc.
+│   ├── io/                   # CSS, literals, serialization, ANSI, binary IO
+│   └── test_api_contract.cpp # Umbrella header / namespace contract checks
+├── benchmarks/               # Optional Google Benchmark microbenchmarks
+├── docs/                     # Narrative Sphinx docs and reference notes
+│   └── reference/            # Topic-oriented reference pages
+├── cmake/                    # Package config and pkg-config templates
+├── doxygen/                  # Doxygen template/config input
+├── .github/workflows/        # CI and release workflows
+├── CMakeLists.txt            # Main build configuration
+├── Dockerfile                # Containerized build / verification image
+└── requirements-docs.txt     # Python dependencies for Sphinx docs
 ```
+
+The public API is centered around `include/colorcpp/`, while `examples/`, `tests/`, and `docs/`
+show how the library is expected to be consumed, validated, and documented.
 
 ## 🔧 Requirements
 
