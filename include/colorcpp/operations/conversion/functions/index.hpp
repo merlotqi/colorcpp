@@ -141,4 +141,18 @@ COLORCPP_REGISTER_CONVERSION(core::rgbaf_t, core::rgbf_t, details::rgbaf_to_rgbf
 
 COLORCPP_REGISTER_CONVERSION(core::rgbf_t, core::rgbaf_t, details::rgbf_to_rgbaf)
 
+// Display P3 ↔ sRGB (direct short link: 1 hop instead of 4 via Linear P3 → XYZ → Linear RGB)
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::display_p3f_t, core::rgbf_t, details::display_p3_to_srgb<core::rgbf_t>,
+                                   details::srgb_to_display_p3<core::display_p3f_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::display_p3af_t, core::rgbaf_t, details::display_p3_to_srgb<core::rgbaf_t>,
+                                   details::srgb_to_display_p3<core::display_p3af_t>)
+
+// sRGB ↔ CIELAB (direct short link: 1 hop instead of 2 via Linear RGB)
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::rgbf_t, core::cielab_t, details::srgb_to_lab<core::cielab_t>,
+                                   details::lab_to_srgb<core::rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::rgbaf_t, core::cielab_t, details::srgb_to_lab<core::cielab_t>,
+                                   details::lab_to_srgb<core::rgbaf_t>)
+
 }  // namespace colorcpp::operations::conversion
