@@ -13,6 +13,17 @@
 
 namespace colorcpp::operations::conversion::details {
 
+/**
+ * @brief Convert Display P3 gamma-encoded color to Linear Display P3.
+ *
+ * Applies IEC 61966-2-1:1999 sRGB gamma decompression curve.
+ * Display P3 uses identical transfer function to sRGB, only primaries differ.
+ *
+ * @tparam To Target Linear Display P3 type (linear_display_p3f_t, linear_display_p3af_t)
+ * @tparam From Source Display P3 type (display_p3f_t, display_p3af_t)
+ * @param src Input gamma encoded Display P3 color
+ * @return Linearized Display P3 color with alpha channel preserved if present
+ */
 template <typename To, typename From>
 constexpr To display_p3_to_linear_display_p3(const From& src) {
   auto linearize = [](float v) noexcept {
@@ -29,6 +40,17 @@ constexpr To display_p3_to_linear_display_p3(const From& src) {
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
 }
 
+/**
+ * @brief Convert Linear Display P3 to gamma-encoded Display P3.
+ *
+ * Applies IEC 61966-2-1:1999 sRGB gamma compression curve.
+ * Display P3 uses identical transfer function to sRGB, only primaries differ.
+ *
+ * @tparam To Target Display P3 type (display_p3f_t, display_p3af_t)
+ * @tparam From Source Linear Display P3 type (linear_display_p3f_t, linear_display_p3af_t)
+ * @param src Input linear Display P3 color
+ * @return Gamma encoded Display P3 color with alpha channel preserved if present
+ */
 template <typename To, typename From>
 constexpr To linear_display_p3_to_display_p3(const From& src) {
   auto gamma_encode = [](float v) noexcept {
@@ -47,10 +69,23 @@ constexpr To linear_display_p3_to_display_p3(const From& src) {
 }
 
 /**
- * @brief Display P3 to sRGB (direct conversion).
+ * @brief Convert Display P3 directly to sRGB.
  *
+ * Optimized direct conversion path that avoids intermediate XYZ object creation.
  * Display P3 uses DCI-P3 primaries with D65 white point and sRGB transfer function.
- * The conversion goes through linear space using a 3x3 matrix, then re-applies sRGB gamma.
+ *
+ * Algorithm details:
+ * 1. Linearize gamma encoded Display P3 values
+ * 2. Apply 3x3 matrix transform from Display P3 linear space to sRGB linear space
+ * 3. Apply sRGB gamma encoding
+ * 4. Pack result into requested target type
+ *
+ * Reference matrix: Bruce Lindbloom RGB to RGB conversion matrix
+ *
+ * @tparam To Target sRGB type (rgb8_t, rgbf_t, rgba8_t, rgbaf_t)
+ * @tparam From Source Display P3 type (display_p3f_t, display_p3af_t)
+ * @param src Input Display P3 color
+ * @return Converted sRGB color with alpha channel preserved if present
  */
 template <typename To, typename From>
 constexpr To display_p3_to_srgb(const From& src) {
@@ -85,7 +120,23 @@ constexpr To display_p3_to_srgb(const From& src) {
 }
 
 /**
- * @brief sRGB to Display P3 (direct conversion).
+ * @brief Convert sRGB directly to Display P3.
+ *
+ * Optimized direct conversion path that avoids intermediate XYZ object creation.
+ * Display P3 uses DCI-P3 primaries with D65 white point and sRGB transfer function.
+ *
+ * Algorithm details:
+ * 1. Linearize gamma encoded sRGB values
+ * 2. Apply inverse 3x3 matrix transform from sRGB linear space to Display P3 linear space
+ * 3. Apply sRGB gamma encoding (identical transfer function for Display P3)
+ * 4. Pack result into requested target type
+ *
+ * Reference matrix: Inverse of Display P3 → sRGB conversion matrix
+ *
+ * @tparam To Target Display P3 type (display_p3f_t, display_p3af_t)
+ * @tparam From Source sRGB type (rgb8_t, rgbf_t, rgba8_t, rgbaf_t)
+ * @param src Input sRGB color
+ * @return Converted Display P3 color with alpha channel preserved if present
  */
 template <typename To, typename From>
 constexpr To srgb_to_display_p3(const From& src) {

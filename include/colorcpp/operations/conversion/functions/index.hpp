@@ -155,4 +155,35 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(core::rgbf_t, core::cielab_t, details::srgb_t
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::rgbaf_t, core::cielab_t, details::srgb_to_lab<core::cielab_t>,
                                    details::lab_to_srgb<core::rgbaf_t>)
 
+// CIELAB ↔ OkLab (direct short link: 1 hop instead of 2 via XYZ)
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::cielab_t, core::oklab_t, details::cielab_to_oklab<core::oklab_t>,
+                                   details::oklab_to_cielab<core::cielab_t>)
+
+// HSL ↔ Linear RGB (direct short link: 1 hop instead of 2 via sRGB)
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::hsl_float_t, core::linear_rgbf_t,
+                                   details::hsl_to_linear_rgb<core::linear_rgbf_t>,
+                                   details::linear_rgb_to_hsl<core::hsl_float_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::hsla_float_t, core::linear_rgbaf_t,
+                                   details::hsl_to_linear_rgb<core::linear_rgbaf_t>,
+                                   details::linear_rgb_to_hsl<core::hsla_float_t>)
+
+// HSV ↔ Linear RGB (direct short link: 1 hop instead of 2 via sRGB)
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::hsv_float_t, core::linear_rgbf_t,
+                                   details::hsv_to_linear_rgb<core::linear_rgbf_t>,
+                                   details::linear_rgb_to_hsv<core::hsv_float_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::hsva_float_t, core::linear_rgbaf_t,
+                                   details::hsv_to_linear_rgb<core::linear_rgbaf_t>,
+                                   details::linear_rgb_to_hsv<core::hsva_float_t>)
+
+// HWB ↔ Linear RGB (direct short link: 1 hop instead of 2 via sRGB)
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::hwb_float_t, core::linear_rgbf_t,
+                                   details::hwb_to_linear_rgb<core::linear_rgbf_t>,
+                                   details::linear_rgb_to_hwb<core::hwb_float_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::hwba_float_t, core::linear_rgbaf_t,
+                                   details::hwb_to_linear_rgb<core::linear_rgbaf_t>,
+                                   details::linear_rgb_to_hwb<core::hwba_float_t>)
+
 }  // namespace colorcpp::operations::conversion

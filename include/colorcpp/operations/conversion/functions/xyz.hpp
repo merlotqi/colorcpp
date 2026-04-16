@@ -12,6 +12,18 @@
 
 namespace colorcpp::operations::conversion::details {
 
+/**
+ * @brief Convert Linear Display P3 to XYZ tristimulus values.
+ *
+ * Applies standard Display P3 to XYZ conversion matrix.
+ * Uses D65 standard illuminant reference white point.
+ * Display P3 uses DCI-P3 primaries with sRGB transfer function.
+ *
+ * @tparam To Target XYZ color type (xyz_t)
+ * @tparam From Source Linear Display P3 type (linear_display_p3f_t, linear_display_p3af_t)
+ * @param src Input Linear Display P3 color
+ * @return Converted XYZ color
+ */
 template <typename To, typename From>
 constexpr To linear_display_p3_to_xyz(const From& src) {
   float r = to_unit<From, 0>(src.template get_index<0>());
@@ -25,6 +37,18 @@ constexpr To linear_display_p3_to_xyz(const From& src) {
   return pack_to<To>(from_value<To, 0>(X), from_value<To, 1>(Y), from_value<To, 2>(Z));
 }
 
+/**
+ * @brief Convert XYZ tristimulus values to Linear Display P3.
+ *
+ * Applies standard XYZ to Display P3 inverse conversion matrix.
+ * Uses D65 standard illuminant reference white point.
+ * This is the inverse function of linear_display_p3_to_xyz.
+ *
+ * @tparam To Target Linear Display P3 type (linear_display_p3f_t, linear_display_p3af_t)
+ * @tparam From Source XYZ color type (xyz_t)
+ * @param src Input XYZ color
+ * @return Converted Linear Display P3 color with alpha set to 1.0 if present
+ */
 template <typename To, typename From>
 constexpr To xyz_to_linear_display_p3(const From& src) {
   float X = static_cast<float>(src.template get_index<0>());
