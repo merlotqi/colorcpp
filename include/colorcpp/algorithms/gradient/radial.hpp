@@ -26,14 +26,15 @@ class radial_gradient {
  public:
   using color_type = Color;
   using stops_type = color_stops<Color>;
-  using easing_type = easing::easing_function<float>;
+  using position_type = typename stops_type::position_type;
+  using easing_type = easing::easing_function<position_type>;
 
   /**
    * @brief Construct a radial gradient from color stops.
    * @param stops The color stops.
    * @param easing Easing function (default: linear).
    */
-  explicit radial_gradient(const stops_type& stops, easing_type easing = easing::linear<float>)
+  explicit radial_gradient(const stops_type& stops, easing_type easing = easing::linear<position_type>)
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -43,7 +44,7 @@ class radial_gradient {
    * @param stops Initializer list of color stops.
    * @param easing Easing function (default: linear).
    */
-  radial_gradient(std::initializer_list<color_stop<Color>> stops, easing_type easing = easing::linear<float>)
+  radial_gradient(std::initializer_list<color_stop<Color>> stops, easing_type easing = easing::linear<position_type>)
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -53,8 +54,10 @@ class radial_gradient {
    * @param radius Normalized radius in [0, 1] (0 = center, 1 = edge).
    * @return The interpolated color.
    */
-  Color sample(float radius) const {
-    auto interpolator = [](const Color& a, const Color& b, float t) { return operations::interpolate::lerp(a, b, t); };
+  Color sample(position_type radius) const {
+    auto interpolator = [](const Color& a, const Color& b, position_type t) {
+      return operations::interpolate::lerp(a, b, t);
+    };
     return details::sample_gradient(stops_, details::clamp_01(radius + phase_offset_), interpolator, easing_);
   }
 
@@ -162,7 +165,7 @@ class radial_gradient {
       } else if (u > half) {
         c = other.sample((u - half) / half);
       } else {
-        c = other.sample(0.0f);
+        c = operations::interpolate::lerp(sample(1.0f), other.sample(0.0f), 0.5f);
       }
       concat_stops.emplace_back(u, c);
     }
@@ -233,7 +236,7 @@ class radial_gradient {
  private:
   stops_type stops_;
   easing_type easing_;
-  float phase_offset_{};
+  position_type phase_offset_{};
 };
 
 /**
@@ -245,8 +248,10 @@ class radial_gradient {
  */
 template <typename Color>
 radial_gradient<Color> radial(
-    const color_stops<Color>& stops, easing::easing_function<typename Color::value_type> easing =
-                                         [](typename Color::value_type t) { return easing::linear(t); }) {
+    const color_stops<Color>& stops,
+    typename radial_gradient<Color>::easing_type easing = [](typename radial_gradient<Color>::position_type t) {
+      return easing::linear(t);
+    }) {
   return radial_gradient<Color>(stops, std::move(easing));
 }
 
@@ -260,7 +265,7 @@ radial_gradient<Color> radial(
 template <typename Color>
 radial_gradient<Color> radial(
     std::initializer_list<color_stop<Color>> stops,
-    easing::easing_function<typename Color::value_type> easing = [](typename Color::value_type t) {
+    typename radial_gradient<Color>::easing_type easing = [](typename radial_gradient<Color>::position_type t) {
       return easing::linear(t);
     }) {
   return radial_gradient<Color>(stops, std::move(easing));

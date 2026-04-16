@@ -26,7 +26,8 @@ class linear_gradient {
  public:
   using color_type = Color;
   using stops_type = color_stops<Color>;
-  using easing_type = easing::easing_function<float>;
+  using position_type = typename stops_type::position_type;
+  using easing_type = easing::easing_function<position_type>;
 
   /**
    * @brief Construct a linear gradient from color stops.
@@ -34,7 +35,7 @@ class linear_gradient {
    * @param easing Easing function (default: linear).
    */
   explicit linear_gradient(
-      const stops_type& stops, easing_type easing = [](float t) { return easing::linear(t); })
+      const stops_type& stops, easing_type easing = [](position_type t) { return easing::linear(t); })
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -45,7 +46,8 @@ class linear_gradient {
    * @param easing Easing function (default: linear).
    */
   linear_gradient(
-      std::initializer_list<color_stop<Color>> stops, easing_type easing = [](float t) { return easing::linear(t); })
+      std::initializer_list<color_stop<Color>> stops,
+      easing_type easing = [](position_type t) { return easing::linear(t); })
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -55,8 +57,10 @@ class linear_gradient {
    * @param t Position in [0, 1].
    * @return The interpolated color.
    */
-  Color sample(float t) const {
-    auto interpolator = [](const Color& a, const Color& b, float t) { return operations::interpolate::lerp(a, b, t); };
+  Color sample(position_type t) const {
+    auto interpolator = [](const Color& a, const Color& b, position_type t) {
+      return operations::interpolate::lerp(a, b, t);
+    };
     return details::sample_gradient(stops_, details::clamp_01(t + phase_offset_), interpolator, easing_);
   }
 
@@ -134,7 +138,7 @@ class linear_gradient {
    * @brief Concatenate: first half maps to @c *this, second half to @c other.
    *
    * At @c u < 0.5 uses @c sample(u/0.5); at @c u > 0.5 uses @c other.sample((u-0.5)/0.5);
-   * at @c u == 0.5 uses the start of @p other (right-continuous seam).
+   * at @c u == 0.5 uses the midpoint between the two boundary colors to avoid a single-sample seam jump.
    */
   linear_gradient<Color> concat(const linear_gradient<Color>& other) const {
     // Odd count so i/(n-1) hits 0.5 exactly at the seam (pure second segment start).
@@ -153,7 +157,7 @@ class linear_gradient {
       } else if (u > half) {
         c = other.sample((u - half) / half);
       } else {
-        c = other.sample(0.0f);
+        c = operations::interpolate::lerp(sample(1.0f), other.sample(0.0f), 0.5f);
       }
       concat_stops.emplace_back(u, c);
     }
@@ -232,7 +236,7 @@ class linear_gradient {
   stops_type stops_;
   easing_type easing_;
   /** Added to sample @c t before clamping to [0, 1]; see offset(). */
-  float phase_offset_{};
+  position_type phase_offset_{};
 };
 
 /**
@@ -245,7 +249,9 @@ class linear_gradient {
 template <typename Color>
 linear_gradient<Color> linear(
     const color_stops<Color>& stops,
-    easing::easing_function<float> easing = [](float t) { return easing::linear(t); }) {
+    typename linear_gradient<Color>::easing_type easing = [](typename linear_gradient<Color>::position_type t) {
+      return easing::linear(t);
+    }) {
   return linear_gradient<Color>(stops, std::move(easing));
 }
 
@@ -259,7 +265,9 @@ linear_gradient<Color> linear(
 template <typename Color>
 linear_gradient<Color> linear(
     std::initializer_list<color_stop<Color>> stops,
-    easing::easing_function<float> easing = [](float t) { return easing::linear(t); }) {
+    typename linear_gradient<Color>::easing_type easing = [](typename linear_gradient<Color>::position_type t) {
+      return easing::linear(t);
+    }) {
   return linear_gradient<Color>(stops, std::move(easing));
 }
 

@@ -248,7 +248,6 @@ int main() {
   print_palette_row("scale(2.0)", wheel.scale(2.0f).palette(12));
   print_palette_row("blend(dusk, 0.50)", wheel.blend(dusk, 0.50f).palette(12));
   print_palette_row("concat(dusk)", wheel.concat(dusk).palette(12));
-  std::cout << "  angular scale() currently validates the factor but preserves sampling on the circle.\n";
 
   // ========================================================================
   section("6. sequence gradients");

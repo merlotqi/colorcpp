@@ -14,6 +14,9 @@
 
 namespace colorcpp::algorithms::gradient::details {
 
+template <typename Color>
+using gradient_position_t = typename color_stops<Color>::position_type;
+
 /**
  * @brief Find the two stops that bracket a given position.
  * @tparam Color Color type.
@@ -23,34 +26,38 @@ namespace colorcpp::algorithms::gradient::details {
  */
 template <typename Color>
 std::pair<std::size_t, std::size_t> find_bracketing_stops(const color_stops<Color>& stops,
-                                                          typename Color::value_type position) {
+                                                          gradient_position_t<Color> position) {
   if (stops.empty()) {
     throw std::invalid_argument("colorcpp: gradient has no stops");
   }
 
   // Clamp position to [0, 1]
   position =
-      std::clamp(position, static_cast<typename Color::value_type>(0), static_cast<typename Color::value_type>(1));
+      std::clamp(position, static_cast<gradient_position_t<Color>>(0), static_cast<gradient_position_t<Color>>(1));
 
-  // If position is before first stop
   if (position <= stops.front().position) {
     return {0, 0};
   }
 
-  // If position is after last stop
   if (position >= stops.back().position) {
     return {stops.size() - 1, stops.size() - 1};
   }
 
-  // Find the two stops that bracket the position
-  for (std::size_t i = 0; i < stops.size() - 1; ++i) {
-    if (position >= stops[i].position && position <= stops[i + 1].position) {
-      return {i, i + 1};
-    }
+  auto it = std::lower_bound(stops.begin(), stops.end(), position,
+                             [](const typename color_stops<Color>::stop_type& stop, gradient_position_t<Color> value) {
+                               return stop.position < value;
+                             });
+
+  if (it == stops.end()) {
+    return {stops.size() - 1, stops.size() - 1};
   }
 
-  // Should not reach here
-  return {stops.size() - 1, stops.size() - 1};
+  const auto right = static_cast<std::size_t>(std::distance(stops.begin(), it));
+  if (it->position == position) {
+    return {right, right};
+  }
+
+  return {right - 1, right};
 }
 
 /**
@@ -63,17 +70,17 @@ std::pair<std::size_t, std::size_t> find_bracketing_stops(const color_stops<Colo
  * @return Local t value in [0, 1].
  */
 template <typename Color>
-typename Color::value_type calculate_local_t(const color_stops<Color>& stops, std::size_t left, std::size_t right,
-                                             typename Color::value_type position) {
+gradient_position_t<Color> calculate_local_t(const color_stops<Color>& stops, std::size_t left, std::size_t right,
+                                             gradient_position_t<Color> position) {
   if (left == right) {
-    return static_cast<typename Color::value_type>(0);
+    return static_cast<gradient_position_t<Color>>(0);
   }
 
   auto left_pos = stops[left].position;
   auto right_pos = stops[right].position;
 
   if (right_pos == left_pos) {
-    return static_cast<typename Color::value_type>(0);
+    return static_cast<gradient_position_t<Color>>(0);
   }
 
   return (position - left_pos) / (right_pos - left_pos);
@@ -113,8 +120,8 @@ bool is_finite(T value) noexcept {
  */
 template <typename Color, typename Interpolator>
 Color sample_gradient(
-    const color_stops<Color>& stops, typename Color::value_type position, Interpolator&& interpolator,
-    easing::easing_function<typename Color::value_type> easing = easing::linear<typename Color::value_type>) {
+    const color_stops<Color>& stops, gradient_position_t<Color> position, Interpolator&& interpolator,
+    easing::easing_function<gradient_position_t<Color>> easing = easing::linear<gradient_position_t<Color>>) {
   if (stops.empty()) {
     throw std::invalid_argument("colorcpp: gradient has no stops");
   }
@@ -147,13 +154,13 @@ Color sample_gradient(
 template <typename Color, typename Interpolator>
 std::vector<Color> generate_palette(
     const color_stops<Color>& stops, std::size_t count, Interpolator&& interpolator,
-    easing::easing_function<typename Color::value_type> easing = easing::linear<typename Color::value_type>) {
+    easing::easing_function<gradient_position_t<Color>> easing = easing::linear<gradient_position_t<Color>>) {
   if (count == 0) {
     return {};
   }
 
   if (count == 1) {
-    return {sample_gradient(stops, static_cast<typename Color::value_type>(0.5),
+    return {sample_gradient(stops, static_cast<gradient_position_t<Color>>(0.5),
                             std::forward<Interpolator>(interpolator), easing)};
   }
 
@@ -161,7 +168,7 @@ std::vector<Color> generate_palette(
   palette.reserve(count);
 
   for (std::size_t i = 0; i < count; ++i) {
-    auto t = static_cast<typename Color::value_type>(i) / static_cast<typename Color::value_type>(count - 1);
+    auto t = static_cast<gradient_position_t<Color>>(i) / static_cast<gradient_position_t<Color>>(count - 1);
     palette.push_back(sample_gradient(stops, t, std::forward<Interpolator>(interpolator), easing));
   }
 

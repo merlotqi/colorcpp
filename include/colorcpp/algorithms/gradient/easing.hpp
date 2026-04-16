@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 
@@ -281,32 +282,110 @@ T ease_in_out_circ(T t) noexcept {
 }
 
 /**
- * @brief Create a custom easing function from a cubic bezier.
- * @tparam T Value type.
- * @param x1 First control point x coordinate.
- * @param y1 First control point y coordinate.
- * @param x2 Second control point x coordinate.
- * @param y2 Second control point y coordinate.
- * @return Easing function.
+ * @brief Create a custom easing function from a cubic bezier curve.
+ *
+ * @details
+ * Cubic Bezier easing curves are defined by four control points with fixed endpoints:
+ *   P0 = (0, 0) - Start point (fixed)
+ *   P1 = (x1, y1) - First user control point
+ *   P2 = (x2, y2) - Second user control point
+ *   P3 = (1, 1) - End point (fixed)
+ *
+ * This implementation follows the W3C CSS Transitions specification for cubic-bezier timing functions.
+ * The algorithm solves the inverse problem: given an x coordinate (input progress), find
+ * the corresponding y coordinate (eased progress). There is no analytical solution for this,
+ * so we use numerical root finding.
+ *
+ * Algorithm approach:
+ *  1. Precompute polynomial coefficients for x(t) and y(t) during function construction
+ *  2. First attempt fast convergence with Newton-Raphson method (usually converges in <4 iterations)
+ *  3. Fall back to robust bisection method if Newton-Raphson fails
+ *  4. Return y value for the found curve parameter
+ *
+ * References:
+ *  - W3C CSS Working Group specification: https://www.w3.org/TR/css-easing-1/#cubic-bezier-easing-functions
+ *  - WebKit implementation reference:
+ * https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/graphics/UnitBezier.h
+ *  - Numerical Recipes: Newton-Raphson method for root finding
+ *
+ * @tparam T Value type, typically float
+ * @param x1 X coordinate of first control point [0, 1]
+ * @param y1 Y coordinate of first control point
+ * @param x2 X coordinate of second control point [0, 1]
+ * @param y2 Y coordinate of second control point
+ * @return Easing function that maps [0, 1] to [0, 1]
  */
 template <typename T = float>
 easing_function<T> cubic_bezier(T x1, T y1, T x2, T y2) {
-  // Simplified cubic bezier implementation
-  // For production, you'd want a more robust implementation
-  return [x1, y1, x2, y2](T t) -> T {
-    // This is a simplified version; a full implementation would solve the bezier equation
-    // For now, we'll use a polynomial approximation
-    T t2 = t * t;
-    T t3 = t2 * t;
-    T mt = 1.0f - t;
-    T mt2 = mt * mt;
-    T mt3 = mt2 * mt;
+  // Constants (pre-calculated at function construction time, not per sample)
+  const T zero = static_cast<T>(0);
+  const T one = static_cast<T>(1);
+  const T two = static_cast<T>(2);
+  const T three = static_cast<T>(3);
+  const T epsilon = static_cast<T>(1e-6);  // 1e-6 gives sub-pixel accuracy for 16-bit values
 
-    // Bezier curve approximation
-    T x = mt3 * 0.0f + 3.0f * mt2 * t * x1 + 3.0f * mt * t2 * x2 + t3 * 1.0f;
-    T y = mt3 * 0.0f + 3.0f * mt2 * t * y1 + 3.0f * mt * t2 * y2 + t3 * 1.0f;
+  // Precalculate polynomial coefficients for cubic curve
+  // x(t) = ax*t³ + bx*t² + cx*t
+  // y(t) = ay*t³ + by*t² + cy*t
+  const T cx = three * x1;
+  const T bx = three * (x2 - x1) - cx;
+  const T ax = one - cx - bx;
 
-    return y;
+  const T cy = three * y1;
+  const T by = three * (y2 - y1) - cy;
+  const T ay = one - cy - by;
+
+  // Return closure with precomputed coefficients
+  return [ax, bx, cx, ay, by, cy, zero, one, two, three, epsilon](T t) -> T {
+    // Curve sample functions
+    auto sample_curve_x = [ax, bx, cx](T s) { return ((ax * s + bx) * s + cx) * s; };
+    auto sample_curve_y = [ay, by, cy](T s) { return ((ay * s + by) * s + cy) * s; };
+    auto sample_derivative_x = [ax, bx, cx, two, three](T s) { return (three * ax * s + two * bx) * s + cx; };
+
+    t = std::clamp(t, zero, one);
+
+    // Step 1: Fast Newton-Raphson root finding
+    // Converges in 2-4 iterations for most valid bezier curves
+    T s = t;  // initial guess
+    for (int i = 0; i < 8; ++i) {
+      const T x_error = sample_curve_x(s) - t;
+      if (std::abs(x_error) <= epsilon) {
+        // Found solution within tolerance
+        return std::clamp(sample_curve_y(s), zero, one);
+      }
+
+      const T derivative = sample_derivative_x(s);
+      if (std::abs(derivative) <= epsilon) {
+        // Flat region, Newton-Raphson would diverge -> fall back to bisection
+        break;
+      }
+
+      // Newton step: s = s - f(s)/f'(s)
+      s -= x_error / derivative;
+    }
+
+    // Step 2: Fallback bisection method (always converges, slower but robust)
+    T low = zero;
+    T high = one;
+    s = t;
+
+    for (int i = 0; i < 24; ++i) {
+      const T x_error = sample_curve_x(s) - t;
+      if (std::abs(x_error) <= epsilon) {
+        break;
+      }
+
+      // Narrow search interval
+      if (x_error < zero) {
+        low = s;
+      } else {
+        high = s;
+      }
+      s = (low + high) / two;
+    }
+
+    // Final result
+    return std::clamp(sample_curve_y(s), zero, one);
   };
 }
 

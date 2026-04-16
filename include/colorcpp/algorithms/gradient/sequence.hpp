@@ -64,6 +64,8 @@ class sequence_gradient {
   explicit sequence_gradient(
       std::vector<segment_type> segments, easing_type easing = [](float t) { return easing::linear(t); })
       : segments_(std::move(segments)), easing_(std::move(easing)) {
+    std::sort(segments_.begin(), segments_.end(),
+              [](const segment_type& a, const segment_type& b) { return a.start < b.start; });
     validate_segments();
   }
 
@@ -75,23 +77,28 @@ class sequence_gradient {
   color_type sample(float t) const {
     t = std::clamp(t, 0.0f, 1.0f);
 
-    // Find the segment that contains position t
-    for (const auto& segment : segments_) {
+    if (t <= segments_.front().start) {
+      return segments_.front().gradient.sample(0.0f);
+    }
+
+    for (std::size_t i = 0; i < segments_.size(); ++i) {
+      const auto& segment = segments_[i];
       if (t >= segment.start && t <= segment.end) {
-        // Map t to the segment's local coordinate [0, 1]
         float local_t = (t - segment.start) / (segment.end - segment.start);
-        local_t = easing_(local_t);
+        local_t = details::clamp_01(easing_(local_t));
         return segment.gradient.sample(local_t);
+      }
+
+      if (i + 1 < segments_.size()) {
+        const auto& next = segments_[i + 1];
+        if (t > segment.end && t < next.start) {
+          float gap_t = (t - segment.end) / (next.start - segment.end);
+          return operations::interpolate::lerp(segment.gradient.sample(1.0f), next.gradient.sample(0.0f), gap_t);
+        }
       }
     }
 
-    // If t is at the very end, use the last segment
-    if (t >= segments_.back().end) {
-      return segments_.back().gradient.sample(1.0f);
-    }
-
-    // Fallback: use the first segment
-    return segments_.front().gradient.sample(0.0f);
+    return segments_.back().gradient.sample(1.0f);
   }
 
   /**
@@ -160,7 +167,7 @@ class sequence_gradient {
       throw std::invalid_argument("colorcpp: sequence gradient must have at least one segment");
     }
 
-    // Check for overlapping segments
+    // Check for overlapping segments after sorting.
     for (std::size_t i = 0; i < segments_.size() - 1; ++i) {
       if (segments_[i].end > segments_[i + 1].start) {
         throw std::invalid_argument("colorcpp: sequence segments must not overlap");
