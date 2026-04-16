@@ -66,22 +66,31 @@ class angular_gradient {
   }
 
   /**
+   * @brief Convert a 2D point into the normalized angular parameter.
+   * @param x Normalized x coordinate in [0, 1].
+   * @param y Normalized y coordinate in [0, 1].
+   * @return Normalized angle in [0, 1] using CSS/SVG-style orientation.
+   */
+  position_type position_at(float x, float y) const noexcept {
+    constexpr position_type pi = static_cast<position_type>(3.14159265358979323846f);
+    position_type dx = static_cast<position_type>(x) - 0.5f;
+    position_type dy = static_cast<position_type>(y) - 0.5f;
+
+    position_type angle = std::atan2(dx, -dy) / (2.0f * pi);
+    if (angle < 0.0f) {
+      angle += 1.0f;
+    }
+    return angle;
+  }
+
+  /**
    * @brief Sample the gradient at a given 2D position.
    * @param x Normalized x coordinate in [0, 1].
    * @param y Normalized y coordinate in [0, 1].
    * @return The interpolated color.
    */
   Color sample_at(float x, float y) const {
-    constexpr position_type pi = static_cast<position_type>(3.14159265358979323846f);
-    position_type dx = static_cast<position_type>(x - 0.5f);
-    position_type dy = static_cast<position_type>(y - 0.5f);
-
-    // CSS/SVG-style conic orientation: 0 at top and increasing clockwise.
-    position_type angle = std::atan2(dx, -dy) / (2.0f * pi);
-    if (angle < 0.0f) {
-      angle += 1.0f;
-    }
-    return sample(angle);
+    return sample(position_at(x, y));
   }
 
   /**

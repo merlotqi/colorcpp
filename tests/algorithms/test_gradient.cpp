@@ -63,6 +63,36 @@ TEST(GradientTest, RadialGradientBasic) {
   EXPECT_NEAR(edge.r(), 0.0f, 0.001f);
 }
 
+TEST(GradientTest, DiamondGradientBasic) {
+  gradient::color_stops<rgbf_t> stops = {{0.0f, rgbf_t{1.0f, 1.0f, 1.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 0.0f}}};
+
+  auto grad = gradient::diamond(stops);
+
+  auto center = grad.sample_at(0.5f, 0.5f);
+  EXPECT_NEAR(center.r(), 1.0f, 0.001f);
+
+  auto mid = grad.sample_at(0.5f, 0.25f);
+  EXPECT_NEAR(mid.r(), 0.5f, 0.001f);
+
+  auto edge = grad.sample_at(0.5f, 0.0f);
+  EXPECT_NEAR(edge.r(), 0.0f, 0.001f);
+}
+
+TEST(GradientTest, BoxGradientBasic) {
+  gradient::color_stops<rgbf_t> stops = {{0.0f, rgbf_t{1.0f, 1.0f, 1.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 0.0f}}};
+
+  auto grad = gradient::box(stops);
+
+  auto center = grad.sample_at(0.5f, 0.5f);
+  EXPECT_NEAR(center.r(), 1.0f, 0.001f);
+
+  auto quarter = grad.sample_at(0.25f, 0.25f);
+  EXPECT_NEAR(quarter.r(), 0.5f, 0.001f);
+
+  auto side = grad.sample_at(0.5f, 0.0f);
+  EXPECT_NEAR(side.r(), 0.0f, 0.001f);
+}
+
 TEST(GradientTest, AngularGradientBasic) {
   gradient::color_stops<rgbf_t> stops = {
       {0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {0.5f, rgbf_t{0.0f, 1.0f, 0.0f}}, {1.0f, rgbf_t{1.0f, 0.0f, 0.0f}}};
@@ -430,6 +460,40 @@ TEST(GradientTest, SequenceInterpolatesAcrossGaps) {
   EXPECT_NEAR(mid_gap.r(), 0.5f, 0.001f);
   EXPECT_NEAR(mid_gap.g(), 0.0f, 0.001f);
   EXPECT_NEAR(mid_gap.b(), 0.5f, 0.001f);
+}
+
+TEST(GradientTest, SteppedGradientQuantizesSamplePositions) {
+  auto base = gradient::linear<rgbf_t>({{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}});
+  auto stepped_grad = gradient::stepped(base, 3);
+
+  auto low = stepped_grad.sample(0.10f);
+  EXPECT_NEAR(low.r(), 1.0f, 0.001f);
+  EXPECT_NEAR(low.b(), 0.0f, 0.001f);
+
+  auto mid = stepped_grad.sample(0.60f);
+  EXPECT_NEAR(mid.r(), 0.5f, 0.001f);
+  EXPECT_NEAR(mid.b(), 0.5f, 0.001f);
+
+  auto high = stepped_grad.sample(1.00f);
+  EXPECT_NEAR(high.r(), 0.0f, 0.001f);
+  EXPECT_NEAR(high.b(), 1.0f, 0.001f);
+}
+
+TEST(GradientTest, SteppedSpatialGradientUsesPositionAt) {
+  auto base = gradient::radial<rgbf_t>({{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}});
+  auto stepped_grad = gradient::stepped(base, 3);
+
+  auto center = stepped_grad.sample_at(0.5f, 0.5f);
+  EXPECT_NEAR(center.r(), 1.0f, 0.001f);
+  EXPECT_NEAR(center.b(), 0.0f, 0.001f);
+
+  auto mid = stepped_grad.sample_at(0.5f, 0.25f);
+  EXPECT_NEAR(mid.r(), 0.5f, 0.001f);
+  EXPECT_NEAR(mid.b(), 0.5f, 0.001f);
+
+  auto edge = stepped_grad.sample_at(0.5f, 0.0f);
+  EXPECT_NEAR(edge.r(), 0.0f, 0.001f);
+  EXPECT_NEAR(edge.b(), 1.0f, 0.001f);
 }
 
 TEST(GradientTest, RadialGradientOperations) {

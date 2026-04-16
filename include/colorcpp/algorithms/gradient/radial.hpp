@@ -62,18 +62,25 @@ class radial_gradient {
   }
 
   /**
+   * @brief Convert a 2D point into the normalized radial distance parameter.
+   * @param x Normalized x coordinate in [0, 1].
+   * @param y Normalized y coordinate in [0, 1].
+   * @return Normalized radius in [0, 1].
+   */
+  position_type position_at(float x, float y) const noexcept {
+    position_type dx = static_cast<position_type>(x) - 0.5f;
+    position_type dy = static_cast<position_type>(y) - 0.5f;
+    return details::clamp_01(std::sqrt(dx * dx + dy * dy) * 2.0f);
+  }
+
+  /**
    * @brief Sample the gradient at a given 2D position.
    * @param x Normalized x coordinate in [0, 1].
    * @param y Normalized y coordinate in [0, 1].
    * @return The interpolated color.
    */
   Color sample_at(float x, float y) const {
-    // Calculate distance from center (0.5, 0.5)
-    float dx = x - 0.5f;
-    float dy = y - 0.5f;
-    float radius = std::sqrt(dx * dx + dy * dy) * 2.0f;
-    radius = std::clamp(radius, 0.0f, 1.0f);
-    return sample(radius);
+    return sample(position_at(x, y));
   }
 
   /**

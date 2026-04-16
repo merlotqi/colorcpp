@@ -5,9 +5,9 @@
  * Covers:
  * - color_stop / color_stops management
  * - easing functions (built-in + cubic bezier)
- * - linear / radial / angular gradients
+ * - linear / radial / angular / diamond / box gradients
  * - sample(), sample_at(), palette()
- * - reverse(), blend(), concat(), scale(), offset(), quantize()
+ * - reverse(), blend(), concat(), scale(), offset(), quantize(), stepped()
  * - sequence gradients and segment editing
  */
 
@@ -250,7 +250,43 @@ int main() {
   print_palette_row("concat(dusk)", wheel.concat(dusk).palette(12));
 
   // ========================================================================
-  section("6. sequence gradients");
+  section("6. diamond / box / stepped");
+
+  auto gem = diamond<rgba8_t>({
+      {0.00f, 0xFEF3C7_rgb},
+      {1.00f, 0x7C2D12_rgb},
+  });
+  auto frame = box<rgba8_t>(
+      {
+          {0.00f, 0xDBEAFE_rgb},
+          {0.60f, 0x60A5FA_rgb},
+          {1.00f, 0x1D4ED8_rgb},
+      },
+      easing::smooth_step<float>);
+  auto posterized = stepped(warm, 4);
+  auto faceted = stepped(gem, 5);
+
+  print_sample_row(gem, "diamond sample(distance)", {0.00f, 0.25f, 0.50f, 0.75f, 1.00f});
+  std::cout << "  diamond sample_at(x, y)\n";
+  print_sample_at(gem, "center", 0.50f, 0.50f);
+  print_sample_at(gem, "edge", 0.50f, 0.00f);
+  print_sample_at(gem, "corner", 1.00f, 1.00f);
+
+  print_sample_row(frame, "box sample(distance)", {0.00f, 0.25f, 0.50f, 0.75f, 1.00f});
+  std::cout << "  box sample_at(x, y)\n";
+  print_sample_at(frame, "center", 0.50f, 0.50f);
+  print_sample_at(frame, "side", 0.50f, 0.00f);
+  print_sample_at(frame, "quarter", 0.25f, 0.25f);
+
+  print_palette_row("stepped(warm, 4)", posterized.palette(11));
+  print_palette_row("stepped(gem, 5)", faceted.palette(11));
+  std::cout << "  stepped(gem, 5) sample_at(x, y)\n";
+  print_sample_at(faceted, "center", 0.50f, 0.50f);
+  print_sample_at(faceted, "mid", 0.50f, 0.25f);
+  print_sample_at(faceted, "edge", 0.50f, 0.00f);
+
+  // ========================================================================
+  section("7. sequence gradients");
 
   using linear_rgba = linear_gradient<rgba8_t>;
 
@@ -290,6 +326,31 @@ int main() {
   builder.add_segment(linear<rgba8_t>({{0.00f, 0xEC4899_rgb}, {1.00f, 0xF59E0B_rgb}}), 0.00f, 1.00f);
   print_palette_row("after clear() + add", builder.palette(7));
   std::cout << "  rebuilt segments().size() = " << builder.segments().size() << '\n';
+
+  // ========================================================================
+  section("8. 2D grid visualization");
+
+  std::cout << "  16x16 diamond gradient render:\n\n";
+
+  // Night blue diamond gradient
+  auto render_grad = diamond<rgba8_t>({
+      {0.00f, 0xDBEAFE_rgb},
+      {0.35f, 0x60A5FA_rgb},
+      {0.65f, 0x2563EB_rgb},
+      {1.00f, 0x1E3A8A_rgb},
+  }, easing::ease_out_sine<float>);
+
+  constexpr int grid_size = 16;
+  for (int y = 0; y < grid_size; ++y) {
+    std::cout << "    ";
+    for (int x = 0; x < grid_size; ++x) {
+      float u = static_cast<float>(x) / static_cast<float>(grid_size - 1);
+      float v = static_cast<float>(y) / static_cast<float>(grid_size - 1);
+      auto color = render_grad.sample_at(u, v);
+      print_swatch(std::cout, as_rgba8(color), 2);
+    }
+    std::cout << '\n';
+  }
 
   std::cout << "\n";
   return 0;
