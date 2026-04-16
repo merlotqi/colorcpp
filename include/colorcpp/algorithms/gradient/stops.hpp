@@ -20,7 +20,7 @@ namespace colorcpp::algorithms::gradient {
 template <typename Color>
 struct color_stop {
   using color_type = Color;
-  using value_type = typename Color::value_type;
+  using value_type = float;
 
   value_type position;  // Position in [0, 1]
   Color color;          // Color at this position
@@ -102,7 +102,7 @@ class color_stops {
    * @param epsilon Tolerance for position comparison (default: 1e-6).
    * @return Number of stops removed.
    */
-  std::size_t remove_at(typename Color::value_type position,
+  std::size_t remove_at(float position,
                         typename Color::value_type epsilon = static_cast<typename Color::value_type>(1e-6)) {
     auto it = std::remove_if(stops_.begin(), stops_.end(), [position, epsilon](const stop_type& stop) {
       return std::abs(stop.position - position) < epsilon;
@@ -132,7 +132,7 @@ class color_stops {
    * @throws std::out_of_range if index is invalid.
    * @throws std::invalid_argument if position is out of range [0, 1].
    */
-  void update_position(std::size_t index, typename Color::value_type position) {
+  void update_position(std::size_t index, float position) {
     if (index >= stops_.size()) {
       throw std::out_of_range("colorcpp: stop index out of range");
     }

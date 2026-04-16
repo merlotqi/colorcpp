@@ -14,6 +14,9 @@ if(COLORCPP_BUILD_EXAMPLES)
   add_executable(interpolate_example interpolate_example.cpp)
   target_link_libraries(interpolate_example colorcpp::colorcpp)
 
+  add_executable(gradient_example gradient_example.cpp)
+  target_link_libraries(gradient_example colorcpp::colorcpp)
+
   add_executable(palette_example palette_example.cpp)
   target_link_libraries(palette_example colorcpp::colorcpp)
 
@@ -59,4 +62,11 @@ if(COLORCPP_BUILD_EXAMPLES)
 
   add_executable(compare_example compare_example.cpp)
   target_link_libraries(compare_example colorcpp::colorcpp)
+
+  add_executable(display_p3_example display_p3_example.cpp)
+  target_link_libraries(display_p3_example colorcpp::colorcpp)
+
+  add_executable(harmony_example harmony_example.cpp)
+  target_link_libraries(harmony_example colorcpp::colorcpp)
+  
 endif()

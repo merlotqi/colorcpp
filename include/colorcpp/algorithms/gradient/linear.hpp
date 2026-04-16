@@ -25,9 +25,8 @@ template <typename Color>
 class linear_gradient {
  public:
   using color_type = Color;
-  using value_type = typename Color::value_type;
   using stops_type = color_stops<Color>;
-  using easing_type = easing::easing_function<value_type>;
+  using easing_type = easing::easing_function<float>;
 
   /**
    * @brief Construct a linear gradient from color stops.
@@ -35,7 +34,7 @@ class linear_gradient {
    * @param easing Easing function (default: linear).
    */
   explicit linear_gradient(
-      const stops_type& stops, easing_type easing = [](value_type t) { return easing::linear(t); })
+      const stops_type& stops, easing_type easing = [](float t) { return easing::linear(t); })
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -46,8 +45,7 @@ class linear_gradient {
    * @param easing Easing function (default: linear).
    */
   linear_gradient(
-      std::initializer_list<color_stop<Color>> stops,
-      easing_type easing = [](value_type t) { return easing::linear(t); })
+      std::initializer_list<color_stop<Color>> stops, easing_type easing = [](float t) { return easing::linear(t); })
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -57,10 +55,8 @@ class linear_gradient {
    * @param t Position in [0, 1].
    * @return The interpolated color.
    */
-  Color sample(value_type t) const {
-    auto interpolator = [](const Color& a, const Color& b, value_type t) {
-      return operations::interpolate::lerp(a, b, t);
-    };
+  Color sample(float t) const {
+    auto interpolator = [](const Color& a, const Color& b, float t) { return operations::interpolate::lerp(a, b, t); };
     return details::sample_gradient(stops_, details::clamp_01(t + phase_offset_), interpolator, easing_);
   }
 
@@ -74,12 +70,12 @@ class linear_gradient {
       return {};
     }
     if (count == 1) {
-      return {sample(static_cast<value_type>(0.5))};
+      return {sample(0.5f)};
     }
     std::vector<Color> out;
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-      auto t = static_cast<value_type>(i) / static_cast<value_type>(count - 1);
+      auto t = static_cast<float>(i) / static_cast<float>(count - 1);
       out.push_back(sample(t));
     }
     return out;
@@ -111,7 +107,7 @@ class linear_gradient {
     typename stops_type::container_type reversed_stops;
     reversed_stops.reserve(stops_.size());
     for (const auto& stop : stops_) {
-      reversed_stops.emplace_back(static_cast<value_type>(1) - stop.position, stop.color);
+      reversed_stops.emplace_back(1.0f - stop.position, stop.color);
     }
     return linear_gradient<Color>(stops_type(reversed_stops), easing_);
   }
@@ -122,12 +118,12 @@ class linear_gradient {
    * At each parameter @c u in [0, 1], the result color is
    * @c lerp(this->sample(u), other.sample(u), t). Rebuilt as evenly spaced stops (not a merged stop list).
    */
-  linear_gradient<Color> blend(const linear_gradient<Color>& other, value_type t) const {
+  linear_gradient<Color> blend(const linear_gradient<Color>& other, float t) const {
     const std::size_t n = std::max<std::size_t>(3, std::max(stops_.size(), other.stops_.size()) * 8);
     typename stops_type::container_type blended_stops;
     blended_stops.reserve(n);
     for (std::size_t i = 0; i < n; ++i) {
-      value_type u = static_cast<value_type>(i) / static_cast<value_type>(n - 1);
+      float u = static_cast<float>(i) / static_cast<float>(n - 1);
       Color c = operations::interpolate::lerp(sample(u), other.sample(u), t);
       blended_stops.emplace_back(u, c);
     }
@@ -146,18 +142,18 @@ class linear_gradient {
     if (n % 2 == 0) {
       ++n;
     }
-    constexpr value_type half = static_cast<value_type>(0.5);
+    constexpr float half = 0.5f;
     typename stops_type::container_type concat_stops;
     concat_stops.reserve(n);
     for (std::size_t i = 0; i < n; ++i) {
-      value_type u = static_cast<value_type>(i) / static_cast<value_type>(n - 1);
+      float u = static_cast<float>(i) / static_cast<float>(n - 1);
       Color c;
       if (u < half) {
         c = sample(u / half);
       } else if (u > half) {
         c = other.sample((u - half) / half);
       } else {
-        c = other.sample(static_cast<value_type>(0));
+        c = other.sample(0.0f);
       }
       concat_stops.emplace_back(u, c);
     }
@@ -169,8 +165,8 @@ class linear_gradient {
    * @param factor Scale factor (> 1 compresses, < 1 stretches).
    * @return New scaled gradient.
    */
-  linear_gradient<Color> scale(value_type factor) const {
-    if (factor <= static_cast<value_type>(0)) {
+  linear_gradient<Color> scale(float factor) const {
+    if (factor <= 0.0f) {
       throw std::invalid_argument("colorcpp: scale factor must be positive");
     }
 
@@ -178,8 +174,8 @@ class linear_gradient {
     scaled_stops.reserve(stops_.size());
 
     for (const auto& stop : stops_) {
-      value_type new_pos = stop.position / factor;
-      new_pos = std::clamp(new_pos, static_cast<value_type>(0), static_cast<value_type>(1));
+      float new_pos = stop.position / factor;
+      new_pos = std::clamp(new_pos, 0.0f, 1.0f);
       scaled_stops.emplace_back(new_pos, stop.color);
     }
 
@@ -198,7 +194,7 @@ class linear_gradient {
    * @param delta Phase offset added to every sample position before clamping to [0, 1].
    * @return New gradient with the same stops and accumulated phase offset.
    */
-  linear_gradient<Color> offset(value_type delta) const {
+  linear_gradient<Color> offset(float delta) const {
     linear_gradient<Color> g(stops_, easing_);
     g.phase_offset_ = phase_offset_ + delta;
     return g;
@@ -217,7 +213,7 @@ class linear_gradient {
     if (levels == 1) {
       // Return a gradient with a single stop at 0.5
       typename stops_type::container_type quantized_stops;
-      quantized_stops.emplace_back(static_cast<value_type>(0.5), sample(static_cast<value_type>(0.5)));
+      quantized_stops.emplace_back(0.5f, sample(0.5f));
       return linear_gradient<Color>(stops_type(quantized_stops), easing_);
     }
 
@@ -225,7 +221,7 @@ class linear_gradient {
     quantized_stops.reserve(levels);
 
     for (std::size_t i = 0; i < levels; ++i) {
-      value_type pos = static_cast<value_type>(i) / static_cast<value_type>(levels - 1);
+      float pos = static_cast<float>(i) / static_cast<float>(levels - 1);
       quantized_stops.emplace_back(pos, sample(pos));
     }
 
@@ -236,7 +232,7 @@ class linear_gradient {
   stops_type stops_;
   easing_type easing_;
   /** Added to sample @c t before clamping to [0, 1]; see offset(). */
-  value_type phase_offset_{};
+  float phase_offset_{};
 };
 
 /**
@@ -248,8 +244,8 @@ class linear_gradient {
  */
 template <typename Color>
 linear_gradient<Color> linear(
-    const color_stops<Color>& stops, easing::easing_function<typename Color::value_type> easing =
-                                         [](typename Color::value_type t) { return easing::linear(t); }) {
+    const color_stops<Color>& stops,
+    easing::easing_function<float> easing = [](float t) { return easing::linear(t); }) {
   return linear_gradient<Color>(stops, std::move(easing));
 }
 
@@ -263,9 +259,7 @@ linear_gradient<Color> linear(
 template <typename Color>
 linear_gradient<Color> linear(
     std::initializer_list<color_stop<Color>> stops,
-    easing::easing_function<typename Color::value_type> easing = [](typename Color::value_type t) {
-      return easing::linear(t);
-    }) {
+    easing::easing_function<float> easing = [](float t) { return easing::linear(t); }) {
   return linear_gradient<Color>(stops, std::move(easing));
 }
 

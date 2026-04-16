@@ -25,16 +25,15 @@ template <typename Color>
 class angular_gradient {
  public:
   using color_type = Color;
-  using value_type = typename Color::value_type;
   using stops_type = color_stops<Color>;
-  using easing_type = easing::easing_function<value_type>;
+  using easing_type = easing::easing_function<float>;
 
   /**
    * @brief Construct an angular gradient from color stops.
    * @param stops The color stops.
    * @param easing Easing function (default: linear).
    */
-  explicit angular_gradient(const stops_type& stops, easing_type easing = easing::linear<value_type>)
+  explicit angular_gradient(const stops_type& stops, easing_type easing = easing::linear<float>)
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -44,7 +43,7 @@ class angular_gradient {
    * @param stops Initializer list of color stops.
    * @param easing Easing function (default: linear).
    */
-  angular_gradient(std::initializer_list<color_stop<Color>> stops, easing_type easing = easing::linear<value_type>)
+  angular_gradient(std::initializer_list<color_stop<Color>> stops, easing_type easing = easing::linear<float>)
       : stops_(stops), easing_(std::move(easing)) {
     details::validate_stops(stops_);
   }
@@ -54,13 +53,11 @@ class angular_gradient {
    * @param angle Normalized angle in [0, 1] (0 = 0 degrees, 1 = 360 degrees).
    * @return The interpolated color.
    */
-  Color sample(value_type angle) const {
+  Color sample(float angle) const {
     angle = angle + phase_offset_;
     // Normalize angle to [0, 1)
     angle = angle - std::floor(angle);
-    auto interpolator = [](const Color& a, const Color& b, value_type t) {
-      return operations::interpolate::lerp(a, b, t);
-    };
+    auto interpolator = [](const Color& a, const Color& b, float t) { return operations::interpolate::lerp(a, b, t); };
     return details::sample_gradient(stops_, angle, interpolator, easing_);
   }
 
@@ -70,15 +67,14 @@ class angular_gradient {
    * @param y Normalized y coordinate in [0, 1].
    * @return The interpolated color.
    */
-  Color sample_at(value_type x, value_type y) const {
+  Color sample_at(float x, float y) const {
     // Calculate angle from center (0.5, 0.5)
-    value_type dx = x - static_cast<value_type>(0.5);
-    value_type dy = y - static_cast<value_type>(0.5);
-    value_type angle = std::atan2(dy, dx);
+    float dx = x - 0.5f;
+    float dy = y - 0.5f;
+    float angle = std::atan2(dy, dx);
 
     // Convert from [-pi, pi] to [0, 1]
-    angle = (angle + static_cast<value_type>(3.14159265358979323846)) /
-            (static_cast<value_type>(2.0) * static_cast<value_type>(3.14159265358979323846));
+    angle = (angle + 3.14159265358979323846f) / (2.0f * 3.14159265358979323846f);
 
     return sample(angle);
   }
@@ -93,12 +89,12 @@ class angular_gradient {
       return {};
     }
     if (count == 1) {
-      return {sample(static_cast<value_type>(0.5))};
+      return {sample(0.5f)};
     }
     std::vector<Color> out;
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-      auto t = static_cast<value_type>(i) / static_cast<value_type>(count - 1);
+      auto t = static_cast<float>(i) / static_cast<float>(count - 1);
       out.push_back(sample(t));
     }
     return out;
@@ -130,7 +126,7 @@ class angular_gradient {
     typename stops_type::container_type reversed_stops;
     reversed_stops.reserve(stops_.size());
     for (const auto& stop : stops_) {
-      reversed_stops.emplace_back(static_cast<value_type>(1) - stop.position, stop.color);
+      reversed_stops.emplace_back(1.0f - stop.position, stop.color);
     }
     return angular_gradient<Color>(stops_type(reversed_stops), easing_);
   }
@@ -141,12 +137,12 @@ class angular_gradient {
    * @param t Blend factor in [0, 1] (0 = this gradient, 1 = other gradient).
    * @return New blended gradient.
    */
-  angular_gradient<Color> blend(const angular_gradient<Color>& other, value_type t) const {
+  angular_gradient<Color> blend(const angular_gradient<Color>& other, float t) const {
     const std::size_t n = std::max<std::size_t>(3, std::max(stops_.size(), other.stops_.size()) * 8);
     typename stops_type::container_type blended_stops;
     blended_stops.reserve(n);
     for (std::size_t i = 0; i < n; ++i) {
-      value_type u = static_cast<value_type>(i) / static_cast<value_type>(n - 1);
+      float u = static_cast<float>(i) / static_cast<float>(n - 1);
       Color c = operations::interpolate::lerp(sample(u), other.sample(u), t);
       blended_stops.emplace_back(u, c);
     }
@@ -161,18 +157,18 @@ class angular_gradient {
     if (n % 2 == 0) {
       ++n;
     }
-    constexpr value_type half = static_cast<value_type>(0.5);
+    constexpr float half = 0.5f;
     typename stops_type::container_type concat_stops;
     concat_stops.reserve(n);
     for (std::size_t i = 0; i < n; ++i) {
-      value_type u = static_cast<value_type>(i) / static_cast<value_type>(n - 1);
+      float u = static_cast<float>(i) / static_cast<float>(n - 1);
       Color c;
       if (u < half) {
         c = sample(u / half);
       } else if (u > half) {
         c = other.sample((u - half) / half);
       } else {
-        c = other.sample(static_cast<value_type>(0));
+        c = other.sample(0.0f);
       }
       concat_stops.emplace_back(u, c);
     }
@@ -186,8 +182,8 @@ class angular_gradient {
    * that need linear-style compression can build a new gradient from resampled @c sample values.
    * @param factor Must be positive (validated; does not change sampling today).
    */
-  angular_gradient<Color> scale(value_type factor) const {
-    if (factor <= static_cast<value_type>(0)) {
+  angular_gradient<Color> scale(float factor) const {
+    if (factor <= 0.0f) {
       throw std::invalid_argument("colorcpp: scale factor must be positive");
     }
     angular_gradient<Color> g(stops_, easing_);
@@ -198,7 +194,7 @@ class angular_gradient {
   /**
    * @brief Rotate sampling around the circle: angle is wrapped after adding @p delta (mod 1).
    */
-  angular_gradient<Color> offset(value_type delta) const {
+  angular_gradient<Color> offset(float delta) const {
     angular_gradient<Color> g(stops_, easing_);
     g.phase_offset_ = phase_offset_ + delta;
     return g;
@@ -217,7 +213,7 @@ class angular_gradient {
     if (levels == 1) {
       // Return a gradient with a single stop at 0.5
       typename stops_type::container_type quantized_stops;
-      quantized_stops.emplace_back(static_cast<value_type>(0.5), sample(static_cast<value_type>(0.5)));
+      quantized_stops.emplace_back(0.5f, sample(0.5f));
       return angular_gradient<Color>(stops_type(quantized_stops), easing_);
     }
 
@@ -225,7 +221,7 @@ class angular_gradient {
     quantized_stops.reserve(levels);
 
     for (std::size_t i = 0; i < levels; ++i) {
-      value_type pos = static_cast<value_type>(i) / static_cast<value_type>(levels - 1);
+      float pos = static_cast<float>(i) / static_cast<float>(levels - 1);
       quantized_stops.emplace_back(pos, sample(pos));
     }
 
@@ -235,7 +231,7 @@ class angular_gradient {
  private:
   stops_type stops_;
   easing_type easing_;
-  value_type phase_offset_{};
+  float phase_offset_{};
 };
 
 /**
