@@ -5,6 +5,7 @@
  * Covers:
  * - color_stop / color_stops management
  * - easing functions (built-in + cubic bezier)
+ * - preset gradients
  * - linear / radial / angular / diamond / box gradients
  * - sample(), sample_at(), palette()
  * - reverse(), blend(), concat(), scale(), offset(), quantize(), stepped()
@@ -139,7 +140,34 @@ int main() {
   print_easing_line("cubic_bezier(...)", css_like_bezier);
 
   // ========================================================================
-  section("3. linear gradients");
+  section("3. preset gradients");
+
+  // Scientific visualization series
+  print_palette_row("viridis()", preset::viridis<rgba8_t>().palette(10));
+  print_palette_row("plasma()", preset::plasma<rgba8_t>().palette(10));
+  print_palette_row("inferno()", preset::inferno<rgba8_t>().palette(10));
+  print_palette_row("magma()", preset::magma<rgba8_t>().palette(10));
+  print_palette_row("cividis()", preset::cividis<rgba8_t>().palette(10));
+  print_palette_row("spectral()", preset::spectral<rgba8_t>().palette(10));
+
+  // UI & design presets
+  print_palette_row("rainbow()", preset::rainbow<rgba8_t>().palette(10));
+  print_palette_row("ocean()", preset::ocean<rgba8_t>().palette(10));
+  print_palette_row("forest()", preset::forest<rgba8_t>().palette(10));
+  print_palette_row("sunset()", preset::sunset<rgba8_t>().palette(10));
+  print_palette_row("night()", preset::night<rgba8_t>().palette(10));
+  print_palette_row("fire()", preset::fire<rgba8_t>().palette(10));
+  print_palette_row("ice()", preset::ice<rgba8_t>().palette(10));
+  print_palette_row("neon()", preset::neon<rgba8_t>().palette(10));
+
+  // Resampling demo
+  std::cout << "\n  Preset resampling demo:\n\n";
+  print_palette_row("viridis() (native 5 stops)", preset::viridis<rgba8_t>().palette(5));
+  print_palette_row("viridis(7) (resampled)", preset::viridis<rgba8_t>(7).palette(7));
+  print_palette_row("viridis(15) (resampled)", preset::viridis<rgba8_t>(15).palette(15));
+
+  // ========================================================================
+  section("4. linear gradients");
 
   auto sky = 0x0EA5E9_rgb;
   auto orange = 0xF97316_rgb;
@@ -190,7 +218,7 @@ int main() {
   print_palette_row("concat(cool)", warm.concat(cool).palette(11));
 
   // ========================================================================
-  section("4. radial gradients");
+  section("5. radial gradients");
 
   auto spotlight = radial<rgba8_t>(
       {
@@ -219,7 +247,7 @@ int main() {
   print_palette_row("concat(mist)", spotlight.concat(mist).palette(10));
 
   // ========================================================================
-  section("5. angular gradients");
+  section("6. angular gradients");
 
   auto wheel = angular<rgba8_t>({
       {0.00f, 0xFF0000_rgb},
@@ -250,7 +278,7 @@ int main() {
   print_palette_row("concat(dusk)", wheel.concat(dusk).palette(12));
 
   // ========================================================================
-  section("6. diamond / box / stepped");
+  section("7. diamond / box / stepped");
 
   auto gem = diamond<rgba8_t>({
       {0.00f, 0xFEF3C7_rgb},
@@ -286,7 +314,7 @@ int main() {
   print_sample_at(faceted, "edge", 0.50f, 0.00f);
 
   // ========================================================================
-  section("7. sequence gradients");
+  section("8. sequence gradients");
 
   using linear_rgba = linear_gradient<rgba8_t>;
 
@@ -333,12 +361,14 @@ int main() {
   std::cout << "  16x16 diamond gradient render:\n\n";
 
   // Night blue diamond gradient
-  auto render_grad = diamond<rgba8_t>({
-      {0.00f, 0xDBEAFE_rgb},
-      {0.35f, 0x60A5FA_rgb},
-      {0.65f, 0x2563EB_rgb},
-      {1.00f, 0x1E3A8A_rgb},
-  }, easing::ease_out_sine<float>);
+  auto render_grad = diamond<rgba8_t>(
+      {
+          {0.00f, 0xDBEAFE_rgb},
+          {0.35f, 0x60A5FA_rgb},
+          {0.65f, 0x2563EB_rgb},
+          {1.00f, 0x1E3A8A_rgb},
+      },
+      easing::ease_out_sine<float>);
 
   constexpr int grid_size = 16;
   for (int y = 0; y < grid_size; ++y) {
@@ -348,6 +378,31 @@ int main() {
       float v = static_cast<float>(y) / static_cast<float>(grid_size - 1);
       auto color = render_grad.sample_at(u, v);
       print_swatch(std::cout, as_rgba8(color), 2);
+    }
+    std::cout << '\n';
+  }
+
+  // ========================================================================
+  section("9. preset gradient visualization");
+
+  std::cout << "\n";
+  const char* preset_names[] = {"viridis", "plasma", "inferno", "magma", "cividis", "spectral", "rainbow",
+                                "ocean",   "forest", "sunset",  "night", "fire",    "ice",      "neon"};
+
+  using PresetFn = std::function<linear_gradient<rgba8_t>(std::size_t)>;
+  PresetFn preset_fns[] = {preset::viridis<rgba8_t>, preset::plasma<rgba8_t>,  preset::inferno<rgba8_t>,
+                           preset::magma<rgba8_t>,   preset::cividis<rgba8_t>, preset::spectral<rgba8_t>,
+                           preset::rainbow<rgba8_t>, preset::ocean<rgba8_t>,   preset::forest<rgba8_t>,
+                           preset::sunset<rgba8_t>,  preset::night<rgba8_t>,   preset::fire<rgba8_t>,
+                           preset::ice<rgba8_t>,     preset::neon<rgba8_t>};
+
+  constexpr int preset_count = sizeof(preset_names) / sizeof(preset_names[0]);
+  for (int i = 0; i < preset_count; ++i) {
+    std::cout << "  " << std::left << std::setw(12) << preset_names[i];
+    auto grad = preset_fns[i](16);
+    for (int x = 0; x < 16; ++x) {
+      float t = static_cast<float>(x) / 15.0f;
+      print_swatch(std::cout, grad.sample(t), 2);
     }
     std::cout << '\n';
   }

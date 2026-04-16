@@ -14,6 +14,7 @@
 #include <colorcpp/algorithms/gradient/diamond.hpp>
 #include <colorcpp/algorithms/gradient/easing.hpp>
 #include <colorcpp/algorithms/gradient/linear.hpp>
+#include <colorcpp/algorithms/gradient/presets.hpp>
 #include <colorcpp/algorithms/gradient/radial.hpp>
 #include <colorcpp/algorithms/gradient/sequence.hpp>
 #include <colorcpp/algorithms/gradient/stepped.hpp>

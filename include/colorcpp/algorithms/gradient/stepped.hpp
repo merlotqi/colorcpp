@@ -14,8 +14,9 @@
 #include <utility>
 #include <vector>
 
-namespace colorcpp::algorithms::gradient::details {
+namespace colorcpp::algorithms::gradient {
 
+namespace details {
 template <typename Gradient, typename = void>
 struct has_position_at : std::false_type {};
 
@@ -39,9 +40,7 @@ inline float stepped_position(float t, std::size_t levels) {
   return std::floor(t * steps) / steps;
 }
 
-}  // namespace colorcpp::algorithms::gradient::details
-
-namespace colorcpp::algorithms::gradient {
+}  // namespace details
 
 /**
  * @brief Gradient decorator that quantizes normalized sampling positions into discrete steps.
@@ -87,7 +86,9 @@ class stepped_gradient {
   Gradient& gradient() noexcept { return gradient_; }
   std::size_t levels() const noexcept { return levels_; }
 
-  stepped_gradient<Gradient> with_levels(std::size_t levels) const { return stepped_gradient<Gradient>(gradient_, levels); }
+  stepped_gradient<Gradient> with_levels(std::size_t levels) const {
+    return stepped_gradient<Gradient>(gradient_, levels);
+  }
 
   template <typename G = Gradient, typename = std::void_t<decltype(std::declval<const G&>().reverse())>>
   auto reverse() const -> stepped_gradient<decltype(std::declval<const G&>().reverse())> {
@@ -104,26 +105,32 @@ class stepped_gradient {
     return stepped_gradient<decltype(std::declval<const G&>().offset(1.0f))>(gradient_.offset(delta), levels_);
   }
 
-  template <typename G = Gradient, typename = std::void_t<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))>>
-  auto blend(const G& other, float t) const -> stepped_gradient<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))> {
+  template <typename G = Gradient,
+            typename = std::void_t<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))>>
+  auto blend(const G& other, float t) const
+      -> stepped_gradient<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))> {
     return stepped_gradient<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))>(
         gradient_.blend(other, t), levels_);
   }
 
-  template <typename G = Gradient, typename = std::void_t<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))>>
+  template <typename G = Gradient,
+            typename = std::void_t<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))>>
   auto blend(const stepped_gradient<G>& other, float t) const
       -> stepped_gradient<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))> {
     return stepped_gradient<decltype(std::declval<const G&>().blend(std::declval<const G&>(), 0.0f))>(
         gradient_.blend(other.gradient(), t), levels_);
   }
 
-  template <typename G = Gradient, typename = std::void_t<decltype(std::declval<const G&>().concat(std::declval<const G&>()))>>
-  auto concat(const G& other) const -> stepped_gradient<decltype(std::declval<const G&>().concat(std::declval<const G&>()))> {
+  template <typename G = Gradient,
+            typename = std::void_t<decltype(std::declval<const G&>().concat(std::declval<const G&>()))>>
+  auto concat(const G& other) const
+      -> stepped_gradient<decltype(std::declval<const G&>().concat(std::declval<const G&>()))> {
     return stepped_gradient<decltype(std::declval<const G&>().concat(std::declval<const G&>()))>(
         gradient_.concat(other), levels_);
   }
 
-  template <typename G = Gradient, typename = std::void_t<decltype(std::declval<const G&>().concat(std::declval<const G&>()))>>
+  template <typename G = Gradient,
+            typename = std::void_t<decltype(std::declval<const G&>().concat(std::declval<const G&>()))>>
   auto concat(const stepped_gradient<G>& other) const
       -> stepped_gradient<decltype(std::declval<const G&>().concat(std::declval<const G&>()))> {
     return stepped_gradient<decltype(std::declval<const G&>().concat(std::declval<const G&>()))>(

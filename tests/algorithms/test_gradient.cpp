@@ -119,6 +119,27 @@ TEST(GradientTest, EasingFunctions) {
   EXPECT_NEAR(bezier_linear(0.75f), 0.75f, 0.001f);
 }
 
+TEST(GradientTest, PresetGradientsSupportCanonicalAndResampledStops) {
+  auto viridis_default = gradient::preset::viridis<rgba8_t>();
+  EXPECT_EQ(viridis_default.stops().size(), 5);
+
+  auto viridis_resampled = gradient::preset::viridis<rgba8_t>(7);
+  EXPECT_EQ(viridis_resampled.stops().size(), 7);
+  EXPECT_EQ(viridis_resampled.sample(0.0f), viridis_default.sample(0.0f));
+  EXPECT_EQ(viridis_resampled.sample(1.0f), viridis_default.sample(1.0f));
+}
+
+TEST(GradientTest, PresetNamespaceAliasAndSpectralPresetExist) {
+  using namespace colorcpp::io::literals;
+  auto sunset_alias = gradient::preset::sunset<rgba8_t>();
+  EXPECT_EQ(sunset_alias.stops().size(), 5);
+
+  auto spectral = gradient::preset::spectral<rgba8_t>(7);
+  EXPECT_EQ(spectral.stops().size(), 7);
+  EXPECT_EQ(spectral.sample(0.0f), 0x9e0142_rgb);
+  EXPECT_EQ(spectral.sample(1.0f), 0x5e4fa2_rgb);
+}
+
 TEST(GradientTest, MultiStopGradient) {
   gradient::color_stops<rgbf_t> stops = {{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}},
                                          {0.3f, rgbf_t{1.0f, 1.0f, 0.0f}},
@@ -544,11 +565,8 @@ TEST(GradientTest, AngularGradientOperations) {
 
 TEST(GradientTest, AngularSampleAtUsesCssOrientation) {
   gradient::color_stops<rgbf_t> stops = {
-      {0.0f, rgbf_t{1.0f, 0.0f, 0.0f}},
-      {0.25f, rgbf_t{0.0f, 1.0f, 0.0f}},
-      {0.50f, rgbf_t{0.0f, 0.0f, 1.0f}},
-      {0.75f, rgbf_t{1.0f, 1.0f, 0.0f}},
-      {1.0f, rgbf_t{1.0f, 0.0f, 0.0f}},
+      {0.0f, rgbf_t{1.0f, 0.0f, 0.0f}},  {0.25f, rgbf_t{0.0f, 1.0f, 0.0f}}, {0.50f, rgbf_t{0.0f, 0.0f, 1.0f}},
+      {0.75f, rgbf_t{1.0f, 1.0f, 0.0f}}, {1.0f, rgbf_t{1.0f, 0.0f, 0.0f}},
   };
 
   auto grad = gradient::angular(stops);
