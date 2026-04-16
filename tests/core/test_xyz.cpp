@@ -5,9 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include <colorcpp/core/xyz.hpp>
-#include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/cielab.hpp>
+#include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::core::test {
@@ -87,7 +87,7 @@ TEST(XYZTest, ConstCorrectness) {
 TEST(XYZTest, CopyConstructors) {
   xyz_t original(0.4f, 0.5f, 0.3f);
   xyz_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.x(), 0.4f);
   EXPECT_FLOAT_EQ(copy.y(), 0.5f);
   EXPECT_FLOAT_EQ(copy.z(), 0.3f);
@@ -97,7 +97,7 @@ TEST(XYZTest, CopyAssignment) {
   xyz_t original(0.4f, 0.5f, 0.3f);
   xyz_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.x(), 0.4f);
   EXPECT_FLOAT_EQ(copy.y(), 0.5f);
   EXPECT_FLOAT_EQ(copy.z(), 0.3f);
@@ -106,7 +106,7 @@ TEST(XYZTest, CopyAssignment) {
 TEST(XYZTest, MoveSemantics) {
   xyz_t original(0.4f, 0.5f, 0.3f);
   xyz_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.x(), 0.4f);
   EXPECT_FLOAT_EQ(moved.y(), 0.5f);
   EXPECT_FLOAT_EQ(moved.z(), 0.3f);
@@ -116,7 +116,7 @@ TEST(XYZTest, MoveAssignment) {
   xyz_t original(0.4f, 0.5f, 0.3f);
   xyz_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.x(), 0.4f);
   EXPECT_FLOAT_EQ(moved.y(), 0.5f);
   EXPECT_FLOAT_EQ(moved.z(), 0.3f);
@@ -126,7 +126,7 @@ TEST(XYZTest, EqualityComparison) {
   xyz_t color1(0.4f, 0.5f, 0.3f);
   xyz_t color2(0.4f, 0.5f, 0.3f);
   xyz_t color3(0.5f, 0.5f, 0.3f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -137,7 +137,7 @@ TEST(XYZTest, ConstexprBoundaryValues) {
   static_assert(min_color.x() == 0.0f);
   static_assert(min_color.y() == 0.0f);
   static_assert(min_color.z() == 0.0f);
-  
+
   constexpr xyz_t max_color(2.0f, 2.0f, 2.0f);
   static_assert(max_color.x() == 2.0f);
   static_assert(max_color.y() == 2.0f);

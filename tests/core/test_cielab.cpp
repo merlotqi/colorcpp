@@ -229,7 +229,7 @@ TEST(CIELabTest, TypeTraits) {
 TEST(CIELabTest, CopyConstructors) {
   cielab_t original(50.0f, 20.0f, -30.0f);
   cielab_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 50.0f);
   EXPECT_FLOAT_EQ(copy.a(), 20.0f);
   EXPECT_FLOAT_EQ(copy.b(), -30.0f);
@@ -239,7 +239,7 @@ TEST(CIELabTest, CopyAssignment) {
   cielab_t original(50.0f, 20.0f, -30.0f);
   cielab_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 50.0f);
   EXPECT_FLOAT_EQ(copy.a(), 20.0f);
   EXPECT_FLOAT_EQ(copy.b(), -30.0f);
@@ -248,7 +248,7 @@ TEST(CIELabTest, CopyAssignment) {
 TEST(CIELabTest, MoveSemantics) {
   cielab_t original(50.0f, 20.0f, -30.0f);
   cielab_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 50.0f);
   EXPECT_FLOAT_EQ(moved.a(), 20.0f);
   EXPECT_FLOAT_EQ(moved.b(), -30.0f);
@@ -258,7 +258,7 @@ TEST(CIELabTest, MoveAssignment) {
   cielab_t original(50.0f, 20.0f, -30.0f);
   cielab_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 50.0f);
   EXPECT_FLOAT_EQ(moved.a(), 20.0f);
   EXPECT_FLOAT_EQ(moved.b(), -30.0f);
@@ -268,7 +268,7 @@ TEST(CIELabTest, EqualityComparison) {
   cielab_t color1(50.0f, 20.0f, -30.0f);
   cielab_t color2(50.0f, 20.0f, -30.0f);
   cielab_t color3(60.0f, 20.0f, -30.0f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -279,7 +279,7 @@ TEST(CIELabTest, ConstexprBoundaryValues) {
   static_assert(min_color.l() == 0.0f);
   static_assert(min_color.a() == -128.0f);
   static_assert(min_color.b() == -128.0f);
-  
+
   constexpr cielab_t max_color(100.0f, 128.0f, 128.0f);
   static_assert(max_color.l() == 100.0f);
   static_assert(max_color.a() == 128.0f);
@@ -289,7 +289,7 @@ TEST(CIELabTest, ConstexprBoundaryValues) {
 TEST(CIELChTest, CopyConstructors) {
   cielch_t original(70.0f, 50.0f, 150.0f);
   cielch_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 70.0f);
   EXPECT_FLOAT_EQ(copy.c(), 50.0f);
   EXPECT_FLOAT_EQ(copy.h(), 150.0f);
@@ -299,7 +299,7 @@ TEST(CIELChTest, CopyAssignment) {
   cielch_t original(70.0f, 50.0f, 150.0f);
   cielch_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 70.0f);
   EXPECT_FLOAT_EQ(copy.c(), 50.0f);
   EXPECT_FLOAT_EQ(copy.h(), 150.0f);
@@ -308,7 +308,7 @@ TEST(CIELChTest, CopyAssignment) {
 TEST(CIELChTest, MoveSemantics) {
   cielch_t original(70.0f, 50.0f, 150.0f);
   cielch_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 70.0f);
   EXPECT_FLOAT_EQ(moved.c(), 50.0f);
   EXPECT_FLOAT_EQ(moved.h(), 150.0f);
@@ -318,7 +318,7 @@ TEST(CIELChTest, MoveAssignment) {
   cielch_t original(70.0f, 50.0f, 150.0f);
   cielch_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 70.0f);
   EXPECT_FLOAT_EQ(moved.c(), 50.0f);
   EXPECT_FLOAT_EQ(moved.h(), 150.0f);
@@ -328,7 +328,7 @@ TEST(CIELChTest, EqualityComparison) {
   cielch_t color1(70.0f, 50.0f, 150.0f);
   cielch_t color2(70.0f, 50.0f, 150.0f);
   cielch_t color3(80.0f, 50.0f, 150.0f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -339,7 +339,7 @@ TEST(CIELChTest, ConstexprBoundaryValues) {
   static_assert(min_color.l() == 0.0f);
   static_assert(min_color.c() == 0.0f);
   static_assert(min_color.h() == 0.0f);
-  
+
   constexpr cielch_t max_color(100.0f, 200.0f, 360.0f);
   static_assert(max_color.l() == 100.0f);
   static_assert(max_color.c() == 200.0f);
@@ -350,7 +350,7 @@ TEST(CIELChTest, HueAngleWrapping) {
   // Test 0° and 360° hue equivalence
   cielch_t color1(50.0f, 40.0f, 0.0f);
   cielch_t color2(50.0f, 40.0f, 360.0f);
-  
+
   EXPECT_NEAR(color1.h(), 0.0f, 1e-6f);
   EXPECT_NEAR(color2.h(), 360.0f, 1e-6f);
 }

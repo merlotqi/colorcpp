@@ -11,10 +11,10 @@
 
 #pragma once
 
-#include <colorcpp/operations/flow/pipeline.hpp>
-#include <colorcpp/operations/flow/theme.hpp>
-#include <colorcpp/operations/flow/scheme.hpp>
 #include <colorcpp/operations/flow/export.hpp>
+#include <colorcpp/operations/flow/pipeline.hpp>
+#include <colorcpp/operations/flow/scheme.hpp>
+#include <colorcpp/operations/flow/theme.hpp>
 
 namespace colorcpp::operations::flow {
 // All functionality is provided by the included sub-modules

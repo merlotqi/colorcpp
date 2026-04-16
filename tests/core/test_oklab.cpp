@@ -194,7 +194,7 @@ TEST(OKLabTest, TypeTraits) {
 TEST(OKLabTest, CopyConstructors) {
   oklab_t original(0.5f, 0.1f, -0.2f);
   oklab_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 0.5f);
   EXPECT_FLOAT_EQ(copy.a(), 0.1f);
   EXPECT_FLOAT_EQ(copy.b(), -0.2f);
@@ -204,7 +204,7 @@ TEST(OKLabTest, CopyAssignment) {
   oklab_t original(0.5f, 0.1f, -0.2f);
   oklab_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 0.5f);
   EXPECT_FLOAT_EQ(copy.a(), 0.1f);
   EXPECT_FLOAT_EQ(copy.b(), -0.2f);
@@ -213,7 +213,7 @@ TEST(OKLabTest, CopyAssignment) {
 TEST(OKLabTest, MoveSemantics) {
   oklab_t original(0.5f, 0.1f, -0.2f);
   oklab_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 0.5f);
   EXPECT_FLOAT_EQ(moved.a(), 0.1f);
   EXPECT_FLOAT_EQ(moved.b(), -0.2f);
@@ -223,7 +223,7 @@ TEST(OKLabTest, MoveAssignment) {
   oklab_t original(0.5f, 0.1f, -0.2f);
   oklab_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 0.5f);
   EXPECT_FLOAT_EQ(moved.a(), 0.1f);
   EXPECT_FLOAT_EQ(moved.b(), -0.2f);
@@ -233,7 +233,7 @@ TEST(OKLabTest, EqualityComparison) {
   oklab_t color1(0.5f, 0.1f, -0.2f);
   oklab_t color2(0.5f, 0.1f, -0.2f);
   oklab_t color3(0.6f, 0.1f, -0.2f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -244,7 +244,7 @@ TEST(OKLabTest, ConstexprBoundaryValues) {
   static_assert(min_color.l() == 0.0f);
   static_assert(min_color.a() == -0.5f);
   static_assert(min_color.b() == -0.5f);
-  
+
   constexpr oklab_t max_color(1.0f, 0.5f, 0.5f);
   static_assert(max_color.l() == 1.0f);
   static_assert(max_color.a() == 0.5f);
@@ -254,7 +254,7 @@ TEST(OKLabTest, ConstexprBoundaryValues) {
 TEST(OKLChTest, CopyConstructors) {
   oklch_t original(0.7f, 0.15f, 200.0f);
   oklch_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 0.7f);
   EXPECT_FLOAT_EQ(copy.c(), 0.15f);
   EXPECT_FLOAT_EQ(copy.h(), 200.0f);
@@ -264,7 +264,7 @@ TEST(OKLChTest, CopyAssignment) {
   oklch_t original(0.7f, 0.15f, 200.0f);
   oklch_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.l(), 0.7f);
   EXPECT_FLOAT_EQ(copy.c(), 0.15f);
   EXPECT_FLOAT_EQ(copy.h(), 200.0f);
@@ -273,7 +273,7 @@ TEST(OKLChTest, CopyAssignment) {
 TEST(OKLChTest, MoveSemantics) {
   oklch_t original(0.7f, 0.15f, 200.0f);
   oklch_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 0.7f);
   EXPECT_FLOAT_EQ(moved.c(), 0.15f);
   EXPECT_FLOAT_EQ(moved.h(), 200.0f);
@@ -283,7 +283,7 @@ TEST(OKLChTest, MoveAssignment) {
   oklch_t original(0.7f, 0.15f, 200.0f);
   oklch_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.l(), 0.7f);
   EXPECT_FLOAT_EQ(moved.c(), 0.15f);
   EXPECT_FLOAT_EQ(moved.h(), 200.0f);
@@ -293,7 +293,7 @@ TEST(OKLChTest, EqualityComparison) {
   oklch_t color1(0.7f, 0.15f, 200.0f);
   oklch_t color2(0.7f, 0.15f, 200.0f);
   oklch_t color3(0.8f, 0.15f, 200.0f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -304,7 +304,7 @@ TEST(OKLChTest, ConstexprBoundaryValues) {
   static_assert(min_color.l() == 0.0f);
   static_assert(min_color.c() == 0.0f);
   static_assert(min_color.h() == 0.0f);
-  
+
   constexpr oklch_t max_color(1.0f, 0.4f, 360.0f);
   static_assert(max_color.l() == 1.0f);
   static_assert(max_color.c() == 0.4f);
@@ -315,7 +315,7 @@ TEST(OKLabTest, HueAngleWrapping) {
   // Test hue angle normalization for 0° and 360° equivalence
   oklch_t color1(0.5f, 0.1f, 0.0f);
   oklch_t color2(0.5f, 0.1f, 360.0f);
-  
+
   EXPECT_NEAR(color1.h(), 0.0f, 1e-6f);
   EXPECT_NEAR(color2.h(), 360.0f, 1e-6f);
 }

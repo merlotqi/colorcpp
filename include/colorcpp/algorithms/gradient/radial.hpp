@@ -79,9 +79,7 @@ class radial_gradient {
    * @param y Normalized y coordinate in [0, 1].
    * @return The interpolated color.
    */
-  Color sample_at(float x, float y) const {
-    return sample(position_at(x, y));
-  }
+  Color sample_at(float x, float y) const { return sample(position_at(x, y)); }
 
   /**
    * @brief Generate a palette of colors.

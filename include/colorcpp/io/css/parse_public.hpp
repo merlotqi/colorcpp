@@ -11,7 +11,8 @@
 
 namespace colorcpp::io::css {
 
-inline std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str, const parse_css_color_context& context) {
+inline std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str,
+                                                          const parse_css_color_context& context) {
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
@@ -35,7 +36,8 @@ inline std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str) 
   return parse_css_color_rgba8(str, empty_context);
 }
 
-inline std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str, const parse_css_color_context& context) {
+inline std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str,
+                                                          const parse_css_color_context& context) {
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
@@ -59,9 +61,8 @@ inline std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str) 
   return parse_css_color_rgbaf(str, empty_context);
 }
 
-inline std::optional<core::rgba8_t> parse_css_color_light_dark_rgba8(
-    std::string_view str,
-    const parse_css_color_context& context) {
+inline std::optional<core::rgba8_t> parse_css_color_light_dark_rgba8(std::string_view str,
+                                                                     const parse_css_color_context& context) {
   details::trim(str);
   details::Cursor c{str, 0};
   auto resolved = css_parse_detail::parse_light_dark_rgba8(c, context);

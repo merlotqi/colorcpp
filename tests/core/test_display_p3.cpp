@@ -94,7 +94,7 @@ TEST(DisplayP3Test, ConstCorrectness) {
 TEST(DisplayP3Test, CopyConstructors) {
   display_p3f_t original(0.2f, 0.4f, 0.6f);
   display_p3f_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -104,7 +104,7 @@ TEST(DisplayP3Test, CopyAssignment) {
   display_p3f_t original(0.2f, 0.4f, 0.6f);
   display_p3f_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -113,7 +113,7 @@ TEST(DisplayP3Test, CopyAssignment) {
 TEST(DisplayP3Test, MoveSemantics) {
   display_p3f_t original(0.2f, 0.4f, 0.6f);
   display_p3f_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -123,7 +123,7 @@ TEST(DisplayP3Test, MoveAssignment) {
   display_p3f_t original(0.2f, 0.4f, 0.6f);
   display_p3f_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -133,7 +133,7 @@ TEST(DisplayP3Test, EqualityComparison) {
   display_p3f_t color1(0.2f, 0.4f, 0.6f);
   display_p3f_t color2(0.2f, 0.4f, 0.6f);
   display_p3f_t color3(0.3f, 0.4f, 0.6f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -144,7 +144,7 @@ TEST(DisplayP3Test, ConstexprBoundaryValues) {
   static_assert(min_color.r() == 0.0f);
   static_assert(min_color.g() == 0.0f);
   static_assert(min_color.b() == 0.0f);
-  
+
   constexpr display_p3f_t max_color(1.0f, 1.0f, 1.0f);
   static_assert(max_color.r() == 1.0f);
   static_assert(max_color.g() == 1.0f);
@@ -156,7 +156,7 @@ TEST(DisplayP3Test, ConstexprBoundaryValues) {
 TEST(DisplayP3ATest, CopyConstructors) {
   display_p3af_t original(0.2f, 0.4f, 0.6f, 0.8f);
   display_p3af_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -167,7 +167,7 @@ TEST(DisplayP3ATest, CopyAssignment) {
   display_p3af_t original(0.2f, 0.4f, 0.6f, 0.8f);
   display_p3af_t copy(0.0f, 0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -177,7 +177,7 @@ TEST(DisplayP3ATest, CopyAssignment) {
 TEST(DisplayP3ATest, MoveSemantics) {
   display_p3af_t original(0.2f, 0.4f, 0.6f, 0.8f);
   display_p3af_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -188,7 +188,7 @@ TEST(DisplayP3ATest, MoveAssignment) {
   display_p3af_t original(0.2f, 0.4f, 0.6f, 0.8f);
   display_p3af_t moved(0.0f, 0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -199,7 +199,7 @@ TEST(DisplayP3ATest, EqualityComparison) {
   display_p3af_t color1(0.2f, 0.4f, 0.6f, 0.8f);
   display_p3af_t color2(0.2f, 0.4f, 0.6f, 0.8f);
   display_p3af_t color3(0.2f, 0.4f, 0.6f, 0.5f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -285,7 +285,7 @@ TEST(DisplayP3ConversionTest, AlphaRoundTrip) {
 TEST(DisplayP3LinearTest, LinearConversion) {
   display_p3f_t gamma(0.5f, 0.5f, 0.5f);
   auto linear = color_cast<linear_display_p3f_t>(gamma);
-  
+
   // Verify non-linear gamma curve
   EXPECT_LT(linear.r(), 0.5f);
   EXPECT_LT(linear.g(), 0.5f);
@@ -296,7 +296,7 @@ TEST(DisplayP3LinearTest, LinearRoundTrip) {
   display_p3f_t orig(0.3f, 0.6f, 0.9f);
   auto linear = color_cast<linear_display_p3f_t>(orig);
   auto back = color_cast<display_p3f_t>(linear);
-  
+
   EXPECT_NEAR(back.r(), orig.r(), 1e-4f);
   EXPECT_NEAR(back.g(), orig.g(), 1e-4f);
   EXPECT_NEAR(back.b(), orig.b(), 1e-4f);

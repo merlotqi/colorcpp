@@ -214,7 +214,7 @@ TEST(CMYKTest, TypeTraits) {
 TEST(CMYKTest, CopyConstructorsFloat) {
   cmyk_float_t original(0.1f, 0.2f, 0.3f, 0.4f);
   cmyk_float_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.c(), 0.1f);
   EXPECT_FLOAT_EQ(copy.m(), 0.2f);
   EXPECT_FLOAT_EQ(copy.y(), 0.3f);
@@ -225,7 +225,7 @@ TEST(CMYKTest, CopyAssignmentFloat) {
   cmyk_float_t original(0.1f, 0.2f, 0.3f, 0.4f);
   cmyk_float_t copy(0.0f, 0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.c(), 0.1f);
   EXPECT_FLOAT_EQ(copy.m(), 0.2f);
   EXPECT_FLOAT_EQ(copy.y(), 0.3f);
@@ -235,7 +235,7 @@ TEST(CMYKTest, CopyAssignmentFloat) {
 TEST(CMYKTest, MoveSemanticsFloat) {
   cmyk_float_t original(0.1f, 0.2f, 0.3f, 0.4f);
   cmyk_float_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.c(), 0.1f);
   EXPECT_FLOAT_EQ(moved.m(), 0.2f);
   EXPECT_FLOAT_EQ(moved.y(), 0.3f);
@@ -246,7 +246,7 @@ TEST(CMYKTest, MoveAssignmentFloat) {
   cmyk_float_t original(0.1f, 0.2f, 0.3f, 0.4f);
   cmyk_float_t moved(0.0f, 0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.c(), 0.1f);
   EXPECT_FLOAT_EQ(moved.m(), 0.2f);
   EXPECT_FLOAT_EQ(moved.y(), 0.3f);
@@ -257,7 +257,7 @@ TEST(CMYKTest, EqualityComparisonFloat) {
   cmyk_float_t color1(0.1f, 0.2f, 0.3f, 0.4f);
   cmyk_float_t color2(0.1f, 0.2f, 0.3f, 0.4f);
   cmyk_float_t color3(0.2f, 0.2f, 0.3f, 0.4f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -269,7 +269,7 @@ TEST(CMYKTest, ConstexprBoundaryValuesFloat) {
   static_assert(min_color.m() == 0.0f);
   static_assert(min_color.y() == 0.0f);
   static_assert(min_color.k() == 0.0f);
-  
+
   constexpr cmyk_float_t max_color(1.0f, 1.0f, 1.0f, 1.0f);
   static_assert(max_color.c() == 1.0f);
   static_assert(max_color.m() == 1.0f);
@@ -280,7 +280,7 @@ TEST(CMYKTest, ConstexprBoundaryValuesFloat) {
 TEST(CMYKTest, CopyConstructorsUint8) {
   cmyk8_t original(10, 20, 30, 40);
   cmyk8_t copy(original);
-  
+
   EXPECT_EQ(copy.c(), 10);
   EXPECT_EQ(copy.m(), 20);
   EXPECT_EQ(copy.y(), 30);
@@ -291,7 +291,7 @@ TEST(CMYKTest, CopyAssignmentUint8) {
   cmyk8_t original(10, 20, 30, 40);
   cmyk8_t copy(0, 0, 0, 0);
   copy = original;
-  
+
   EXPECT_EQ(copy.c(), 10);
   EXPECT_EQ(copy.m(), 20);
   EXPECT_EQ(copy.y(), 30);
@@ -301,7 +301,7 @@ TEST(CMYKTest, CopyAssignmentUint8) {
 TEST(CMYKTest, MoveSemanticsUint8) {
   cmyk8_t original(10, 20, 30, 40);
   cmyk8_t moved(std::move(original));
-  
+
   EXPECT_EQ(moved.c(), 10);
   EXPECT_EQ(moved.m(), 20);
   EXPECT_EQ(moved.y(), 30);
@@ -312,7 +312,7 @@ TEST(CMYKTest, MoveAssignmentUint8) {
   cmyk8_t original(10, 20, 30, 40);
   cmyk8_t moved(0, 0, 0, 0);
   moved = std::move(original);
-  
+
   EXPECT_EQ(moved.c(), 10);
   EXPECT_EQ(moved.m(), 20);
   EXPECT_EQ(moved.y(), 30);
@@ -323,7 +323,7 @@ TEST(CMYKTest, EqualityComparisonUint8) {
   cmyk8_t color1(10, 20, 30, 40);
   cmyk8_t color2(10, 20, 30, 40);
   cmyk8_t color3(15, 20, 30, 40);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);

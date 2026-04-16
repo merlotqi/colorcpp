@@ -1,9 +1,8 @@
 #include <benchmark/benchmark.h>
 
+#include <colorcpp/colorcpp.hpp>
 #include <cstdint>
 #include <vector>
-
-#include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp;
 using namespace colorcpp::algorithms;
@@ -142,8 +141,7 @@ BENCHMARK(BM_VisionProtanopiaBatch)->Arg(1024)->Arg(65536)->Arg(262144);
 static void BM_VisionAchromatopsiaBatch(benchmark::State& state) {
   const auto count = static_cast<std::size_t>(state.range(0));
   const auto input = make_rgba_data(count, 0xCAFEBABEu);
-  run_unary_batch<rgbaf_t, rgbaf_t>(state, input,
-                                    [](const rgbaf_t& c) { return vision::simulate_achromatopsia(c); });
+  run_unary_batch<rgbaf_t, rgbaf_t>(state, input, [](const rgbaf_t& c) { return vision::simulate_achromatopsia(c); });
 }
 BENCHMARK(BM_VisionAchromatopsiaBatch)->Arg(1024)->Arg(65536)->Arg(262144);
 
@@ -182,7 +180,7 @@ BENCHMARK(BM_ConversionLinearToOklabBatch)->Arg(1024)->Arg(65536)->Arg(262144);
 static void BM_ConversionSrgbToOklabBatch(benchmark::State& state) {
   const auto count = static_cast<std::size_t>(state.range(0));
   const auto input = make_rgba_data(count, 0x27182818u);
-  run_unary_batch<rgbaf_t, oklab_t>(
-      state, input, [](const rgbaf_t& c) { return operations::conversion::color_cast<oklab_t>(c); });
+  run_unary_batch<rgbaf_t, oklab_t>(state, input,
+                                    [](const rgbaf_t& c) { return operations::conversion::color_cast<oklab_t>(c); });
 }
 BENCHMARK(BM_ConversionSrgbToOklabBatch)->Arg(1024)->Arg(65536)->Arg(262144);

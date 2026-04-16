@@ -231,7 +231,7 @@ TEST(RGBATest, AlphaExistence) {
 TEST(RGBATest, CopyConstructors) {
   rgba8_t original(100, 150, 200, 250);
   rgba8_t copy(original);
-  
+
   EXPECT_EQ(copy.r(), 100);
   EXPECT_EQ(copy.g(), 150);
   EXPECT_EQ(copy.b(), 200);
@@ -242,7 +242,7 @@ TEST(RGBATest, CopyAssignment) {
   rgba8_t original(100, 150, 200, 250);
   rgba8_t copy(0, 0, 0, 0);
   copy = original;
-  
+
   EXPECT_EQ(copy.r(), 100);
   EXPECT_EQ(copy.g(), 150);
   EXPECT_EQ(copy.b(), 200);
@@ -252,7 +252,7 @@ TEST(RGBATest, CopyAssignment) {
 TEST(RGBATest, MoveSemantics) {
   rgba8_t original(100, 150, 200, 250);
   rgba8_t moved(std::move(original));
-  
+
   EXPECT_EQ(moved.r(), 100);
   EXPECT_EQ(moved.g(), 150);
   EXPECT_EQ(moved.b(), 200);
@@ -263,7 +263,7 @@ TEST(RGBATest, MoveAssignment) {
   rgba8_t original(100, 150, 200, 250);
   rgba8_t moved(0, 0, 0, 0);
   moved = std::move(original);
-  
+
   EXPECT_EQ(moved.r(), 100);
   EXPECT_EQ(moved.g(), 150);
   EXPECT_EQ(moved.b(), 200);
@@ -274,7 +274,7 @@ TEST(RGBATest, EqualityComparison) {
   rgba8_t color1(100, 150, 200, 250);
   rgba8_t color2(100, 150, 200, 250);
   rgba8_t color3(100, 150, 200, 240);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -282,7 +282,7 @@ TEST(RGBATest, EqualityComparison) {
 
 TEST(RGBATest, FloatPrecision) {
   rgbaf_t color(0.1f, 0.2f, 0.3f, 0.4f);
-  
+
   EXPECT_NEAR(color.r(), 0.1f, 0.00001f);
   EXPECT_NEAR(color.g(), 0.2f, 0.00001f);
   EXPECT_NEAR(color.b(), 0.3f, 0.00001f);
@@ -294,17 +294,17 @@ TEST(RGBATest, ConstexprBoundaryValues) {
   static_assert(min_color.r() == 0);
   static_assert(min_color.g() == 0);
   static_assert(min_color.b() == 0);
-  
+
   constexpr rgb8_t max_color(255, 255, 255);
   static_assert(max_color.r() == 255);
   static_assert(max_color.g() == 255);
   static_assert(max_color.b() == 255);
-  
+
   constexpr rgbf_t float_min(0.0f, 0.0f, 0.0f);
   static_assert(float_min.r() == 0.0f);
   static_assert(float_min.g() == 0.0f);
   static_assert(float_min.b() == 0.0f);
-  
+
   constexpr rgbf_t float_max(1.0f, 1.0f, 1.0f);
   static_assert(float_max.r() == 1.0f);
   static_assert(float_max.g() == 1.0f);

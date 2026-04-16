@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/hsl.hpp>
+#include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::operations::flow::detail {
