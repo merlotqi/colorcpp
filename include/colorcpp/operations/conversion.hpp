@@ -4,11 +4,12 @@
  *
  * Uses a registration-based system with compile-time graph routing.
  * New color spaces can be added externally using COLORCPP_REGISTER_CONVERSION
- * without modifying core files.
+ * or COLORCPP_REGISTER_CONVERSION_WEIGHTED without modifying core files.
  *
  * Routing uses graph-discovered registered edges and multi-hop shortest paths.
  * Unsupported pairs trigger a compile-time @c static_assert with a clear message;
- * register conversion using COLORCPP_REGISTER_CONVERSION to extend.
+ * register conversion using COLORCPP_REGISTER_CONVERSION or
+ * COLORCPP_REGISTER_CONVERSION_WEIGHTED to extend.
  */
 
 #pragma once
@@ -29,7 +30,8 @@ namespace colorcpp::operations::conversion {
  * @return Color in @p To after conversion (may clamp to channel ranges per destination model).
  * @note Routes via graph-discovered direct or multi-hop paths only.
  * @note If no path exists, compilation fails with @c static_assert listing unsupported conversion.
- *       Register the conversion using COLORCPP_REGISTER_CONVERSION to add support.
+ *       Register the conversion using COLORCPP_REGISTER_CONVERSION (or the weighted variant)
+ *       to add support and influence route preference.
  */
 template <typename To, typename From>
 constexpr To color_cast(const From& src) {

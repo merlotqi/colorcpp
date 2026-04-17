@@ -19,11 +19,16 @@ struct color_cast_impl;
 template <typename To, typename From>
 struct graph_conversion_dispatch {
   static constexpr To apply(const From& src) {
-    if constexpr (has_registered_conversion_v<From, To>) {
+    using Next = graph::next_hop_t<From, To>;
+    static_assert(!std::is_same_v<Next, void>, "colorcpp: graph route requested without a valid next hop");
+
+    if constexpr (std::is_same_v<From, To>) {
+      return src;
+    } else if constexpr (std::is_same_v<Next, To>) {
+      static_assert(has_registered_conversion_v<From, To>,
+                    "colorcpp: graph selected a direct hop without a registered direct conversion");
       return apply_registered_conversion<From, To>(src);
     } else {
-      using Next = graph::next_hop_t<From, To>;
-      static_assert(!std::is_same_v<Next, void>, "colorcpp: graph route requested without a valid next hop");
       return color_cast_impl<To, Next>::convert(color_cast_impl<Next, From>::convert(src));
     }
   }

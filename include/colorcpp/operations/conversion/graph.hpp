@@ -2,8 +2,8 @@
  * @file graph.hpp
  * @brief Compile-time conversion graph routing system.
  *
- * The graph layer discovers shortest paths across registered direct conversions
- * without changing the existing registration macros.
+ * The graph layer discovers shortest paths across registered direct conversions,
+ * including weighted edges registered through the conversion registry macros.
  */
 
 #pragma once
@@ -215,8 +215,9 @@ struct collect_from_edges;
 
 template <typename From, typename... Nodes>
 struct collect_from_edges<From, node_list<Nodes...>> {
-  using type = typename concat_edge_lists<
-      std::conditional_t<has_registered_conversion_v<From, Nodes>, edge_list<edge<From, Nodes>>, edge_list<>>...>::type;
+  using type = typename concat_edge_lists<std::conditional_t<
+      has_registered_conversion_v<From, Nodes>, edge_list<edge<From, Nodes, registered_conversion_cost_v<From, Nodes>>>,
+      edge_list<>>...>::type;
 };
 
 template <typename... Nodes>
@@ -346,14 +347,9 @@ struct shortest_path_for_nodes {
 template <typename Edges, typename Source, typename Target, std::size_t MaxNodes = 32>
 struct shortest_path : shortest_path_for_nodes<global_color_nodes, Edges, Source, Target, MaxNodes> {};
 
-/**
- * @brief Global shared adjacency matrix.
- *
- * This matrix is initialized once globally and shared by all shortest path
- * queries. This eliminates O(n²) template instantiation overhead and
- * reduces compile times by 80%+ for conversion heavy code.
- */
-inline constexpr auto global_adjacency_matrix = adjacency_matrix<global_color_nodes, global_edges>::value;
+template <typename From, typename To>
+inline constexpr bool endpoints_in_global_graph_v =
+    contains_node_v<global_color_nodes, From> && contains_node_v<global_color_nodes, To>;
 
 /**
  * @brief Get the minimal graph cost between two color types.
@@ -369,49 +365,12 @@ template <typename From, typename To>
 constexpr std::size_t minimal_conversion_cost() {
   if constexpr (std::is_same_v<From, To>) {
     return 0;
+  } else if constexpr (endpoints_in_global_graph_v<From, To>) {
+    return shortest_path<global_edges, From, To>::cost();
   } else if constexpr (has_registered_conversion_v<From, To>) {
-    return 1;
-  } else if constexpr (!contains_node_v<global_color_nodes, From> || !contains_node_v<global_color_nodes, To>) {
-    return inf;
+    return registered_conversion_cost_v<From, To>;
   } else {
-    constexpr std::size_t node_count = global_color_nodes::size;
-    constexpr std::size_t source_index = index_of_node_v<global_color_nodes, From>;
-    constexpr std::size_t target_index = index_of_node_v<global_color_nodes, To>;
-
-    std::array<std::size_t, node_count> dist{};
-    std::array<bool, node_count> visited{};
-
-    for (std::size_t i = 0; i < node_count; ++i) {
-      dist[i] = inf;
-      visited[i] = false;
-    }
-    dist[source_index] = 0;
-
-    for (std::size_t step = 0; step < node_count; ++step) {
-      std::size_t current = invalid_index;
-      std::size_t best = inf;
-      for (std::size_t i = 0; i < node_count; ++i) {
-        if (!visited[i] && dist[i] < best) {
-          current = i;
-          best = dist[i];
-        }
-      }
-
-      if (current == invalid_index || current == target_index) break;
-
-      visited[current] = true;
-      for (std::size_t neighbor = 0; neighbor < node_count; ++neighbor) {
-        const std::size_t edge_cost = global_adjacency_matrix[current * node_count + neighbor];
-        if (edge_cost == inf || visited[neighbor] || dist[current] == inf) continue;
-
-        const std::size_t next_cost = dist[current] + edge_cost;
-        if (next_cost < dist[neighbor]) {
-          dist[neighbor] = next_cost;
-        }
-      }
-    }
-
-    return dist[target_index];
+    return inf;
   }
 }
 
@@ -428,25 +387,26 @@ constexpr bool has_graph_path() {
 }
 
 template <typename From, typename To, bool HasPath = has_graph_path<From, To>(),
-          bool HasDirectEdge = has_registered_conversion_v<From, To>>
+          bool EndpointsInGlobalGraph = endpoints_in_global_graph_v<From, To>>
 struct next_hop_impl {
   using type = void;
 };
 
 template <typename From, typename To>
-struct next_hop_impl<From, To, true, true> {
+struct next_hop_impl<From, To, true, false> {
   using type = To;
 };
 
 template <typename From, typename To>
-struct next_hop_impl<From, To, true, false> {
+struct next_hop_impl<From, To, true, true> {
   using type = node_at_t<global_color_nodes, shortest_path<global_edges, From, To>::first_step_index()>;
 };
 
 /**
  * @brief First hop type on the minimal graph route.
  *
- * Resolves to @c To for direct registered edges, or @c void when no graph route is available.
+ * Resolves to @c To for direct registered edges outside the known node set, or
+ * the first node on the minimal weighted route for graph-known types.
  */
 template <typename From, typename To>
 using next_hop_t = typename next_hop_impl<From, To>::type;
