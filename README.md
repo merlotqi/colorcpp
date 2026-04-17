@@ -57,7 +57,7 @@ target_link_libraries(your_target PRIVATE colorcpp::colorcpp)
 Canonical public namespaces:
 
 - `colorcpp::core` for color types, constants, and stream I/O
-- `colorcpp::operations::{conversion, blend, interpolate, palette, flow, random, compare}`
+- `colorcpp::operations::{conversion, blend, interpolate, palette, random, compare}`
 - `colorcpp::algorithms::{accessibility, color_temperature, delta_e, gamut, gradient, harmony, vision}`
 - `colorcpp::io::{css, literals, serialization, binary_io, ansi}`
 
@@ -73,8 +73,6 @@ examples below use the canonical nested namespaces; `colorcpp::io` stays under `
 using namespace colorcpp::core;
 using namespace colorcpp::operations::blend;
 using namespace colorcpp::operations::conversion;
-using namespace colorcpp::operations::flow;
-
 // Create colors using type aliases
 constexpr auto red = rgba8_t{255, 0, 0, 255};
 constexpr auto blue = rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f};
@@ -85,7 +83,6 @@ auto lab_red = color_cast<cielab_t>(red);
 
 // Color operations
 auto blended = blend(red, blue, blend_mode::multiply);
-auto lighter = make(red).lighten(20).to_rgba8();
 ```
 
 ## 📚 Color Literals
@@ -446,14 +443,14 @@ auto srgb = kelvin_to_rgb(5500.0f);
 ├── include/colorcpp/         # Public header-only library
 │   ├── colorcpp.hpp          # Umbrella header
 │   ├── core/                 # Color types, constants, stream I/O
-│   ├── operations/           # Conversion, blend, compare, flow, interpolate, palette, random
+│   ├── operations/           # Conversion, blend, compare, interpolate, palette, random
 │   ├── algorithms/           # Accessibility, delta_e, gamut, gradient, harmony, vision, color_temperature
 │   ├── io/                   # CSS parsing, literals, serialization, binary IO, ANSI helpers
 │   └── detail/               # Internal shared helpers (for example SIMD support)
 ├── examples/                 # Small runnable examples for major features
 ├── tests/                    # GoogleTest suites
 │   ├── core/                 # Core color space types and primitives
-│   ├── operations/           # Conversion, blend, compare, flow, interpolate, palette, random
+│   ├── operations/           # Conversion, blend, compare, interpolate, palette, random
 │   ├── algorithms/           # Delta E, gamut, gradient, harmony, accessibility, vision, etc.
 │   ├── io/                   # CSS, literals, serialization, ANSI, binary IO
 │   └── test_api_contract.cpp # Umbrella header / namespace contract checks
@@ -486,7 +483,6 @@ See the `examples/` directory for complete working examples:
 - `interpolate_example.cpp` - Color interpolation
 - `palette_example.cpp` - Palette generation
 - `random_example.cpp` - Random color generation
-- `flow_example.cpp` - Fluent theme / export API
 - `accessibility_example.cpp` - WCAG 2 and APCA helpers
 - `gamut_example.cpp` - Gamut mapping and clipping
 - `delta_e_example.cpp` - Color difference metrics

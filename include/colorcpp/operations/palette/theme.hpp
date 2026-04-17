@@ -8,9 +8,9 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/flow/pipeline.hpp>
+#include <colorcpp/operations/palette/details.hpp>
 
-namespace colorcpp::operations::flow {
+namespace colorcpp::operations::palette {
 
 struct semantic_palette {
   core::rgba8_t primary;
@@ -25,19 +25,32 @@ struct semantic_palette {
   core::rgba8_t outline;
 };
 
-class flow_theme {
+class theme {
  public:
-  static flow_theme from_seed(uint32_t seed) { return from_seed(make(seed).color()); }
-  static flow_theme from_seed(core::rgba8_t seed) { return flow_theme(seed); }
+  static theme from_seed(uint32_t seed) {
+    return from_seed(core::rgba8_t{
+        static_cast<uint8_t>((seed >> 16) & 0xFF),
+        static_cast<uint8_t>((seed >> 8) & 0xFF),
+        static_cast<uint8_t>(seed & 0xFF),
+        0xFF
+    });
+  }
+  static theme from_seed(core::rgba8_t seed) { return theme(seed); }
+
   semantic_palette light_mode() const { return derive_light_palette(seed_); }
   semantic_palette dark_mode() const { return derive_dark_palette(seed_); }
   core::rgba8_t seed() const { return seed_; }
 
  private:
   core::rgba8_t seed_;
-  explicit flow_theme(core::rgba8_t seed) : seed_(seed) {}
+  explicit theme(core::rgba8_t seed) : seed_(seed) {}
 
-  static core::rgba8_t shift_hue(core::rgba8_t c, float degrees) { return pipeline(c).rotate_hue(degrees).color(); }
+  static core::rgba8_t shift_hue(core::rgba8_t c, float degrees) {
+    using namespace conversion;
+    auto hsla = color_cast<core::hsla_float_t>(c);
+    float new_h = details::rotate_hue(hsla.h(), degrees);
+    return color_cast<core::rgba8_t>(details::modify_hue(hsla, new_h));
+  }
 
   static core::rgba8_t adjust_lightness(core::rgba8_t c, float target_l) {
     auto hsla = operations::conversion::color_cast<core::hsla_float_t>(c);
@@ -84,4 +97,4 @@ class flow_theme {
   }
 };
 
-}  // namespace colorcpp::operations::flow
+}  // namespace colorcpp::operations::palette
