@@ -141,13 +141,13 @@ auto resolved = colorcpp::io::css::parse_css_color_rgba8("light-dark(currentColo
 - **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
 - **`hwb(H W B)`:** Hue-Whiteness-Blackness
 - **`color(...)`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`
-- **`color-mix()`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, `xyz`
+- **`color-mix()`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, `xyz` with CSS hue interpolation keywords in `lch` / `oklch`
 - **`device-cmyk(...)`:** CMYK device colors, including slash alpha
 - **Named colors and keywords:** all 140+ CSS named colors plus `transparent` — case-insensitive
 
 **Context-aware support:** `currentColor`, CSS system colors, and `light-dark()` are available through the overloads that accept `parse_css_color_context`.
 
-**Still pending:** relative color syntax (`rgb(from …)`, `color(from …)`), advanced `color-mix()` features such as hue interpolation keywords, and the remaining context-sensitive CSS color features that depend on authoring-time style state.
+**Still pending:** relative color syntax (`rgb(from …)`, `color(from …)`), multi-stop / `at <percentage>` `color-mix()` extensions, and the remaining context-sensitive CSS color features that depend on authoring-time style state.
 
 ## 🔄 Color Conversion
 

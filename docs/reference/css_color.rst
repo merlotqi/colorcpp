@@ -35,7 +35,7 @@ In colorcpp
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
     * ``lab()`` / ``lch()`` - CIE LAB space
     * ``color(display-p3)`` - Display P3 wide gamut
-    * ``color-mix()`` - interpolation in ``srgb``, ``srgb-linear``, ``display-p3``, ``display-p3-linear``, ``lab``, ``lch``, ``oklab``, ``oklch``, and ``xyz``
+    * ``color-mix()`` - interpolation in ``srgb``, ``srgb-linear``, ``display-p3``, ``display-p3-linear``, ``lab``, ``lch``, ``oklab``, ``oklch``, and ``xyz``; ``lch`` / ``oklch`` also accept ``shorter|longer|increasing|decreasing hue``
     * ``device-cmyk()`` - CMYK device colors with optional alpha
     * ``light-dark()`` - Theme-aware color selection through context-aware parsing
 
@@ -64,6 +64,7 @@ Notes
 * All percentage values are properly normalized
 * Angle units support: ``deg``, ``rad``, ``grad``, ``turn``
 * Parser accepts both legacy comma syntax and modern space-separated syntax
+* ``color-mix()`` follows CSS premultiplied-alpha mixing semantics, including reduced-alpha results when explicit percentages sum below ``100%``
 * General relative color syntax such as ``rgb(from ...)`` is not implemented
 * Formatter produces canonical ``rgb()`` output for sRGB colors
 

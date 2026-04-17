@@ -5,7 +5,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/oklab.hpp>
@@ -43,6 +45,13 @@ struct color_mix_operand {
   std::optional<float> weight;
 };
 
+enum class color_mix_hue_method {
+  shorter,
+  longer,
+  increasing,
+  decreasing,
+};
+
 enum class color_mix_space {
   srgb,
   srgb_linear,
@@ -53,6 +62,17 @@ enum class color_mix_space {
   xyz,
   display_p3,
   display_p3_linear,
+};
+
+struct color_mix_interpolation_method {
+  color_mix_space space;
+  color_mix_hue_method hue_method = color_mix_hue_method::shorter;
+};
+
+struct color_mix_weights {
+  float first = 0.5f;
+  float second = 0.5f;
+  float alpha_multiplier = 1.0f;
 };
 
 inline std::optional<color_mix_operand> split_color_and_optional_percent(std::string_view s) {
@@ -88,8 +108,20 @@ inline std::optional<color_mix_operand> split_color_and_optional_percent(std::st
   return color_mix_operand{color, weight};
 }
 
-inline std::optional<std::pair<float, float>> resolve_color_mix_weights(const color_mix_operand& first,
-                                                                        const color_mix_operand& second) {
+inline std::optional<color_mix_hue_method> parse_color_mix_hue_method(details::Cursor& c) {
+  if (c.consume_ci("shorter")) return color_mix_hue_method::shorter;
+  if (c.consume_ci("longer")) return color_mix_hue_method::longer;
+  if (c.consume_ci("increasing")) return color_mix_hue_method::increasing;
+  if (c.consume_ci("decreasing")) return color_mix_hue_method::decreasing;
+  return std::nullopt;
+}
+
+inline bool is_color_mix_polar_space(color_mix_space space) {
+  return space == color_mix_space::lch || space == color_mix_space::oklch;
+}
+
+inline std::optional<color_mix_weights> resolve_color_mix_weights(const color_mix_operand& first,
+                                                                  const color_mix_operand& second) {
   std::optional<float> w1 = first.weight;
   std::optional<float> w2 = second.weight;
 
@@ -106,66 +138,167 @@ inline std::optional<std::pair<float, float>> resolve_color_mix_weights(const co
   const float b = std::clamp(*w2, 0.0f, 1.0f);
   const float sum = a + b;
   if (sum <= 0.0f) return std::nullopt;
-  return std::pair<float, float>{a / sum, b / sum};
+
+  color_mix_weights weights;
+  weights.first = a / sum;
+  weights.second = b / sum;
+  weights.alpha_multiplier = sum < 1.0f ? sum : 1.0f;
+  return weights;
 }
 
-inline std::optional<color_mix_space> parse_color_mix_space(details::Cursor& c) {
-  if (c.consume_ci("srgb-linear")) return color_mix_space::srgb_linear;
-  if (c.consume_ci("srgb")) return color_mix_space::srgb;
-  if (c.consume_ci("display-p3-linear")) return color_mix_space::display_p3_linear;
-  if (c.consume_ci("display-p3")) return color_mix_space::display_p3;
-  if (c.consume_ci("lab")) return color_mix_space::lab;
-  if (c.consume_ci("lch")) return color_mix_space::lch;
-  if (c.consume_ci("oklab")) return color_mix_space::oklab;
-  if (c.consume_ci("oklch")) return color_mix_space::oklch;
-  if (c.consume_ci("xyz-d50")) return color_mix_space::xyz;
-  if (c.consume_ci("xyz-d65")) return color_mix_space::xyz;
-  if (c.consume_ci("xyz")) return color_mix_space::xyz;
-  return std::nullopt;
+inline std::optional<color_mix_interpolation_method> parse_color_mix_space(details::Cursor& c) {
+  std::optional<color_mix_space> space;
+  if (c.consume_ci("srgb-linear"))
+    space = color_mix_space::srgb_linear;
+  else if (c.consume_ci("srgb"))
+    space = color_mix_space::srgb;
+  else if (c.consume_ci("display-p3-linear"))
+    space = color_mix_space::display_p3_linear;
+  else if (c.consume_ci("display-p3"))
+    space = color_mix_space::display_p3;
+  else if (c.consume_ci("lab"))
+    space = color_mix_space::lab;
+  else if (c.consume_ci("lch"))
+    space = color_mix_space::lch;
+  else if (c.consume_ci("oklab"))
+    space = color_mix_space::oklab;
+  else if (c.consume_ci("oklch"))
+    space = color_mix_space::oklch;
+  else if (c.consume_ci("xyz-d50"))
+    space = color_mix_space::xyz;
+  else if (c.consume_ci("xyz-d65"))
+    space = color_mix_space::xyz;
+  else if (c.consume_ci("xyz"))
+    space = color_mix_space::xyz;
+
+  if (!space) return std::nullopt;
+
+  color_mix_interpolation_method method{*space};
+  const size_t save = c.i;
+  if (auto hue_method = parse_color_mix_hue_method(c)) {
+    if (!c.consume_ci("hue")) return std::nullopt;
+    if (!is_color_mix_polar_space(*space)) return std::nullopt;
+    method.hue_method = *hue_method;
+    return method;
+  }
+
+  c.i = save;
+  return method;
 }
 
-inline core::rgbaf_t mix_alpha(const core::rgbaf_t& out, const core::rgbaf_t& a, const core::rgbaf_t& b, float t) {
-  auto with_alpha = out;
-  with_alpha.a() = a.a() + (b.a() - a.a()) * t;
-  return with_alpha;
+inline float normalize_hue_degrees(float hue) {
+  hue = std::fmod(hue, 360.0f);
+  if (hue < 0.0f) hue += 360.0f;
+  return hue;
+}
+
+inline void adjust_hues_for_interpolation(float& first, float& second, color_mix_hue_method method) {
+  constexpr float hue_epsilon = 1e-3f;
+  first = normalize_hue_degrees(first);
+  second = normalize_hue_degrees(second);
+  const float delta = second - first;
+
+  switch (method) {
+    case color_mix_hue_method::shorter:
+      if (delta > 180.0f + hue_epsilon) {
+        first += 360.0f;
+      } else if (delta < -180.0f - hue_epsilon) {
+        second += 360.0f;
+      }
+      break;
+    case color_mix_hue_method::longer:
+      if (delta > hue_epsilon && delta < 180.0f - hue_epsilon) {
+        first += 360.0f;
+      } else if (delta > -180.0f + hue_epsilon && delta <= hue_epsilon) {
+        second += 360.0f;
+      }
+      break;
+    case color_mix_hue_method::increasing:
+      if (second < first) second += 360.0f;
+      break;
+    case color_mix_hue_method::decreasing:
+      if (first < second) first += 360.0f;
+      break;
+  }
 }
 
 template <typename Color3>
-inline core::rgbaf_t mix_in_three_channel_space(const core::rgbaf_t& a, const core::rgbaf_t& b, float t) {
+inline core::rgbaf_t mix_in_rectangular_space(const core::rgbaf_t& a, const core::rgbaf_t& b,
+                                              const color_mix_weights& weights) {
+  const float alpha_a = std::clamp(a.a(), 0.0f, 1.0f);
+  const float alpha_b = std::clamp(b.a(), 0.0f, 1.0f);
+  const float mixed_alpha = alpha_a * weights.first + alpha_b * weights.second;
+
   auto ca = operations::conversion::color_cast<Color3>(a);
   auto cb = operations::conversion::color_cast<Color3>(b);
-  Color3 mid{
-      ca.template get_index<0>() + (cb.template get_index<0>() - ca.template get_index<0>()) * t,
-      ca.template get_index<1>() + (cb.template get_index<1>() - ca.template get_index<1>()) * t,
-      ca.template get_index<2>() + (cb.template get_index<2>() - ca.template get_index<2>()) * t,
-  };
-  return mix_alpha(operations::conversion::color_cast<core::rgbaf_t>(mid), a, b, t);
-}
 
-inline core::rgbaf_t mix_colors_in_space(color_mix_space space, const core::rgbaf_t& a, const core::rgbaf_t& b,
-                                         float t) {
-  switch (space) {
-    case color_mix_space::srgb:
-      return operations::interpolate::lerp(a, b, t);
-    case color_mix_space::srgb_linear:
-      return mix_in_three_channel_space<core::linear_rgbf_t>(a, b, t);
-    case color_mix_space::lab:
-      return operations::interpolate::lerp_lab<core::rgbaf_t>(a, b, t);
-    case color_mix_space::lch:
-      return operations::interpolate::lerp_lch<core::rgbaf_t>(a, b, t);
-    case color_mix_space::oklab:
-      return operations::interpolate::lerp_oklab<core::rgbaf_t>(a, b, t);
-    case color_mix_space::oklch:
-      return operations::interpolate::lerp_oklch<core::rgbaf_t>(a, b, t);
-    case color_mix_space::xyz:
-      return mix_in_three_channel_space<core::xyz_t>(a, b, t);
-    case color_mix_space::display_p3:
-      return mix_in_three_channel_space<core::display_p3f_t>(a, b, t);
-    case color_mix_space::display_p3_linear:
-      return mix_in_three_channel_space<core::linear_display_p3f_t>(a, b, t);
+  float c0 = ca.template get_index<0>() * alpha_a * weights.first + cb.template get_index<0>() * alpha_b * weights.second;
+  float c1 = ca.template get_index<1>() * alpha_a * weights.first + cb.template get_index<1>() * alpha_b * weights.second;
+  float c2 = ca.template get_index<2>() * alpha_a * weights.first + cb.template get_index<2>() * alpha_b * weights.second;
+
+  if (mixed_alpha > 0.0f) {
+    c0 /= mixed_alpha;
+    c1 /= mixed_alpha;
+    c2 /= mixed_alpha;
   }
 
-  return operations::interpolate::lerp(a, b, t);
+  auto out = operations::conversion::color_cast<core::rgbaf_t>(Color3{c0, c1, c2});
+  out.a() = std::clamp(mixed_alpha * weights.alpha_multiplier, 0.0f, 1.0f);
+  return out;
+}
+
+template <typename Color3>
+inline core::rgbaf_t mix_in_polar_space(const core::rgbaf_t& a, const core::rgbaf_t& b,
+                                        const color_mix_weights& weights, color_mix_hue_method hue_method) {
+  const float alpha_a = std::clamp(a.a(), 0.0f, 1.0f);
+  const float alpha_b = std::clamp(b.a(), 0.0f, 1.0f);
+  const float mixed_alpha = alpha_a * weights.first + alpha_b * weights.second;
+
+  auto ca = operations::conversion::color_cast<Color3>(a);
+  auto cb = operations::conversion::color_cast<Color3>(b);
+
+  float hue_a = ca.template get_index<2>();
+  float hue_b = cb.template get_index<2>();
+  adjust_hues_for_interpolation(hue_a, hue_b, hue_method);
+
+  float c0 = ca.template get_index<0>() * alpha_a * weights.first + cb.template get_index<0>() * alpha_b * weights.second;
+  float c1 = ca.template get_index<1>() * alpha_a * weights.first + cb.template get_index<1>() * alpha_b * weights.second;
+
+  if (mixed_alpha > 0.0f) {
+    c0 /= mixed_alpha;
+    c1 /= mixed_alpha;
+  }
+
+  auto out = operations::conversion::color_cast<core::rgbaf_t>(
+      Color3{c0, c1, normalize_hue_degrees(hue_a * weights.first + hue_b * weights.second)});
+  out.a() = std::clamp(mixed_alpha * weights.alpha_multiplier, 0.0f, 1.0f);
+  return out;
+}
+
+inline core::rgbaf_t mix_colors_in_space(const color_mix_interpolation_method& method, const core::rgbaf_t& a,
+                                         const core::rgbaf_t& b, const color_mix_weights& weights) {
+  switch (method.space) {
+    case color_mix_space::srgb:
+      return mix_in_rectangular_space<core::rgbf_t>(a, b, weights);
+    case color_mix_space::srgb_linear:
+      return mix_in_rectangular_space<core::linear_rgbf_t>(a, b, weights);
+    case color_mix_space::lab:
+      return mix_in_rectangular_space<core::cielab_t>(a, b, weights);
+    case color_mix_space::lch:
+      return mix_in_polar_space<core::cielch_t>(a, b, weights, method.hue_method);
+    case color_mix_space::oklab:
+      return mix_in_rectangular_space<core::oklab_t>(a, b, weights);
+    case color_mix_space::oklch:
+      return mix_in_polar_space<core::oklch_t>(a, b, weights, method.hue_method);
+    case color_mix_space::xyz:
+      return mix_in_rectangular_space<core::xyz_t>(a, b, weights);
+    case color_mix_space::display_p3:
+      return mix_in_rectangular_space<core::display_p3f_t>(a, b, weights);
+    case color_mix_space::display_p3_linear:
+      return mix_in_rectangular_space<core::linear_display_p3f_t>(a, b, weights);
+  }
+
+  return mix_in_rectangular_space<core::rgbf_t>(a, b, weights);
 }
 
 inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, const parse_css_color_context& context) {
@@ -188,8 +321,8 @@ inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, co
     return std::nullopt;
   }
   ic.skip_ws();
-  auto space = parse_color_mix_space(ic);
-  if (!space) {
+  auto method = parse_color_mix_space(ic);
+  if (!method) {
     c.i = save;
     return std::nullopt;
   }
@@ -231,7 +364,7 @@ inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, co
     return std::nullopt;
   }
 
-  return mix_colors_in_space(*space, *c1, *c2, weights->second);
+  return mix_colors_in_space(*method, *c1, *c2, *weights);
 }
 
 inline std::optional<core::rgbaf_t> resolve_context_color_rgbaf(std::string_view t,
