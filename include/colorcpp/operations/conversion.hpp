@@ -2,11 +2,11 @@
  * @file conversion.hpp
  * @brief @ref colorcpp::operations::conversion::color_cast — typed conversion between all registered color models.
  *
- * Uses a registration-based system with compile-time graph routing plus hub fallback.
- * New color spaces can be added externally using COLORCPP_REGISTER_CONVERSION without
- * modifying core files.
+ * Uses a registration-based system with compile-time graph routing.
+ * New color spaces can be added externally using COLORCPP_REGISTER_CONVERSION
+ * without modifying core files.
  *
- * Routing uses per-model hubs (e.g. float sRGB, linear sRGB, XYZ) when no direct edge exists.
+ * Routing uses graph-discovered registered edges and multi-hop shortest paths.
  * Unsupported pairs trigger a compile-time @c static_assert with a clear message;
  * register conversion using COLORCPP_REGISTER_CONVERSION to extend.
  */
@@ -27,7 +27,7 @@ namespace colorcpp::operations::conversion {
  * @tparam From Source color type.
  * @param src Input color.
  * @return Color in @p To after conversion (may clamp to channel ranges per destination model).
- * @note Routes via direct conversions, then graph-discovered shortest paths, then hub spaces.
+ * @note Routes via graph-discovered direct or multi-hop paths only.
  * @note If no path exists, compilation fails with @c static_assert listing unsupported conversion.
  *       Register the conversion using COLORCPP_REGISTER_CONVERSION to add support.
  */
