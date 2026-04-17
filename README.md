@@ -127,6 +127,13 @@ css_context.dark_theme = true;
 css_context.current_color = colorcpp::core::rgbaf_t{1.0f, 0.0f, 0.0f, 0.5f};
 css_context.canvas_text = colorcpp::core::rgbaf_t{1.0f, 1.0f, 1.0f, 1.0f};
 auto resolved = colorcpp::io::css::parse_css_color_rgba8("light-dark(currentColor, CanvasText)", css_context);
+
+css_context.variable_resolver = [](std::string_view name) -> std::optional<colorcpp::core::rgbaf_t> {
+  if (name == "--theme-primary") return colorcpp::core::rgbaf_t{0.9f, 0.2f, 0.4f, 1.0f};
+  return std::nullopt;
+};
+auto relative = colorcpp::io::css::parse_css_color_rgbaf(
+    "rgb(from var(--theme-primary) r g calc(b * 1.2) / 0.8)", css_context);
 ```
 
 **Supported (CSS Color Module Level 4 plus selected Level 5 helpers):**
@@ -141,13 +148,14 @@ auto resolved = colorcpp::io::css::parse_css_color_rgba8("light-dark(currentColo
 - **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
 - **`hwb(H W B)`:** Hue-Whiteness-Blackness
 - **`color(...)`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`
+- **Relative colors:** `rgb(from …)` and `color(from …)` with delayed AST evaluation via `parse_css_color_ast()` / `evaluate()`, plus direct resolution through `parse_css_color_context::variable_resolver`
 - **`color-mix()`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, `xyz` with CSS hue interpolation keywords in `lch` / `oklch`
 - **`device-cmyk(...)`:** CMYK device colors, including slash alpha
 - **Named colors and keywords:** all 140+ CSS named colors plus `transparent` — case-insensitive
 
-**Context-aware support:** `currentColor`, CSS system colors, and `light-dark()` are available through the overloads that accept `parse_css_color_context`.
+**Context-aware support:** `currentColor`, CSS system colors, `light-dark()`, and `var(--token)`-backed relative colors are available through the overloads that accept `parse_css_color_context`.
 
-**Still pending:** relative color syntax (`rgb(from …)`, `color(from …)`), multi-stop / `at <percentage>` `color-mix()` extensions, and the remaining context-sensitive CSS color features that depend on authoring-time style state.
+**Still pending:** relative syntaxes beyond `rgb(from …)` / `color(from …)`, multi-stop / `at <percentage>` `color-mix()` extensions, and the remaining context-sensitive CSS color features that depend on authoring-time style state.
 
 ## 🔄 Color Conversion
 

@@ -7,6 +7,7 @@
 
 #include <colorcpp/io/css/display_p3.hpp>
 #include <colorcpp/io/css/parse_public.hpp>
+#include <colorcpp/io/css/relative_color.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <optional>
 #include <string_view>
@@ -78,6 +79,10 @@ inline std::optional<Color> parse_css_color_impl(std::string_view str) {
   if (auto exact = parse_exact_css_color<Color>(str)) return exact;
   details::Cursor c{str, 0};
   if (auto typed = parse_color_function_as<Color>(c)) return typed;
+  if (auto ast = relative_css_detail::parse_relative_css_color(str)) {
+    auto evaluated = evaluate<Color>(parsed_css_color{std::move(*ast)}, parse_css_color_context{});
+    if (evaluated) return evaluated;
+  }
   auto parsed = parse_css_color_rgbaf(str);
   if (!parsed) return std::nullopt;
   return operations::conversion::color_cast<Color>(*parsed);
@@ -90,6 +95,10 @@ inline std::optional<Color> parse_css_color_impl(std::string_view str, const par
   if (auto exact = parse_exact_css_color<Color>(str)) return exact;
   details::Cursor c{str, 0};
   if (auto typed = parse_color_function_as<Color>(c)) return typed;
+  if (auto ast = relative_css_detail::parse_relative_css_color(str)) {
+    auto evaluated = evaluate<Color>(parsed_css_color{std::move(*ast)}, context);
+    if (evaluated) return evaluated;
+  }
   auto parsed = parse_css_color_rgbaf(str, context);
   if (!parsed) return std::nullopt;
   return operations::conversion::color_cast<Color>(*parsed);

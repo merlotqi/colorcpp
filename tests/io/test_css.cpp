@@ -579,6 +579,64 @@ TEST(Css, ParseRgbafWideGamut) {
   EXPECT_GT(f->r(), 0.99f);
 }
 
+TEST(Css, RelativeColorAstEvaluateSupportsVar) {
+  auto ast = parse_css_color_ast("rgb(from var(--theme-primary) r g calc(b * 1.2) / 0.8)");
+  ASSERT_TRUE(ast);
+  EXPECT_TRUE(ast->is_relative());
+
+  auto result = evaluate<rgbaf_t>(*ast, [](std::string_view name) -> std::optional<rgbaf_t> {
+    if (name == "--theme-primary") return rgbaf_t{0.9f, 0.2f, 0.4f, 1.0f};
+    return std::nullopt;
+  });
+  ASSERT_TRUE(result);
+  expect_rgbaf_near(*result, 0.9f, 0.2f, 0.48f, 0.8f, 0.01f);
+
+  auto concrete = parse_css_color_ast("red");
+  ASSERT_TRUE(concrete);
+  EXPECT_TRUE(concrete->is_concrete());
+  auto concrete_eval = evaluate<rgba8_t>(*concrete, [](std::string_view) -> std::optional<rgbaf_t> {
+    return std::nullopt;
+  });
+  ASSERT_TRUE(concrete_eval);
+  expect_rgba(*concrete_eval, 255, 0, 0, 255);
+}
+
+TEST(Css, RelativeColorParsingUsesContextVariableResolver) {
+  parse_css_color_context context;
+  context.variable_resolver = [](std::string_view name) -> std::optional<rgbaf_t> {
+    if (name == "--theme-primary") return rgbaf_t{0.9f, 0.2f, 0.4f, 1.0f};
+    return std::nullopt;
+  };
+
+  auto rgb_relative = parse_css_color_rgbaf("rgb(from var(--theme-primary) r g calc(b * 1.2) / 0.8)", context);
+  ASSERT_TRUE(rgb_relative);
+  expect_rgbaf_near(*rgb_relative, 0.9f, 0.2f, 0.48f, 0.8f, 0.01f);
+
+  auto color_relative = parse_css_color_rgbaf("color(from var(--theme-primary) srgb calc(r * 0.5) g b / alpha)", context);
+  ASSERT_TRUE(color_relative);
+  expect_rgbaf_near(*color_relative, 0.45f, 0.2f, 0.4f, 1.0f, 0.01f);
+
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(from var(--missing) r g b)", context).has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(from var(--theme-primary) q g b)", context).has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(from var(--theme-primary) r g b)").has_value());
+}
+
+TEST(Css, RelativeColorTypedParsingPreservesTargetSpace) {
+  auto relative_p3 = parse_css_color<display_p3f_t>("color(from color(display-p3 1 0 0) display-p3 r g b)");
+  ASSERT_TRUE(relative_p3);
+  EXPECT_NEAR(relative_p3->r(), 1.0f, 0.001f);
+  EXPECT_NEAR(relative_p3->g(), 0.0f, 0.001f);
+  EXPECT_NEAR(relative_p3->b(), 0.0f, 0.001f);
+
+  auto relative_xyz = parse_css_color<xyz_t>("color(from color(display-p3 1 0 0) xyz-d65 x y z / 25%)");
+  ASSERT_TRUE(relative_xyz);
+  auto expected_xyz = parse_css_color<xyz_t>("color(display-p3 1 0 0 / 25%)");
+  ASSERT_TRUE(expected_xyz);
+  EXPECT_NEAR(relative_xyz->x(), expected_xyz->x(), 0.002f);
+  EXPECT_NEAR(relative_xyz->y(), expected_xyz->y(), 0.002f);
+  EXPECT_NEAR(relative_xyz->z(), expected_xyz->z(), 0.002f);
+}
+
 TEST(Css, ColorMixInSrgb) {
   auto c = parse_css_color_rgba8("color-mix(in srgb, red, blue 50%)");
   ASSERT_TRUE(c);

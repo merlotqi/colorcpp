@@ -29,7 +29,6 @@
 #include <colorcpp/operations/interpolate/lerp.hpp>
 #include <optional>
 #include <string_view>
-#include <utility>
 
 namespace colorcpp::io::css {
 
@@ -232,9 +231,12 @@ inline core::rgbaf_t mix_in_rectangular_space(const core::rgbaf_t& a, const core
   auto ca = operations::conversion::color_cast<Color3>(a);
   auto cb = operations::conversion::color_cast<Color3>(b);
 
-  float c0 = ca.template get_index<0>() * alpha_a * weights.first + cb.template get_index<0>() * alpha_b * weights.second;
-  float c1 = ca.template get_index<1>() * alpha_a * weights.first + cb.template get_index<1>() * alpha_b * weights.second;
-  float c2 = ca.template get_index<2>() * alpha_a * weights.first + cb.template get_index<2>() * alpha_b * weights.second;
+  float c0 =
+      ca.template get_index<0>() * alpha_a * weights.first + cb.template get_index<0>() * alpha_b * weights.second;
+  float c1 =
+      ca.template get_index<1>() * alpha_a * weights.first + cb.template get_index<1>() * alpha_b * weights.second;
+  float c2 =
+      ca.template get_index<2>() * alpha_a * weights.first + cb.template get_index<2>() * alpha_b * weights.second;
 
   if (mixed_alpha > 0.0f) {
     c0 /= mixed_alpha;
@@ -261,8 +263,10 @@ inline core::rgbaf_t mix_in_polar_space(const core::rgbaf_t& a, const core::rgba
   float hue_b = cb.template get_index<2>();
   adjust_hues_for_interpolation(hue_a, hue_b, hue_method);
 
-  float c0 = ca.template get_index<0>() * alpha_a * weights.first + cb.template get_index<0>() * alpha_b * weights.second;
-  float c1 = ca.template get_index<1>() * alpha_a * weights.first + cb.template get_index<1>() * alpha_b * weights.second;
+  float c0 =
+      ca.template get_index<0>() * alpha_a * weights.first + cb.template get_index<0>() * alpha_b * weights.second;
+  float c1 =
+      ca.template get_index<1>() * alpha_a * weights.first + cb.template get_index<1>() * alpha_b * weights.second;
 
   if (mixed_alpha > 0.0f) {
     c0 /= mixed_alpha;

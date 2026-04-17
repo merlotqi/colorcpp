@@ -10,6 +10,9 @@
 #include <string_view>
 #include <vector>
 
+#include "colorcpp/core/rgb.hpp"
+#include "colorcpp/io/css/relative_color.hpp"
+
 using namespace colorcpp;
 using namespace colorcpp::core;
 using namespace colorcpp::io::ansi;
@@ -89,6 +92,47 @@ int main() {
   };
   for (auto input : contextual_inputs) {
     print_parsed_rgba8(input, parse_css_color_rgba8(input, context));
+  }
+
+  section("Relative Colors & AST Parsing");
+  std::cout << "  CSS Color Level 4 relative color syntax with channel expressions\n\n";
+
+  const std::vector<std::string_view> relative_inputs = {
+      "rgb(from #336699 r g calc(b * 1.2) / 0.8)",
+      "rgb(from rebeccapurple calc(r * 0.8) calc(g + 20) b)",
+      "color(from oklch(60% 0.18 240) in srgb r g b / 70%)",
+      "color(from gold in display-p3 r calc(g * 0.95) b)",
+  };
+
+  for (auto input : relative_inputs) {
+    print_parsed_rgba8(input, parse_css_color_rgba8(input, context));
+  }
+
+  std::cout << "\n  AST mode: parse once, evaluate multiple times with different contexts\n";
+  const std::string_view ast_input = "rgb(from var(--theme-color) r g b / calc(alpha * 0.75))";
+  auto ast = parse_css_color_ast(ast_input);
+  if (ast) {
+    std::cout << "    input:     " << ast_input << '\n';
+    std::cout << "    ast size:  " << std::boolalpha << ast->is_concrete() << " concrete / " << ast->is_relative()
+              << " relative\n";
+
+    // Evaluate with different variable values
+    auto var1 = evaluate<rgba8_t>(*ast, [](std::string_view name) -> std::optional<rgbaf_t> {
+      if (name == "--theme-color") return rgbaf_t{0.0f, 0.5f, 1.0f, 1.0f};
+      return std::nullopt;
+    });
+    auto var2 = evaluate<rgba8_t>(*ast, [](std::string_view name) -> std::optional<rgbaf_t> {
+      if (name == "--theme-color") return rgbaf_t{1.0f, 0.2f, 0.0f, 1.0f};
+      return std::nullopt;
+    });
+
+    std::cout << "    evaluate 1 (blue theme):  ";
+    print_swatch(std::cout, *var1, 6);
+    std::cout << "  " << to_css_color_string(*var1) << '\n';
+
+    std::cout << "    evaluate 2 (orange theme):";
+    print_swatch(std::cout, *var2, 6);
+    std::cout << "  " << to_css_color_string(*var2) << '\n';
   }
 
   section("Rejections");
