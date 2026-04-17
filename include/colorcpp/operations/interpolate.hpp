@@ -8,6 +8,8 @@
  * - cubic.hpp: Cubic Hermite interpolation
  * - gamut.hpp: Gamut boundary utilities
  * - hue.hpp: Hue-locked interpolation
+ * - monotonic_spline.hpp: Shape-preserving cubic interpolation
+ * - smooth_path.hpp: Multi-control-point interpolation helpers
  * - chroma.hpp: Chroma-preserving interpolation
  * - color_lerp.hpp: Multi-stop gradients, easing, and alpha control
  */
@@ -21,6 +23,8 @@
 #include <colorcpp/operations/interpolate/gamut.hpp>
 #include <colorcpp/operations/interpolate/hue.hpp>
 #include <colorcpp/operations/interpolate/lerp.hpp>
+#include <colorcpp/operations/interpolate/monotonic_spline.hpp>
+#include <colorcpp/operations/interpolate/smooth_path.hpp>
 
 /** @brief Lerps, multi-stop gradients, and easing helpers built on @ref conversion::color_cast. */
 namespace colorcpp::operations::interpolate {
