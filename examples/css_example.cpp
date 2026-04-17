@@ -108,31 +108,71 @@ int main() {
     print_parsed_rgba8(input, parse_css_color_rgba8(input, context));
   }
 
-  std::cout << "\n  AST mode: parse once, evaluate multiple times with different contexts\n";
-  const std::string_view ast_input = "rgb(from var(--theme-color) r g b / calc(alpha * 0.75))";
+  section("Nested var() Support");
+  std::cout << "  var() variables can appear anywhere inside expressions\n\n";
+
+  parse_css_color_context var_context;
+  var_context.variable_resolver = [](std::string_view name) -> std::optional<rgbaf_t> {
+    if (name == "--primary") return rgbaf_t{0.2f, 0.6f, 0.9f, 1.0f};
+    return std::nullopt;
+  };
+  var_context.numeric_variable_resolver = [](std::string_view name) -> std::optional<float> {
+    if (name == "--opacity") return 0.6f;
+    if (name == "--brightness") return 1.3f;
+    return std::nullopt;
+  };
+
+  const std::vector<std::string_view> nested_var_inputs = {
+      "rgb(from var(--primary) r g b / var(--opacity))",
+      "rgb(from var(--primary) calc(r * var(--brightness)) g b)",
+      "rgb(from var(--primary) r g b / calc(var(--opacity) * 0.75))",
+      "color-mix(in oklab, var(--primary) var(--opacity)%, white)",
+  };
+
+  for (auto input : nested_var_inputs) {
+    print_parsed_rgba8(input, parse_css_color_rgba8(input, var_context));
+  }
+
+  std::cout << "\n  AST mode: parse once, evaluate with different contexts\n";
+  const std::string_view ast_input = "rgb(from var(--theme-color) r g b / calc(var(--opacity) * 0.75))";
   auto ast = parse_css_color_ast(ast_input);
   if (ast) {
-    std::cout << "    input:     " << ast_input << '\n';
-    std::cout << "    ast size:  " << std::boolalpha << ast->is_concrete() << " concrete / " << ast->is_relative()
-              << " relative\n";
+    std::cout << "    input:        " << ast_input << '\n';
+    std::cout << "    node type:    relative color with 4 expression trees\n";
+    std::cout << "    nodes:        literal, variable_reference, mul\n\n";
 
-    // Evaluate with different variable values
-    auto var1 = evaluate<rgba8_t>(*ast, [](std::string_view name) -> std::optional<rgbaf_t> {
-      if (name == "--theme-color") return rgbaf_t{0.0f, 0.5f, 1.0f, 1.0f};
-      return std::nullopt;
-    });
-    auto var2 = evaluate<rgba8_t>(*ast, [](std::string_view name) -> std::optional<rgbaf_t> {
-      if (name == "--theme-color") return rgbaf_t{1.0f, 0.2f, 0.0f, 1.0f};
-      return std::nullopt;
-    });
+    // Evaluate with different variable bindings
+    {
+      auto result = evaluate<rgba8_t>(
+          *ast,
+          [](std::string_view name) -> std::optional<rgbaf_t> {
+            if (name == "--theme-color") return rgbaf_t{0.0f, 0.5f, 1.0f, 1.0f};
+            return std::nullopt;
+          },
+          [](std::string_view name) -> std::optional<float> {
+            if (name == "--opacity") return 0.8f;
+            return std::nullopt;
+          });
+      std::cout << "    context 1: blue theme / 80% opacity →  ";
+      print_swatch(std::cout, *result, 6);
+      std::cout << "  " << to_css_color_string(*result) << '\n';
+    }
 
-    std::cout << "    evaluate 1 (blue theme):  ";
-    print_swatch(std::cout, *var1, 6);
-    std::cout << "  " << to_css_color_string(*var1) << '\n';
-
-    std::cout << "    evaluate 2 (orange theme):";
-    print_swatch(std::cout, *var2, 6);
-    std::cout << "  " << to_css_color_string(*var2) << '\n';
+    {
+      auto result = evaluate<rgba8_t>(
+          *ast,
+          [](std::string_view name) -> std::optional<rgbaf_t> {
+            if (name == "--theme-color") return rgbaf_t{1.0f, 0.2f, 0.0f, 1.0f};
+            return std::nullopt;
+          },
+          [](std::string_view name) -> std::optional<float> {
+            if (name == "--opacity") return 0.5f;
+            return std::nullopt;
+          });
+      std::cout << "    context 2: orange theme / 50% opacity →  ";
+      print_swatch(std::cout, *result, 6);
+      std::cout << "  " << to_css_color_string(*result) << '\n';
+    }
   }
 
   section("Rejections");

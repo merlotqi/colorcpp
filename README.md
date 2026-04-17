@@ -132,8 +132,12 @@ css_context.variable_resolver = [](std::string_view name) -> std::optional<color
   if (name == "--theme-primary") return colorcpp::core::rgbaf_t{0.9f, 0.2f, 0.4f, 1.0f};
   return std::nullopt;
 };
+css_context.numeric_variable_resolver = [](std::string_view name) -> std::optional<float> {
+  if (name == "--opacity") return 0.75f;
+  return std::nullopt;
+};
 auto relative = colorcpp::io::css::parse_css_color_rgbaf(
-    "rgb(from var(--theme-primary) r g calc(b * 1.2) / 0.8)", css_context);
+    "rgb(from var(--theme-primary) r g b / calc(var(--opacity) * 0.75))", css_context);
 ```
 
 **Supported (CSS Color Module Level 4 plus selected Level 5 helpers):**
@@ -148,7 +152,12 @@ auto relative = colorcpp::io::css::parse_css_color_rgbaf(
 - **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
 - **`hwb(H W B)`:** Hue-Whiteness-Blackness
 - **`color(...)`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`
-- **Relative colors:** `rgb(from …)` and `color(from …)` with delayed AST evaluation via `parse_css_color_ast()` / `evaluate()`, plus direct resolution through `parse_css_color_context::variable_resolver`
+- **Relative colors:** `rgb(from …)` and `color(from …)` with full expression support:
+    * Arithmetic operations `+ - * /`
+    * Parenthesized expressions and `calc()` wrapper syntax
+    * Nested `var(--token)` references anywhere inside expressions
+    * Delayed AST evaluation with `parse_css_color_ast()` / `evaluate()`
+    * Separate `variable_resolver` (color values) and `numeric_variable_resolver` (scalar values)
 - **`color-mix()`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, `xyz` with CSS hue interpolation keywords in `lch` / `oklch`
 - **`device-cmyk(...)`:** CMYK device colors, including slash alpha
 - **Named colors and keywords:** all 140+ CSS named colors plus `transparent` — case-insensitive

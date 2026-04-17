@@ -49,6 +49,7 @@ struct channel_expression {
     literal,
     percentage,
     identifier,
+    variable_reference,
     add,
     sub,
     mul,
@@ -375,6 +376,21 @@ class channel_expression_parser {
     }
 
     pos_ = save;
+    if (consume_ci("var")) {
+      if (!consume_char('(')) return nullptr;
+      const size_t name_start = pos_;
+      while (pos_ < text_.size() && text_[pos_] != ')') ++pos_;
+      if (pos_ >= text_.size()) return nullptr;
+      std::string_view var_name(text_.data() + name_start, pos_ - name_start);
+      details::trim(var_name);
+      ++pos_;  // consume ')'
+      auto expr = std::make_shared<channel_expression>();
+      expr->operation = channel_expression::op::variable_reference;
+      expr->identifier = std::move(var_name);
+      return expr;
+    }
+
+    pos_ = save;
     if (pos_ < text_.size() && (std::isalpha(static_cast<unsigned char>(text_[pos_])) || text_[pos_] == '_')) {
       const size_t start = pos_++;
       while (pos_ < text_.size()) {
@@ -649,7 +665,8 @@ struct channel_environment {
 };
 
 inline std::optional<float> evaluate_expression(const std::shared_ptr<channel_expression>& expr,
-                                                const channel_environment& env, float percentage_scale) {
+                                                const channel_environment& env, float percentage_scale,
+                                                const parse_css_color_context& context) {
   if (!expr) return std::nullopt;
 
   switch (expr->operation) {
@@ -659,32 +676,43 @@ inline std::optional<float> evaluate_expression(const std::shared_ptr<channel_ex
       return expr->literal * percentage_scale / 100.0f;
     case channel_expression::op::identifier:
       return env.get(expr->identifier);
+    case channel_expression::op::variable_reference: {
+      if (context.numeric_variable_resolver) {
+        auto numeric_value = context.numeric_variable_resolver(expr->identifier);
+        if (numeric_value) return *numeric_value;
+      }
+      if (context.variable_resolver) {
+        auto color_value = context.variable_resolver(expr->identifier);
+        if (color_value) return color_value->r();
+      }
+      return std::nullopt;
+    }
     case channel_expression::op::add: {
-      auto lhs = evaluate_expression(expr->left, env, percentage_scale);
-      auto rhs = evaluate_expression(expr->right, env, percentage_scale);
+      auto lhs = evaluate_expression(expr->left, env, percentage_scale, context);
+      auto rhs = evaluate_expression(expr->right, env, percentage_scale, context);
       if (!lhs || !rhs) return std::nullopt;
       return *lhs + *rhs;
     }
     case channel_expression::op::sub: {
-      auto lhs = evaluate_expression(expr->left, env, percentage_scale);
-      auto rhs = evaluate_expression(expr->right, env, percentage_scale);
+      auto lhs = evaluate_expression(expr->left, env, percentage_scale, context);
+      auto rhs = evaluate_expression(expr->right, env, percentage_scale, context);
       if (!lhs || !rhs) return std::nullopt;
       return *lhs - *rhs;
     }
     case channel_expression::op::mul: {
-      auto lhs = evaluate_expression(expr->left, env, percentage_scale);
-      auto rhs = evaluate_expression(expr->right, env, percentage_scale);
+      auto lhs = evaluate_expression(expr->left, env, percentage_scale, context);
+      auto rhs = evaluate_expression(expr->right, env, percentage_scale, context);
       if (!lhs || !rhs) return std::nullopt;
       return *lhs * *rhs;
     }
     case channel_expression::op::div: {
-      auto lhs = evaluate_expression(expr->left, env, percentage_scale);
-      auto rhs = evaluate_expression(expr->right, env, percentage_scale);
+      auto lhs = evaluate_expression(expr->left, env, percentage_scale, context);
+      auto rhs = evaluate_expression(expr->right, env, percentage_scale, context);
       if (!lhs || !rhs || std::fabs(*rhs) <= 1e-8f) return std::nullopt;
       return *lhs / *rhs;
     }
     case channel_expression::op::unary_minus: {
-      auto value = evaluate_expression(expr->left, env, percentage_scale);
+      auto value = evaluate_expression(expr->left, env, percentage_scale, context);
       if (!value) return std::nullopt;
       return -*value;
     }
@@ -917,13 +945,13 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
     if (!source) return std::nullopt;
 
     const auto env = make_rgb_environment(*source);
-    auto r = evaluate_expression(parsed.channels[0], env, 255.0f);
-    auto g = evaluate_expression(parsed.channels[1], env, 255.0f);
-    auto b = evaluate_expression(parsed.channels[2], env, 255.0f);
+    auto r = evaluate_expression(parsed.channels[0], env, 255.0f, context);
+    auto g = evaluate_expression(parsed.channels[1], env, 255.0f, context);
+    auto b = evaluate_expression(parsed.channels[2], env, 255.0f, context);
     if (!r || !g || !b) return std::nullopt;
 
-    auto alpha =
-        parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f) : std::optional<float>{source->alpha};
+    auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
+                                    : std::optional<float>{source->alpha};
     if (!alpha) return std::nullopt;
 
     core::rgbaf_t out{
@@ -940,13 +968,13 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
   if (!source) return std::nullopt;
 
   const auto env = make_color_environment(*parsed.target_space, *source);
-  auto c1 = evaluate_expression(parsed.channels[0], env, 1.0f);
-  auto c2 = evaluate_expression(parsed.channels[1], env, 1.0f);
-  auto c3 = evaluate_expression(parsed.channels[2], env, 1.0f);
+  auto c1 = evaluate_expression(parsed.channels[0], env, 1.0f, context);
+  auto c2 = evaluate_expression(parsed.channels[1], env, 1.0f, context);
+  auto c3 = evaluate_expression(parsed.channels[2], env, 1.0f, context);
   if (!c1 || !c2 || !c3) return std::nullopt;
 
-  auto alpha =
-      parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f) : std::optional<float>{source->alpha};
+  auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
+                                  : std::optional<float>{source->alpha};
   if (!alpha) return std::nullopt;
 
   details_color_fn::parsed_color_function color_fn{
@@ -974,10 +1002,12 @@ inline std::optional<Color> evaluate(const parsed_css_color& ast, const parse_cs
 }
 
 template <typename Color>
-inline std::optional<Color> evaluate(const parsed_css_color& ast,
-                                     std::function<std::optional<core::rgbaf_t>(std::string_view)> variable_resolver) {
+inline std::optional<Color> evaluate(
+    const parsed_css_color& ast, std::function<std::optional<core::rgbaf_t>(std::string_view)> variable_resolver,
+    std::function<std::optional<float>(std::string_view)> numeric_variable_resolver = {}) {
   parse_css_color_context context;
   context.variable_resolver = std::move(variable_resolver);
+  context.numeric_variable_resolver = std::move(numeric_variable_resolver);
   return evaluate<Color>(ast, context);
 }
 

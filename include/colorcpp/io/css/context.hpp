@@ -20,6 +20,7 @@ namespace colorcpp::io::css {
 struct parse_css_color_context {
   bool dark_theme = false;
   std::function<std::optional<core::rgbaf_t>(std::string_view)> variable_resolver{};
+  std::function<std::optional<float>(std::string_view)> numeric_variable_resolver{};
   std::optional<core::rgbaf_t> current_color = std::nullopt;
 
   std::optional<core::rgbaf_t> accent_color = std::nullopt;
