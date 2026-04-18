@@ -24,22 +24,22 @@ int main() {
   std::cout << "\n  HSL: " << color_cast<hsla_float_t>(base) << "\n";
 
   section("Harmony palettes");
-  dump_palette_row("complementary (2)", generate::complementary(base));
-  dump_palette_row("analogous (3)", generate::analogous(base));
-  dump_palette_row("triadic (3)", generate::triadic(base));
-  dump_palette_row("split_comp (3)", generate::split_complementary(base));
-  dump_palette_row("tetradic (4)", generate::tetradic(base));
-  dump_palette_row("square (4)", generate::square(base));
+  dump_palette_row("complementary (2)", schemes::complementary(base));
+  dump_palette_row("analogous (3)", schemes::analogous(base));
+  dump_palette_row("triadic (3)", schemes::triadic(base));
+  dump_palette_row("split_comp (3)", schemes::split_complementary(base));
+  dump_palette_row("tetradic (4)", schemes::tetradic(base));
+  dump_palette_row("square (4)", schemes::square(base));
 
   section("Monochromatic scale");
   std::cout << "monochromatic (5):\n";
-  for (const auto& c : generate::monochromatic(base, 5)) {
+  for (const auto& c : schemes::monochromatic(base, 5)) {
     print_swatch(std::cout, c, 4);
     std::cout << "  " << std::hex << c << std::dec << "  hsl: " << color_cast<hsla_float_t>(c) << "\n";
   }
 
   section("Linear vs visual scale (tomato → complement)");
-  auto comp = generate::complementary(base);
+  auto comp = schemes::complementary(base);
   std::cout << "linear_scale (5):\n  ";
   for (const auto& c : linear_scale(comp[0], comp[1], 5)) print_swatch(std::cout, c, 3);
   std::cout << "\nvisual_scale (5):\n  ";
@@ -47,7 +47,7 @@ int main() {
   std::cout << "\n";
 
   section("palette_set API");
-  auto tri = generate::triadic(base);
+  auto tri = schemes::triadic(base);
   std::cout << "  size=" << tri.size() << "  empty=" << tri.empty() << "  at(0)=";
   print_color(std::cout, tri.at(0));
   std::cout << "\n";

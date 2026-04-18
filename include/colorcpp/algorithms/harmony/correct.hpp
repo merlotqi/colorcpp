@@ -7,7 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <colorcpp/algorithms/harmony/detail/rules.hpp>
+#include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/palette/palette_set.hpp>
@@ -62,14 +62,13 @@ operations::palette::palette_set<Color> correct(const operations::palette::palet
       original_diffs.push_back(wrap_diff);
     }
 
-    auto [detected_scheme, _] = detail::detect_scheme(palette.size(), original_diffs);
+    auto [detected_scheme, _] = detect_scheme(palette.size(), original_diffs);
     scheme = detected_scheme;
   }
 
-  // Get ideal angles for the target scheme
-  auto ideal_angles = detail::get_ideal_angles(scheme, palette.size());
+  const auto rule = rule_for(scheme, palette.size());
 
-  if (ideal_angles.empty()) {
+  if (rule.ideal_steps.empty()) {
     return palette;  // No correction available for this scheme
   }
 
@@ -86,8 +85,8 @@ operations::palette::palette_set<Color> correct(const operations::palette::palet
   // Note: ideal_angles represent differences between consecutive colors, not absolute positions
   float base_hue = hsl_colors[indices[0]].template get_index<0>();
   float cumulative_angle = 0.0f;
-  for (size_t i = 1; i < indices.size() && i - 1 < ideal_angles.size(); ++i) {
-    cumulative_angle += ideal_angles[i - 1];
+  for (size_t i = 1; i < indices.size() && i - 1 < rule.ideal_steps.size(); ++i) {
+    cumulative_angle += rule.ideal_steps[i - 1];
     float target_hue = std::fmod(base_hue + cumulative_angle, 360.0f);
     if (target_hue < 0) target_hue += 360.0f;
 

@@ -139,7 +139,7 @@ TEST(ScalesTest, PerceptualScaleZero) {
 
 TEST(HarmonyTest, Complementary) {
   rgb8_t base{255, 0, 0};  // Red
-  auto p = generate::complementary(base);
+  auto p = schemes::complementary(base);
   EXPECT_EQ(p.size(), 2u);
   EXPECT_EQ(p[0].r(), base.r());
   EXPECT_EQ(p[0].g(), base.g());
@@ -149,7 +149,7 @@ TEST(HarmonyTest, Complementary) {
 
 TEST(HarmonyTest, Analogous) {
   rgb8_t base{255, 0, 0};
-  auto p = generate::analogous(base);
+  auto p = schemes::analogous(base);
   EXPECT_EQ(p.size(), 3u);
   EXPECT_EQ(p[1].r(), base.r());
   EXPECT_EQ(p[1].g(), base.g());
@@ -158,7 +158,7 @@ TEST(HarmonyTest, Analogous) {
 
 TEST(HarmonyTest, AnalogousAngleZero) {
   rgb8_t base{255, 0, 0};
-  auto p = generate::analogous(base, 0.0f);
+  auto p = schemes::analogous(base, 0.0f);
   EXPECT_EQ(p.size(), 1u);
   EXPECT_EQ(p[0].r(), base.r());
   EXPECT_EQ(p[0].g(), base.g());
@@ -167,7 +167,7 @@ TEST(HarmonyTest, AnalogousAngleZero) {
 
 TEST(HarmonyTest, AnalogousAngleSmall) {
   rgb8_t base{255, 0, 0};
-  auto p = generate::analogous(base, 0.001f);
+  auto p = schemes::analogous(base, 0.001f);
   EXPECT_EQ(p.size(), 1u);
   EXPECT_EQ(p[0].r(), base.r());
   EXPECT_EQ(p[0].g(), base.g());
@@ -176,7 +176,7 @@ TEST(HarmonyTest, AnalogousAngleSmall) {
 
 TEST(HarmonyTest, Triadic) {
   rgb8_t base{255, 0, 0};
-  auto p = generate::triadic(base);
+  auto p = schemes::triadic(base);
   EXPECT_EQ(p.size(), 3u);
   EXPECT_EQ(p[0].r(), base.r());
   EXPECT_EQ(p[0].g(), base.g());
@@ -185,7 +185,7 @@ TEST(HarmonyTest, Triadic) {
 
 TEST(HarmonyTest, SplitComplementary) {
   rgb8_t base{255, 0, 0};
-  auto p = generate::split_complementary(base);
+  auto p = schemes::split_complementary(base);
   EXPECT_EQ(p.size(), 3u);
   EXPECT_EQ(p[0].r(), base.r());
   EXPECT_EQ(p[0].g(), base.g());
@@ -194,7 +194,7 @@ TEST(HarmonyTest, SplitComplementary) {
 
 TEST(HarmonyTest, Tetradic) {
   rgb8_t base{255, 0, 0};
-  auto p = generate::tetradic(base);
+  auto p = schemes::tetradic(base);
   EXPECT_EQ(p.size(), 4u);
   EXPECT_EQ(p[0].r(), base.r());
   EXPECT_EQ(p[0].g(), base.g());
@@ -203,7 +203,7 @@ TEST(HarmonyTest, Tetradic) {
 
 TEST(HarmonyTest, Square) {
   rgb8_t base{255, 0, 0};
-  auto p = generate::square(base);
+  auto p = schemes::square(base);
   EXPECT_EQ(p.size(), 4u);
   EXPECT_EQ(p[0].r(), base.r());
   EXPECT_EQ(p[0].g(), base.g());
@@ -212,27 +212,27 @@ TEST(HarmonyTest, Square) {
 
 TEST(HarmonyTest, Monochromatic) {
   rgb8_t base{128, 128, 128};
-  auto p = generate::monochromatic(base, 5);
+  auto p = schemes::monochromatic(base, 5);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(HarmonyTest, MonochromaticCustomRange) {
   rgb8_t base{128, 128, 128};
-  auto p = generate::monochromatic(base, 3, 0.0f, 1.0f);
+  auto p = schemes::monochromatic(base, 3, 0.0f, 1.0f);
   EXPECT_EQ(p.size(), 3u);
 }
 
 TEST(HarmonyTest, MonochromaticReversedRange) {
   // min > max should be swapped
   rgb8_t base{128, 128, 128};
-  auto p = generate::monochromatic(base, 3, 0.9f, 0.2f);
+  auto p = schemes::monochromatic(base, 3, 0.9f, 0.2f);
   EXPECT_EQ(p.size(), 3u);
 }
 
 TEST(HarmonyTest, MonochromaticClampedRange) {
   // Values outside [0, 1] should be clamped
   rgb8_t base{128, 128, 128};
-  auto p = generate::monochromatic(base, 3, -0.5f, 1.5f);
+  auto p = schemes::monochromatic(base, 3, -0.5f, 1.5f);
   EXPECT_EQ(p.size(), 3u);
 }
 
@@ -271,31 +271,31 @@ TEST(RainbowTest, CustomSaturationLightness) {
 
 TEST(TemperatureTest, WarmPalette) {
   rgb8_t base{200, 100, 50};
-  auto p = warm_palette(base, 5);
+  auto p = families::warm(base, 5);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, CoolPalette) {
   rgb8_t base{50, 100, 200};
-  auto p = cool_palette(base, 5);
+  auto p = families::cool(base, 5);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, NeutralPalette) {
   rgb8_t base{128, 128, 128};
-  auto p = neutral_palette(base, 5);
+  auto p = families::neutral(base, 5);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, WarmPaletteDefaultCount) {
   rgb8_t base{255, 0, 0};
-  auto p = warm_palette(base);
+  auto p = families::warm(base);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, CoolPaletteDefaultCount) {
   rgb8_t base{0, 0, 255};
-  auto p = cool_palette(base);
+  auto p = families::cool(base);
   EXPECT_EQ(p.size(), 5u);
 }
 

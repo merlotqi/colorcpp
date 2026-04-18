@@ -7,7 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <colorcpp/algorithms/harmony/detail/rules.hpp>
+#include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/palette/palette_set.hpp>
@@ -76,7 +76,7 @@ assessment_result assess(const operations::palette::palette_set<Color>& palette)
   }
 
   // Detect harmony scheme and calculate score (use original order for golden angle detection)
-  auto [scheme, ideal_angles] = detail::detect_scheme(palette.size(), original_diffs);
+  auto [scheme, ideal_angles] = detect_scheme(palette.size(), original_diffs);
 
   // Calculate deviation from ideal angles
   float total_deviation = 0.0f;

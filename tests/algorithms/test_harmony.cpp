@@ -29,6 +29,26 @@ TEST(HarmonyAssessTest, ComplementaryPalette) {
   EXPECT_GT(result.score, 80.0f);
 }
 
+TEST(HarmonyRulesTest, TriadicRuleHasCanonicalOffsets) {
+  auto rule = rule_for(harmony_scheme::triadic);
+  ASSERT_EQ(rule.color_count, 3u);
+  ASSERT_EQ(rule.ideal_steps.size(), 2u);
+  ASSERT_EQ(rule.generation_offsets.size(), 3u);
+  EXPECT_FLOAT_EQ(rule.ideal_steps[0], 120.0f);
+  EXPECT_FLOAT_EQ(rule.ideal_steps[1], 120.0f);
+  EXPECT_FLOAT_EQ(rule.generation_offsets[0], 0.0f);
+  EXPECT_FLOAT_EQ(rule.generation_offsets[1], 120.0f);
+  EXPECT_FLOAT_EQ(rule.generation_offsets[2], 240.0f);
+}
+
+TEST(HarmonyRulesTest, DetectSquareScheme) {
+  const std::vector<float> diffs{90.0f, 90.0f, 90.0f, 90.0f};
+  auto [scheme, steps] = detect_scheme(4, diffs);
+  EXPECT_EQ(scheme, harmony_scheme::square);
+  ASSERT_EQ(steps.size(), 3u);
+  EXPECT_FLOAT_EQ(steps[0], 90.0f);
+}
+
 TEST(HarmonyAssessTest, TriadicPalette) {
   // Create a triadic palette (0°, 120°, 240°)
   palette_set<rgbaf_t> palette;

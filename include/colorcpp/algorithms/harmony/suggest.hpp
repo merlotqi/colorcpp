@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/harmony/assess.hpp>
-#include <colorcpp/algorithms/harmony/detail/rules.hpp>
+#include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/palette/palette_set.hpp>
@@ -68,32 +68,35 @@ std::vector<suggestion> suggest(const operations::palette::palette_set<Color>& p
   });
 
   // Get ideal angles for detected scheme
-  auto ideal_angles = detail::get_ideal_angles(result.scheme, palette.size());
+  const auto rule = rule_for(result.scheme, palette.size());
 
   // If scheme is not recognized (pair, triad, tetrad, custom) or ideal_angles is empty,
   // suggest improvements based on palette size
-  if (ideal_angles.empty() || result.scheme == harmony_scheme::pair || result.scheme == harmony_scheme::triad ||
+  if (rule.ideal_steps.empty() || result.scheme == harmony_scheme::pair || result.scheme == harmony_scheme::triad ||
       result.scheme == harmony_scheme::tetrad || result.scheme == harmony_scheme::custom) {
     if (palette.size() == 2) {
-      suggestions.push_back({indices[1], "Shift hue by +180° to create complementary pair", 180.0f});
+      const auto fallback = rule_for(harmony_scheme::complementary);
+      suggestions.push_back({indices[1], "Shift hue by +180° to create complementary pair", fallback.generation_offsets[1]});
       return suggestions;
     } else if (palette.size() == 3) {
-      suggestions.push_back({indices[1], "Shift hue by +120° for triadic harmony", 120.0f});
-      suggestions.push_back({indices[2], "Shift hue by +240° for triadic harmony", 240.0f});
+      const auto fallback = rule_for(harmony_scheme::triadic);
+      suggestions.push_back({indices[1], "Shift hue by +120° for triadic harmony", fallback.generation_offsets[1]});
+      suggestions.push_back({indices[2], "Shift hue by +240° for triadic harmony", fallback.generation_offsets[2]});
       return suggestions;
     } else if (palette.size() == 4) {
-      suggestions.push_back({indices[1], "Shift hue by +90° for square harmony", 90.0f});
-      suggestions.push_back({indices[2], "Shift hue by +180° for square harmony", 180.0f});
-      suggestions.push_back({indices[3], "Shift hue by +270° for square harmony", 270.0f});
+      const auto fallback = rule_for(harmony_scheme::square);
+      suggestions.push_back({indices[1], "Shift hue by +90° for square harmony", fallback.generation_offsets[1]});
+      suggestions.push_back({indices[2], "Shift hue by +180° for square harmony", fallback.generation_offsets[2]});
+      suggestions.push_back({indices[3], "Shift hue by +270° for square harmony", fallback.generation_offsets[3]});
       return suggestions;
     }
   }
 
   // Calculate adjustments needed
   float base_hue = hsl_colors[indices[0]].template get_index<0>();
-  for (size_t i = 1; i < indices.size() && i - 1 < ideal_angles.size(); ++i) {
+  for (size_t i = 1; i < indices.size() && i - 1 < rule.ideal_steps.size(); ++i) {
     float current_hue = hsl_colors[indices[i]].template get_index<0>();
-    float target_hue = std::fmod(base_hue + ideal_angles[i - 1], 360.0f);
+    float target_hue = std::fmod(base_hue + rule.ideal_steps[i - 1], 360.0f);
     if (target_hue < 0) target_hue += 360.0f;
 
     float adjustment = target_hue - current_hue;

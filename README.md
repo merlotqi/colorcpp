@@ -207,14 +207,19 @@ auto linear_palette = linear_scale(red, blue, 5);
 auto visual_palette = visual_scale(red, blue, 5);           // HSL interpolation
 auto perceptual_palette = perceptual_scale(red, blue, 5); // OkLab interpolation
 
-// Color harmony generators
-auto complementary = generate::complementary(base_color);
-auto analogous = generate::analogous(base_color);
-auto triadic = generate::triadic(base_color);
-auto split_complementary = generate::split_complementary(base_color);
-auto tetradic = generate::tetradic(base_color);
-auto square = generate::square(base_color);
-auto monochromatic = generate::monochromatic(base_color);
+// Color harmony palettes backed by algorithms::harmony rules
+auto complementary = schemes::complementary(base_color);
+auto analogous = schemes::analogous(base_color);
+auto triadic = schemes::triadic(base_color);
+auto split_complementary = schemes::split_complementary(base_color);
+auto tetradic = schemes::tetradic(base_color);
+auto square = schemes::square(base_color);
+auto monochromatic = schemes::monochromatic(base_color);
+
+// Warm / cool / neutral families
+auto warm = families::warm(base_color);
+auto cool = families::cool(base_color);
+auto neutral = families::neutral(base_color);
 
 // Access palette colors
 for (const auto& color : perceptual_palette) {

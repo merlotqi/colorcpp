@@ -5,7 +5,6 @@
 using namespace colorcpp;
 using operations::palette::easing_scale;
 using operations::palette::easing_type;
-using operations::palette::generate;
 using operations::palette::lerp_method;
 using operations::palette::linear_scale;
 using operations::palette::multi_scale;
@@ -13,12 +12,13 @@ using operations::palette::perceptual_scale;
 using operations::palette::rainbow;
 using operations::palette::spline_scale;
 using operations::palette::visual_scale;
+namespace palette_schemes = operations::palette::schemes;
 
 // Complementary palette
 static void BM_Palette_Complementary(benchmark::State& state) {
   rgba8_t base{255, 0, 0, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::complementary(base));
+    benchmark::DoNotOptimize(palette_schemes::complementary(base));
   }
 }
 BENCHMARK(BM_Palette_Complementary);
@@ -27,7 +27,7 @@ BENCHMARK(BM_Palette_Complementary);
 static void BM_Palette_Analogous(benchmark::State& state) {
   rgba8_t base{255, 0, 0, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::analogous(base));
+    benchmark::DoNotOptimize(palette_schemes::analogous(base));
   }
 }
 BENCHMARK(BM_Palette_Analogous);
@@ -36,7 +36,7 @@ BENCHMARK(BM_Palette_Analogous);
 static void BM_Palette_Triadic(benchmark::State& state) {
   rgba8_t base{255, 0, 0, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::triadic(base));
+    benchmark::DoNotOptimize(palette_schemes::triadic(base));
   }
 }
 BENCHMARK(BM_Palette_Triadic);
@@ -45,7 +45,7 @@ BENCHMARK(BM_Palette_Triadic);
 static void BM_Palette_SplitComplementary(benchmark::State& state) {
   rgba8_t base{255, 0, 0, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::split_complementary(base));
+    benchmark::DoNotOptimize(palette_schemes::split_complementary(base));
   }
 }
 BENCHMARK(BM_Palette_SplitComplementary);
@@ -54,7 +54,7 @@ BENCHMARK(BM_Palette_SplitComplementary);
 static void BM_Palette_Tetradic(benchmark::State& state) {
   rgba8_t base{255, 0, 0, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::tetradic(base));
+    benchmark::DoNotOptimize(palette_schemes::tetradic(base));
   }
 }
 BENCHMARK(BM_Palette_Tetradic);
@@ -63,7 +63,7 @@ BENCHMARK(BM_Palette_Tetradic);
 static void BM_Palette_Square(benchmark::State& state) {
   rgba8_t base{255, 0, 0, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::square(base));
+    benchmark::DoNotOptimize(palette_schemes::square(base));
   }
 }
 BENCHMARK(BM_Palette_Square);
@@ -72,7 +72,7 @@ BENCHMARK(BM_Palette_Square);
 static void BM_Palette_Monochromatic_5(benchmark::State& state) {
   rgba8_t base{128, 64, 192, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::monochromatic(base, 5));
+    benchmark::DoNotOptimize(palette_schemes::monochromatic(base, 5));
   }
 }
 BENCHMARK(BM_Palette_Monochromatic_5);
@@ -81,7 +81,7 @@ BENCHMARK(BM_Palette_Monochromatic_5);
 static void BM_Palette_Monochromatic_10(benchmark::State& state) {
   rgba8_t base{128, 64, 192, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(generate::monochromatic(base, 10));
+    benchmark::DoNotOptimize(palette_schemes::monochromatic(base, 10));
   }
 }
 BENCHMARK(BM_Palette_Monochromatic_10);
