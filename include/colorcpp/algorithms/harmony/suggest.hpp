@@ -8,10 +8,11 @@
 #include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/harmony/assess.hpp>
+#include <colorcpp/algorithms/harmony/detail/angle_utils.hpp>
 #include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
-#include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/core/palette_set.hpp>
+#include <colorcpp/operations/conversion.hpp>
 #include <string>
 #include <vector>
 
@@ -76,7 +77,8 @@ std::vector<suggestion> suggest(const core::palette_set<Color>& palette) {
       result.scheme == harmony_scheme::tetrad || result.scheme == harmony_scheme::custom) {
     if (palette.size() == 2) {
       const auto fallback = rule_for(harmony_scheme::complementary);
-      suggestions.push_back({indices[1], "Shift hue by +180° to create complementary pair", fallback.generation_offsets[1]});
+      suggestions.push_back(
+          {indices[1], "Shift hue by +180° to create complementary pair", fallback.generation_offsets[1]});
       return suggestions;
     } else if (palette.size() == 3) {
       const auto fallback = rule_for(harmony_scheme::triadic);

@@ -6,8 +6,10 @@
 #pragma once
 
 #include <cmath>
+#include <colorcpp/algorithms/harmony/detail/angle_utils.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
 #include <cstddef>
+#include <numeric>
 #include <utility>
 #include <vector>
 
@@ -170,6 +172,89 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
     if (diffs[0] < 25.0f && diffs[1] < 25.0f && diffs[2] < 25.0f && diffs[3] < 25.0f) {
       return {harmony_scheme::analogous_wide, rule_for(harmony_scheme::analogous_wide, 5).ideal_steps};
     }
+    return {harmony_scheme::custom, {}};
+  }
+
+  // >5 colors: multi-group detection
+  if (count > 5) {
+    // Strategy: find the largest gap to split into groups, then check if groups follow known patterns.
+    // 1. Find split point (largest hue gap)
+    // 2. Evaluate each group independently
+    // 3. If groups are valid sub-schemes, return a combined description
+
+    // Find the largest gap as natural split boundary
+    size_t split_idx = 0;
+    float max_gap = 0.0f;
+    for (size_t i = 0; i < diffs.size(); ++i) {
+      if (diffs[i] > max_gap) {
+        max_gap = diffs[i];
+        split_idx = i;
+      }
+    }
+
+    // Only attempt grouping if the gap is significant (>60°)
+    if (max_gap > 60.0f) {
+      // Split into two groups at the gap
+      // Group A: colors [0, split_idx] (size = split_idx + 1)
+      // Group B: colors [split_idx+1, count-1] (size = count - split_idx - 1)
+      size_t group_a_size = split_idx + 1;
+      size_t group_b_size = count - split_idx - 1;
+
+      // Build diffs for each group
+      std::vector<float> diffs_a(diffs.begin(), diffs.begin() + split_idx);
+      std::vector<float> diffs_b(diffs.begin() + split_idx + 1, diffs.end());
+
+      // Detect scheme for each group
+      auto [scheme_a, steps_a] = detect_scheme(group_a_size, diffs_a);
+      auto [scheme_b, steps_b] = detect_scheme(group_b_size, diffs_b);
+
+      // If both groups are valid (not custom/pair/triad/tetrad), this is a recognizable multi-group pattern
+      bool a_valid = scheme_a != harmony_scheme::custom && scheme_a != harmony_scheme::pair &&
+                     scheme_a != harmony_scheme::triad && scheme_a != harmony_scheme::tetrad &&
+                     scheme_a != harmony_scheme::single;
+      bool b_valid = scheme_b != harmony_scheme::custom && scheme_b != harmony_scheme::pair &&
+                     scheme_b != harmony_scheme::triad && scheme_b != harmony_scheme::tetrad &&
+                     scheme_b != harmony_scheme::single;
+
+      if (a_valid && b_valid) {
+        // Two complementary groups (e.g., 2 analogous groups on opposite sides)
+        // Report as compound-like pattern; ideal_steps = combined steps with the large gap included
+        std::vector<float> combined_steps;
+        combined_steps.insert(combined_steps.end(), steps_a.begin(), steps_a.end());
+        combined_steps.push_back(max_gap - std::accumulate(steps_a.begin(), steps_a.end(), 0.0f));
+        combined_steps.insert(combined_steps.end(), steps_b.begin(), steps_b.end());
+        return {harmony_scheme::compound, combined_steps};
+      }
+
+      // Check for 3 groups (e.g., 2+2+2 complementary pairs)
+      if (group_a_size == group_b_size && group_a_size >= 2 && group_a_size <= 3) {
+        auto canonical = canonical_color_count(scheme_a);
+        if (canonical == group_a_size) {
+          // Symmetric multi-group: treat as extended compound
+          std::vector<float> combined_steps;
+          combined_steps.insert(combined_steps.end(), steps_a.begin(), steps_a.end());
+          combined_steps.push_back(max_gap);
+          combined_steps.insert(combined_steps.end(), steps_b.begin(), steps_b.end());
+          return {harmony_scheme::compound, combined_steps};
+        }
+      }
+    }
+
+    // Check if all diffs are roughly equal (even distribution)
+    float avg_diff = std::accumulate(diffs.begin(), diffs.end(), 0.0f) / static_cast<float>(diffs.size());
+    bool even_distribution = true;
+    for (float d : diffs) {
+      if (detail::angle_diff(d, avg_diff) > 15.0f) {
+        even_distribution = false;
+        break;
+      }
+    }
+    if (even_distribution) {
+      // All colors evenly spaced; ideal_steps = all the same
+      std::vector<float> even_steps(count - 1, avg_diff);
+      return {harmony_scheme::compound, even_steps};
+    }
+
     return {harmony_scheme::custom, {}};
   }
 

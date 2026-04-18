@@ -15,6 +15,7 @@
 #include <colorcpp/algorithms/harmony/assess.hpp>
 #include <colorcpp/algorithms/harmony/correct.hpp>
 #include <colorcpp/algorithms/harmony/suggest.hpp>
+#include <colorcpp/algorithms/harmony/weights.hpp>
 
 namespace colorcpp::algorithms::harmony {
 // All functionality is provided by the included sub-modules
