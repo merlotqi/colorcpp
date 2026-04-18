@@ -124,7 +124,7 @@ inline float apply_easing(float t, easing_type easing) {
  * @return Palette with eased gradient colors.
  */
 template <typename Color>
-auto easing_scale(const Color& start, const Color& end, size_t count, easing_type easing,
+core::palette_set<Color> easing_scale(const Color& start, const Color& end, size_t count, easing_type easing,
                   lerp_method method = lerp_method::oklab) {
   core::palette_set<Color> p;
   if (count == 0) return p;
@@ -164,7 +164,7 @@ auto easing_scale(const Color& start, const Color& end, size_t count, easing_typ
  * @return Palette with spline-interpolated colors.
  */
 template <typename Color>
-auto spline_scale(const std::vector<Color>& control_points, size_t count,
+core::palette_set<Color> spline_scale(const std::vector<Color>& control_points, size_t count,
                   operations::interpolate::cr_mode mode = operations::interpolate::cr_mode::centripetal) {
   core::palette_set<Color> p;
 
@@ -260,7 +260,7 @@ auto spline_scale(const std::vector<Color>& control_points, size_t count,
  * @return Palette with smooth multi-color gradient.
  */
 template <typename Color>
-auto multi_scale(const std::vector<Color>& colors, size_t count, lerp_method method = lerp_method::oklab) {
+core::palette_set<Color> multi_scale(const std::vector<Color>& colors, size_t count, lerp_method method = lerp_method::oklab) {
   core::palette_set<Color> p;
 
   if (colors.empty() || count == 0) return p;

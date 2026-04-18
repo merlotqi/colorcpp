@@ -15,7 +15,7 @@ namespace colorcpp::algorithms::palette {
  * @brief Generate a warm palette family (reds, oranges, yellows).
  */
 template <typename Color>
-auto warm(const Color& base, size_t count = 5) {
+core::palette_set<Color> warm(const Color& base, size_t count = 5) {
   using namespace operations::conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
@@ -31,7 +31,7 @@ auto warm(const Color& base, size_t count = 5) {
  * @brief Generate a cool palette family (blues, greens, purples).
  */
 template <typename Color>
-auto cool(const Color& base, size_t count = 5) {
+core::palette_set<Color> cool(const Color& base, size_t count = 5) {
   using namespace operations::conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
@@ -47,7 +47,7 @@ auto cool(const Color& base, size_t count = 5) {
  * @brief Generate a neutral palette family with the source hue as tint.
  */
 template <typename Color>
-auto neutral(const Color& base, size_t count = 5) {
+core::palette_set<Color> neutral(const Color& base, size_t count = 5) {
   using namespace operations::conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 

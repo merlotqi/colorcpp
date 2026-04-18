@@ -29,7 +29,7 @@ struct material_palette {
  * @return Palette with primary colors (10-99 tonal values).
  */
 template <typename Color>
-auto material_primary(const Color& base, size_t count = 10) {
+core::palette_set<Color> material_primary(const Color& base, size_t count = 10) {
   using namespace conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
@@ -50,7 +50,7 @@ auto material_primary(const Color& base, size_t count = 10) {
  * @return Palette with secondary colors.
  */
 template <typename Color>
-auto material_secondary(const Color& base, size_t count = 10) {
+core::palette_set<Color> material_secondary(const Color& base, size_t count = 10) {
   using namespace conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
@@ -71,7 +71,7 @@ auto material_secondary(const Color& base, size_t count = 10) {
  * @return Palette with tertiary colors.
  */
 template <typename Color>
-auto material_tertiary(const Color& base, size_t count = 10) {
+core::palette_set<Color> material_tertiary(const Color& base, size_t count = 10) {
   using namespace conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
@@ -92,7 +92,7 @@ auto material_tertiary(const Color& base, size_t count = 10) {
  * @return Palette with neutral colors.
  */
 template <typename Color>
-auto material_neutral(const Color& base, size_t count = 10) {
+core::palette_set<Color> material_neutral(const Color& base, size_t count = 10) {
   using namespace conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
@@ -110,7 +110,7 @@ auto material_neutral(const Color& base, size_t count = 10) {
  * @return Palette with error colors (red-based).
  */
 template <typename Color>
-auto material_error(size_t count = 10) {
+core::palette_set<Color> material_error(size_t count = 10) {
   using namespace conversion;
 
   // Error: pure red with high saturation
@@ -127,7 +127,7 @@ auto material_error(size_t count = 10) {
  * @return Complete Material palette with all color roles.
  */
 template <typename Color>
-auto material_design(const Color& base, size_t count = 10) {
+material_palette material_design(const Color& base, size_t count = 10) {
   material_palette palette;
   palette.primary = material_primary(base, count);
   palette.secondary = material_secondary(base, count);

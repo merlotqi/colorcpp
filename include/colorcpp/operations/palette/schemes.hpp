@@ -14,6 +14,17 @@
 
 namespace colorcpp::operations::palette::schemes {
 
+/// Default angle for analogous palette generation.
+inline constexpr float default_analogous_angle = 30.0f;
+/// Epsilon threshold for detecting near-zero angle values.
+inline constexpr float angle_epsilon = 0.01f;
+/// Default color count for monochromatic palette.
+inline constexpr size_t default_monochromatic_count = 5;
+/// Default minimum lightness for monochromatic palette.
+inline constexpr float default_min_lightness = 0.2f;
+/// Default maximum lightness for monochromatic palette.
+inline constexpr float default_max_lightness = 0.9f;
+
 namespace detail {
 
 template <typename Color>
@@ -56,8 +67,8 @@ core::palette_set<Color> complementary(const Color& base) {
  * @brief Generate an analogous palette around the base hue.
  */
 template <typename Color>
-core::palette_set<Color> analogous(const Color& base, float angle = 30.0f) {
-  if (std::abs(angle) < 0.01f) {
+core::palette_set<Color> analogous(const Color& base, float angle = default_analogous_angle) {
+  if (std::abs(angle) < angle_epsilon) {
     return core::palette_set<Color>{base};
   }
   return detail::from_offsets(base, {-angle, 0.0f, angle});
@@ -99,8 +110,9 @@ core::palette_set<Color> square(const Color& base) {
  * @brief Generate a monochromatic palette by varying lightness.
  */
 template <typename Color>
-core::palette_set<Color> monochromatic(const Color& base, size_t count = 5, float min_lightness = 0.2f,
-                                 float max_lightness = 0.9f) {
+core::palette_set<Color> monochromatic(const Color& base, size_t count = default_monochromatic_count,
+                                       float min_lightness = default_min_lightness,
+                                       float max_lightness = default_max_lightness) {
   using namespace conversion;
   auto h = color_cast<core::hsla_float_t>(base);
 

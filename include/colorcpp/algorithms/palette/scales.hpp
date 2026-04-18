@@ -14,7 +14,7 @@ namespace colorcpp::algorithms::palette {
  * @brief Generate @p count colors from @p start to @p end via RGB linear interpolation.
  */
 template <typename Color>
-auto linear_scale(const Color& start, const Color& end, size_t count) {
+core::palette_set<Color> linear_scale(const Color& start, const Color& end, size_t count) {
   core::palette_set<Color> p;
   if (count == 0) return p;
   if (count == 1) {
@@ -33,7 +33,7 @@ auto linear_scale(const Color& start, const Color& end, size_t count) {
  * @brief Generate @p count colors via HSL interpolation (more vivid than linear_scale).
  */
 template <typename Color>
-auto visual_scale(const Color& start, const Color& end, size_t count) {
+core::palette_set<Color> visual_scale(const Color& start, const Color& end, size_t count) {
   core::palette_set<Color> p;
   if (count == 0) return p;
   if (count == 1) {
@@ -52,7 +52,7 @@ auto visual_scale(const Color& start, const Color& end, size_t count) {
  * @brief Generate @p count colors via Oklab interpolation.
  */
 template <typename Color>
-auto perceptual_scale(const Color& start, const Color& end, size_t count) {
+core::palette_set<Color> perceptual_scale(const Color& start, const Color& end, size_t count) {
   core::palette_set<Color> p;
   if (count == 0) return p;
   if (count == 1) {

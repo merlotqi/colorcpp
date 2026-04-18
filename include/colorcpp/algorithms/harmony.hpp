@@ -10,9 +10,10 @@
 
 #pragma once
 
+#include <colorcpp/algorithms/harmony/scheme.hpp>
+#include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/assess.hpp>
 #include <colorcpp/algorithms/harmony/correct.hpp>
-#include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/suggest.hpp>
 
 namespace colorcpp::algorithms::harmony {

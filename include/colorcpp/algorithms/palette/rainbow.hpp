@@ -16,7 +16,7 @@ namespace colorcpp::algorithms::palette {
  * @return Palette with rainbow colors.
  */
 template <typename Color>
-auto rainbow(size_t count = 7) {
+core::palette_set<Color> rainbow(size_t count = 7) {
   using namespace operations::conversion;
 
   core::palette_set<Color> p;
@@ -38,7 +38,7 @@ auto rainbow(size_t count = 7) {
  * @return Palette with rainbow colors.
  */
 template <typename Color>
-auto rainbow_custom(size_t count, float saturation, float lightness) {
+core::palette_set<Color> rainbow_custom(size_t count, float saturation, float lightness) {
   using namespace operations::conversion;
 
   core::palette_set<Color> p;
