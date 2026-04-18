@@ -10,7 +10,7 @@ In colorcpp
 * Canonical namespaces:
 
   * ``colorcpp::core`` — color types, constants, stream I/O
-  * ``colorcpp::operations`` — conversion, blend, compare, flow, interpolate, palette, random
+  * ``colorcpp::operations`` — conversion, blend, compare, interpolate, palette, random
   * ``colorcpp::algorithms`` — accessibility, color temperature, delta_e, gamut, gradient, harmony, vision
   * ``colorcpp::io`` — css, literals, serialization, binary_io, ansi
 
