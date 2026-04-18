@@ -12,7 +12,7 @@ In colorcpp
 Main entry points:
 
 * ``assess(palette)`` — evaluate how harmonious a palette is
-* ``correct(palette, target_scheme)`` — adjust colors to improve harmony
+* ``correct(palette, target_scheme)`` — adjust colors and report whether correction was applied
 * ``suggest(palette)`` — provide suggestions for improving harmony
 
 Harmony schemes
@@ -58,7 +58,7 @@ The score is calculated based on how closely the palette's hue differences match
 Correction
 ----------
 
-``correct()`` adjusts colors to match a target harmony scheme:
+``correct()`` adjusts colors to match a target harmony scheme and returns a ``correction_result``:
 
 .. code-block:: cpp
 
@@ -68,7 +68,31 @@ Correction
   // Correct to specific scheme
   auto corrected = harmony::correct(palette, harmony_scheme::triadic);
 
+  if (corrected.applied()) {
+    auto harmony_score = harmony::assess(corrected.palette);
+  }
+
+.. code-block:: cpp
+
+  enum class correction_status {
+    corrected,
+    unchanged,
+    insufficient_colors,
+    unsupported_scheme,
+  };
+
+  template <typename Color>
+  struct correction_result {
+    core::palette_set<Color> palette;
+    harmony_scheme detected_scheme;
+    harmony_scheme target_scheme;
+    correction_status status;
+
+    bool applied() const;
+  };
+
 The function preserves the first color's hue and adjusts subsequent colors to match the ideal angles for the target scheme.
+If the input palette is too small or the resolved target scheme has no correction rule, the original palette is returned alongside a non-corrected status.
 
 Suggestions
 -----------
