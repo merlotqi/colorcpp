@@ -9,6 +9,22 @@
 
 namespace colorcpp::algorithms::harmony::detail {
 
+namespace impl {
+
+constexpr float constexpr_fmod(float x, float y) noexcept {
+  // Implement constexpr fmod for C++17 compatibility (MSVC doesn't have constexpr std::fmod)
+  // This implementation is sufficient for angle normalization use case
+  if (y == 0.0f) return 0.0f;
+
+  const float quotient = x / y;
+  const int whole = static_cast<int>(quotient);
+  return x - static_cast<float>(whole) * y;
+}
+
+constexpr float constexpr_abs(float x) noexcept { return x < 0.0f ? -x : x; }
+
+}  // namespace impl
+
 /// Golden angle constant (≈ 137.50776405°)
 constexpr float k_golden_angle = 137.50776405f;
 
@@ -27,7 +43,7 @@ constexpr float k_base_deviation_penalty = 30.0f;
  * @return Normalized angle in [0, 360).
  */
 constexpr float normalize_angle(float angle) {
-  angle = std::fmod(angle, 360.0f);
+  angle = impl::constexpr_fmod(angle, 360.0f);
   if (angle < 0.0f) angle += 360.0f;
   return angle;
 }
@@ -39,7 +55,7 @@ constexpr float normalize_angle(float angle) {
  * @return Absolute shortest distance in [0, 180].
  */
 constexpr float angle_diff(float from, float to) {
-  float diff = std::abs(normalize_angle(to) - normalize_angle(from));
+  float diff = impl::constexpr_abs(normalize_angle(to) - normalize_angle(from));
   return diff > 180.0f ? 360.0f - diff : diff;
 }
 
@@ -75,7 +91,7 @@ constexpr bool angle_near(float a, float b, float tolerance = k_small_tolerance)
  * @return True if difference matches target within tolerance.
  */
 constexpr bool diff_near(float diff, float target, float tolerance = k_default_tolerance) {
-  return std::abs(diff - target) <= tolerance;
+  return impl::constexpr_abs(diff - target) <= tolerance;
 }
 
 }  // namespace colorcpp::algorithms::harmony::detail
