@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-namespace colorcpp::operations::palette::details {
+namespace colorcpp::algorithms::palette::details {
 
 /**
  * @brief Rotate hue by specified degrees.
@@ -16,7 +16,6 @@ namespace colorcpp::operations::palette::details {
  * @return Rotated hue in [0, 360], or 0 if input is NaN/Inf.
  */
 inline float rotate_hue(float h, float degrees) {
-  // Handle NaN and Inf
   if (!std::isfinite(h) || !std::isfinite(degrees)) {
     return 0.0f;
   }
@@ -35,7 +34,6 @@ inline float rotate_hue(float h, float degrees) {
  */
 template <typename HSLColor>
 constexpr HSLColor modify_hue(const HSLColor& src, float new_h) {
-  // Clamp invalid values to 0
   if (!std::isfinite(new_h)) {
     new_h = 0.0f;
   }
@@ -47,4 +45,4 @@ constexpr HSLColor modify_hue(const HSLColor& src, float new_h) {
   }
 }
 
-}  // namespace colorcpp::operations::palette::details
+}  // namespace colorcpp::algorithms::palette::details

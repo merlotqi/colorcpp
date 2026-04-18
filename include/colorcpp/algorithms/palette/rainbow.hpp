@@ -5,22 +5,21 @@
 
 #pragma once
 
+#include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
 
-namespace colorcpp::operations::palette {
+namespace colorcpp::algorithms::palette {
 
 /**
  * @brief Generate a rainbow palette with evenly distributed hues.
  * @param count Number of colors (default: 7).
  * @return Palette with rainbow colors.
- * @note Colors are generated with full saturation and 50% lightness in HSL space.
  */
 template <typename Color>
 auto rainbow(size_t count = 7) {
-  using namespace conversion;
+  using namespace operations::conversion;
 
-  palette_set<Color> p;
+  core::palette_set<Color> p;
   if (count == 0) return p;
 
   for (size_t i = 0; i < count; ++i) {
@@ -40,12 +39,11 @@ auto rainbow(size_t count = 7) {
  */
 template <typename Color>
 auto rainbow_custom(size_t count, float saturation, float lightness) {
-  using namespace conversion;
+  using namespace operations::conversion;
 
-  palette_set<Color> p;
+  core::palette_set<Color> p;
   if (count == 0) return p;
 
-  // Clamp values
   saturation = std::max(0.0f, std::min(1.0f, saturation));
   lightness = std::max(0.0f, std::min(1.0f, lightness));
 
@@ -57,4 +55,4 @@ auto rainbow_custom(size_t count, float saturation, float lightness) {
   return p;
 }
 
-}  // namespace colorcpp::operations::palette
+}  // namespace colorcpp::algorithms::palette

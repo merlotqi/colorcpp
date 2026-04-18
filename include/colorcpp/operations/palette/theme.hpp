@@ -8,7 +8,7 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/palette/details.hpp>
+#include <colorcpp/algorithms/palette/details.hpp>
 
 namespace colorcpp::operations::palette {
 
@@ -48,8 +48,8 @@ class theme {
   static core::rgba8_t shift_hue(core::rgba8_t c, float degrees) {
     using namespace conversion;
     auto hsla = color_cast<core::hsla_float_t>(c);
-    float new_h = details::rotate_hue(hsla.h(), degrees);
-    return color_cast<core::rgba8_t>(details::modify_hue(hsla, new_h));
+    float new_h = algorithms::palette::details::rotate_hue(hsla.h(), degrees);
+    return color_cast<core::rgba8_t>(algorithms::palette::details::modify_hue(hsla, new_h));
   }
 
   static core::rgba8_t adjust_lightness(core::rgba8_t c, float target_l) {

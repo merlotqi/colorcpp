@@ -11,7 +11,8 @@
 namespace colorcpp::operations::test {
 
 using namespace core;
-using namespace palette;
+using namespace algorithms::palette;
+using namespace operations::palette;
 
 // ============================================================================
 // palette_set tests
@@ -271,31 +272,31 @@ TEST(RainbowTest, CustomSaturationLightness) {
 
 TEST(TemperatureTest, WarmPalette) {
   rgb8_t base{200, 100, 50};
-  auto p = families::warm(base, 5);
+  auto p = warm(base, 5);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, CoolPalette) {
   rgb8_t base{50, 100, 200};
-  auto p = families::cool(base, 5);
+  auto p = cool(base, 5);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, NeutralPalette) {
   rgb8_t base{128, 128, 128};
-  auto p = families::neutral(base, 5);
+  auto p = neutral(base, 5);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, WarmPaletteDefaultCount) {
   rgb8_t base{255, 0, 0};
-  auto p = families::warm(base);
+  auto p = warm(base);
   EXPECT_EQ(p.size(), 5u);
 }
 
 TEST(TemperatureTest, CoolPaletteDefaultCount) {
   rgb8_t base{0, 0, 255};
-  auto p = families::cool(base);
+  auto p = cool(base);
   EXPECT_EQ(p.size(), 5u);
 }
 

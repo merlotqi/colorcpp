@@ -7,7 +7,7 @@ using algorithms::harmony::assess;
 using algorithms::harmony::correct;
 using algorithms::harmony::harmony_scheme;
 using algorithms::harmony::suggest;
-using operations::palette::palette_set;
+using core::palette_set;
 
 // Assess complementary palette
 static void BM_HarmonyAssess_Complementary(benchmark::State& state) {

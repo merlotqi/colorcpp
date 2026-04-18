@@ -11,7 +11,7 @@
 #include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <string>
 #include <vector>
 
@@ -33,7 +33,7 @@ struct suggestion {
  * @return Vector of suggestions for improving harmony.
  */
 template <typename Color>
-std::vector<suggestion> suggest(const operations::palette::palette_set<Color>& palette) {
+std::vector<suggestion> suggest(const core::palette_set<Color>& palette) {
   using namespace operations::conversion;
 
   std::vector<suggestion> suggestions;

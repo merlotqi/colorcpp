@@ -9,8 +9,8 @@
 #include <cmath>
 #include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
 #include <vector>
 
 namespace colorcpp::algorithms::harmony {
@@ -23,8 +23,8 @@ namespace colorcpp::algorithms::harmony {
  * @return Corrected palette with improved harmony.
  */
 template <typename Color>
-operations::palette::palette_set<Color> correct(const operations::palette::palette_set<Color>& palette,
-                                                harmony_scheme target_scheme = harmony_scheme::custom) {
+core::palette_set<Color> correct(const core::palette_set<Color>& palette,
+                                 harmony_scheme target_scheme = harmony_scheme::custom) {
   using namespace operations::conversion;
 
   if (palette.size() < 2) {
@@ -96,7 +96,7 @@ operations::palette::palette_set<Color> correct(const operations::palette::palet
   }
 
   // Convert back to original color type
-  operations::palette::palette_set<Color> result;
+  core::palette_set<Color> result;
   for (const auto& hsl : hsl_colors) {
     result.add(color_cast<Color>(hsl));
   }

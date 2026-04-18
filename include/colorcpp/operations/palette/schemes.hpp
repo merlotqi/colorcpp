@@ -7,17 +7,17 @@
 
 #include <algorithm>
 #include <colorcpp/algorithms/harmony/rules.hpp>
+#include <colorcpp/algorithms/palette/details.hpp>
+#include <colorcpp/algorithms/palette/scales.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/palette/details.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
-#include <colorcpp/operations/palette/scales.hpp>
 
 namespace colorcpp::operations::palette::schemes {
 
 namespace detail {
 
 template <typename Color>
-palette_set<Color> from_offsets(const Color& base, const std::vector<float>& offsets) {
+core::palette_set<Color> from_offsets(const Color& base, const std::vector<float>& offsets) {
   using namespace conversion;
 
   if (offsets.empty()) {
@@ -25,10 +25,10 @@ palette_set<Color> from_offsets(const Color& base, const std::vector<float>& off
   }
 
   auto hsl = color_cast<core::hsla_float_t>(base);
-  palette_set<Color> result;
+  core::palette_set<Color> result;
   for (float offset : offsets) {
-    float target_hue = details::rotate_hue(hsl.template get_index<0>(), offset);
-    result.add(color_cast<Color>(details::modify_hue(hsl, target_hue)));
+    float target_hue = algorithms::palette::details::rotate_hue(hsl.template get_index<0>(), offset);
+    result.add(color_cast<Color>(algorithms::palette::details::modify_hue(hsl, target_hue)));
   }
   return result;
 }
@@ -39,7 +39,7 @@ palette_set<Color> from_offsets(const Color& base, const std::vector<float>& off
  * @brief Generate a palette from a formal harmony scheme.
  */
 template <typename Color>
-palette_set<Color> make(const Color& base, algorithms::harmony::harmony_scheme scheme, size_t count = 0) {
+core::palette_set<Color> make(const Color& base, algorithms::harmony::harmony_scheme scheme, size_t count = 0) {
   const auto rule = algorithms::harmony::rule_for(scheme, count);
   return detail::from_offsets(base, rule.generation_offsets);
 }
@@ -48,7 +48,7 @@ palette_set<Color> make(const Color& base, algorithms::harmony::harmony_scheme s
  * @brief Generate a complementary palette.
  */
 template <typename Color>
-palette_set<Color> complementary(const Color& base) {
+core::palette_set<Color> complementary(const Color& base) {
   return make(base, algorithms::harmony::harmony_scheme::complementary);
 }
 
@@ -56,9 +56,9 @@ palette_set<Color> complementary(const Color& base) {
  * @brief Generate an analogous palette around the base hue.
  */
 template <typename Color>
-palette_set<Color> analogous(const Color& base, float angle = 30.0f) {
+core::palette_set<Color> analogous(const Color& base, float angle = 30.0f) {
   if (std::abs(angle) < 0.01f) {
-    return palette_set<Color>{base};
+    return core::palette_set<Color>{base};
   }
   return detail::from_offsets(base, {-angle, 0.0f, angle});
 }
@@ -67,7 +67,7 @@ palette_set<Color> analogous(const Color& base, float angle = 30.0f) {
  * @brief Generate a triadic palette.
  */
 template <typename Color>
-palette_set<Color> triadic(const Color& base) {
+core::palette_set<Color> triadic(const Color& base) {
   return make(base, algorithms::harmony::harmony_scheme::triadic);
 }
 
@@ -75,7 +75,7 @@ palette_set<Color> triadic(const Color& base) {
  * @brief Generate a split-complementary palette.
  */
 template <typename Color>
-palette_set<Color> split_complementary(const Color& base) {
+core::palette_set<Color> split_complementary(const Color& base) {
   return make(base, algorithms::harmony::harmony_scheme::split_complementary);
 }
 
@@ -83,7 +83,7 @@ palette_set<Color> split_complementary(const Color& base) {
  * @brief Generate a tetradic palette.
  */
 template <typename Color>
-palette_set<Color> tetradic(const Color& base) {
+core::palette_set<Color> tetradic(const Color& base) {
   return make(base, algorithms::harmony::harmony_scheme::tetradic);
 }
 
@@ -91,7 +91,7 @@ palette_set<Color> tetradic(const Color& base) {
  * @brief Generate a square palette.
  */
 template <typename Color>
-palette_set<Color> square(const Color& base) {
+core::palette_set<Color> square(const Color& base) {
   return make(base, algorithms::harmony::harmony_scheme::square);
 }
 
@@ -99,7 +99,7 @@ palette_set<Color> square(const Color& base) {
  * @brief Generate a monochromatic palette by varying lightness.
  */
 template <typename Color>
-palette_set<Color> monochromatic(const Color& base, size_t count = 5, float min_lightness = 0.2f,
+core::palette_set<Color> monochromatic(const Color& base, size_t count = 5, float min_lightness = 0.2f,
                                  float max_lightness = 0.9f) {
   using namespace conversion;
   auto h = color_cast<core::hsla_float_t>(base);
@@ -116,7 +116,7 @@ palette_set<Color> monochromatic(const Color& base, size_t count = 5, float min_
   core::hsla_float_t high{h.template get_index<0>(), h.template get_index<1>(), max_lightness,
                           h.template get_index<3>()};
 
-  return visual_scale(color_cast<Color>(low), color_cast<Color>(high), count);
+  return algorithms::palette::visual_scale(color_cast<Color>(low), color_cast<Color>(high), count);
 }
 
 }  // namespace colorcpp::operations::palette::schemes

@@ -5,18 +5,18 @@
 
 #pragma once
 
+#include <colorcpp/algorithms/palette/scales.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
-#include <colorcpp/operations/palette/scales.hpp>
 
-namespace colorcpp::operations::palette::families {
+namespace colorcpp::algorithms::palette {
 
 /**
  * @brief Generate a warm palette family (reds, oranges, yellows).
  */
 template <typename Color>
 auto warm(const Color& base, size_t count = 5) {
-  using namespace conversion;
+  using namespace operations::conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
   core::hsla_float_t warm_start{0.0f, hsl.template get_index<1>(), hsl.template get_index<2>(),
@@ -32,7 +32,7 @@ auto warm(const Color& base, size_t count = 5) {
  */
 template <typename Color>
 auto cool(const Color& base, size_t count = 5) {
-  using namespace conversion;
+  using namespace operations::conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
   core::hsla_float_t cool_start{180.0f, hsl.template get_index<1>(), hsl.template get_index<2>(),
@@ -48,7 +48,7 @@ auto cool(const Color& base, size_t count = 5) {
  */
 template <typename Color>
 auto neutral(const Color& base, size_t count = 5) {
-  using namespace conversion;
+  using namespace operations::conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
   core::hsla_float_t neutral_start{hsl.template get_index<0>(), 0.1f, 0.2f, 1.0f};
@@ -57,4 +57,4 @@ auto neutral(const Color& base, size_t count = 5) {
   return visual_scale(color_cast<Color>(neutral_start), color_cast<Color>(neutral_end), count);
 }
 
-}  // namespace colorcpp::operations::palette::families
+}  // namespace colorcpp::algorithms::palette

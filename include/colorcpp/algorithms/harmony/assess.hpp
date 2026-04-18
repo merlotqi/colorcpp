@@ -10,7 +10,7 @@
 #include <colorcpp/algorithms/harmony/rules.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <vector>
 
 namespace colorcpp::algorithms::harmony {
@@ -31,7 +31,7 @@ struct assessment_result {
  * @return Assessment result with score and detected scheme.
  */
 template <typename Color>
-assessment_result assess(const operations::palette::palette_set<Color>& palette) {
+assessment_result assess(const core::palette_set<Color>& palette) {
   using namespace operations::conversion;
 
   if (palette.size() < 2) {
