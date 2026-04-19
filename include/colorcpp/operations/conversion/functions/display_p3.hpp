@@ -13,6 +13,17 @@
 
 namespace colorcpp::operations::conversion::details {
 
+/**
+ * @brief Convert Display P3 gamma-encoded color to Linear Display P3.
+ *
+ * Applies IEC 61966-2-1:1999 sRGB gamma decompression curve.
+ * Display P3 uses identical transfer function to sRGB, only primaries differ.
+ *
+ * @tparam To Target Linear Display P3 type (linear_display_p3f_t, linear_display_p3af_t)
+ * @tparam From Source Display P3 type (display_p3f_t, display_p3af_t)
+ * @param src Input gamma encoded Display P3 color
+ * @return Linearized Display P3 color with alpha channel preserved if present
+ */
 template <typename To, typename From>
 constexpr To display_p3_to_linear_display_p3(const From& src) {
   auto linearize = [](float v) noexcept {
@@ -29,6 +40,17 @@ constexpr To display_p3_to_linear_display_p3(const From& src) {
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
 }
 
+/**
+ * @brief Convert Linear Display P3 to gamma-encoded Display P3.
+ *
+ * Applies IEC 61966-2-1:1999 sRGB gamma compression curve.
+ * Display P3 uses identical transfer function to sRGB, only primaries differ.
+ *
+ * @tparam To Target Display P3 type (display_p3f_t, display_p3af_t)
+ * @tparam From Source Linear Display P3 type (linear_display_p3f_t, linear_display_p3af_t)
+ * @param src Input linear Display P3 color
+ * @return Gamma encoded Display P3 color with alpha channel preserved if present
+ */
 template <typename To, typename From>
 constexpr To linear_display_p3_to_display_p3(const From& src) {
   auto gamma_encode = [](float v) noexcept {
@@ -39,6 +61,107 @@ constexpr To linear_display_p3_to_display_p3(const From& src) {
   float g = gamma_encode(to_unit<From, 1>(src.template get_index<1>()));
   float b = gamma_encode(to_unit<From, 2>(src.template get_index<2>()));
   float a = get_src_alpha(src);
+
+  if constexpr (To::channels >= 4)
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(a));
+  else
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
+}
+
+/**
+ * @brief Convert Display P3 directly to sRGB.
+ *
+ * Optimized direct conversion path that avoids intermediate XYZ object creation.
+ * Display P3 uses DCI-P3 primaries with D65 white point and sRGB transfer function.
+ *
+ * Algorithm details:
+ * 1. Linearize gamma encoded Display P3 values
+ * 2. Apply 3x3 matrix transform from Display P3 linear space to sRGB linear space
+ * 3. Apply sRGB gamma encoding
+ * 4. Pack result into requested target type
+ *
+ * Reference matrix: Bruce Lindbloom RGB to RGB conversion matrix
+ *
+ * @tparam To Target sRGB type (rgb8_t, rgbf_t, rgba8_t, rgbaf_t)
+ * @tparam From Source Display P3 type (display_p3f_t, display_p3af_t)
+ * @param src Input Display P3 color
+ * @return Converted sRGB color with alpha channel preserved if present
+ */
+template <typename To, typename From>
+constexpr To display_p3_to_srgb(const From& src) {
+  // First linearize (same transfer function as sRGB)
+  auto linearize = [](float v) noexcept {
+    return (v <= 0.04045f) ? (v / 12.92f) : std::pow((v + 0.055f) / 1.055f, 2.4f);
+  };
+  float r_lin = linearize(to_unit<From, 0>(src.template get_index<0>()));
+  float g_lin = linearize(to_unit<From, 1>(src.template get_index<1>()));
+  float b_lin = linearize(to_unit<From, 2>(src.template get_index<2>()));
+  float a = get_src_alpha(src);
+
+  // Matrix: Display P3 linear → sRGB linear
+  // Reference: http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  float r_srgb_lin = 1.2249401f * r_lin - 0.2249402f * g_lin + 0.0000000f * b_lin;
+  float g_srgb_lin = -0.0420569f * r_lin + 1.0420571f * g_lin + 0.0000000f * b_lin;
+  float b_srgb_lin = -0.0196376f * r_lin - 0.0786361f * g_lin + 1.0982735f * b_lin;
+
+  // Gamma encode for sRGB
+  auto gamma_encode = [](float v) noexcept {
+    v = std::clamp(v, 0.0f, 1.0f);
+    return (v <= 0.0031308f) ? (v * 12.92f) : (1.055f * std::pow(v, 1.0f / 2.4f) - 0.055f);
+  };
+  float r = gamma_encode(r_srgb_lin);
+  float g = gamma_encode(g_srgb_lin);
+  float b = gamma_encode(b_srgb_lin);
+
+  if constexpr (To::channels >= 4)
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(a));
+  else
+    return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b));
+}
+
+/**
+ * @brief Convert sRGB directly to Display P3.
+ *
+ * Optimized direct conversion path that avoids intermediate XYZ object creation.
+ * Display P3 uses DCI-P3 primaries with D65 white point and sRGB transfer function.
+ *
+ * Algorithm details:
+ * 1. Linearize gamma encoded sRGB values
+ * 2. Apply inverse 3x3 matrix transform from sRGB linear space to Display P3 linear space
+ * 3. Apply sRGB gamma encoding (identical transfer function for Display P3)
+ * 4. Pack result into requested target type
+ *
+ * Reference matrix: Inverse of Display P3 → sRGB conversion matrix
+ *
+ * @tparam To Target Display P3 type (display_p3f_t, display_p3af_t)
+ * @tparam From Source sRGB type (rgb8_t, rgbf_t, rgba8_t, rgbaf_t)
+ * @param src Input sRGB color
+ * @return Converted Display P3 color with alpha channel preserved if present
+ */
+template <typename To, typename From>
+constexpr To srgb_to_display_p3(const From& src) {
+  // Linearize sRGB
+  auto linearize = [](float v) noexcept {
+    return (v <= 0.04045f) ? (v / 12.92f) : std::pow((v + 0.055f) / 1.055f, 2.4f);
+  };
+  float r_lin = linearize(to_unit<From, 0>(src.template get_index<0>()));
+  float g_lin = linearize(to_unit<From, 1>(src.template get_index<1>()));
+  float b_lin = linearize(to_unit<From, 2>(src.template get_index<2>()));
+  float a = get_src_alpha(src);
+
+  // Matrix: sRGB linear → Display P3 linear
+  float r_dp3_lin = 0.8224617f * r_lin + 0.1775383f * g_lin + 0.0000000f * b_lin;
+  float g_dp3_lin = 0.0331942f * r_lin + 0.9668058f * g_lin + 0.0000000f * b_lin;
+  float b_dp3_lin = 0.0170831f * r_lin + 0.0723974f * g_lin + 0.9105195f * b_lin;
+
+  // Gamma encode (Display P3 uses sRGB transfer function)
+  auto gamma_encode = [](float v) noexcept {
+    v = std::clamp(v, 0.0f, 1.0f);
+    return (v <= 0.0031308f) ? (v * 12.92f) : (1.055f * std::pow(v, 1.0f / 2.4f) - 0.055f);
+  };
+  float r = gamma_encode(r_dp3_lin);
+  float g = gamma_encode(g_dp3_lin);
+  float b = gamma_encode(b_dp3_lin);
 
   if constexpr (To::channels >= 4)
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(a));

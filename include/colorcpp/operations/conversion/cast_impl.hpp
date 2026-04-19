@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <colorcpp/operations/conversion/functions/index.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
+#include <colorcpp/operations/conversion/functions/index.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 #include <colorcpp/operations/conversion/traits.hpp>
 #include <type_traits>
@@ -20,8 +20,8 @@ struct color_cast_impl;
  * Single dispatch entry for @c color_cast. Priority (document order):
  * 1. Identity
  * 2. Registered direct conversion (@c conversion_registry)
- * 3. Route via source hub (@c hub_color_t<From>)
- * 4. Route via destination hub (@c hub_color_t<To>)
+ * 3. Route via the shorter of the source/destination hub paths
+ * 4. Fall back to the remaining feasible hub path
  * 5. Compile-time error
  */
 template <typename To, typename From>
@@ -31,11 +31,14 @@ struct conversion_dispatch {
       return src;
     } else if constexpr (has_registered_conversion_v<From, To>) {
       return apply_registered_conversion<From, To>(src);
-    } else if constexpr (can_route_via_from_hub<From, To>()) {
+    } else if constexpr (route_cost_via_from_hub<From, To>() < route_cost_via_to_hub<From, To>()) {
       using Hub = hub_color_t<From>;
       return color_cast_impl<To, Hub>::convert(color_cast_impl<Hub, From>::convert(src));
     } else if constexpr (can_route_via_to_hub<From, To>()) {
       using Hub = hub_color_t<To>;
+      return color_cast_impl<To, Hub>::convert(color_cast_impl<Hub, From>::convert(src));
+    } else if constexpr (can_route_via_from_hub<From, To>()) {
+      using Hub = hub_color_t<From>;
       return color_cast_impl<To, Hub>::convert(color_cast_impl<Hub, From>::convert(src));
     } else {
       static_assert(sizeof(From) == 0,

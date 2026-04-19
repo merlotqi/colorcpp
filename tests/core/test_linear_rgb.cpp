@@ -94,7 +94,7 @@ TEST(LinearRGBTest, ConstCorrectness) {
 TEST(LinearRGBTest, CopyConstructors) {
   linear_rgbf_t original(0.2f, 0.4f, 0.6f);
   linear_rgbf_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -104,7 +104,7 @@ TEST(LinearRGBTest, CopyAssignment) {
   linear_rgbf_t original(0.2f, 0.4f, 0.6f);
   linear_rgbf_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -113,7 +113,7 @@ TEST(LinearRGBTest, CopyAssignment) {
 TEST(LinearRGBTest, MoveSemantics) {
   linear_rgbf_t original(0.2f, 0.4f, 0.6f);
   linear_rgbf_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -123,7 +123,7 @@ TEST(LinearRGBTest, MoveAssignment) {
   linear_rgbf_t original(0.2f, 0.4f, 0.6f);
   linear_rgbf_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -133,7 +133,7 @@ TEST(LinearRGBTest, EqualityComparison) {
   linear_rgbf_t color1(0.2f, 0.4f, 0.6f);
   linear_rgbf_t color2(0.2f, 0.4f, 0.6f);
   linear_rgbf_t color3(0.3f, 0.4f, 0.6f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -144,7 +144,7 @@ TEST(LinearRGBTest, ConstexprBoundaryValues) {
   static_assert(min_color.r() == 0.0f);
   static_assert(min_color.g() == 0.0f);
   static_assert(min_color.b() == 0.0f);
-  
+
   constexpr linear_rgbf_t max_color(1.0f, 1.0f, 1.0f);
   static_assert(max_color.r() == 1.0f);
   static_assert(max_color.g() == 1.0f);
@@ -156,7 +156,7 @@ TEST(LinearRGBTest, ConstexprBoundaryValues) {
 TEST(LinearRGBATest, CopyConstructors) {
   linear_rgbaf_t original(0.2f, 0.4f, 0.6f, 0.8f);
   linear_rgbaf_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -167,7 +167,7 @@ TEST(LinearRGBATest, CopyAssignment) {
   linear_rgbaf_t original(0.2f, 0.4f, 0.6f, 0.8f);
   linear_rgbaf_t copy(0.0f, 0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.r(), 0.2f);
   EXPECT_FLOAT_EQ(copy.g(), 0.4f);
   EXPECT_FLOAT_EQ(copy.b(), 0.6f);
@@ -177,7 +177,7 @@ TEST(LinearRGBATest, CopyAssignment) {
 TEST(LinearRGBATest, MoveSemantics) {
   linear_rgbaf_t original(0.2f, 0.4f, 0.6f, 0.8f);
   linear_rgbaf_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -188,7 +188,7 @@ TEST(LinearRGBATest, MoveAssignment) {
   linear_rgbaf_t original(0.2f, 0.4f, 0.6f, 0.8f);
   linear_rgbaf_t moved(0.0f, 0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.r(), 0.2f);
   EXPECT_FLOAT_EQ(moved.g(), 0.4f);
   EXPECT_FLOAT_EQ(moved.b(), 0.6f);
@@ -199,7 +199,7 @@ TEST(LinearRGBATest, EqualityComparison) {
   linear_rgbaf_t color1(0.2f, 0.4f, 0.6f, 0.8f);
   linear_rgbaf_t color2(0.2f, 0.4f, 0.6f, 0.8f);
   linear_rgbaf_t color3(0.2f, 0.4f, 0.6f, 0.5f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -229,7 +229,7 @@ TEST(LinearRGBConversionTest, GammaCurveDirection) {
   // Gamma encoded values are higher than linear values for values < 1.0
   float linear = 0.5f;
   auto gamma = color_cast<rgbf_t>(linear_rgbf_t{linear, linear, linear});
-  
+
   EXPECT_GT(gamma.r(), linear);
   EXPECT_GT(gamma.g(), linear);
   EXPECT_GT(gamma.b(), linear);
@@ -239,7 +239,7 @@ TEST(LinearRGBConversionTest, RoundTripConversion) {
   linear_rgbf_t orig(0.3f, 0.5f, 0.7f);
   auto gamma = color_cast<rgbf_t>(orig);
   auto back = color_cast<linear_rgbf_t>(gamma);
-  
+
   EXPECT_NEAR(back.r(), orig.r(), 1e-4f);
   EXPECT_NEAR(back.g(), orig.g(), 1e-4f);
   EXPECT_NEAR(back.b(), orig.b(), 1e-4f);
@@ -249,7 +249,7 @@ TEST(LinearRGBConversionTest, AlphaPreserved) {
   linear_rgbaf_t original(0.3f, 0.5f, 0.7f, 0.6f);
   auto gamma = color_cast<rgbaf_t>(original);
   EXPECT_NEAR(gamma.a(), 0.6f, 1e-4f);
-  
+
   auto back = color_cast<linear_rgbaf_t>(gamma);
   EXPECT_NEAR(back.a(), 0.6f, 1e-4f);
 }

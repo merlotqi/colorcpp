@@ -174,7 +174,7 @@ TEST(HSLConversionTest, GrayLightnessMatchesValue) {
 TEST(HSLTest, CopyConstructors) {
   hsl_float_t original(120.0f, 0.8f, 0.6f);
   hsl_float_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.h(), 120.0f);
   EXPECT_FLOAT_EQ(copy.s(), 0.8f);
   EXPECT_FLOAT_EQ(copy.l(), 0.6f);
@@ -184,7 +184,7 @@ TEST(HSLTest, CopyAssignment) {
   hsl_float_t original(120.0f, 0.8f, 0.6f);
   hsl_float_t copy(0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.h(), 120.0f);
   EXPECT_FLOAT_EQ(copy.s(), 0.8f);
   EXPECT_FLOAT_EQ(copy.l(), 0.6f);
@@ -193,7 +193,7 @@ TEST(HSLTest, CopyAssignment) {
 TEST(HSLTest, MoveSemantics) {
   hsl_float_t original(120.0f, 0.8f, 0.6f);
   hsl_float_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.h(), 120.0f);
   EXPECT_FLOAT_EQ(moved.s(), 0.8f);
   EXPECT_FLOAT_EQ(moved.l(), 0.6f);
@@ -203,7 +203,7 @@ TEST(HSLTest, MoveAssignment) {
   hsl_float_t original(120.0f, 0.8f, 0.6f);
   hsl_float_t moved(0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.h(), 120.0f);
   EXPECT_FLOAT_EQ(moved.s(), 0.8f);
   EXPECT_FLOAT_EQ(moved.l(), 0.6f);
@@ -213,7 +213,7 @@ TEST(HSLTest, EqualityComparison) {
   hsl_float_t color1(120.0f, 0.8f, 0.6f);
   hsl_float_t color2(120.0f, 0.8f, 0.6f);
   hsl_float_t color3(130.0f, 0.8f, 0.6f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -224,7 +224,7 @@ TEST(HSLTest, ConstexprBoundaryValues) {
   static_assert(min_color.h() == 0.0f);
   static_assert(min_color.s() == 0.0f);
   static_assert(min_color.l() == 0.0f);
-  
+
   constexpr hsl_float_t max_color(360.0f, 1.0f, 1.0f);
   static_assert(max_color.h() == 360.0f);
   static_assert(max_color.s() == 1.0f);
@@ -234,7 +234,7 @@ TEST(HSLTest, ConstexprBoundaryValues) {
 TEST(HSLATest, CopyConstructors) {
   hsla_float_t original(240.0f, 0.8f, 0.6f, 0.75f);
   hsla_float_t copy(original);
-  
+
   EXPECT_FLOAT_EQ(copy.h(), 240.0f);
   EXPECT_FLOAT_EQ(copy.s(), 0.8f);
   EXPECT_FLOAT_EQ(copy.l(), 0.6f);
@@ -245,7 +245,7 @@ TEST(HSLATest, CopyAssignment) {
   hsla_float_t original(240.0f, 0.8f, 0.6f, 0.75f);
   hsla_float_t copy(0.0f, 0.0f, 0.0f, 0.0f);
   copy = original;
-  
+
   EXPECT_FLOAT_EQ(copy.h(), 240.0f);
   EXPECT_FLOAT_EQ(copy.s(), 0.8f);
   EXPECT_FLOAT_EQ(copy.l(), 0.6f);
@@ -255,7 +255,7 @@ TEST(HSLATest, CopyAssignment) {
 TEST(HSLATest, MoveSemantics) {
   hsla_float_t original(240.0f, 0.8f, 0.6f, 0.75f);
   hsla_float_t moved(std::move(original));
-  
+
   EXPECT_FLOAT_EQ(moved.h(), 240.0f);
   EXPECT_FLOAT_EQ(moved.s(), 0.8f);
   EXPECT_FLOAT_EQ(moved.l(), 0.6f);
@@ -266,7 +266,7 @@ TEST(HSLATest, MoveAssignment) {
   hsla_float_t original(240.0f, 0.8f, 0.6f, 0.75f);
   hsla_float_t moved(0.0f, 0.0f, 0.0f, 0.0f);
   moved = std::move(original);
-  
+
   EXPECT_FLOAT_EQ(moved.h(), 240.0f);
   EXPECT_FLOAT_EQ(moved.s(), 0.8f);
   EXPECT_FLOAT_EQ(moved.l(), 0.6f);
@@ -277,7 +277,7 @@ TEST(HSLATest, EqualityComparison) {
   hsla_float_t color1(240.0f, 0.8f, 0.6f, 0.75f);
   hsla_float_t color2(240.0f, 0.8f, 0.6f, 0.75f);
   hsla_float_t color3(240.0f, 0.8f, 0.6f, 0.5f);
-  
+
   EXPECT_TRUE(color1 == color2);
   EXPECT_FALSE(color1 == color3);
   EXPECT_TRUE(color1 != color3);
@@ -287,7 +287,7 @@ TEST(HSLTest, HueAngleEquivalence) {
   // Test 0° and 360° are equivalent for red hue
   hsl_float_t color1(0.0f, 1.0f, 0.5f);
   hsl_float_t color2(360.0f, 1.0f, 0.5f);
-  
+
   EXPECT_NEAR(color1.h(), 0.0f, 1e-6f);
   EXPECT_NEAR(color2.h(), 360.0f, 1e-6f);
 }

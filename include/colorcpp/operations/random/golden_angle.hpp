@@ -3,8 +3,8 @@
  * @brief Golden angle-based sequential color generator.
  *
  * @par First sample
- * The first `next()` returns the initial random hue set at construction. Each following `next()` advances the hue by the
- * golden angle (137.50776405°) on `[0, 360)`.
+ * The first `next()` returns the initial random hue set at construction. Each following `next()` advances the hue by
+ * the golden angle (137.50776405°) on `[0, 360)`.
  *
  * @par Thread safety
  * Not thread-safe: uses a `mutable` engine and hue state.

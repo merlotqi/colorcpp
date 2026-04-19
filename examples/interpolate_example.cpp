@@ -79,6 +79,20 @@ int main() {
   print_swatch(std::cout, mh, 3);
   std::cout << "  " << std::hex << mh << std::dec << "  hsl=" << color_cast<hsl_float_t>(mh) << "\n";
 
+  section("monotonic spline / lerp_path");
+  auto p0 = rgba8_t{32, 24, 64, 255};
+  auto p1 = rgba8_t{96, 64, 180, 255};
+  auto p2 = rgba8_t{48, 180, 168, 255};
+  auto p3 = rgba8_t{210, 230, 120, 255};
+  auto spline_mid = lerp_monotonic_spline(p0, p1, p2, p3, 0.5f);
+  auto path_mid = lerp_path({p0, p1, p2, p3}, 0.5f);
+  std::cout << "  monotonic spline p1->p2 @ 0.5: ";
+  print_swatch(std::cout, spline_mid, 3);
+  std::cout << "  " << std::hex << spline_mid << std::dec << '\n';
+  std::cout << "  lerp_path({p0,p1,p2,p3}, 0.5): ";
+  print_swatch(std::cout, path_mid, 3);
+  std::cout << "  " << std::hex << path_mid << std::dec << '\n';
+
   section("lerp_n / lerp_hsl_n");
   std::cout << "  lerp_n(red,blue,5):\n  ";
   for (auto& c : lerp_n(red, blue, 5)) print_swatch(std::cout, c, 2);

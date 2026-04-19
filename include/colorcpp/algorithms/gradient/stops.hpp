@@ -8,6 +8,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 #include <vector>
 
@@ -20,17 +21,17 @@ namespace colorcpp::algorithms::gradient {
 template <typename Color>
 struct color_stop {
   using color_type = Color;
-  using value_type = typename Color::value_type;
+  using position_type = float;
 
-  value_type position;  // Position in [0, 1]
-  Color color;          // Color at this position
+  position_type position;  // Position in [0, 1]
+  Color color;             // Color at this position
 
   /**
    * @brief Construct a color stop.
    * @param pos Position in [0, 1].
    * @param c Color at this position.
    */
-  constexpr color_stop(value_type pos, Color c) : position(pos), color(c) {
+  color_stop(position_type pos, Color c) : position(pos), color(c) {
     if (pos < 0.0f || pos > 1.0f) {
       throw std::out_of_range("colorcpp: stop position must be in [0, 1]");
     }
@@ -45,6 +46,7 @@ template <typename Color>
 class color_stops {
  public:
   using stop_type = color_stop<Color>;
+  using position_type = typename stop_type::position_type;
   using container_type = std::vector<stop_type>;
   using iterator = typename container_type::iterator;
   using const_iterator = typename container_type::const_iterator;
@@ -76,7 +78,7 @@ class color_stops {
    * @param color Color at this position.
    * @throws std::invalid_argument if position is out of range [0, 1].
    */
-  void add(typename Color::value_type position, const Color& color) {
+  void add(position_type position, const Color& color) {
     if (position < 0.0f || position > 1.0f) {
       throw std::invalid_argument("colorcpp: stop position must be in [0, 1]");
     }
@@ -102,8 +104,7 @@ class color_stops {
    * @param epsilon Tolerance for position comparison (default: 1e-6).
    * @return Number of stops removed.
    */
-  std::size_t remove_at(typename Color::value_type position,
-                        typename Color::value_type epsilon = static_cast<typename Color::value_type>(1e-6)) {
+  std::size_t remove_at(position_type position, position_type epsilon = 1e-6f) {
     auto it = std::remove_if(stops_.begin(), stops_.end(), [position, epsilon](const stop_type& stop) {
       return std::abs(stop.position - position) < epsilon;
     });
@@ -132,7 +133,7 @@ class color_stops {
    * @throws std::out_of_range if index is invalid.
    * @throws std::invalid_argument if position is out of range [0, 1].
    */
-  void update_position(std::size_t index, typename Color::value_type position) {
+  void update_position(std::size_t index, position_type position) {
     if (index >= stops_.size()) {
       throw std::out_of_range("colorcpp: stop index out of range");
     }

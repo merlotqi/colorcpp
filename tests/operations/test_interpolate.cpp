@@ -448,6 +448,149 @@ TEST(LerpCubicHermiteTest, TOneReturnsP2) {
   EXPECT_NEAR(result.b(), p2.b(), 1e-3f);
 }
 
+// lerp_monotonic_spline (shape-preserving cubic interpolation)
+
+TEST(LerpMonotonicSplineTest, TZeroReturnsP1) {
+  core::oklab_t p0(0.1f, -0.04f, -0.02f);
+  core::oklab_t p1(0.3f, -0.02f, -0.01f);
+  core::oklab_t p2(0.6f, 0.04f, 0.02f);
+  core::oklab_t p3(0.8f, 0.08f, 0.04f);
+
+  auto result = lerp_monotonic_spline(p0, p1, p2, p3, 0.0f);
+  EXPECT_NEAR(result.l(), p1.l(), 1e-6f);
+  EXPECT_NEAR(result.a(), p1.a(), 1e-6f);
+  EXPECT_NEAR(result.b(), p1.b(), 1e-6f);
+}
+
+TEST(LerpMonotonicSplineTest, TOneReturnsP2) {
+  core::oklab_t p0(0.1f, -0.04f, -0.02f);
+  core::oklab_t p1(0.3f, -0.02f, -0.01f);
+  core::oklab_t p2(0.6f, 0.04f, 0.02f);
+  core::oklab_t p3(0.8f, 0.08f, 0.04f);
+
+  auto result = lerp_monotonic_spline(p0, p1, p2, p3, 1.0f);
+  EXPECT_NEAR(result.l(), p2.l(), 1e-6f);
+  EXPECT_NEAR(result.a(), p2.a(), 1e-6f);
+  EXPECT_NEAR(result.b(), p2.b(), 1e-6f);
+}
+
+TEST(LerpMonotonicSplineTest, PreservesMonotonicChannels) {
+  core::oklab_t p0(0.1f, -0.04f, -0.02f);
+  core::oklab_t p1(0.3f, -0.01f, -0.005f);
+  core::oklab_t p2(0.6f, 0.03f, 0.02f);
+  core::oklab_t p3(0.9f, 0.08f, 0.06f);
+
+  auto mid = lerp_monotonic_spline(p0, p1, p2, p3, 0.5f);
+
+  EXPECT_GE(mid.l(), p1.l());
+  EXPECT_LE(mid.l(), p2.l());
+  EXPECT_GE(mid.a(), p1.a());
+  EXPECT_LE(mid.a(), p2.a());
+  EXPECT_GE(mid.b(), p1.b());
+  EXPECT_LE(mid.b(), p2.b());
+}
+
+TEST(LerpMonotonicSplineTest, DoesNotOvershootLocalExtrema) {
+  core::oklab_t p0(0.2f, 0.00f, 0.00f);
+  core::oklab_t p1(0.8f, 0.06f, 0.02f);
+  core::oklab_t p2(0.3f, -0.03f, -0.01f);
+  core::oklab_t p3(0.1f, -0.05f, -0.02f);
+
+  auto mid = lerp_monotonic_spline(p0, p1, p2, p3, 0.5f);
+
+  EXPECT_GE(mid.l(), p2.l());
+  EXPECT_LE(mid.l(), p1.l());
+  EXPECT_GE(mid.a(), p2.a());
+  EXPECT_LE(mid.a(), p1.a());
+  EXPECT_GE(mid.b(), p2.b());
+  EXPECT_LE(mid.b(), p1.b());
+}
+
+TEST(LerpMonotonicSplineTest, AlphaStaysWithinSegmentRange) {
+  core::rgbaf_t p0(0.1f, 0.1f, 0.1f, 0.1f);
+  core::rgbaf_t p1(0.2f, 0.2f, 0.2f, 0.3f);
+  core::rgbaf_t p2(0.8f, 0.8f, 0.8f, 0.7f);
+  core::rgbaf_t p3(0.9f, 0.9f, 0.9f, 0.9f);
+
+  auto mid = lerp_monotonic_spline(p0, p1, p2, p3, 0.5f);
+  EXPECT_GE(mid.a(), p1.a());
+  EXPECT_LE(mid.a(), p2.a());
+}
+
+// lerp_path (piecewise multi-control-point interpolation)
+
+TEST(LerpPathTest, EmptyContainerReturnsDefaultColor) {
+  std::vector<core::rgbf_t> colors;
+  auto result = lerp_path(colors, 0.5f);
+  EXPECT_NEAR(result.r(), 0.0f, 1e-6f);
+  EXPECT_NEAR(result.g(), 0.0f, 1e-6f);
+  EXPECT_NEAR(result.b(), 0.0f, 1e-6f);
+}
+
+TEST(LerpPathTest, SingleColorReturnsOnlyColor) {
+  std::vector<core::oklab_t> colors = {core::oklab_t(0.4f, 0.02f, -0.01f)};
+  auto result = lerp_path(colors, 0.5f);
+  EXPECT_NEAR(result.l(), colors[0].l(), 1e-6f);
+  EXPECT_NEAR(result.a(), colors[0].a(), 1e-6f);
+  EXPECT_NEAR(result.b(), colors[0].b(), 1e-6f);
+}
+
+TEST(LerpPathTest, LinearModeSelectsExpectedSegment) {
+  std::vector<core::rgbf_t> colors = {
+      core::rgbf_t(1.0f, 0.0f, 0.0f),
+      core::rgbf_t(0.0f, 1.0f, 0.0f),
+      core::rgbf_t(0.0f, 0.0f, 1.0f),
+  };
+
+  auto first_half = lerp_path(colors, 0.25f, path_algorithm::linear);
+  EXPECT_NEAR(first_half.r(), 0.5f, 1e-4f);
+  EXPECT_NEAR(first_half.g(), 0.5f, 1e-4f);
+  EXPECT_NEAR(first_half.b(), 0.0f, 1e-4f);
+
+  auto second_half = lerp_path(colors, 0.75f, path_algorithm::linear);
+  EXPECT_NEAR(second_half.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(second_half.g(), 0.5f, 1e-4f);
+  EXPECT_NEAR(second_half.b(), 0.5f, 1e-4f);
+}
+
+TEST(LerpPathTest, HalfwayWithThreeStopsReturnsMiddleControlPoint) {
+  std::vector<core::oklab_t> colors = {
+      core::oklab_t(0.2f, -0.03f, -0.01f),
+      core::oklab_t(0.5f, 0.01f, 0.03f),
+      core::oklab_t(0.8f, 0.05f, 0.07f),
+  };
+
+  auto result = lerp_path(colors, 0.5f);
+  EXPECT_NEAR(result.l(), colors[1].l(), 1e-6f);
+  EXPECT_NEAR(result.a(), colors[1].a(), 1e-6f);
+  EXPECT_NEAR(result.b(), colors[1].b(), 1e-6f);
+}
+
+TEST(LerpPathTest, InitializerListOverloadWorks) {
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t green(0.0f, 1.0f, 0.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+
+  auto result = lerp_path({red, green, blue}, 0.25f, path_algorithm::linear);
+  EXPECT_NEAR(result.r(), 0.5f, 1e-4f);
+  EXPECT_NEAR(result.g(), 0.5f, 1e-4f);
+  EXPECT_NEAR(result.b(), 0.0f, 1e-4f);
+}
+
+TEST(LerpPathTest, CatmullRomModeProducesFiniteColor) {
+  std::vector<core::rgbf_t> colors = {
+      core::rgbf_t(1.0f, 0.0f, 0.0f),
+      core::rgbf_t(0.2f, 0.7f, 0.1f),
+      core::rgbf_t(0.0f, 0.2f, 1.0f),
+      core::rgbf_t(0.8f, 0.0f, 0.8f),
+  };
+
+  auto result = lerp_path(colors, 0.5f, path_algorithm::catmull_rom);
+  EXPECT_FALSE(std::isnan(result.r()));
+  EXPECT_FALSE(std::isnan(result.g()));
+  EXPECT_FALSE(std::isnan(result.b()));
+}
+
 // lerp_hue_locked (Hue-locked interpolation)
 
 TEST(LerpHueLockedTest, TZeroReturnsFirst) {

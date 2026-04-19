@@ -63,6 +63,36 @@ TEST(GradientTest, RadialGradientBasic) {
   EXPECT_NEAR(edge.r(), 0.0f, 0.001f);
 }
 
+TEST(GradientTest, DiamondGradientBasic) {
+  gradient::color_stops<rgbf_t> stops = {{0.0f, rgbf_t{1.0f, 1.0f, 1.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 0.0f}}};
+
+  auto grad = gradient::diamond(stops);
+
+  auto center = grad.sample_at(0.5f, 0.5f);
+  EXPECT_NEAR(center.r(), 1.0f, 0.001f);
+
+  auto mid = grad.sample_at(0.5f, 0.25f);
+  EXPECT_NEAR(mid.r(), 0.5f, 0.001f);
+
+  auto edge = grad.sample_at(0.5f, 0.0f);
+  EXPECT_NEAR(edge.r(), 0.0f, 0.001f);
+}
+
+TEST(GradientTest, BoxGradientBasic) {
+  gradient::color_stops<rgbf_t> stops = {{0.0f, rgbf_t{1.0f, 1.0f, 1.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 0.0f}}};
+
+  auto grad = gradient::box(stops);
+
+  auto center = grad.sample_at(0.5f, 0.5f);
+  EXPECT_NEAR(center.r(), 1.0f, 0.001f);
+
+  auto quarter = grad.sample_at(0.25f, 0.25f);
+  EXPECT_NEAR(quarter.r(), 0.5f, 0.001f);
+
+  auto side = grad.sample_at(0.5f, 0.0f);
+  EXPECT_NEAR(side.r(), 0.0f, 0.001f);
+}
+
 TEST(GradientTest, AngularGradientBasic) {
   gradient::color_stops<rgbf_t> stops = {
       {0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {0.5f, rgbf_t{0.0f, 1.0f, 0.0f}}, {1.0f, rgbf_t{1.0f, 0.0f, 0.0f}}};
@@ -82,6 +112,32 @@ TEST(GradientTest, EasingFunctions) {
   EXPECT_FLOAT_EQ(linear(0.5f), 0.5f);
   EXPECT_FLOAT_EQ(ease_in(0.5f), 0.25f);
   EXPECT_FLOAT_EQ(ease_out(0.5f), 0.75f);
+
+  auto bezier_linear = cubic_bezier<float>(0.0f, 0.0f, 1.0f, 1.0f);
+  EXPECT_NEAR(bezier_linear(0.25f), 0.25f, 0.001f);
+  EXPECT_NEAR(bezier_linear(0.50f), 0.50f, 0.001f);
+  EXPECT_NEAR(bezier_linear(0.75f), 0.75f, 0.001f);
+}
+
+TEST(GradientTest, PresetGradientsSupportCanonicalAndResampledStops) {
+  auto viridis_default = gradient::preset::viridis<rgba8_t>();
+  EXPECT_EQ(viridis_default.stops().size(), 5);
+
+  auto viridis_resampled = gradient::preset::viridis<rgba8_t>(7);
+  EXPECT_EQ(viridis_resampled.stops().size(), 7);
+  EXPECT_EQ(viridis_resampled.sample(0.0f), viridis_default.sample(0.0f));
+  EXPECT_EQ(viridis_resampled.sample(1.0f), viridis_default.sample(1.0f));
+}
+
+TEST(GradientTest, PresetNamespaceAliasAndSpectralPresetExist) {
+  using namespace colorcpp::io::literals;
+  auto sunset_alias = gradient::preset::sunset<rgba8_t>();
+  EXPECT_EQ(sunset_alias.stops().size(), 5);
+
+  auto spectral = gradient::preset::spectral<rgba8_t>(7);
+  EXPECT_EQ(spectral.stops().size(), 7);
+  EXPECT_EQ(spectral.sample(0.0f), 0x9e0142_rgb);
+  EXPECT_EQ(spectral.sample(1.0f), 0x5e4fa2_rgb);
 }
 
 TEST(GradientTest, MultiStopGradient) {
@@ -297,8 +353,11 @@ TEST(GradientTest, ConcatGradients) {
   EXPECT_NEAR(concatenated.sample(0.25f).r(), 0.5f, 0.001f);
   EXPECT_NEAR(concatenated.sample(0.5f).r(), 0.0f, 0.001f);
 
+  // The seam is blended to avoid a single-sample hard edge.
+  EXPECT_NEAR(concatenated.sample(0.5f).g(), 0.5f, 0.001f);
+  EXPECT_NEAR(concatenated.sample(0.5f).b(), 0.5f, 0.001f);
+
   // Second half should be grad2
-  EXPECT_NEAR(concatenated.sample(0.5f).g(), 1.0f, 0.001f);
   EXPECT_NEAR(concatenated.sample(0.75f).g(), 1.0f, 0.001f);
   EXPECT_NEAR(concatenated.sample(1.0f).r(), 1.0f, 0.001f);
 }
@@ -377,6 +436,18 @@ TEST(GradientTest, EasingWithGradient) {
   EXPECT_NEAR(ease_in_out_grad.sample(1.0f).r(), 0.0f, 0.001f);
 }
 
+TEST(GradientTest, Rgb8GradientUsesNormalizedFloatPosition) {
+  using namespace gradient;
+
+  gradient::color_stops<rgb8_t> stops = {{0.0f, rgb8_t{255, 0, 0}}, {1.0f, rgb8_t{0, 0, 255}}};
+
+  auto linear_grad = gradient::linear(stops, easing::ease_in<float>);
+  auto mid = linear_grad.sample(0.5f);
+
+  EXPECT_NEAR(static_cast<float>(mid.r()), 191.0f, 1.0f);
+  EXPECT_NEAR(static_cast<float>(mid.b()), 64.0f, 1.0f);
+}
+
 TEST(GradientTest, SequenceWithDifferentGradients) {
   // Create different types of gradients for sequence
   gradient::color_stops<rgbf_t> linear_stops = {{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}};
@@ -396,6 +467,54 @@ TEST(GradientTest, SequenceWithDifferentGradients) {
   EXPECT_NEAR(seq.sample(0.5f).r(), 0.0f, 0.001f);
   EXPECT_NEAR(seq.sample(0.75f).r(), 0.5f, 0.001f);
   EXPECT_NEAR(seq.sample(1.0f).r(), 0.0f, 0.001f);
+}
+
+TEST(GradientTest, SequenceInterpolatesAcrossGaps) {
+  auto left = gradient::linear<rgbf_t>({{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{1.0f, 0.0f, 0.0f}}});
+  auto right = gradient::linear<rgbf_t>({{0.0f, rgbf_t{0.0f, 0.0f, 1.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}});
+
+  std::vector<gradient::sequence_segment<gradient::linear_gradient<rgbf_t>>> segments = {{left, 0.0f, 0.4f},
+                                                                                         {right, 0.6f, 1.0f}};
+  auto seq = gradient::sequence(std::move(segments));
+  auto mid_gap = seq.sample(0.5f);
+
+  EXPECT_NEAR(mid_gap.r(), 0.5f, 0.001f);
+  EXPECT_NEAR(mid_gap.g(), 0.0f, 0.001f);
+  EXPECT_NEAR(mid_gap.b(), 0.5f, 0.001f);
+}
+
+TEST(GradientTest, SteppedGradientQuantizesSamplePositions) {
+  auto base = gradient::linear<rgbf_t>({{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}});
+  auto stepped_grad = gradient::stepped(base, 3);
+
+  auto low = stepped_grad.sample(0.10f);
+  EXPECT_NEAR(low.r(), 1.0f, 0.001f);
+  EXPECT_NEAR(low.b(), 0.0f, 0.001f);
+
+  auto mid = stepped_grad.sample(0.60f);
+  EXPECT_NEAR(mid.r(), 0.5f, 0.001f);
+  EXPECT_NEAR(mid.b(), 0.5f, 0.001f);
+
+  auto high = stepped_grad.sample(1.00f);
+  EXPECT_NEAR(high.r(), 0.0f, 0.001f);
+  EXPECT_NEAR(high.b(), 1.0f, 0.001f);
+}
+
+TEST(GradientTest, SteppedSpatialGradientUsesPositionAt) {
+  auto base = gradient::radial<rgbf_t>({{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}});
+  auto stepped_grad = gradient::stepped(base, 3);
+
+  auto center = stepped_grad.sample_at(0.5f, 0.5f);
+  EXPECT_NEAR(center.r(), 1.0f, 0.001f);
+  EXPECT_NEAR(center.b(), 0.0f, 0.001f);
+
+  auto mid = stepped_grad.sample_at(0.5f, 0.25f);
+  EXPECT_NEAR(mid.r(), 0.5f, 0.001f);
+  EXPECT_NEAR(mid.b(), 0.5f, 0.001f);
+
+  auto edge = stepped_grad.sample_at(0.5f, 0.0f);
+  EXPECT_NEAR(edge.r(), 0.0f, 0.001f);
+  EXPECT_NEAR(edge.b(), 1.0f, 0.001f);
 }
 
 TEST(GradientTest, RadialGradientOperations) {
@@ -427,7 +546,8 @@ TEST(GradientTest, AngularGradientOperations) {
 
   // Test scale on angular gradient
   auto scaled = grad.scale(2.0f);
-  EXPECT_NEAR(scaled.sample(0.25f).g(), 0.5f, 0.001f);
+  EXPECT_NEAR(scaled.sample(0.25f).g(), 1.0f, 0.001f);
+  EXPECT_NEAR(scaled.sample(0.75f).r(), 1.0f, 0.001f);
 
   // Test offset on angular gradient
   auto offset = grad.offset(0.25f);
@@ -441,4 +561,33 @@ TEST(GradientTest, AngularGradientOperations) {
   auto reversed = grad.reverse();
   EXPECT_NEAR(reversed.sample(0.0f).r(), 1.0f, 0.001f);
   EXPECT_NEAR(reversed.sample(0.5f).g(), 1.0f, 0.001f);
+}
+
+TEST(GradientTest, AngularSampleAtUsesCssOrientation) {
+  gradient::color_stops<rgbf_t> stops = {
+      {0.0f, rgbf_t{1.0f, 0.0f, 0.0f}},  {0.25f, rgbf_t{0.0f, 1.0f, 0.0f}}, {0.50f, rgbf_t{0.0f, 0.0f, 1.0f}},
+      {0.75f, rgbf_t{1.0f, 1.0f, 0.0f}}, {1.0f, rgbf_t{1.0f, 0.0f, 0.0f}},
+  };
+
+  auto grad = gradient::angular(stops);
+
+  auto north = grad.sample_at(0.5f, 0.0f);
+  EXPECT_NEAR(north.r(), 1.0f, 0.001f);
+  EXPECT_NEAR(north.g(), 0.0f, 0.001f);
+  EXPECT_NEAR(north.b(), 0.0f, 0.001f);
+
+  auto east = grad.sample_at(1.0f, 0.5f);
+  EXPECT_NEAR(east.r(), 0.0f, 0.001f);
+  EXPECT_NEAR(east.g(), 1.0f, 0.001f);
+  EXPECT_NEAR(east.b(), 0.0f, 0.001f);
+
+  auto south = grad.sample_at(0.5f, 1.0f);
+  EXPECT_NEAR(south.r(), 0.0f, 0.001f);
+  EXPECT_NEAR(south.g(), 0.0f, 0.001f);
+  EXPECT_NEAR(south.b(), 1.0f, 0.001f);
+
+  auto west = grad.sample_at(0.0f, 0.5f);
+  EXPECT_NEAR(west.r(), 1.0f, 0.001f);
+  EXPECT_NEAR(west.g(), 1.0f, 0.001f);
+  EXPECT_NEAR(west.b(), 0.0f, 0.001f);
 }

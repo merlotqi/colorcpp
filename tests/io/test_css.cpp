@@ -613,8 +613,8 @@ TEST(Css, ColorMixNestedAndInvalidForms) {
 
   auto oklab_mix = parse_css_color_rgbaf("color-mix(in oklab, red, blue)");
   ASSERT_TRUE(oklab_mix);
-  auto expected_oklab =
-      operations::interpolate::lerp_oklab<rgbaf_t>(rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f}, rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f}, 0.5f);
+  auto expected_oklab = operations::interpolate::lerp_oklab<rgbaf_t>(rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f},
+                                                                     rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f}, 0.5f);
   expect_rgbaf_near(*oklab_mix, expected_oklab.r(), expected_oklab.g(), expected_oklab.b(), expected_oklab.a(), 0.02f);
 
   auto linear_mix = parse_css_color_rgbaf("color-mix(in srgb-linear, red, blue)");

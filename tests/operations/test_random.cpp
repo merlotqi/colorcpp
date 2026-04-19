@@ -1,6 +1,7 @@
-#include <colorcpp/colorcpp.hpp>
 #include <gtest/gtest.h>
+
 #include <cmath>
+#include <colorcpp/colorcpp.hpp>
 #include <set>
 
 using namespace colorcpp;

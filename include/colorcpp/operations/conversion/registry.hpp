@@ -10,8 +10,6 @@
 
 #pragma once
 
-#include <colorcpp/operations/conversion/traits.hpp>
-
 namespace colorcpp::operations::conversion {
 
 /**

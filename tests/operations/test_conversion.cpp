@@ -121,6 +121,22 @@ TEST(ConversionTest, OklabOklchRoundTrip) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-3f);
 }
 
+TEST(ConversionTest, RouteSelectionPrefersShorterPathToOklch) {
+  static_assert(route_cost_via_from_hub<rgbf_t, oklch_t>() == 3);
+  static_assert(route_cost_via_to_hub<rgbf_t, oklch_t>() == 2);
+  static_assert(best_route_cost<rgbf_t, oklch_t>() == 2);
+
+  static_assert(route_cost_via_from_hub<rgbaf_t, oklch_t>() == 3);
+  static_assert(route_cost_via_to_hub<rgbaf_t, oklch_t>() == 2);
+  static_assert(best_route_cost<rgbaf_t, oklch_t>() == 2);
+
+  auto direct = details::oklab_to_oklch<oklch_t>(details::rgbf_to_oklab_reg(rgbf_t{0.25f, 0.5f, 0.75f}));
+  auto casted = color_cast<oklch_t>(rgbf_t{0.25f, 0.5f, 0.75f});
+  EXPECT_NEAR(casted.l(), direct.l(), 1e-6f);
+  EXPECT_NEAR(casted.c(), direct.c(), 1e-6f);
+  EXPECT_NEAR(casted.h(), direct.h(), 1e-4f);
+}
+
 // Alpha handling
 
 TEST(ConversionTest, AlphaPreservedThroughHslRoundTrip) {

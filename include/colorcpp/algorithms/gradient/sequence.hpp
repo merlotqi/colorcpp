@@ -24,11 +24,10 @@ namespace colorcpp::algorithms::gradient {
 template <typename Gradient>
 struct sequence_segment {
   using color_type = typename Gradient::color_type;
-  using value_type = typename Gradient::value_type;
 
   Gradient gradient;  // The gradient for this segment
-  value_type start;   // Start position in [0, 1]
-  value_type end;     // End position in [0, 1]
+  float start;        // Start position in [0, 1]
+  float end;          // End position in [0, 1]
 
   /**
    * @brief Construct a sequence segment.
@@ -36,7 +35,7 @@ struct sequence_segment {
    * @param s Start position.
    * @param e End position.
    */
-  sequence_segment(Gradient grad, value_type s, value_type e) : gradient(std::move(grad)), start(s), end(e) {
+  sequence_segment(Gradient grad, float s, float e) : gradient(std::move(grad)), start(s), end(e) {
     if (s < 0.0f || s > 1.0f || e < 0.0f || e > 1.0f) {
       throw std::invalid_argument("colorcpp: segment positions must be in [0, 1]");
     }
@@ -54,9 +53,8 @@ template <typename Gradient>
 class sequence_gradient {
  public:
   using color_type = typename Gradient::color_type;
-  using value_type = typename Gradient::value_type;
   using segment_type = sequence_segment<Gradient>;
-  using easing_type = easing::easing_function<value_type>;
+  using easing_type = easing::easing_function<float>;
 
   /**
    * @brief Construct a sequence gradient from segments.
@@ -64,8 +62,10 @@ class sequence_gradient {
    * @param easing Easing function (default: linear).
    */
   explicit sequence_gradient(
-      std::vector<segment_type> segments, easing_type easing = [](value_type t) { return easing::linear(t); })
+      std::vector<segment_type> segments, easing_type easing = [](float t) { return easing::linear(t); })
       : segments_(std::move(segments)), easing_(std::move(easing)) {
+    std::sort(segments_.begin(), segments_.end(),
+              [](const segment_type& a, const segment_type& b) { return a.start < b.start; });
     validate_segments();
   }
 
@@ -74,26 +74,31 @@ class sequence_gradient {
    * @param t Position in [0, 1].
    * @return The interpolated color.
    */
-  color_type sample(value_type t) const {
-    t = std::clamp(t, static_cast<value_type>(0), static_cast<value_type>(1));
+  color_type sample(float t) const {
+    t = std::clamp(t, 0.0f, 1.0f);
 
-    // Find the segment that contains position t
-    for (const auto& segment : segments_) {
+    if (t <= segments_.front().start) {
+      return segments_.front().gradient.sample(0.0f);
+    }
+
+    for (std::size_t i = 0; i < segments_.size(); ++i) {
+      const auto& segment = segments_[i];
       if (t >= segment.start && t <= segment.end) {
-        // Map t to the segment's local coordinate [0, 1]
-        value_type local_t = (t - segment.start) / (segment.end - segment.start);
-        local_t = easing_(local_t);
+        float local_t = (t - segment.start) / (segment.end - segment.start);
+        local_t = details::clamp_01(easing_(local_t));
         return segment.gradient.sample(local_t);
+      }
+
+      if (i + 1 < segments_.size()) {
+        const auto& next = segments_[i + 1];
+        if (t > segment.end && t < next.start) {
+          float gap_t = (t - segment.end) / (next.start - segment.end);
+          return operations::interpolate::lerp(segment.gradient.sample(1.0f), next.gradient.sample(0.0f), gap_t);
+        }
       }
     }
 
-    // If t is at the very end, use the last segment
-    if (t >= segments_.back().end) {
-      return segments_.back().gradient.sample(static_cast<value_type>(1));
-    }
-
-    // Fallback: use the first segment
-    return segments_.front().gradient.sample(static_cast<value_type>(0));
+    return segments_.back().gradient.sample(1.0f);
   }
 
   /**
@@ -110,7 +115,7 @@ class sequence_gradient {
     palette.reserve(count);
 
     for (std::size_t i = 0; i < count; ++i) {
-      auto t = static_cast<value_type>(i) / static_cast<value_type>(count - 1);
+      auto t = static_cast<float>(i) / static_cast<float>(count - 1);
       palette.push_back(sample(t));
     }
 
@@ -141,7 +146,7 @@ class sequence_gradient {
    * @param start Start position.
    * @param end End position.
    */
-  void add_segment(Gradient gradient, value_type start, value_type end) {
+  void add_segment(Gradient gradient, float start, float end) {
     segments_.emplace_back(std::move(gradient), start, end);
     std::sort(segments_.begin(), segments_.end(),
               [](const segment_type& a, const segment_type& b) { return a.start < b.start; });
@@ -162,7 +167,7 @@ class sequence_gradient {
       throw std::invalid_argument("colorcpp: sequence gradient must have at least one segment");
     }
 
-    // Check for overlapping segments
+    // Check for overlapping segments after sorting.
     for (std::size_t i = 0; i < segments_.size() - 1; ++i) {
       if (segments_[i].end > segments_[i + 1].start) {
         throw std::invalid_argument("colorcpp: sequence segments must not overlap");
@@ -181,9 +186,7 @@ class sequence_gradient {
 template <typename Gradient>
 sequence_gradient<Gradient> sequence(
     std::vector<sequence_segment<Gradient>> segments,
-    easing::easing_function<typename Gradient::value_type> easing = [](typename Gradient::value_type t) {
-      return easing::linear(t);
-    }) {
+    easing::easing_function<float> easing = [](float t) { return easing::linear(t); }) {
   return sequence_gradient<Gradient>(std::move(segments), std::move(easing));
 }
 

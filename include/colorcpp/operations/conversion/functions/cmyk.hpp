@@ -1,6 +1,7 @@
 /**
  * @file cmyk.hpp
  * @brief CMYK (Cyan-Magenta-Yellow-Key) conversion functions.
+ * @see CSS Color Level 4 §6.2
  */
 
 #pragma once
@@ -14,8 +15,27 @@
 namespace colorcpp::operations::conversion::details {
 
 /**
- * @brief Convert CMYK to RGB.
+ * @brief Convert CMYK color space to RGB color space.
+ *
+ * Implements standard subtractive to additive color model conversion.
+ * CMYK is the standard color model used in color printing and graphic design.
+ *
+ * Conversion algorithm:
+ *  Each RGB channel is calculated as (1 - CMY_component) * (1 - Key_black)
+ *  This follows the standard undercolor removal formula for CMYK conversion.
+ *
+ * @tparam To Target color type, must satisfy RGB concept
+ * @tparam From Source color type, must satisfy CMYK concept
+ * @param src Input CMYK color value
+ * @return Converted RGB color value
+ *
  * @note CMYK channels are C, M, Y, K — channel 3 is K (black), NOT alpha.
+ * @note This function is constexpr and can be used at compile time.
+ * @note When converting to RGBA, alpha channel is set to 1.0 (fully opaque).
+ * @note Implementation uses floating point arithmetic for maximum accuracy.
+ *
+ * @see rgb_to_cmyk() inverse conversion function
+ * @see CSS Color Level 4 https://www.w3.org/TR/css-color-4/#cmyk-rgb
  */
 template <typename To, typename From>
 constexpr To cmyk_to_rgb(const From& src) {
@@ -35,7 +55,30 @@ constexpr To cmyk_to_rgb(const From& src) {
 }
 
 /**
- * @brief Convert RGB to CMYK.
+ * @brief Convert RGB color space to CMYK color space.
+ *
+ * Implements conversion from additive RGB model to subtractive CMYK printing model.
+ * Uses standard undercolor removal algorithm with black generation.
+ *
+ * Conversion algorithm steps:
+ * 1. Calculate Key (K) as 1 minus maximum RGB component value
+ * 2. Compute denominator as (1 - K)
+ * 3. Calculate C, M, Y components using division by denominator
+ * 4. Handle pure black case safely by avoiding division by zero
+ * 5. Pack all four CMYK channels into target type
+ *
+ * @tparam To Target color type, must satisfy CMYK concept
+ * @tparam From Source color type, must satisfy RGB concept
+ * @param src Input RGB color value
+ * @return Converted CMYK color value
+ *
+ * @note This function is constexpr and can be used at compile time.
+ * @note Division by zero is safely handled for pure black (R=G=B=0).
+ * @note Alpha channel from source RGB is not preserved (CMYK has no alpha).
+ * @note This is the standard conversion used in most graphics software.
+ *
+ * @see cmyk_to_rgb() inverse conversion function
+ * @see CSS Color Level 4 https://www.w3.org/TR/css-color-4/#rgb-cmyk
  */
 template <typename To, typename From>
 constexpr To rgb_to_cmyk(const From& src) {

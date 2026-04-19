@@ -241,6 +241,12 @@ auto smooth = lerp_hsl(red, blue, 0.5f);
 
 // Perceptual interpolation via OkLab
 auto perceptual = lerp_oklab(red, blue, 0.5f);
+
+// Shape-preserving cubic interpolation with neighbor anchors
+auto smooth_curve = lerp_monotonic_spline(prev, red, blue, next, 0.5f);
+
+// Multi-stop path interpolation
+auto path = lerp_path(std::vector{red, 0x00FF00_rgb, blue}, 0.35f);
 ```
 
 ### Accessibility

@@ -54,9 +54,8 @@ core::palette_set<Color> material_secondary(const Color& base, size_t count = 10
   using namespace conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
-  float hue = hsl.template get_index<0>();
   // Secondary: shifted hue by 60°, lower saturation
-  float secondary_hue = std::fmod(hue + 60.0f, 360.0f);
+  float secondary_hue = std::fmod(hsl.template get_index<0>() + 60.0f, 360.0f);
 
   core::hsla_float_t secondary_start{secondary_hue, 0.4f, 0.1f, 1.0f};
   core::hsla_float_t secondary_end{secondary_hue, 0.4f, 0.99f, 1.0f};
@@ -75,9 +74,8 @@ core::palette_set<Color> material_tertiary(const Color& base, size_t count = 10)
   using namespace conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
-  float hue = hsl.template get_index<0>();
   // Tertiary: shifted hue by 120°, moderate saturation
-  float tertiary_hue = std::fmod(hue + 120.0f, 360.0f);
+  float tertiary_hue = std::fmod(hsl.template get_index<0>() + 120.0f, 360.0f);
 
   core::hsla_float_t tertiary_start{tertiary_hue, 0.5f, 0.1f, 1.0f};
   core::hsla_float_t tertiary_end{tertiary_hue, 0.5f, 0.99f, 1.0f};
@@ -96,10 +94,9 @@ core::palette_set<Color> material_neutral(const Color& base, size_t count = 10) 
   using namespace conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
-  float hue = hsl.template get_index<0>();
   // Neutral: very low saturation
-  core::hsla_float_t neutral_start{hue, 0.05f, 0.1f, 1.0f};
-  core::hsla_float_t neutral_end{hue, 0.05f, 0.99f, 1.0f};
+  core::hsla_float_t neutral_start{hsl.template get_index<0>(), 0.05f, 0.1f, 1.0f};
+  core::hsla_float_t neutral_end{hsl.template get_index<0>(), 0.05f, 0.99f, 1.0f};
 
   return algorithms::palette::visual_scale(color_cast<Color>(neutral_start), color_cast<Color>(neutral_end), count);
 }

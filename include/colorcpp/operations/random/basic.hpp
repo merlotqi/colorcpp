@@ -7,7 +7,8 @@
  * instance across threads without synchronization.
  *
  * @par Floating-point ranges
- * `std::uniform_real_distribution` yields values in **[a, b)**; the upper bound is not included (negligible for floats).
+ * `std::uniform_real_distribution` yields values in **[a, b)**; the upper bound is not included (negligible for
+ * floats).
  *
  * @par Lab-like spaces
  * Independent uniform channels define a box in that space; results may lie outside common RGB display gamuts.

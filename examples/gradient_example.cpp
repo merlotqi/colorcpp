@@ -1,0 +1,412 @@
+/**
+ * @file gradient_example.cpp
+ * @brief Example: practical coverage of the full gradient module.
+ *
+ * Covers:
+ * - color_stop / color_stops management
+ * - easing functions (built-in + cubic bezier)
+ * - preset gradients
+ * - linear / radial / angular / diamond / box gradients
+ * - sample(), sample_at(), palette()
+ * - reverse(), blend(), concat(), scale(), offset(), quantize(), stepped()
+ * - sequence gradients and segment editing
+ */
+
+#include <colorcpp/colorcpp.hpp>
+#include <iomanip>
+#include <iostream>
+#include <vector>
+
+using namespace colorcpp;
+using namespace colorcpp::algorithms::gradient;
+using namespace colorcpp::io::ansi;
+using namespace colorcpp::io::literals;
+using namespace colorcpp::operations::conversion;
+
+static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
+
+template <typename Color>
+static rgba8_t as_rgba8(const Color& c) {
+  return color_cast<rgba8_t>(c);
+}
+
+template <typename Color>
+static void print_hex_chip(const Color& c, int width = 2) {
+  auto rgba = as_rgba8(c);
+  print_swatch(std::cout, rgba, width);
+  std::cout << " " << std::hex << rgba << std::dec;
+}
+
+template <typename Color>
+static void print_stops(const color_stops<Color>& stops, const char* label) {
+  std::cout << "  " << label << " (" << stops.size() << " stops)\n";
+  for (const auto& stop : stops) {
+    std::cout << "    t=" << std::fixed << std::setprecision(2) << stop.position << "  ";
+    print_hex_chip(stop.color);
+    std::cout << '\n';
+  }
+}
+
+template <typename Fn>
+static void print_easing_line(const char* label, Fn&& fn) {
+  std::cout << "  " << std::left << std::setw(20) << label << std::right << std::fixed << std::setprecision(3)
+            << "0.25=" << std::setw(6) << fn(0.25f) << "  0.50=" << std::setw(6) << fn(0.50f)
+            << "  0.75=" << std::setw(6) << fn(0.75f) << '\n';
+}
+
+template <typename Color>
+static void print_palette_row(const char* label, const std::vector<Color>& palette, int swatch_width = 2) {
+  std::cout << "  " << std::left << std::setw(24) << label;
+  for (const auto& c : palette) {
+    print_swatch(std::cout, as_rgba8(c), swatch_width);
+  }
+  std::cout << '\n';
+}
+
+template <typename Gradient>
+static void print_sample_row(const Gradient& grad, const char* label, std::initializer_list<float> positions) {
+  std::cout << "  " << label << '\n';
+  for (float t : positions) {
+    std::cout << "    t=" << std::fixed << std::setprecision(2) << std::setw(4) << t << "  ";
+    print_hex_chip(grad.sample(t));
+    std::cout << '\n';
+  }
+}
+
+template <typename Gradient>
+static void print_sample_at(const Gradient& grad, const char* label, float x, float y) {
+  std::cout << "    " << std::left << std::setw(14) << label << std::right << " (" << std::fixed << std::setprecision(2)
+            << x << ", " << y << ")  ";
+  print_hex_chip(grad.sample_at(x, y));
+  std::cout << '\n';
+}
+
+int main() {
+  std::cout << std::fixed << std::setprecision(2);
+
+  // ========================================================================
+  section("1. color_stop and color_stops");
+
+  color_stops<rgba8_t> managed_stops = {
+      {1.00f, 0x0F172A_rgb},
+      {0.00f, 0xF8FAFC_rgb},
+      {0.55f, 0x38BDF8_rgb},
+  };
+  print_stops(managed_stops, "sorted on construction");
+
+  managed_stops.add(color_stop<rgba8_t>{0.25f, 0xBAE6FD_rgb});
+  managed_stops.add(color_stop<rgba8_t>{0.80f, 0xA855F7_rgb});
+  managed_stops.update_position(1, 0.20f);
+  managed_stops.update_color(2, 0x22D3EE_rgb);
+  std::size_t removed_by_pos = managed_stops.remove_at(0.80f);
+  managed_stops.remove(managed_stops.size() - 1);
+
+  print_stops(managed_stops, "after add/update/remove");
+  std::cout << "  empty() = " << std::boolalpha << managed_stops.empty() << '\n';
+  std::cout << "  remove_at(0.80) removed " << removed_by_pos << " stop(s)\n";
+  std::cout << "  front/back: ";
+  print_hex_chip(managed_stops.front().color);
+  std::cout << "  ";
+  print_hex_chip(managed_stops.back().color);
+  std::cout << '\n';
+
+  // ========================================================================
+  section("2. easing namespace");
+
+  std::cout << "  Sample values at t = 0.25 / 0.50 / 0.75\n\n";
+
+  print_easing_line("linear", easing::linear<float>);
+  print_easing_line("ease_in", easing::ease_in<float>);
+  print_easing_line("ease_out", easing::ease_out<float>);
+  print_easing_line("ease_in_out", easing::ease_in_out<float>);
+  print_easing_line("smooth_step", easing::smooth_step<float>);
+  print_easing_line("smoother_step", easing::smoother_step<float>);
+  print_easing_line("ease_in_sine", easing::ease_in_sine<float>);
+  print_easing_line("ease_out_sine", easing::ease_out_sine<float>);
+  print_easing_line("ease_in_out_sine", easing::ease_in_out_sine<float>);
+  print_easing_line("ease_in_cubic", easing::ease_in_cubic<float>);
+  print_easing_line("ease_out_cubic", easing::ease_out_cubic<float>);
+  print_easing_line("ease_in_out_cubic", easing::ease_in_out_cubic<float>);
+  print_easing_line("ease_in_quad", easing::ease_in_quad<float>);
+  print_easing_line("ease_out_quad", easing::ease_out_quad<float>);
+  print_easing_line("ease_in_out_quad", easing::ease_in_out_quad<float>);
+  print_easing_line("ease_in_expo", easing::ease_in_expo<float>);
+  print_easing_line("ease_out_expo", easing::ease_out_expo<float>);
+  print_easing_line("ease_in_out_expo", easing::ease_in_out_expo<float>);
+  print_easing_line("ease_in_circ", easing::ease_in_circ<float>);
+  print_easing_line("ease_out_circ", easing::ease_out_circ<float>);
+  print_easing_line("ease_in_out_circ", easing::ease_in_out_circ<float>);
+  auto css_like_bezier = easing::cubic_bezier<float>(0.25f, 0.10f, 0.25f, 1.00f);
+  print_easing_line("cubic_bezier(...)", css_like_bezier);
+
+  // ========================================================================
+  section("3. preset gradients");
+
+  // Scientific visualization series
+  print_palette_row("viridis()", preset::viridis<rgba8_t>().palette(10));
+  print_palette_row("plasma()", preset::plasma<rgba8_t>().palette(10));
+  print_palette_row("inferno()", preset::inferno<rgba8_t>().palette(10));
+  print_palette_row("magma()", preset::magma<rgba8_t>().palette(10));
+  print_palette_row("cividis()", preset::cividis<rgba8_t>().palette(10));
+  print_palette_row("spectral()", preset::spectral<rgba8_t>().palette(10));
+
+  // UI & design presets
+  print_palette_row("rainbow()", preset::rainbow<rgba8_t>().palette(10));
+  print_palette_row("ocean()", preset::ocean<rgba8_t>().palette(10));
+  print_palette_row("forest()", preset::forest<rgba8_t>().palette(10));
+  print_palette_row("sunset()", preset::sunset<rgba8_t>().palette(10));
+  print_palette_row("night()", preset::night<rgba8_t>().palette(10));
+  print_palette_row("fire()", preset::fire<rgba8_t>().palette(10));
+  print_palette_row("ice()", preset::ice<rgba8_t>().palette(10));
+  print_palette_row("neon()", preset::neon<rgba8_t>().palette(10));
+
+  // Resampling demo
+  std::cout << "\n  Preset resampling demo:\n\n";
+  print_palette_row("viridis() (native 5 stops)", preset::viridis<rgba8_t>().palette(5));
+  print_palette_row("viridis(7) (resampled)", preset::viridis<rgba8_t>(7).palette(7));
+  print_palette_row("viridis(15) (resampled)", preset::viridis<rgba8_t>(15).palette(15));
+
+  // ========================================================================
+  section("4. linear gradients");
+
+  auto sky = 0x0EA5E9_rgb;
+  auto orange = 0xF97316_rgb;
+
+  auto rgb_linear = linear<rgba8_t>({
+      {0.00f, sky},
+      {1.00f, orange},
+  });
+  auto oklab_linear = linear<oklab_t>({
+      {0.00f, color_cast<oklab_t>(sky)},
+      {1.00f, color_cast<oklab_t>(orange)},
+  });
+
+  print_sample_row(rgb_linear, "sample(t)", {0.00f, 0.25f, 0.50f, 0.75f, 1.00f});
+  print_palette_row("palette(7) in rgba8_t", rgb_linear.palette(7));
+  print_palette_row("palette(7) in oklab_t", oklab_linear.palette(7));
+
+  auto multi_stop = linear<rgba8_t>(
+      {
+          {0.00f, 0x020617_rgb},
+          {0.30f, 0x0EA5E9_rgb},
+          {0.70f, 0x22C55E_rgb},
+          {1.00f, 0xFACC15_rgb},
+      },
+      easing::smooth_step<float>);
+
+  print_stops(multi_stop.stops(), "multi-stop + smooth_step");
+  print_palette_row("palette(10)", multi_stop.palette(10));
+
+  auto retimed = multi_stop;
+  retimed.set_easing(easing::ease_in_out_cubic<float>);
+  print_palette_row("after set_easing()", retimed.palette(10));
+
+  auto warm = linear<rgba8_t>({
+      {0.00f, 0xEF4444_rgb},
+      {1.00f, 0x3B82F6_rgb},
+  });
+  auto cool = linear<rgba8_t>({
+      {0.00f, 0x10B981_rgb},
+      {1.00f, 0xF59E0B_rgb},
+  });
+
+  print_palette_row("reverse()", warm.reverse().palette(7));
+  print_palette_row("scale(2.0)", warm.scale(2.0f).palette(7));
+  print_palette_row("offset(0.25)", warm.offset(0.25f).palette(7));
+  print_palette_row("quantize(5)", warm.quantize(5).palette(11));
+  print_palette_row("blend(cool, 0.50)", warm.blend(cool, 0.50f).palette(7));
+  print_palette_row("concat(cool)", warm.concat(cool).palette(11));
+
+  // ========================================================================
+  section("5. radial gradients");
+
+  auto spotlight = radial<rgba8_t>(
+      {
+          {0.00f, 0xFFFFFF_rgb},
+          {0.45f, 0xFDE68A_rgb},
+          {1.00f, 0x7C2D12_rgb},
+      },
+      easing::ease_out_sine<float>);
+
+  auto mist = radial<rgba8_t>({
+      {0.00f, 0xDBEAFE_rgb},
+      {1.00f, 0x1D4ED8_rgb},
+  });
+
+  print_sample_row(spotlight, "sample(radius)", {0.00f, 0.25f, 0.50f, 0.75f, 1.00f});
+  print_palette_row("palette(8)", spotlight.palette(8));
+  std::cout << "  sample_at(x, y) around center (0.50, 0.50)\n";
+  print_sample_at(spotlight, "center", 0.50f, 0.50f);
+  print_sample_at(spotlight, "top", 0.50f, 0.10f);
+  print_sample_at(spotlight, "left", 0.10f, 0.50f);
+  print_sample_at(spotlight, "corner", 0.00f, 0.00f);
+  print_palette_row("reverse().offset(0.20)", spotlight.reverse().offset(0.20f).palette(8));
+  print_palette_row("scale(1.5)", spotlight.scale(1.50f).palette(8));
+  print_palette_row("quantize(4)", spotlight.quantize(4).palette(8));
+  print_palette_row("blend(mist, 0.50)", spotlight.blend(mist, 0.50f).palette(8));
+  print_palette_row("concat(mist)", spotlight.concat(mist).palette(10));
+
+  // ========================================================================
+  section("6. angular gradients");
+
+  auto wheel = angular<rgba8_t>({
+      {0.00f, 0xFF0000_rgb},
+      {0.33f, 0x00FF00_rgb},
+      {0.66f, 0x0000FF_rgb},
+      {1.00f, 0xFF0000_rgb},
+  });
+  auto dusk = angular<rgba8_t>(
+      {
+          {0.00f, 0x111827_rgb},
+          {0.50f, 0xF472B6_rgb},
+          {1.00f, 0x111827_rgb},
+      },
+      easing::ease_in_out_sine<float>);
+
+  print_sample_row(wheel, "sample(angle)", {0.00f, 0.25f, 0.50f, 0.75f, 1.00f});
+  print_palette_row("palette(12)", wheel.palette(12));
+  std::cout << "  sample_at(x, y) around center (0.50, 0.50)\n";
+  print_sample_at(wheel, "east", 1.00f, 0.50f);
+  print_sample_at(wheel, "south", 0.50f, 1.00f);
+  print_sample_at(wheel, "west", 0.00f, 0.50f);
+  print_sample_at(wheel, "north", 0.50f, 0.00f);
+  print_palette_row("offset(0.125)", wheel.offset(0.125f).palette(12));
+  print_palette_row("quantize(6)", wheel.quantize(6).palette(12));
+  print_palette_row("reverse()", wheel.reverse().palette(12));
+  print_palette_row("scale(2.0)", wheel.scale(2.0f).palette(12));
+  print_palette_row("blend(dusk, 0.50)", wheel.blend(dusk, 0.50f).palette(12));
+  print_palette_row("concat(dusk)", wheel.concat(dusk).palette(12));
+
+  // ========================================================================
+  section("7. diamond / box / stepped");
+
+  auto gem = diamond<rgba8_t>({
+      {0.00f, 0xFEF3C7_rgb},
+      {1.00f, 0x7C2D12_rgb},
+  });
+  auto frame = box<rgba8_t>(
+      {
+          {0.00f, 0xDBEAFE_rgb},
+          {0.60f, 0x60A5FA_rgb},
+          {1.00f, 0x1D4ED8_rgb},
+      },
+      easing::smooth_step<float>);
+  auto posterized = stepped(warm, 4);
+  auto faceted = stepped(gem, 5);
+
+  print_sample_row(gem, "diamond sample(distance)", {0.00f, 0.25f, 0.50f, 0.75f, 1.00f});
+  std::cout << "  diamond sample_at(x, y)\n";
+  print_sample_at(gem, "center", 0.50f, 0.50f);
+  print_sample_at(gem, "edge", 0.50f, 0.00f);
+  print_sample_at(gem, "corner", 1.00f, 1.00f);
+
+  print_sample_row(frame, "box sample(distance)", {0.00f, 0.25f, 0.50f, 0.75f, 1.00f});
+  std::cout << "  box sample_at(x, y)\n";
+  print_sample_at(frame, "center", 0.50f, 0.50f);
+  print_sample_at(frame, "side", 0.50f, 0.00f);
+  print_sample_at(frame, "quarter", 0.25f, 0.25f);
+
+  print_palette_row("stepped(warm, 4)", posterized.palette(11));
+  print_palette_row("stepped(gem, 5)", faceted.palette(11));
+  std::cout << "  stepped(gem, 5) sample_at(x, y)\n";
+  print_sample_at(faceted, "center", 0.50f, 0.50f);
+  print_sample_at(faceted, "mid", 0.50f, 0.25f);
+  print_sample_at(faceted, "edge", 0.50f, 0.00f);
+
+  // ========================================================================
+  section("8. sequence gradients");
+
+  using linear_rgba = linear_gradient<rgba8_t>;
+
+  auto seq_a = linear<rgba8_t>({
+      {0.00f, 0x0F172A_rgb},
+      {1.00f, 0x38BDF8_rgb},
+  });
+  auto seq_b = linear<rgba8_t>({
+      {0.00f, 0x38BDF8_rgb},
+      {1.00f, 0xF0ABFC_rgb},
+  });
+  auto seq_c = linear<rgba8_t>({
+      {0.00f, 0xF0ABFC_rgb},
+      {1.00f, 0xF97316_rgb},
+  });
+
+  std::vector<sequence_segment<linear_rgba>> segments = {
+      {seq_a, 0.00f, 0.35f},
+      {seq_b, 0.35f, 0.70f},
+      {seq_c, 0.70f, 1.00f},
+  };
+
+  auto seq = sequence(std::move(segments), easing::smooth_step<float>);
+  print_sample_row(seq, "sample(t)", {0.10f, 0.35f, 0.50f, 0.85f, 1.00f});
+  print_palette_row("palette(15)", seq.palette(15));
+  std::cout << "  segments().size() = " << seq.segments().size() << '\n';
+
+  std::vector<sequence_segment<linear_rgba>> builder_segments = {
+      {linear<rgba8_t>({{0.00f, 0x111827_rgb}, {1.00f, 0x6366F1_rgb}}), 0.00f, 0.50f},
+  };
+  sequence_gradient<linear_rgba> builder(builder_segments);
+  builder.add_segment(linear<rgba8_t>({{0.00f, 0x6366F1_rgb}, {1.00f, 0xEC4899_rgb}}), 0.50f, 1.00f);
+  print_palette_row("after add_segment()", builder.palette(9));
+  builder.set_easing(easing::ease_in_out_sine<float>);
+  print_palette_row("after set_easing()", builder.palette(9));
+  builder.clear();
+  builder.add_segment(linear<rgba8_t>({{0.00f, 0xEC4899_rgb}, {1.00f, 0xF59E0B_rgb}}), 0.00f, 1.00f);
+  print_palette_row("after clear() + add", builder.palette(7));
+  std::cout << "  rebuilt segments().size() = " << builder.segments().size() << '\n';
+
+  // ========================================================================
+  section("8. 2D grid visualization");
+
+  std::cout << "  16x16 diamond gradient render:\n\n";
+
+  // Night blue diamond gradient
+  auto render_grad = diamond<rgba8_t>(
+      {
+          {0.00f, 0xDBEAFE_rgb},
+          {0.35f, 0x60A5FA_rgb},
+          {0.65f, 0x2563EB_rgb},
+          {1.00f, 0x1E3A8A_rgb},
+      },
+      easing::ease_out_sine<float>);
+
+  constexpr int grid_size = 16;
+  for (int y = 0; y < grid_size; ++y) {
+    std::cout << "    ";
+    for (int x = 0; x < grid_size; ++x) {
+      float u = static_cast<float>(x) / static_cast<float>(grid_size - 1);
+      float v = static_cast<float>(y) / static_cast<float>(grid_size - 1);
+      auto color = render_grad.sample_at(u, v);
+      print_swatch(std::cout, as_rgba8(color), 2);
+    }
+    std::cout << '\n';
+  }
+
+  // ========================================================================
+  section("9. preset gradient visualization");
+
+  std::cout << "\n";
+  const char* preset_names[] = {"viridis", "plasma", "inferno", "magma", "cividis", "spectral", "rainbow",
+                                "ocean",   "forest", "sunset",  "night", "fire",    "ice",      "neon"};
+
+  using PresetFn = std::function<linear_gradient<rgba8_t>(std::size_t)>;
+  PresetFn preset_fns[] = {preset::viridis<rgba8_t>, preset::plasma<rgba8_t>,  preset::inferno<rgba8_t>,
+                           preset::magma<rgba8_t>,   preset::cividis<rgba8_t>, preset::spectral<rgba8_t>,
+                           preset::rainbow<rgba8_t>, preset::ocean<rgba8_t>,   preset::forest<rgba8_t>,
+                           preset::sunset<rgba8_t>,  preset::night<rgba8_t>,   preset::fire<rgba8_t>,
+                           preset::ice<rgba8_t>,     preset::neon<rgba8_t>};
+
+  constexpr int preset_count = sizeof(preset_names) / sizeof(preset_names[0]);
+  for (int i = 0; i < preset_count; ++i) {
+    std::cout << "  " << std::left << std::setw(12) << preset_names[i];
+    auto grad = preset_fns[i](16);
+    for (int x = 0; x < 16; ++x) {
+      float t = static_cast<float>(x) / 15.0f;
+      print_swatch(std::cout, grad.sample(t), 2);
+    }
+    std::cout << '\n';
+  }
+
+  std::cout << "\n";
+  return 0;
+}

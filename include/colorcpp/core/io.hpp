@@ -11,6 +11,7 @@
 #include <colorcpp/core/color_base.hpp>
 #include <cstdint>
 #include <iomanip>
+#include <ios>
 #include <iostream>
 #include <string>
 #include <string_view>
