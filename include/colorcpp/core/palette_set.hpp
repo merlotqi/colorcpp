@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace colorcpp::operations::palette {
+namespace colorcpp::core {
 
 /** @brief Ordered list of colors with wrap indexing and bounds-checked @ref at. */
 template <typename Color>
@@ -23,6 +23,9 @@ class palette_set {
 
   void add(const Color& c) { colors_.push_back(c); }
   const std::vector<Color>& colors() const { return colors_; }
+
+  /** @brief Implicit conversion to std::vector for convenience. */
+  operator std::vector<Color>() const { return colors_; }
 
   size_t size() const { return colors_.size(); }
   bool empty() const { return colors_.empty(); }
@@ -44,8 +47,15 @@ class palette_set {
   auto cbegin() const { return colors_.cbegin(); }
   auto cend() const { return colors_.cend(); }
 
+  /** @brief Concatenate two palette sets. */
+  palette_set operator+(const palette_set& other) const {
+    palette_set result = *this;
+    result.colors_.insert(result.colors_.end(), other.colors_.begin(), other.colors_.end());
+    return result;
+  }
+
  private:
   std::vector<Color> colors_;
 };
 
-}  // namespace colorcpp::operations::palette
+}  // namespace colorcpp::core

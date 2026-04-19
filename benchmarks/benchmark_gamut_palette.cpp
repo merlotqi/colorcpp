@@ -4,7 +4,7 @@
 
 using namespace colorcpp;
 using colorcpp::algorithms::gamut::is_in_srgb_gamut;
-using colorcpp::operations::palette::perceptual_scale;
+using colorcpp::algorithms::palette::perceptual_scale;
 
 static void BM_IsInSrgbGamut_OkLab(benchmark::State& state) {
   oklab_t c{0.65f, 0.12f, -0.08f};

@@ -23,23 +23,24 @@ Implemented Features
 * ``spline_scale(control_points, count)`` - Catmull-Rom spline through control points
 * ``multi_scale(colors, count)`` - Smooth multi-color gradient
 
-**Harmony:**
-* ``generate::complementary(base)`` - 180° rotation
-* ``generate::analogous(base, angle)`` - ±angle rotation (default: 30°)
-* ``generate::triadic(base)`` - 120° rotations
-* ``generate::split_complementary(base)`` - 150° and 210° rotations
-* ``generate::tetradic(base)`` - 60°, 180°, 240° rotations
-* ``generate::square(base)`` - 90° rotations
-* ``generate::monochromatic(base, count, min, max)`` - Varying lightness
+**Harmony Schemes:**
+* ``schemes::make(base, scheme, count)`` - Generate from formal harmony rules
+* ``schemes::complementary(base)`` - 180° rotation
+* ``schemes::analogous(base, angle)`` - Base-centered ±angle rotation (default: 30°)
+* ``schemes::triadic(base)`` - 120° rotations
+* ``schemes::split_complementary(base)`` - 150° and 210° rotations
+* ``schemes::tetradic(base)`` - 60°, 180°, 240° rotations
+* ``schemes::square(base)`` - 90° rotations
+* ``schemes::monochromatic(base, count, min, max)`` - Varying lightness
 
 **Rainbow:**
 * ``rainbow(count)`` - Rainbow palette with evenly distributed hues
 * ``rainbow_custom(count, saturation, lightness)`` - Custom saturation/lightness
 
-**Temperature:**
-* ``warm_palette(base, count)`` - Warm colors (reds, oranges, yellows)
-* ``cool_palette(base, count)`` - Cool colors (blues, greens, purples)
-* ``neutral_palette(base, count)`` - Neutral grays with subtle tint
+**Palette Families:**
+* ``families::warm(base, count)`` - Warm colors (reds, oranges, yellows)
+* ``families::cool(base, count)`` - Cool colors (blues, greens, purples)
+* ``families::neutral(base, count)`` - Neutral grays with subtle tint
 
 **Material Design:**
 * ``material_primary(base, count)`` - Primary color tonal variants
@@ -52,6 +53,7 @@ Implemented Features
 Notes
 -----
 
+* Harmony palettes are generated from ``algorithms::harmony::rule_for(...)``; palette and analysis now share one rule source.
 * Harmony angles (e.g. 180° complementary) are applied in **HSL hue** space after conversion; saturation/lightness come from the source color unless an API states otherwise.
 * ``linear_scale`` uses RGB interpolation; for perceptual ramps prefer building stops with :doc:`interpolate` in OkLab/OkLCH and then packing into a ``palette_set``.
 * Edge cases are handled: NaN/Inf values return safe defaults, angle=0 returns single color, count=0 returns empty palette.

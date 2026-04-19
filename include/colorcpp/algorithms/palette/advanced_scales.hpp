@@ -9,10 +9,10 @@
 #include <cmath>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/interpolate.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <vector>
 
-namespace colorcpp::operations::palette {
+namespace colorcpp::algorithms::palette {
 
 /**
  * @brief Interpolation methods enum for convenience.
@@ -124,9 +124,9 @@ inline float apply_easing(float t, easing_type easing) {
  * @return Palette with eased gradient colors.
  */
 template <typename Color>
-auto easing_scale(const Color& start, const Color& end, size_t count, easing_type easing,
+core::palette_set<Color> easing_scale(const Color& start, const Color& end, size_t count, easing_type easing,
                   lerp_method method = lerp_method::oklab) {
-  palette_set<Color> p;
+  core::palette_set<Color> p;
   if (count == 0) return p;
   if (count == 1) {
     p.add(start);
@@ -139,17 +139,17 @@ auto easing_scale(const Color& start, const Color& end, size_t count, easing_typ
 
     switch (method) {
       case lerp_method::rgb:
-        p.add(interpolate::lerp(start, end, t_eased));
+        p.add(operations::interpolate::lerp(start, end, t_eased));
         break;
       case lerp_method::hsl:
-        p.add(interpolate::lerp_hsl(start, end, t_eased));
+        p.add(operations::interpolate::lerp_hsl(start, end, t_eased));
         break;
       case lerp_method::hsv:
-        p.add(interpolate::lerp_hsv(start, end, t_eased));
+        p.add(operations::interpolate::lerp_hsv(start, end, t_eased));
         break;
       case lerp_method::oklab:
       default:
-        p.add(interpolate::lerp_oklab(start, end, t_eased));
+        p.add(operations::interpolate::lerp_oklab(start, end, t_eased));
         break;
     }
   }
@@ -164,9 +164,9 @@ auto easing_scale(const Color& start, const Color& end, size_t count, easing_typ
  * @return Palette with spline-interpolated colors.
  */
 template <typename Color>
-auto spline_scale(const std::vector<Color>& control_points, size_t count,
-                  interpolate::cr_mode mode = interpolate::cr_mode::centripetal) {
-  palette_set<Color> p;
+core::palette_set<Color> spline_scale(const std::vector<Color>& control_points, size_t count,
+                  operations::interpolate::cr_mode mode = operations::interpolate::cr_mode::centripetal) {
+  core::palette_set<Color> p;
 
   if (control_points.empty() || count == 0) return p;
   if (control_points.size() == 1) {
@@ -180,7 +180,7 @@ auto spline_scale(const std::vector<Color>& control_points, size_t count,
   if (control_points.size() == 2) {
     for (size_t i = 0; i < count; ++i) {
       float t = static_cast<float>(i) / (count - 1);
-      p.add(interpolate::lerp_oklab(control_points[0], control_points[1], t));
+      p.add(operations::interpolate::lerp_oklab(control_points[0], control_points[1], t));
     }
     return p;
   }
@@ -207,7 +207,7 @@ auto spline_scale(const std::vector<Color>& control_points, size_t count,
       float t = static_cast<float>(i) / seg_samples;
 
       // Use OkLab interpolation with Catmull-Rom
-      using namespace conversion;
+      using namespace operations::conversion;
       auto c0 = color_cast<core::oklab_t>(control_points[i0]);
       auto c1 = color_cast<core::oklab_t>(control_points[i1]);
       auto c2 = color_cast<core::oklab_t>(control_points[i2]);
@@ -215,23 +215,23 @@ auto spline_scale(const std::vector<Color>& control_points, size_t count,
 
       // Apply parameterization
       float t_L =
-          interpolate::details::cr_parameterize(c0.template get_index<0>(), c1.template get_index<0>(),
+          operations::interpolate::details::cr_parameterize(c0.template get_index<0>(), c1.template get_index<0>(),
                                                 c2.template get_index<0>(), c3.template get_index<0>(), t, mode);
       float t_A =
-          interpolate::details::cr_parameterize(c0.template get_index<1>(), c1.template get_index<1>(),
+          operations::interpolate::details::cr_parameterize(c0.template get_index<1>(), c1.template get_index<1>(),
                                                 c2.template get_index<1>(), c3.template get_index<1>(), t, mode);
       float t_B =
-          interpolate::details::cr_parameterize(c0.template get_index<2>(), c1.template get_index<2>(),
+          operations::interpolate::details::cr_parameterize(c0.template get_index<2>(), c1.template get_index<2>(),
                                                 c2.template get_index<2>(), c3.template get_index<2>(), t, mode);
 
       core::oklab_t mid{
-          std::clamp(interpolate::details::catmull_rom(c0.template get_index<0>(), c1.template get_index<0>(),
+          std::clamp(operations::interpolate::details::catmull_rom(c0.template get_index<0>(), c1.template get_index<0>(),
                                                        c2.template get_index<0>(), c3.template get_index<0>(), t_L),
                      0.0f, 1.0f),
-          std::clamp(interpolate::details::catmull_rom(c0.template get_index<1>(), c1.template get_index<1>(),
+          std::clamp(operations::interpolate::details::catmull_rom(c0.template get_index<1>(), c1.template get_index<1>(),
                                                        c2.template get_index<1>(), c3.template get_index<1>(), t_A),
                      -0.5f, 0.5f),
-          std::clamp(interpolate::details::catmull_rom(c0.template get_index<2>(), c1.template get_index<2>(),
+          std::clamp(operations::interpolate::details::catmull_rom(c0.template get_index<2>(), c1.template get_index<2>(),
                                                        c2.template get_index<2>(), c3.template get_index<2>(), t_B),
                      -0.5f, 0.5f)};
 
@@ -240,7 +240,7 @@ auto spline_scale(const std::vector<Color>& control_points, size_t count,
       auto r2 = color_cast<core::rgbaf_t>(control_points[i2]);
       auto out = color_cast<core::rgbaf_t>(mid);
       out.template get_index<3>() =
-          interpolate::details::lerp_f(r1.template get_index<3>(), r2.template get_index<3>(), t);
+          operations::interpolate::details::lerp_f(r1.template get_index<3>(), r2.template get_index<3>(), t);
 
       p.add(color_cast<Color>(out));
     }
@@ -260,8 +260,8 @@ auto spline_scale(const std::vector<Color>& control_points, size_t count,
  * @return Palette with smooth multi-color gradient.
  */
 template <typename Color>
-auto multi_scale(const std::vector<Color>& colors, size_t count, lerp_method method = lerp_method::oklab) {
-  palette_set<Color> p;
+core::palette_set<Color> multi_scale(const std::vector<Color>& colors, size_t count, lerp_method method = lerp_method::oklab) {
+  core::palette_set<Color> p;
 
   if (colors.empty() || count == 0) return p;
   if (colors.size() == 1) {
@@ -291,17 +291,17 @@ auto multi_scale(const std::vector<Color>& colors, size_t count, lerp_method met
 
       switch (method) {
         case lerp_method::rgb:
-          p.add(interpolate::lerp(colors[seg], colors[seg + 1], t));
+          p.add(operations::interpolate::lerp(colors[seg], colors[seg + 1], t));
           break;
         case lerp_method::hsl:
-          p.add(interpolate::lerp_hsl(colors[seg], colors[seg + 1], t));
+          p.add(operations::interpolate::lerp_hsl(colors[seg], colors[seg + 1], t));
           break;
         case lerp_method::hsv:
-          p.add(interpolate::lerp_hsv(colors[seg], colors[seg + 1], t));
+          p.add(operations::interpolate::lerp_hsv(colors[seg], colors[seg + 1], t));
           break;
         case lerp_method::oklab:
         default:
-          p.add(interpolate::lerp_oklab(colors[seg], colors[seg + 1], t));
+          p.add(operations::interpolate::lerp_oklab(colors[seg], colors[seg + 1], t));
           break;
       }
     }
@@ -313,4 +313,4 @@ auto multi_scale(const std::vector<Color>& colors, size_t count, lerp_method met
   return p;
 }
 
-}  // namespace colorcpp::operations::palette
+}  // namespace colorcpp::algorithms::palette

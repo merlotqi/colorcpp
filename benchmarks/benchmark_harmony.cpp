@@ -7,7 +7,7 @@ using algorithms::harmony::assess;
 using algorithms::harmony::correct;
 using algorithms::harmony::harmony_scheme;
 using algorithms::harmony::suggest;
-using operations::palette::palette_set;
+using core::palette_set;
 
 // Assess complementary palette
 static void BM_HarmonyAssess_Complementary(benchmark::State& state) {
@@ -132,7 +132,7 @@ static void BM_HarmonyCorrect_Complementary(benchmark::State& state) {
   palette.add(rgba8_t{255, 0, 0, 255});
   palette.add(rgba8_t{0, 200, 200, 255});  // Slightly off cyan
   for (auto _ : state) {
-    benchmark::DoNotOptimize(correct(palette, harmony_scheme::complementary));
+    benchmark::DoNotOptimize(correct(palette, harmony_scheme::complementary).palette);
   }
 }
 BENCHMARK(BM_HarmonyCorrect_Complementary);
@@ -144,7 +144,7 @@ static void BM_HarmonyCorrect_Triadic(benchmark::State& state) {
   palette.add(rgba8_t{50, 255, 50, 255});
   palette.add(rgba8_t{50, 50, 255, 255});
   for (auto _ : state) {
-    benchmark::DoNotOptimize(correct(palette, harmony_scheme::triadic));
+    benchmark::DoNotOptimize(correct(palette, harmony_scheme::triadic).palette);
   }
 }
 BENCHMARK(BM_HarmonyCorrect_Triadic);

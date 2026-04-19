@@ -128,7 +128,7 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
 
   // Returns the complete set of colors for the given harmony mode.
   // The palette always starts with base_c itself, followed by its harmony partners.
-  palette::palette_set<Color> generate_palette(const Color& base_c, harmony_mode mode) const {
+  core::palette_set<Color> generate_palette(const Color& base_c, harmony_mode mode) const {
     std::size_t partner_count = 0;
     switch (mode) {
       case harmony_mode::complementary:
@@ -151,7 +151,7 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
         break;
     }
 
-    palette::palette_set<Color> result;
+    core::palette_set<Color> result;
     result.add(base_c);
     for (std::size_t i = 1; i <= partner_count; ++i) result.add(next_harmony(base_c, mode, i));
     return result;

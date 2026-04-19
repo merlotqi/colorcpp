@@ -1,30 +1,31 @@
 /**
  * @file palette.hpp
- * @brief Palettes: ramps between two colors and classical harmony generators (complementary, triadic, etc.).
+ * @brief Palettes: ramps, palette families, formal harmony scheme generation, and theme helpers.
  *
  * This header includes all palette sub-modules:
- * - palette_set.hpp: Ordered list of colors with wrap indexing
- * - details.hpp: Internal helper functions
- * - scales.hpp: Gradient scale generators (linear, visual, perceptual)
- * - advanced_scales.hpp: Advanced gradient generators with easing functions, spline curves, and multi-color transitions
- * - generators.hpp: Color harmony generators (complementary, analogous, triadic, etc.)
- * - rainbow.hpp: Rainbow palette generator
- * - temperature.hpp: Warm and cool color palettes
- * - material.hpp: Material Design 3 color system
+ * - core/palette_set.hpp: Ordered list of colors with wrap indexing
+ * - algorithms/palette/scales.hpp: Gradient scale generators (linear, visual, perceptual)
+ * - algorithms/palette/advanced_scales.hpp: Advanced gradient generators with easing functions, spline curves, and multi-color transitions
+ * - operations/palette/schemes.hpp: Formal harmony scheme generators built on algorithms::harmony rules
+ * - algorithms/palette/rainbow.hpp: Rainbow palette generator
+ * - algorithms/palette/families.hpp: Warm, cool, and neutral palette families
+ * - operations/palette/material.hpp: Material Design 3 color system
+ * - operations/palette/theme.hpp: Semantic theme derivation from a seed color
  */
 
 #pragma once
 
-#include <colorcpp/operations/palette/advanced_scales.hpp>
-#include <colorcpp/operations/palette/details.hpp>
-#include <colorcpp/operations/palette/generators.hpp>
+#include <colorcpp/core/palette_set.hpp>
+#include <colorcpp/algorithms/palette/scales.hpp>
+#include <colorcpp/algorithms/palette/advanced_scales.hpp>
+#include <colorcpp/algorithms/palette/rainbow.hpp>
+#include <colorcpp/algorithms/palette/families.hpp>
+#include <colorcpp/operations/palette/schemes.hpp>
 #include <colorcpp/operations/palette/material.hpp>
-#include <colorcpp/operations/palette/palette_set.hpp>
-#include <colorcpp/operations/palette/rainbow.hpp>
-#include <colorcpp/operations/palette/scales.hpp>
-#include <colorcpp/operations/palette/temperature.hpp>
+#include <colorcpp/operations/palette/theme.hpp>
 
-/** @brief Named palettes and gradient scales built on @ref interpolate. */
+/** @brief Named palettes and gradient scales built on @ref interpolate and harmony rules. */
 namespace colorcpp::operations::palette {
-// All functionality is provided by the included sub-modules
+// All functionality is provided by the included sub-modules.
+// palette_set is available at colorcpp::core::palette_set<Color>.
 }

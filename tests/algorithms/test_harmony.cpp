@@ -29,6 +29,26 @@ TEST(HarmonyAssessTest, ComplementaryPalette) {
   EXPECT_GT(result.score, 80.0f);
 }
 
+TEST(HarmonyRulesTest, TriadicRuleHasCanonicalOffsets) {
+  auto rule = rule_for(harmony_scheme::triadic);
+  ASSERT_EQ(rule.color_count, 3u);
+  ASSERT_EQ(rule.ideal_steps.size(), 2u);
+  ASSERT_EQ(rule.generation_offsets.size(), 3u);
+  EXPECT_FLOAT_EQ(rule.ideal_steps[0], 120.0f);
+  EXPECT_FLOAT_EQ(rule.ideal_steps[1], 120.0f);
+  EXPECT_FLOAT_EQ(rule.generation_offsets[0], 0.0f);
+  EXPECT_FLOAT_EQ(rule.generation_offsets[1], 120.0f);
+  EXPECT_FLOAT_EQ(rule.generation_offsets[2], 240.0f);
+}
+
+TEST(HarmonyRulesTest, DetectSquareScheme) {
+  const std::vector<float> diffs{90.0f, 90.0f, 90.0f, 90.0f};
+  auto [scheme, steps] = detect_scheme(4, diffs);
+  EXPECT_EQ(scheme, harmony_scheme::square);
+  ASSERT_EQ(steps.size(), 3u);
+  EXPECT_FLOAT_EQ(steps[0], 90.0f);
+}
+
 TEST(HarmonyAssessTest, TriadicPalette) {
   // Create a triadic palette (0°, 120°, 240°)
   palette_set<rgbaf_t> palette;
@@ -67,30 +87,38 @@ TEST(HarmonyAssessTest, SingleColorPalette) {
 // ============================================================================
 
 TEST(HarmonyCorrectTest, CorrectToComplementary) {
-  // Create a palette with colors not quite complementary
+  // Create a palette with hues off the complementary relationship (0° and 170°)
   palette_set<rgbaf_t> palette;
-  palette.add(rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f});  // Red (0°)
-  palette.add(rgbaf_t{0.0f, 0.9f, 0.9f, 1.0f});  // Slightly off cyan
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{0.0f, 1.0f, 0.5f, 1.0f}));
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{170.0f, 1.0f, 0.5f, 1.0f}));
 
   auto corrected = correct(palette, harmony_scheme::complementary);
+  EXPECT_TRUE(corrected.applied());
+  EXPECT_EQ(corrected.status, correction_status::corrected);
+  EXPECT_EQ(corrected.detected_scheme, harmony_scheme::complementary);
+  EXPECT_EQ(corrected.target_scheme, harmony_scheme::complementary);
 
   // Verify the corrected palette is more harmonious
-  auto result = assess(corrected);
+  auto result = assess(corrected.palette);
   EXPECT_EQ(result.scheme, harmony_scheme::complementary);
   EXPECT_GT(result.score, 90.0f);
 }
 
 TEST(HarmonyCorrectTest, CorrectToTriadic) {
-  // Create a palette with colors not quite triadic
+  // Create a palette with hues off the triadic relationship (0°, 130°, 250°)
   palette_set<rgbaf_t> palette;
-  palette.add(rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f});  // Red (0°)
-  palette.add(rgbaf_t{0.1f, 1.0f, 0.1f, 1.0f});  // Slightly off green
-  palette.add(rgbaf_t{0.1f, 0.1f, 1.0f, 1.0f});  // Slightly off blue
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{0.0f, 1.0f, 0.5f, 1.0f}));
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{130.0f, 1.0f, 0.5f, 1.0f}));
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{250.0f, 1.0f, 0.5f, 1.0f}));
 
   auto corrected = correct(palette, harmony_scheme::triadic);
+  EXPECT_TRUE(corrected.applied());
+  EXPECT_EQ(corrected.status, correction_status::corrected);
+  EXPECT_EQ(corrected.detected_scheme, harmony_scheme::triadic);
+  EXPECT_EQ(corrected.target_scheme, harmony_scheme::triadic);
 
   // Verify the corrected palette is more harmonious
-  auto result = assess(corrected);
+  auto result = assess(corrected.palette);
   EXPECT_EQ(result.scheme, harmony_scheme::triadic);
   EXPECT_GT(result.score, 90.0f);
 }
@@ -102,8 +130,38 @@ TEST(HarmonyCorrectTest, SingleColorUnchanged) {
   auto corrected = correct(palette);
 
   // Single color should remain unchanged
-  EXPECT_EQ(corrected.size(), 1);
-  EXPECT_FLOAT_EQ(corrected[0].r(), 1.0f);
+  EXPECT_FALSE(corrected.applied());
+  EXPECT_EQ(corrected.status, correction_status::insufficient_colors);
+  EXPECT_EQ(corrected.palette.size(), 1);
+  EXPECT_FLOAT_EQ(corrected.palette[0].r(), 1.0f);
+}
+
+TEST(HarmonyCorrectTest, AlreadyAlignedPaletteReportsUnchanged) {
+  palette_set<rgbaf_t> palette;
+  palette.add(rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f});
+  palette.add(rgbaf_t{0.0f, 1.0f, 1.0f, 1.0f});
+
+  auto corrected = correct(palette, harmony_scheme::complementary);
+
+  EXPECT_FALSE(corrected.applied());
+  EXPECT_EQ(corrected.status, correction_status::unchanged);
+  EXPECT_EQ(corrected.target_scheme, harmony_scheme::complementary);
+}
+
+TEST(HarmonyCorrectTest, UnsupportedSchemeReportsStatus) {
+  palette_set<rgbaf_t> palette;
+  palette.add(rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f});
+  palette.add(rgbaf_t{1.0f, 0.5f, 0.0f, 1.0f});
+  palette.add(rgbaf_t{1.0f, 1.0f, 0.0f, 1.0f});
+  palette.add(rgbaf_t{0.0f, 1.0f, 0.0f, 1.0f});
+  palette.add(rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f});
+  palette.add(rgbaf_t{0.5f, 0.0f, 1.0f, 1.0f});
+
+  auto corrected = correct(palette);
+
+  EXPECT_FALSE(corrected.applied());
+  EXPECT_EQ(corrected.status, correction_status::unsupported_scheme);
+  EXPECT_EQ(corrected.detected_scheme, harmony_scheme::custom);
 }
 
 // ============================================================================
@@ -233,12 +291,14 @@ TEST(HarmonyCorrectTest, CorrectToGolden) {
   palette.add(rgbaf_t{0.0f, 0.25f, 1.0f, 1.0f});  // Slightly off golden angle
 
   auto corrected = correct(palette, harmony_scheme::golden);
+  EXPECT_TRUE(corrected.applied());
+  EXPECT_EQ(corrected.status, correction_status::corrected);
 
-  auto result = assess(corrected);
+  auto result = assess(corrected.palette);
   EXPECT_EQ(result.scheme, harmony_scheme::golden);
   EXPECT_GE(result.score, 85.0f);
 
-  auto second_h = color_cast<hsla_float_t>(corrected.at(1));
+  auto second_h = color_cast<hsla_float_t>(corrected.palette.at(1));
   EXPECT_NEAR(second_h.h(), 137.5f, 1.0f);
 }
 

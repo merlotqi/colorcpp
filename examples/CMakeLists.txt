@@ -50,4 +50,7 @@ if(COLORCPP_BUILD_EXAMPLES)
 
   add_executable(color_temperature_example color_temperature_example.cpp)
   target_link_libraries(color_temperature_example colorcpp::colorcpp)
+
+  add_executable(harmony_example harmony_example.cpp)
+  target_link_libraries(harmony_example colorcpp::colorcpp)
 endif()
