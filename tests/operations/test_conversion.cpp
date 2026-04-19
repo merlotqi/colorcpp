@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+#include <type_traits>
 
 namespace colorcpp::operations::test {
 
@@ -135,6 +136,26 @@ TEST(ConversionTest, RouteSelectionPrefersShorterPathToOklch) {
   EXPECT_NEAR(casted.l(), direct.l(), 1e-6f);
   EXPECT_NEAR(casted.c(), direct.c(), 1e-6f);
   EXPECT_NEAR(casted.h(), direct.h(), 1e-4f);
+}
+
+TEST(ConversionTest, GraphRoutingPrefersLowerWeightedCanonicalPathToOklab) {
+  static_assert(registered_conversion_cost_v<display_p3f_t, rgbf_t> == route_cost::shortcut_4_hop);
+  static_assert(registered_conversion_cost_v<rgbf_t, cielab_t> == route_cost::shortcut_2_hop);
+  static_assert(graph::minimal_conversion_cost<display_p3f_t, oklab_t>() == 3);
+  static_assert(best_route_cost<display_p3f_t, oklab_t>() == 3);
+  static_assert(std::is_same_v<graph::next_hop_t<display_p3f_t, oklab_t>, linear_display_p3f_t>);
+  static_assert(graph::minimal_conversion_cost<rgbf_t, cielab_t>() == 2);
+  static_assert(std::is_same_v<graph::next_hop_t<rgbf_t, cielab_t>, linear_rgbf_t>);
+
+  const display_p3f_t sample{0.90f, 0.35f, 0.15f};
+  const auto expected =
+      details::xyz_to_oklab<oklab_t>(details::linear_display_p3_to_xyz<xyz_t>(
+          details::display_p3_to_linear_display_p3<linear_display_p3f_t>(sample)));
+  const auto casted = color_cast<oklab_t>(sample);
+
+  EXPECT_NEAR(casted.l(), expected.l(), 1e-6f);
+  EXPECT_NEAR(casted.a(), expected.a(), 1e-6f);
+  EXPECT_NEAR(casted.b(), expected.b(), 1e-6f);
 }
 
 // Alpha handling
