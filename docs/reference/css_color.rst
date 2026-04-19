@@ -14,7 +14,14 @@ In colorcpp
   * ``parse_css_color<ColorType>()`` - Generic parser for any color space
   * ``parse_css_color_rgba8()`` - Parse to 8-bit sRGB
   * ``parse_css_color_rgbaf()`` - Parse to floating point sRGB
-  * ``parse_css_color_context`` - Ambient values for ``currentColor``, system colors, and theme-dependent parsing
+  * ``parse_css_color_context`` - Ambient values for ``currentColor``, system colors, CSS variables, and theme-dependent parsing
+  * ``parse_css_color_ast()`` / ``evaluate()`` - Delayed AST workflow for relative colors such as ``rgb(from var(--token) ...)``
+
+**Variable resolution API**:
+
+  * ``evaluate<ColorType>(ast, color_resolver)`` - Simple evaluate overload with only color variable callback
+  * ``evaluate<ColorType>(ast, color_resolver, numeric_resolver)`` - Full evaluate overload with separate numeric variable callback
+  * ``parse_css_color_context::numeric_variable_resolver`` - Numeric CSS variable resolution for alpha values, weights, and expression operands
 
 **Formatting API**:
 
@@ -35,7 +42,14 @@ In colorcpp
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
     * ``lab()`` / ``lch()`` - CIE LAB space
     * ``color(display-p3)`` - Display P3 wide gamut
-    * ``color-mix()`` - interpolation in ``srgb``, ``srgb-linear``, ``display-p3``, ``display-p3-linear``, ``lab``, ``lch``, ``oklab``, ``oklch``, and ``xyz``
+    * ``rgb(from ...)`` / ``color(from ...)`` - relative colors with full expression support, including:
+        * Arithmetic operations ``+ - * /``
+        * Parenthesized expressions
+        * ``calc()`` wrapper syntax
+        * Nested ``var(--token)`` references anywhere inside expressions
+        * Unary minus
+        * Delayed AST evaluation with variable binding
+    * ``color-mix()`` - interpolation in ``srgb``, ``srgb-linear``, ``display-p3``, ``display-p3-linear``, ``lab``, ``lch``, ``oklab``, ``oklch``, and ``xyz``; ``lch`` / ``oklch`` also accept ``shorter|longer|increasing|decreasing hue``
     * ``device-cmyk()`` - CMYK device colors with optional alpha
     * ``light-dark()`` - Theme-aware color selection through context-aware parsing
 
@@ -61,10 +75,15 @@ Notes
 -----
 
 * Context-sensitive colors require the overloads that take ``parse_css_color_context``
+* ``parse_css_color_context::variable_resolver`` enables direct evaluation of relative colors that reference ``var(--custom-property)``
+* ``parse_css_color_context::numeric_variable_resolver`` supports numeric values inside channel expressions
+* ``var()`` variables can appear in any numeric position: channel values, alpha channels, color-mix weights, and expression operands
+* Relative color AST may be parsed once and evaluated multiple times with different variable bindings
 * All percentage values are properly normalized
 * Angle units support: ``deg``, ``rad``, ``grad``, ``turn``
 * Parser accepts both legacy comma syntax and modern space-separated syntax
-* General relative color syntax such as ``rgb(from ...)`` is not implemented
+* ``color-mix()`` follows CSS premultiplied-alpha mixing semantics, including reduced-alpha results when explicit percentages sum below ``100%``
+* Relative color support currently covers ``rgb(from ...)`` and ``color(from ...)``; the remaining relative syntaxes are not implemented yet
 * Formatter produces canonical ``rgb()`` output for sRGB colors
 
 

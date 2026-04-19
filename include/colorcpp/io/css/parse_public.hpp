@@ -6,6 +6,7 @@
 #pragma once
 
 #include <colorcpp/io/css/parse_detail.hpp>
+#include <colorcpp/io/css/relative_color.hpp>
 #include <optional>
 #include <string_view>
 
@@ -26,6 +27,11 @@ inline std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str,
     c.skip_ws();
     if (!c.eof()) return std::nullopt;
     return r;
+  }
+  if (auto ast = relative_css_detail::parse_relative_css_color(str)) {
+    auto evaluated = evaluate<core::rgba8_t>(parsed_css_color{std::move(*ast)}, context);
+    if (!evaluated) return std::nullopt;
+    return evaluated;
   }
   c.i = 0;
   return css_parse_detail::parse_css_color_rgba8_atomic_eof(str, context);
@@ -51,6 +57,11 @@ inline std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str,
     c.skip_ws();
     if (!c.eof()) return std::nullopt;
     return r;
+  }
+  if (auto ast = relative_css_detail::parse_relative_css_color(str)) {
+    auto evaluated = evaluate<core::rgbaf_t>(parsed_css_color{std::move(*ast)}, context);
+    if (!evaluated) return std::nullopt;
+    return evaluated;
   }
   c.i = 0;
   return css_parse_detail::parse_css_color_rgbaf_atomic_eof(str, context);
