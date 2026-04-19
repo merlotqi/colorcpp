@@ -197,11 +197,7 @@ inline ios_palette ios_dark_mode() {
 template <typename Color>
 ios_palette ios_from_seed(const Color& seed, bool dark = false) {
   using namespace operations::conversion;
-
-  auto seed_hsl = color_cast<core::hsla_float_t>(seed);
-  float base_hue = seed_hsl.h();
-  float base_sat = std::min(seed_hsl.s(), 1.0f);
-
+  (void)seed;
   ios_palette p;
 
   // Warm system colors

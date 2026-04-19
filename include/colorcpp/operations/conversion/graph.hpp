@@ -274,23 +274,23 @@ struct shortest_path_for_nodes {
   static constexpr auto adjacency = adjacency_matrix<Nodes, Edges>::value;
 
   static constexpr search_state<node_count> run_dijkstra() {
-    search_state<node_count> state{};
+    search_state<node_count> s{};
     std::array<bool, node_count> visited{};
 
     for (std::size_t i = 0; i < node_count; ++i) {
-      state.dist[i] = inf;
-      state.prev[i] = invalid_index;
+      s.dist[i] = inf;
+      s.prev[i] = invalid_index;
       visited[i] = false;
     }
-    state.dist[source_index] = 0;
+    s.dist[source_index] = 0;
 
     for (std::size_t step = 0; step < node_count; ++step) {
       std::size_t current = invalid_index;
       std::size_t best = inf;
       for (std::size_t i = 0; i < node_count; ++i) {
-        if (!visited[i] && state.dist[i] < best) {
+        if (!visited[i] && s.dist[i] < best) {
           current = i;
-          best = state.dist[i];
+          best = s.dist[i];
         }
       }
 
@@ -299,23 +299,23 @@ struct shortest_path_for_nodes {
       visited[current] = true;
       for (std::size_t neighbor = 0; neighbor < node_count; ++neighbor) {
         const std::size_t edge_cost = adjacency[current * node_count + neighbor];
-        if (edge_cost == inf || visited[neighbor] || state.dist[current] == inf) continue;
+        if (edge_cost == inf || visited[neighbor] || s.dist[current] == inf) continue;
 
-        const std::size_t next_cost = state.dist[current] + edge_cost;
-        if (next_cost < state.dist[neighbor]) {
-          state.dist[neighbor] = next_cost;
-          state.prev[neighbor] = current;
+        const std::size_t next_cost = s.dist[current] + edge_cost;
+        if (next_cost < s.dist[neighbor]) {
+          s.dist[neighbor] = next_cost;
+          s.prev[neighbor] = current;
         }
       }
     }
 
-    return state;
+    return s;
   }
 
  public:
-  inline static constexpr auto state = run_dijkstra();
+  inline static constexpr auto path_state = run_dijkstra();
 
-  static constexpr std::size_t cost() { return state.dist[target_index]; }
+  static constexpr std::size_t cost() { return path_state.dist[target_index]; }
 
   static constexpr bool exists() { return cost() != inf; }
 
@@ -326,10 +326,10 @@ struct shortest_path_for_nodes {
       if (!exists()) return invalid_index;
 
       std::size_t current = target_index;
-      std::size_t parent = state.prev[current];
+      std::size_t parent = path_state.prev[current];
       while (parent != invalid_index && parent != source_index) {
         current = parent;
-        parent = state.prev[current];
+        parent = path_state.prev[current];
       }
       return parent == source_index ? current : invalid_index;
     }
