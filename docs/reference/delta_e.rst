@@ -16,12 +16,27 @@ Available metrics:
     * ``delta_e_94()`` - CIE 94 weighted metric (graphic arts)
     * ``delta_e_2000()`` - CIEDE2000 industry standard metric
 
+  * **Industry Standard Metrics**:
+    * ``delta_e_cmc()`` - CMC l:c (Colour Measurement Committee, 1984)
+        - Developed for textile industry
+        - Configurable weights: l (lightness, default 2.0) and c (chroma, default 1.0)
+        - Common presets: l=2, c=1 (acceptability), l=1, c=1 (perceptibility)
+    * ``delta_e_din99()`` - DIN99 (DIN 6176)
+        - German standard with improved perceptual uniformity
+        - Applies non-linear transforms to CIELAB
+
   * **Modern Perceptual Metric**:
     * ``delta_e_ok()`` - Oklab Euclidean distance
     * Fast, uniform, and well-behaved across the entire color space
     * Recommended for most new applications
     * Remains scalar by default; the current SIMD path is experimental and requires
       ``COLORCPP_ENABLE_SIMD=ON`` plus ``COLORCPP_ENABLE_EXPERIMENTAL_DELTA_E_OK_SIMD=ON``
+
+  * **Utility functions**:
+    * ``is_visually_same()`` - Compare using ΔE2000 (default threshold 1.0)
+    * ``is_visually_same_cmc()`` - Compare using CMC metric
+    * ``is_visually_same_din99()`` - Compare using DIN99 metric
+    * ``is_visually_same_ok()`` - Compare using Oklab (default threshold ~0.02)
 
   * **Utility constants**:
     * ``oklab_jnd_typical`` - Typical just noticeable difference threshold (~0.02)

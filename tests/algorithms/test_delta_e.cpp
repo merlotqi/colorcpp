@@ -166,4 +166,91 @@ TEST(DeltaEOkTest, VisuallySameOkUsesJnd) {
   EXPECT_TRUE(is_visually_same_ok(x, x));
 }
 
+// CMC l:c
+
+TEST(DeltaECMCTest, SameColorIsZero) {
+  core::rgbf_t c(0.5f, 0.3f, 0.7f);
+  EXPECT_NEAR(delta_e_cmc(c, c), 0.0f, 1e-4f);
+}
+
+TEST(DeltaECMCTest, BlackToWhiteIsLarge) {
+  core::rgb8_t black(0, 0, 0);
+  core::rgb8_t white(255, 255, 255);
+  EXPECT_GT(delta_e_cmc(black, white), 50.0f);
+}
+
+TEST(DeltaECMCTest, IsSymmetric) {
+  core::rgb8_t red(255, 0, 0);
+  core::rgb8_t blue(0, 0, 255);
+  float d_ab = delta_e_cmc(red, blue);
+  float d_ba = delta_e_cmc(blue, red);
+  EXPECT_NEAR(d_ab, d_ba, 1e-3f);
+}
+
+TEST(DeltaECMCTest, IsNonNegative) {
+  core::rgbf_t a(0.3f, 0.6f, 0.1f);
+  core::rgbf_t b(0.9f, 0.2f, 0.7f);
+  EXPECT_GE(delta_e_cmc(a, b), 0.0f);
+}
+
+TEST(DeltaECMCTest, PerceptibilityVsAcceptability) {
+  core::rgb8_t a(128, 128, 128);
+  core::rgb8_t b(130, 128, 128);
+  // l=1, c=1 (perceptibility) should be stricter than l=2, c=1 (acceptability)
+  float perceptibility = delta_e_cmc(a, b, 1.0f, 1.0f);
+  float acceptability = delta_e_cmc(a, b, 2.0f, 1.0f);
+  EXPECT_GT(perceptibility, acceptability);
+}
+
+TEST(DeltaECMCTest, IsVisuallySameCmc) {
+  core::rgb8_t a(100, 150, 200);
+  core::rgb8_t b(100, 150, 200);
+  EXPECT_TRUE(is_visually_same_cmc(a, b));
+}
+
+TEST(DeltaECMCTest, DifferentColorsAreFalse) {
+  core::rgb8_t black(0, 0, 0);
+  core::rgb8_t white(255, 255, 255);
+  EXPECT_FALSE(is_visually_same_cmc(black, white));
+}
+
+// DIN99
+
+TEST(DeltaEDIN99Test, SameColorIsZero) {
+  core::rgbf_t c(0.5f, 0.3f, 0.7f);
+  EXPECT_NEAR(delta_e_din99(c, c), 0.0f, 1e-4f);
+}
+
+TEST(DeltaEDIN99Test, BlackToWhiteIsLarge) {
+  core::rgb8_t black(0, 0, 0);
+  core::rgb8_t white(255, 255, 255);
+  EXPECT_GT(delta_e_din99(black, white), 50.0f);
+}
+
+TEST(DeltaEDIN99Test, IsSymmetric) {
+  core::rgb8_t red(255, 0, 0);
+  core::rgb8_t blue(0, 0, 255);
+  float d_ab = delta_e_din99(red, blue);
+  float d_ba = delta_e_din99(blue, red);
+  EXPECT_NEAR(d_ab, d_ba, 1e-3f);
+}
+
+TEST(DeltaEDIN99Test, IsNonNegative) {
+  core::rgbf_t a(0.3f, 0.6f, 0.1f);
+  core::rgbf_t b(0.9f, 0.2f, 0.7f);
+  EXPECT_GE(delta_e_din99(a, b), 0.0f);
+}
+
+TEST(DeltaEDIN99Test, IsVisuallySameDin99) {
+  core::rgb8_t a(100, 150, 200);
+  core::rgb8_t b(100, 150, 200);
+  EXPECT_TRUE(is_visually_same_din99(a, b));
+}
+
+TEST(DeltaEDIN99Test, DifferentColorsAreFalse) {
+  core::rgb8_t black(0, 0, 0);
+  core::rgb8_t white(255, 255, 255);
+  EXPECT_FALSE(is_visually_same_din99(black, white));
+}
+
 }  // namespace colorcpp::algorithms::test
