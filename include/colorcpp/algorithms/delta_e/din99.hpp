@@ -72,8 +72,8 @@ inline void lab_to_din99(double L, double a, double b, double& L99, double& a99,
  *
  * @param a First color.
  * @param b Second color.
- * @param k_L Lightness scaling factor (default: 1.0).
- * @param k_E Overall scaling factor (default: 1.0).
+ * @param k_L Positive lightness scaling factor. Non-positive values fall back to 1.0.
+ * @param k_E Positive inverse scaling factor for the final norm. Non-positive values fall back to 1.0.
  * @return ΔE_DIN99 value.
  */
 template <typename ColorA, typename ColorB>
@@ -96,11 +96,14 @@ float delta_e_din99(const ColorA& a, const ColorB& b, float k_L = 1.0f, float k_
   details::lab_to_din99(L1, a1, b1, L99_1, a99_1, b99_1);
   details::lab_to_din99(L2, a2, b2, L99_2, a99_2, b99_2);
 
-  const double dL99 = (L99_2 - L99_1) / static_cast<double>(k_L);
+  const double safe_kL = k_L > 0.0f ? static_cast<double>(k_L) : 1.0;
+  const double safe_kE = k_E > 0.0f ? static_cast<double>(k_E) : 1.0;
+
+  const double dL99 = (L99_2 - L99_1) / safe_kL;
   const double da99 = a99_2 - a99_1;
   const double db99 = b99_2 - b99_1;
 
-  return static_cast<float>((1.0 / static_cast<double>(k_E)) * std::sqrt(dL99 * dL99 + da99 * da99 + db99 * db99));
+  return static_cast<float>((1.0 / safe_kE) * std::sqrt(dL99 * dL99 + da99 * da99 + db99 * db99));
 }
 
 }  // namespace colorcpp::algorithms::delta_e
