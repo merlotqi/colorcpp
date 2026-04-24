@@ -707,6 +707,16 @@ TEST(Css, ColorMixSupportsProgressForm) {
                     method_equivalent->a(), 0.01f);
 }
 
+TEST(Css, ColorMixRejectsMalformedExtendedForms) {
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(25%, red)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb 25%, red)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red,, blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red 25% 50%, blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb longer hue, red, blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red 0%, blue 0%, white 0%)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(25% in srgb, red, blue) trailing").has_value());
+}
+
 TEST(Css, ColorMixNestedAndInvalidForms) {
   auto nested = parse_css_color_rgba8("color-mix(in srgb, color(srgb 1 0 0), color(display-p3 0 0 1) 50%)");
   ASSERT_TRUE(nested);
@@ -974,6 +984,12 @@ TEST(Css, InvalidCorpusRejectsMalformedInputs) {
       {"device-cmyk(0 1 1)"},
       {"device-cmyk(0 1 1 0 /)"},
       {"color-mix(in unknown-space, red, blue)"},
+      {"color-mix(25%, red)"},
+      {"color-mix(in srgb 25%, red)"},
+      {"color-mix(in srgb, red,, blue)"},
+      {"color-mix(in srgb, red 25% 50%, blue)"},
+      {"color-mix(in srgb, red 0%, blue 0%, white 0%)"},
+      {"color-mix(25% in srgb, red, blue) trailing"},
       {"color-mix(in srgb, red 0%, blue 0%)"},
       {"color-mix(in srgb red, blue)"},
       {"color-mix(in srgb, red blue)"},

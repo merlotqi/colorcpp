@@ -157,9 +157,18 @@ inline std::optional<std::pair<std::string_view, float>> split_optional_trailing
   return std::pair<std::string_view, float>{color, weight};
 }
 
+inline bool is_bare_percentage_token(std::string_view s) {
+  details::Cursor c{s, 0};
+  auto cv = c.parse_component_value();
+  if (!cv || !cv->second) return false;
+  c.skip_ws();
+  return c.eof();
+}
+
 inline std::optional<color_mix_item> parse_color_mix_item(std::string_view s) {
   details::trim(s);
   if (s.empty()) return std::nullopt;
+  if (is_bare_percentage_token(s)) return std::nullopt;
 
   if (auto leading = split_optional_leading_percent(s)) {
     return color_mix_item{leading->second, leading->first};
@@ -260,40 +269,28 @@ inline std::optional<color_mix_progress_header> parse_color_mix_progress_header(
   bool saw_method = false;
   bool saw_progress = false;
 
-  auto try_parse_method = [&]() -> bool {
-    const size_t save = c.i;
-    if (!c.consume_ci("in")) {
-      c.i = save;
-      return false;
+  while (!c.eof()) {
+    const size_t before = c.i;
+    if (!saw_method && c.consume_ci("in")) {
+      c.skip_ws();
+      auto method = parse_color_mix_space(c);
+      if (!method) return std::nullopt;
+      header.method = *method;
+      saw_method = true;
+    } else if (!saw_progress) {
+      auto value = parse_color_mix_progress_value(c);
+      if (!value) return std::nullopt;
+      header.progress = *value;
+      saw_progress = true;
+    } else {
+      return std::nullopt;
     }
+
     c.skip_ws();
-    auto method = parse_color_mix_space(c);
-    if (!method) {
-      c.i = save;
-      return false;
-    }
-    header.method = *method;
-    saw_method = true;
-    return true;
-  };
+    if (c.i == before) return std::nullopt;
+  }
 
-  auto try_parse_progress = [&]() -> bool {
-    const size_t save = c.i;
-    auto value = parse_color_mix_progress_value(c);
-    if (!value) {
-      c.i = save;
-      return false;
-    }
-    header.progress = *value;
-    saw_progress = true;
-    return true;
-  };
-
-  if (!try_parse_method() && !try_parse_progress()) return std::nullopt;
-  if (!saw_method) try_parse_method();
-  if (!saw_progress) try_parse_progress();
-  c.skip_ws();
-  if (!c.eof() || !saw_progress) return std::nullopt;
+  if (!saw_progress) return std::nullopt;
   return header;
 }
 
