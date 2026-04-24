@@ -22,3 +22,5 @@ docs/_build
 .vscode
 .cache
 imgui.ini
+.worktrees
+.codex
