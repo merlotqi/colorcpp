@@ -272,6 +272,38 @@ TEST(DeltaEDIN99Test, IsNonNegative) {
   EXPECT_GE(delta_e_din99(a, b), 0.0f);
 }
 
+TEST(DeltaEDIN99Test, MatchesEquationDerivedReferencePairs) {
+  struct Sample {
+    const char* label;
+    core::cielab_t reference;
+    core::cielab_t comparison;
+    float expected;
+  };
+
+  const Sample samples[] = {
+      {"neutral_to_positive_b", core::cielab_t(50.0f, 0.0f, 0.0f), core::cielab_t(50.0f, 0.0f, 10.0f), 6.2908f},
+      {"orthogonal_hue_swap", core::cielab_t(50.0f, 30.0f, 0.0f), core::cielab_t(50.0f, 0.0f, 30.0f), 21.7733f},
+      {"mixed_lightness_chroma", core::cielab_t(20.0f, 40.0f, 10.0f), core::cielab_t(80.0f, -20.0f, -30.0f), 70.6783f},
+      {"small_hue_rotation", core::cielab_t(50.0f, 5.0f, 0.0f), core::cielab_t(50.0f, 0.0f, 5.0f), 5.0306f},
+  };
+
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(sample.label);
+    EXPECT_NEAR(delta_e_din99(sample.reference, sample.comparison), sample.expected, 1e-3f);
+    EXPECT_NEAR(delta_e_din99(sample.comparison, sample.reference), sample.expected, 1e-3f);
+  }
+}
+
+TEST(DeltaEDIN99Test, ScalingParametersMatchPublishedEquation) {
+  const core::cielab_t mixed_reference(20.0f, 40.0f, 10.0f);
+  const core::cielab_t mixed_comparison(80.0f, -20.0f, -30.0f);
+  const core::cielab_t light_reference(20.0f, 0.0f, 0.0f);
+  const core::cielab_t light_comparison(80.0f, 0.0f, 0.0f);
+
+  EXPECT_NEAR(delta_e_din99(mixed_reference, mixed_comparison, 2.0f, 1.0f), 50.3771f, 1e-3f);
+  EXPECT_NEAR(delta_e_din99(light_reference, light_comparison, 1.0f, 2.0f), 28.6215f, 1e-3f);
+}
+
 TEST(DeltaEDIN99Test, IsVisuallySameDin99) {
   core::rgb8_t a(100, 150, 200);
   core::rgb8_t b(100, 150, 200);
