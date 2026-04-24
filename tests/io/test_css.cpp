@@ -655,6 +655,19 @@ TEST(Css, ColorMixInSrgb) {
   EXPECT_EQ(normalized->a(), 102);
 }
 
+TEST(Css, ColorMixDefaultsToOklabAndAllowsSingleItem) {
+  auto implicit = parse_css_color_rgbaf("color-mix(red, blue)");
+  auto explicit_oklab = parse_css_color_rgbaf("color-mix(in oklab, red, blue)");
+  ASSERT_TRUE(implicit);
+  ASSERT_TRUE(explicit_oklab);
+  expect_rgbaf_near(*implicit, explicit_oklab->r(), explicit_oklab->g(), explicit_oklab->b(), explicit_oklab->a(),
+                    0.01f);
+
+  auto single = parse_css_color_rgbaf("color-mix(in srgb, red)");
+  ASSERT_TRUE(single);
+  expect_rgbaf_near(*single, 1.0f, 0.0f, 0.0f, 1.0f, 0.01f);
+}
+
 TEST(Css, ColorMixNestedAndInvalidForms) {
   auto nested = parse_css_color_rgba8("color-mix(in srgb, color(srgb 1 0 0), color(display-p3 0 0 1) 50%)");
   ASSERT_TRUE(nested);

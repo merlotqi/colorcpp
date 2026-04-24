@@ -29,6 +29,7 @@
 #include <colorcpp/operations/interpolate/lerp.hpp>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 namespace colorcpp::io::css {
 
@@ -40,6 +41,11 @@ std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str, const p
 namespace css_parse_detail {
 
 struct color_mix_operand {
+  std::string_view color;
+  std::optional<float> weight;
+};
+
+struct color_mix_item {
   std::string_view color;
   std::optional<float> weight;
 };
@@ -73,6 +79,26 @@ struct color_mix_weights {
   float second = 0.5f;
   float alpha_multiplier = 1.0f;
 };
+
+struct parsed_color_mix {
+  color_mix_interpolation_method method{color_mix_space::oklab};
+  std::vector<color_mix_item> items;
+};
+
+inline std::optional<std::vector<std::string_view>> split_top_level_comma_list(std::string_view s) {
+  std::vector<std::string_view> parts;
+  size_t start = 0;
+  while (start <= s.size()) {
+    const size_t comma = details::find_top_level_comma(s, start);
+    std::string_view part = comma == std::string_view::npos ? s.substr(start) : s.substr(start, comma - start);
+    details::trim(part);
+    if (part.empty()) return std::nullopt;
+    parts.push_back(part);
+    if (comma == std::string_view::npos) break;
+    start = comma + 1;
+  }
+  return parts;
+}
 
 inline std::optional<color_mix_operand> split_color_and_optional_percent(std::string_view s) {
   details::trim(s);
@@ -183,6 +209,35 @@ inline std::optional<color_mix_interpolation_method> parse_color_mix_space(detai
 
   c.i = save;
   return method;
+}
+
+inline std::optional<parsed_color_mix> parse_color_mix_item_list(const std::vector<std::string_view>& parts) {
+  if (parts.empty()) return std::nullopt;
+
+  parsed_color_mix parsed;
+  size_t first_item_index = 0;
+
+  details::Cursor header{parts.front(), 0};
+  if (header.consume_ci("in")) {
+    header.skip_ws();
+    auto method = parse_color_mix_space(header);
+    if (!method) return std::nullopt;
+    header.skip_ws();
+    if (!header.eof()) return std::nullopt;
+    parsed.method = *method;
+    first_item_index = 1;
+  }
+
+  if (first_item_index >= parts.size()) return std::nullopt;
+  for (size_t index = first_item_index; index < parts.size(); ++index) {
+    auto item = split_color_and_optional_percent(parts[index]);
+    if (!item) {
+      parsed.items.push_back(color_mix_item{parts[index], std::nullopt});
+      continue;
+    }
+    parsed.items.push_back(color_mix_item{item->color, item->weight});
+  }
+  return parsed;
 }
 
 inline float normalize_hue_degrees(float hue) {
@@ -319,56 +374,49 @@ inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, co
   }
   std::string_view inner = *inner_opt;
   details::trim(inner);
-  details::Cursor ic{inner, 0};
-  if (!ic.consume_ci("in")) {
-    c.i = save;
-    return std::nullopt;
-  }
-  ic.skip_ws();
-  auto method = parse_color_mix_space(ic);
-  if (!method) {
-    c.i = save;
-    return std::nullopt;
-  }
-  ic.skip_ws();
-  if (!ic.consume_char(',')) {
+
+  auto parts = split_top_level_comma_list(inner);
+  if (!parts) {
     c.i = save;
     return std::nullopt;
   }
 
-  const size_t first_start = ic.i;
-  const size_t comma = details::find_top_level_comma(inner, first_start);
-  if (comma == std::string_view::npos) {
+  auto parsed = parse_color_mix_item_list(*parts);
+  if (!parsed) {
     c.i = save;
     return std::nullopt;
   }
 
-  std::string_view raw_first = inner.substr(first_start, comma - first_start);
-  std::string_view raw_second = inner.substr(comma + 1);
-  details::trim(raw_first);
-  details::trim(raw_second);
+  if (parsed->items.size() == 1) {
+    auto only = parse_css_color_rgbaf(parsed->items.front().color, context);
+    if (!only) {
+      c.i = save;
+      return std::nullopt;
+    }
+    return *only;
+  }
 
-  const auto first = split_color_and_optional_percent(raw_first);
-  const auto second = split_color_and_optional_percent(raw_second);
-  if (!first || !second) {
+  if (parsed->items.size() != 2) {
     c.i = save;
     return std::nullopt;
   }
 
-  const auto weights = resolve_color_mix_weights(*first, *second);
+  const color_mix_operand first{parsed->items[0].color, parsed->items[0].weight};
+  const color_mix_operand second{parsed->items[1].color, parsed->items[1].weight};
+  const auto weights = resolve_color_mix_weights(first, second);
   if (!weights) {
     c.i = save;
     return std::nullopt;
   }
 
-  auto c1 = parse_css_color_rgbaf(first->color, context);
-  auto c2 = parse_css_color_rgbaf(second->color, context);
+  auto c1 = parse_css_color_rgbaf(first.color, context);
+  auto c2 = parse_css_color_rgbaf(second.color, context);
   if (!c1 || !c2) {
     c.i = save;
     return std::nullopt;
   }
 
-  return mix_colors_in_space(*method, *c1, *c2, *weights);
+  return mix_colors_in_space(parsed->method, *c1, *c2, *weights);
 }
 
 inline std::optional<core::rgbaf_t> resolve_context_color_rgbaf(std::string_view t,
