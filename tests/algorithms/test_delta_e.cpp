@@ -110,6 +110,28 @@ TEST(DeltaE2000Test, IsNonNegative) {
   EXPECT_GE(delta_e_2000(a, b), 0.0f);
 }
 
+TEST(DeltaE2000Test, MatchesPublishedSharmaSamples) {
+  struct Sample {
+    core::cielab_t reference;
+    core::cielab_t comparison;
+    float expected;
+  };
+
+  const Sample samples[] = {
+      {core::cielab_t(50.0000f, 2.6772f, -79.7751f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 2.0425f},
+      {core::cielab_t(50.0000f, 3.1571f, -77.2803f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 2.8615f},
+      {core::cielab_t(50.0000f, 2.8361f, -74.0200f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 3.4412f},
+      {core::cielab_t(50.0000f, -1.3802f, -84.2814f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 1.0000f},
+      {core::cielab_t(50.0000f, -1.1848f, -84.8006f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 1.0000f},
+      {core::cielab_t(50.0000f, -0.9009f, -85.5211f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 1.0000f},
+  };
+
+  for (const auto& sample : samples) {
+    EXPECT_NEAR(delta_e_2000(sample.reference, sample.comparison), sample.expected, 1e-3f);
+    EXPECT_NEAR(delta_e_2000(sample.comparison, sample.reference), sample.expected, 1e-3f);
+  }
+}
+
 TEST(DeltaE2000Test, PerceivedOrdering) {
   // Two very similar grays vs a very different color
   core::rgb8_t ref(128, 128, 128);
