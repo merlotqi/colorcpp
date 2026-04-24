@@ -117,6 +117,7 @@ TEST(DeltaE2000Test, MatchesPublishedSharmaSamples) {
     float expected;
   };
 
+  // First six published Sharma/Wu/Dalal CIEDE2000 supplementary cases used in the audit/plan.
   const Sample samples[] = {
       {core::cielab_t(50.0000f, 2.6772f, -79.7751f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 2.0425f},
       {core::cielab_t(50.0000f, 3.1571f, -77.2803f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 2.8615f},
@@ -126,9 +127,12 @@ TEST(DeltaE2000Test, MatchesPublishedSharmaSamples) {
       {core::cielab_t(50.0000f, -0.9009f, -85.5211f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 1.0000f},
   };
 
+  int sample_index = 0;
   for (const auto& sample : samples) {
+    SCOPED_TRACE(testing::Message() << "Sharma sample #" << sample_index);
     EXPECT_NEAR(delta_e_2000(sample.reference, sample.comparison), sample.expected, 1e-3f);
     EXPECT_NEAR(delta_e_2000(sample.comparison, sample.reference), sample.expected, 1e-3f);
+    ++sample_index;
   }
 }
 
