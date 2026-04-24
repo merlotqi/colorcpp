@@ -40,11 +40,6 @@ std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str, const p
 
 namespace css_parse_detail {
 
-struct color_mix_operand {
-  std::string_view color;
-  std::optional<float> weight;
-};
-
 struct color_mix_item {
   std::string_view color;
   std::optional<float> weight;
@@ -85,6 +80,17 @@ struct parsed_color_mix {
   std::vector<color_mix_item> items;
 };
 
+struct resolved_color_mix_item {
+  core::rgbaf_t color;
+  float weight = 0.0f;
+};
+
+struct resolved_color_mix {
+  color_mix_interpolation_method method{color_mix_space::oklab};
+  std::vector<resolved_color_mix_item> items;
+  float alpha_multiplier = 1.0f;
+};
+
 inline std::optional<std::vector<std::string_view>> split_top_level_comma_list(std::string_view s) {
   std::vector<std::string_view> parts;
   size_t start = 0;
@@ -100,37 +106,63 @@ inline std::optional<std::vector<std::string_view>> split_top_level_comma_list(s
   return parts;
 }
 
-inline std::optional<color_mix_operand> split_color_and_optional_percent(std::string_view s) {
+inline std::optional<std::pair<float, std::string_view>> split_optional_leading_percent(std::string_view s) {
+  details::Cursor c{s, 0};
+  auto cv = c.parse_component_value();
+  if (!cv || !cv->second) return std::nullopt;
+  std::string_view color = s.substr(c.i);
+  details::trim(color);
+  if (color.empty()) return std::nullopt;
+  const float weight = static_cast<float>(std::clamp(cv->first, 0.0, 100.0) / 100.0);
+  return std::pair<float, std::string_view>{weight, color};
+}
+
+inline std::optional<std::pair<std::string_view, float>> split_optional_trailing_percent(std::string_view s) {
   details::trim(s);
-  if (s.empty()) return std::nullopt;
-  if (s.back() != '%') return color_mix_operand{s, std::nullopt};
+  if (s.empty() || s.back() != '%') return std::nullopt;
   size_t i = s.size() - 1;
   if (i == 0) return std::nullopt;
   --i;
   while (i < s.size() && details::is_space(s[i])) --i;
   if (i >= s.size()) return std::nullopt;
-  const size_t num_end = i + 1;
-  size_t num_start = num_end;
-  while (num_start > 0) {
-    const char ch = s[num_start - 1];
+  const size_t number_end = i + 1;
+  size_t number_start = number_end;
+  while (number_start > 0) {
+    const char ch = s[number_start - 1];
     if (std::isdigit(static_cast<unsigned char>(ch)) || ch == '.' || ch == '-' || ch == '+') {
-      --num_start;
+      --number_start;
     } else {
       break;
     }
   }
-  if (num_start == num_end) return std::nullopt;
-  const std::string_view num_sv = s.substr(num_start, num_end - num_start);
-  details::Cursor nc{num_sv, 0};
-  const auto num = nc.parse_number();
-  if (!num) return std::nullopt;
-  size_t color_end = num_start;
+
+  if (number_start == number_end) return std::nullopt;
+
+  details::Cursor nc{s.substr(number_start, number_end - number_start), 0};
+  auto number = nc.parse_number();
+  if (!number) return std::nullopt;
+
+  size_t color_end = number_start;
   while (color_end > 0 && details::is_space(s[color_end - 1])) --color_end;
   std::string_view color = s.substr(0, color_end);
   details::trim(color);
   if (color.empty()) return std::nullopt;
-  const float weight = static_cast<float>(std::clamp(*num, 0.0, 100.0) / 100.0);
-  return color_mix_operand{color, weight};
+
+  const float weight = static_cast<float>(std::clamp(*number, 0.0, 100.0) / 100.0);
+  return std::pair<std::string_view, float>{color, weight};
+}
+
+inline std::optional<color_mix_item> parse_color_mix_item(std::string_view s) {
+  details::trim(s);
+  if (s.empty()) return std::nullopt;
+
+  if (auto leading = split_optional_leading_percent(s)) {
+    return color_mix_item{leading->second, leading->first};
+  }
+  if (auto trailing = split_optional_trailing_percent(s)) {
+    return color_mix_item{trailing->first, trailing->second};
+  }
+  return color_mix_item{s, std::nullopt};
 }
 
 inline std::optional<color_mix_hue_method> parse_color_mix_hue_method(details::Cursor& c) {
@@ -143,32 +175,6 @@ inline std::optional<color_mix_hue_method> parse_color_mix_hue_method(details::C
 
 inline bool is_color_mix_polar_space(color_mix_space space) {
   return space == color_mix_space::lch || space == color_mix_space::oklch;
-}
-
-inline std::optional<color_mix_weights> resolve_color_mix_weights(const color_mix_operand& first,
-                                                                  const color_mix_operand& second) {
-  std::optional<float> w1 = first.weight;
-  std::optional<float> w2 = second.weight;
-
-  if (!w1 && !w2) {
-    w1 = 0.5f;
-    w2 = 0.5f;
-  } else if (w1 && !w2) {
-    w2 = 1.0f - *w1;
-  } else if (!w1 && w2) {
-    w1 = 1.0f - *w2;
-  }
-
-  const float a = std::clamp(*w1, 0.0f, 1.0f);
-  const float b = std::clamp(*w2, 0.0f, 1.0f);
-  const float sum = a + b;
-  if (sum <= 0.0f) return std::nullopt;
-
-  color_mix_weights weights;
-  weights.first = a / sum;
-  weights.second = b / sum;
-  weights.alpha_multiplier = sum < 1.0f ? sum : 1.0f;
-  return weights;
 }
 
 inline std::optional<color_mix_interpolation_method> parse_color_mix_space(details::Cursor& c) {
@@ -230,12 +236,9 @@ inline std::optional<parsed_color_mix> parse_color_mix_item_list(const std::vect
 
   if (first_item_index >= parts.size()) return std::nullopt;
   for (size_t index = first_item_index; index < parts.size(); ++index) {
-    auto item = split_color_and_optional_percent(parts[index]);
-    if (!item) {
-      parsed.items.push_back(color_mix_item{parts[index], std::nullopt});
-      continue;
-    }
-    parsed.items.push_back(color_mix_item{item->color, item->weight});
+    auto item = parse_color_mix_item(parts[index]);
+    if (!item) return std::nullopt;
+    parsed.items.push_back(*item);
   }
   return parsed;
 }
@@ -360,6 +363,71 @@ inline core::rgbaf_t mix_colors_in_space(const color_mix_interpolation_method& m
   return mix_in_rectangular_space<core::rgbf_t>(a, b, weights);
 }
 
+inline std::optional<resolved_color_mix> resolve_color_mix_items(const parsed_color_mix& parsed,
+                                                                 const parse_css_color_context& context) {
+  if (parsed.items.empty()) return std::nullopt;
+
+  resolved_color_mix resolved;
+  resolved.method = parsed.method;
+
+  size_t missing_count = 0;
+  float explicit_sum = 0.0f;
+  for (const auto& item : parsed.items) {
+    if (item.weight) {
+      explicit_sum += std::clamp(*item.weight, 0.0f, 1.0f);
+    } else {
+      ++missing_count;
+    }
+  }
+
+  const float fill_weight =
+      missing_count == 0
+          ? 0.0f
+          : (explicit_sum <= 0.0f && missing_count == parsed.items.size()
+                 ? 1.0f / static_cast<float>(missing_count)
+                 : std::max(0.0f, 1.0f - explicit_sum) / static_cast<float>(missing_count));
+
+  float total = 0.0f;
+  for (const auto& item : parsed.items) {
+    auto color = parse_css_color_rgbaf(item.color, context);
+    if (!color) return std::nullopt;
+    const float weight = item.weight ? std::clamp(*item.weight, 0.0f, 1.0f) : fill_weight;
+    resolved.items.push_back(resolved_color_mix_item{*color, weight});
+    total += weight;
+  }
+
+  if (total <= 0.0f) return std::nullopt;
+
+  resolved.alpha_multiplier = total < 1.0f ? total : 1.0f;
+  for (auto& item : resolved.items) {
+    item.weight /= total;
+  }
+  return resolved;
+}
+
+inline core::rgbaf_t evaluate_color_mix(const resolved_color_mix& resolved) {
+  if (resolved.items.size() == 1) {
+    auto out = resolved.items.front().color;
+    out.a() = std::clamp(out.a() * resolved.alpha_multiplier, 0.0f, 1.0f);
+    return out;
+  }
+
+  core::rgbaf_t mixed = resolved.items.front().color;
+  float accumulated_weight = resolved.items.front().weight;
+  for (size_t index = 1; index < resolved.items.size(); ++index) {
+    const float combined = accumulated_weight + resolved.items[index].weight;
+    color_mix_weights pair;
+    pair.first = accumulated_weight / combined;
+    pair.second = resolved.items[index].weight / combined;
+    pair.alpha_multiplier = 1.0f;
+    mixed = mix_colors_in_space(resolved.method, mixed, resolved.items[index].color, pair);
+    accumulated_weight = combined;
+  }
+
+  mixed.a() = std::clamp(mixed.a() * resolved.alpha_multiplier, 0.0f, 1.0f);
+  return mixed;
+}
+
 inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, const parse_css_color_context& context) {
   const size_t save = c.i;
   if (!c.consume_ci("color-mix")) {
@@ -387,36 +455,13 @@ inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, co
     return std::nullopt;
   }
 
-  if (parsed->items.size() == 1) {
-    auto only = parse_css_color_rgbaf(parsed->items.front().color, context);
-    if (!only) {
-      c.i = save;
-      return std::nullopt;
-    }
-    return *only;
-  }
-
-  if (parsed->items.size() != 2) {
+  auto resolved = resolve_color_mix_items(*parsed, context);
+  if (!resolved) {
     c.i = save;
     return std::nullopt;
   }
 
-  const color_mix_operand first{parsed->items[0].color, parsed->items[0].weight};
-  const color_mix_operand second{parsed->items[1].color, parsed->items[1].weight};
-  const auto weights = resolve_color_mix_weights(first, second);
-  if (!weights) {
-    c.i = save;
-    return std::nullopt;
-  }
-
-  auto c1 = parse_css_color_rgbaf(first.color, context);
-  auto c2 = parse_css_color_rgbaf(second.color, context);
-  if (!c1 || !c2) {
-    c.i = save;
-    return std::nullopt;
-  }
-
-  return mix_colors_in_space(parsed->method, *c1, *c2, *weights);
+  return evaluate_color_mix(*resolved);
 }
 
 inline std::optional<core::rgbaf_t> resolve_context_color_rgbaf(std::string_view t,

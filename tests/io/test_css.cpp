@@ -668,6 +668,25 @@ TEST(Css, ColorMixDefaultsToOklabAndAllowsSingleItem) {
   expect_rgbaf_near(*single, 1.0f, 0.0f, 0.0f, 1.0f, 0.01f);
 }
 
+TEST(Css, ColorMixSupportsMultiItemLists) {
+  auto equal = parse_css_color_rgba8("color-mix(in srgb, red, green, blue)");
+  ASSERT_TRUE(equal);
+  expect_rgba(*equal, 85, 85, 85, 255);
+
+  auto weighted = parse_css_color_rgba8("color-mix(in srgb, 25% red, blue, white 25%)");
+  ASSERT_TRUE(weighted);
+  expect_rgba(*weighted, 128, 64, 191, 255);
+
+  auto folded = parse_css_color_rgbaf(
+      "color-mix(in oklch longer hue, oklch(0.7 0.04 30), oklch(0.7 0.04 90), oklch(0.7 0.04 150))");
+  auto manual = parse_css_color_rgbaf(
+      "color-mix(in oklch longer hue, color-mix(in oklch longer hue, oklch(0.7 0.04 30), oklch(0.7 0.04 90)), "
+      "oklch(0.7 0.04 150) 33.3333%)");
+  ASSERT_TRUE(folded);
+  ASSERT_TRUE(manual);
+  expect_rgbaf_near(*folded, manual->r(), manual->g(), manual->b(), manual->a(), 0.02f);
+}
+
 TEST(Css, ColorMixNestedAndInvalidForms) {
   auto nested = parse_css_color_rgba8("color-mix(in srgb, color(srgb 1 0 0), color(display-p3 0 0 1) 50%)");
   ASSERT_TRUE(nested);
@@ -890,6 +909,7 @@ TEST(Css, WptStyleExactCorpus) {
       {"device-cmyk(none none none 100%)", 0, 0, 0, 255},
       {"color-mix(in srgb, red, red)", 255, 0, 0, 255},
       {"color-mix(in srgb, black, white)", 128, 128, 128, 255},
+      {"color-mix(in srgb, red, green, blue)", 85, 85, 85, 255},
       {"color-mix(in srgb, red 20%, blue 20%)", 128, 0, 128, 102},
       {"color-mix(in srgb, transparent, transparent)", 0, 0, 0, 0},
       {"color-mix(in srgb, transparent, red 50%)", 255, 0, 0, 128},
