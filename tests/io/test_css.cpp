@@ -939,6 +939,7 @@ TEST(Css, WptStyleExactCorpus) {
       {"device-cmyk(none none none 100%)", 0, 0, 0, 255},
       {"color-mix(in srgb, red, red)", 255, 0, 0, 255},
       {"color-mix(in srgb, black, white)", 128, 128, 128, 255},
+      {"color-mix(in srgb, red)", 255, 0, 0, 255},
       {"color-mix(25% in srgb, red, blue)", 191, 0, 64, 255},
       {"color-mix(in srgb, red, green, blue)", 85, 43, 85, 255},
       {"color-mix(in srgb, red 20%, blue 20%)", 128, 0, 128, 102},

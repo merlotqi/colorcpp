@@ -155,13 +155,13 @@ auto relative = colorcpp::io::css::parse_css_color_rgbaf(
     * Nested `var(--token)` references anywhere inside expressions
     * Delayed AST evaluation with `parse_css_color_ast()` / `evaluate()`
     * Separate `variable_resolver` (color values) and `numeric_variable_resolver` (scalar values)
-- **`color-mix()`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, `xyz` with CSS hue interpolation keywords in `lch` / `oklch`
+- **`color-mix()`:** omitted method defaults to `oklab`; item-list mixes support one or more colors; progress-form mixes support `color-mix(25% in srgb, red, blue)`; interpolation spaces include `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, and `xyz`
 - **`device-cmyk(...)`:** CMYK device colors, including slash alpha
 - **Named colors and keywords:** all 140+ CSS named colors plus `transparent` — case-insensitive
 
 **Context-aware support:** `currentColor`, CSS system colors, `light-dark()`, and `var(--token)`-backed relative colors are available through the overloads that accept `parse_css_color_context`.
 
-**Still pending:** relative syntaxes beyond `rgb(from …)` / `color(from …)`, multi-stop / `at <percentage>` `color-mix()` extensions, and the remaining context-sensitive CSS color features that depend on authoring-time style state.
+**Still pending:** relative syntaxes beyond `rgb(from …)` / `color(from …)` and the remaining context-sensitive CSS color features that depend on authoring-time style state.
 
 ## 🔄 Color Conversion
 
