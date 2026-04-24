@@ -2,21 +2,30 @@
 
 ## Scope
 
-This report audits the current `delta_e` module implementation from the `main` worktree and stores the resulting analysis on the `ai/superpowers` branch.
+This report audits the `delta_e` module from the `main` worktree snapshot at commit `951dabfcaa31c7cbf9816baba5653d524db9225d` and stores the resulting analysis on the `ai/superpowers` branch.
 
 Audited source areas:
 
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/de76.hpp`
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/de94.hpp`
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/de2000.hpp`
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/cmc.hpp`
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/din99.hpp`
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/oklab.hpp`
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/simd.hpp`
-- `/home/merlot/codes/colorspace/include/colorcpp/algorithms/delta_e/helpers.hpp`
-- `/home/merlot/codes/colorspace/tests/algorithms/test_delta_e.cpp`
-- `/home/merlot/codes/colorspace/tests/algorithms/test_delta_e_simd.cpp`
-- `/home/merlot/codes/colorspace/docs/reference/delta_e.rst`
+- `include/colorcpp/algorithms/delta_e/de76.hpp`
+- `include/colorcpp/algorithms/delta_e/de94.hpp`
+- `include/colorcpp/algorithms/delta_e/de2000.hpp`
+- `include/colorcpp/algorithms/delta_e/cmc.hpp`
+- `include/colorcpp/algorithms/delta_e/din99.hpp`
+- `include/colorcpp/algorithms/delta_e/oklab.hpp`
+- `include/colorcpp/algorithms/delta_e/simd.hpp`
+- `include/colorcpp/algorithms/delta_e/helpers.hpp`
+- `tests/algorithms/test_delta_e.cpp`
+- `tests/algorithms/test_delta_e_simd.cpp`
+- `docs/reference/delta_e.rst`
+
+Reference materials used in this audit:
+
+- Sharma's CIEDE2000 supplementary page: `https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/`
+- Sharma's supplementary test data: `https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/dataNprograms/ciede2000testdata.txt`
+- Cui et al., "Uniform colour spaces based on the DIN99 colour-difference formula" (ResearchGate mirror): `https://www.researchgate.net/publication/229891006_Uniform_colour_spaces_based_on_the_DIN99_colour-difference_formula`
+- Bottosson's Oklab article: `https://bottosson.github.io/posts/oklab/`
+- CSS Color 4 Oklab section: `https://www.w3.org/TR/css-color-4/#ok-lab`
+- Standalone probe commands and embedded sample rows: `docs/superpowers/plans/2026-04-24-delta-e-audit-implementation-plan.md`
 
 ## Baseline Verification
 
@@ -85,7 +94,7 @@ No implementation mismatch was found in `de2000.hpp` during the structural revie
 
 #### Reference comparison
 
-The structural comparison against Sharma's public CIEDE2000 reference material did not find a formula mismatch. The implementation follows the published sequence for `G`, adjusted `a'`, `h'` normalization into `[0, 360)`, conditional hue-difference averaging, the `T` trigonometric weighting term, `R_C`, and the final `R_T` blue-region rotation correction. Separately, a standalone probe was compiled against six published Sharma sample pairs from `ciede2000testdata.txt`; these were the six samples embedded in the Task 2 standalone probe, and each matched the published value to the displayed precision with printed `abs_diff=0.0000` at four decimal places. That probe is strong sample-data confirmation for those cases, but it is still only a subset check rather than complete proof over the full published table.
+The structural comparison against Sharma's public CIEDE2000 supplementary material (`https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/`) did not find a formula mismatch. The implementation follows the published sequence for `G`, adjusted `a'`, `h'` normalization into `[0, 360)`, conditional hue-difference averaging, the `T` trigonometric weighting term, `R_C`, and the final `R_T` blue-region rotation correction. Separately, a standalone probe was compiled against six published Sharma sample pairs copied from `ciede2000testdata.txt`; the exact probe command and embedded rows are recorded in `docs/superpowers/plans/2026-04-24-delta-e-audit-implementation-plan.md`, Task 2 Step 2, and each exercised row matched the published value to the displayed precision with printed `abs_diff=0.0000` at four decimal places. That probe is strong sample-data confirmation for those cases, but it is still only a subset check rather than complete proof over the full published table.
 
 #### Test adequacy
 
@@ -121,7 +130,7 @@ Risk is moderate. The implementation itself looks formula-faithful, but public n
 
 #### Reference comparison
 
-Against public DIN99 writeups, the implementation is at best only partially aligned. The `L99 = 105.51 * log(1 + 0.0158 L)` portion is recognizable, but the widely reproduced DIN99 equations also introduce the rotated `e/f` coordinates, the `a99 = C99 cos(h99)` and `b99 = 0.7 C99 sin(h99)` style anisotropy, and a derived `G = sqrt(e^2 + f^2)` term before taking Euclidean distance in DIN99 space. Those extra steps are absent here, so the current transform looks more like a plausible simplification than a faithful implementation of the published DIN99 metric. Public numeric reference data was not available in the reviewed sources, so this section cannot quantify the resulting numeric error.
+Against Cui et al., "Uniform colour spaces based on the DIN99 colour-difference formula" (`https://www.researchgate.net/publication/229891006_Uniform_colour_spaces_based_on_the_DIN99_colour-difference_formula`), the implementation is at best only partially aligned. The `L99 = 105.51 * log(1 + 0.0158 L)` portion is recognizable, but the widely reproduced DIN99 equations also introduce the rotated `e/f` coordinates, the `a99 = C99 cos(h99)` and `b99 = 0.7 C99 sin(h99)` style anisotropy, and a derived `G = sqrt(e^2 + f^2)` term before taking Euclidean distance in DIN99 space. Those extra steps are absent here, so the current transform looks more like a plausible simplification than a faithful implementation of the published DIN99 metric. Public numeric reference data was not available in the reviewed sources, so this section cannot quantify the resulting numeric error.
 
 #### Test adequacy
 
@@ -179,8 +188,8 @@ Third, the docs currently overstate certainty in a few places. `docs/reference/d
 
 | ID | Priority | Finding | Evidence | Impact | Suggested remediation |
 |----|----------|---------|----------|--------|-----------------------|
-| F1 | P1 | `delta_e_din99()` is the strongest correctness risk because the audited transform appears incomplete relative to published DIN99 formulas and has no golden-vector backstop. | Published DIN99 writeups summarized in the `delta_e_din99` section require additional rotated/anisotropic steps; `tests/algorithms/test_delta_e.cpp` only checks generic invariants in `DeltaEDIN99Test.*` (`SameColorIsZero`, `IsSymmetric`, `IsNonNegative`, threshold helpers). | A structurally wrong DIN99 implementation could ship plausible-looking numbers and still pass the current suite. | Add DIN99 reference-vector validation first; if the vectors fail, then update the implementation to match the chosen published DIN99 variant and keep those vectors as regression tests. |
-| F2 | P1 | Checked-in numeric conformance coverage is missing for the metrics where published vectors are available or reasonably expected, including the default `ΔE2000` path. | `tests/algorithms/test_delta_e.cpp` uses property-style checks for `DeltaE94Test.*`, `DeltaE2000Test.*`, `DeltaECMCTest.*`, and `DeltaEDIN99Test.*`; no published sample tables are embedded there. The audit's Task 2 probe matched six Sharma `ΔE2000` samples, but that evidence is not in the permanent suite. | Future formula regressions can slip through because passing tests only proves broad invariants, not whether outputs still match reference values. | Promote published sample vectors into the checked-in tests, starting with Sharma `ΔE2000`, then add the best available numeric references for `ΔE94`, CMC, and DIN99 when those sources are confirmed. |
+| F1 | P1 | `delta_e_din99()` is the strongest correctness risk because the audited transform appears incomplete relative to published DIN99 formulas and has no golden-vector backstop. | Cui et al.'s DIN99 paper, cited in the `delta_e_din99` section, includes additional rotated/anisotropic steps; `tests/algorithms/test_delta_e.cpp` only checks generic invariants in `DeltaEDIN99Test.*` (`SameColorIsZero`, `IsSymmetric`, `IsNonNegative`, threshold helpers). | A structurally wrong DIN99 implementation could ship plausible-looking numbers and still pass the current suite. | Add DIN99 reference-vector validation first; if the vectors fail, then update the implementation to match the chosen published DIN99 variant and keep those vectors as regression tests. |
+| F2 | P1 | Checked-in numeric conformance coverage is missing for the metrics where published vectors are available or reasonably expected, including the default `ΔE2000` path. | `tests/algorithms/test_delta_e.cpp` uses property-style checks for `DeltaE94Test.*`, `DeltaE2000Test.*`, `DeltaECMCTest.*`, and `DeltaEDIN99Test.*`; no published sample tables are embedded there. The audit's Task 2 probe used six rows from Sharma's supplementary data file, cited in the `delta_e_2000` section and plan, but that evidence is not in the permanent suite. | Future formula regressions can slip through because passing tests only proves broad invariants, not whether outputs still match reference values. | Promote published sample vectors into the checked-in tests, starting with Sharma `ΔE2000`, then add the best available numeric references for `ΔE94`, CMC, and DIN99 when those sources are confirmed. |
 | F3 | P1 | Behavioral contract tests are missing for the reference-order semantics of `delta_e_94()` and `delta_e_cmc()`. | `docs/reference/delta_e.rst` notes `ΔE94` asymmetry; `tests/algorithms/test_delta_e.cpp` lines covering `DeltaE94Test.IsGenerallyAsymmetric` and `DeltaECMCTest.IsGenerallyAsymmetric` only assert both call orders are non-negative. | A refactor could accidentally make these APIs symmetric or swap reference/comparison semantics without obvious test failures even if numeric smoke tests still pass. | Replace the current asymmetry smoke tests with explicit argument-order-sensitive examples so the reference/comparison contract is enforced independently of numeric conformance coverage. |
 | F4 | P2 | Public docs currently overclaim confidence for `delta_e_ok()` and understate uncertainty around `delta_e_din99()`. | `docs/reference/delta_e.rst` describes `delta_e_din99()` as an improved DIN standard and `delta_e_ok()` as "Recommended for most new applications"; the audit found weaker evidence for DIN99 correctness and only heuristic-level support for `ΔE_OK` positioning. | Users may choose a metric based on stronger claims than the implementation and test evidence presently support. | Revise the reference page to distinguish standardized CIE metrics from heuristic Oklab distance, and add a caution note that DIN99 remains under audit until conformance data is added. |
 | F5 | P2 | SIMD confidence is narrower than the scalar path confidence because tests prove consistency, not independent correctness. | `tests/algorithms/test_delta_e_simd.cpp` validates opt-in gating and scalar equivalence for a few `oklab_t` and converted RGBA inputs, but it cites no external reference vectors. | The experimental fast path is unlikely to be wrong independently, yet its coverage is too narrow to catch edge-case divergences with high confidence. | Keep the path experimental and extend the SIMD suite with more edge cases after the scalar `ΔE_OK` documentation and validation story are clarified. |
