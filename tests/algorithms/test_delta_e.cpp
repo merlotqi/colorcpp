@@ -65,15 +65,16 @@ TEST(DeltaE94Test, BlackToWhiteIsLarge) {
   EXPECT_GT(delta_e_94(black, white), 50.0f);
 }
 
-TEST(DeltaE94Test, IsGenerallyAsymmetric) {
-  // ΔE₉₄ uses color A as the reference, so it's not symmetric in general
-  core::rgb8_t red(255, 0, 0);
-  core::rgb8_t blue(0, 0, 255);
-  float d_ab = delta_e_94(red, blue);
-  float d_ba = delta_e_94(blue, red);
-  // They may differ (asymmetric formula) — just check both are positive
-  EXPECT_GE(d_ab, 0.0f);
-  EXPECT_GE(d_ba, 0.0f);
+TEST(DeltaE94Test, ReferenceOrderAffectsResult) {
+  const core::cielab_t reference(50.0f, 60.0f, 30.0f);
+  const core::cielab_t comparison(50.0f, 20.0f, 10.0f);
+
+  const float d_ref_cmp = delta_e_94(reference, comparison);
+  const float d_cmp_ref = delta_e_94(comparison, reference);
+
+  EXPECT_GT(d_ref_cmp, 0.0f);
+  EXPECT_GT(d_cmp_ref, 0.0f);
+  EXPECT_GT(d_cmp_ref - d_ref_cmp, 1.0f);
 }
 
 TEST(DeltaE94Test, IsNonNegative) {
@@ -205,14 +206,16 @@ TEST(DeltaECMCTest, BlackToWhiteIsLarge) {
   EXPECT_GT(delta_e_cmc(black, white), 50.0f);
 }
 
-TEST(DeltaECMCTest, IsGenerallyAsymmetric) {
-  // CMC l:c uses one color as the reference, so it's not symmetric in general
-  core::rgb8_t red(255, 0, 0);
-  core::rgb8_t blue(0, 0, 255);
-  float d_ab = delta_e_cmc(red, blue);
-  float d_ba = delta_e_cmc(blue, red);
-  EXPECT_GE(d_ab, 0.0f);
-  EXPECT_GE(d_ba, 0.0f);
+TEST(DeltaECMCTest, ReferenceOrderAffectsResult) {
+  const core::cielab_t reference(50.0f, 60.0f, 30.0f);
+  const core::cielab_t comparison(50.0f, 20.0f, 10.0f);
+
+  const float d_ref_cmp = delta_e_cmc(reference, comparison);
+  const float d_cmp_ref = delta_e_cmc(comparison, reference);
+
+  EXPECT_GT(d_ref_cmp, 0.0f);
+  EXPECT_GT(d_cmp_ref, 0.0f);
+  EXPECT_GT(d_cmp_ref - d_ref_cmp, 1.0f);
 }
 
 TEST(DeltaECMCTest, IsNonNegative) {
