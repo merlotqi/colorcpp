@@ -671,7 +671,7 @@ TEST(Css, ColorMixDefaultsToOklabAndAllowsSingleItem) {
 TEST(Css, ColorMixSupportsMultiItemLists) {
   auto equal = parse_css_color_rgba8("color-mix(in srgb, red, green, blue)");
   ASSERT_TRUE(equal);
-  expect_rgba(*equal, 85, 85, 85, 255);
+  expect_rgba(*equal, 85, 43, 85, 255);
 
   auto weighted = parse_css_color_rgba8("color-mix(in srgb, 25% red, blue, white 25%)");
   ASSERT_TRUE(weighted);
@@ -909,7 +909,7 @@ TEST(Css, WptStyleExactCorpus) {
       {"device-cmyk(none none none 100%)", 0, 0, 0, 255},
       {"color-mix(in srgb, red, red)", 255, 0, 0, 255},
       {"color-mix(in srgb, black, white)", 128, 128, 128, 255},
-      {"color-mix(in srgb, red, green, blue)", 85, 85, 85, 255},
+      {"color-mix(in srgb, red, green, blue)", 85, 43, 85, 255},
       {"color-mix(in srgb, red 20%, blue 20%)", 128, 0, 128, 102},
       {"color-mix(in srgb, transparent, transparent)", 0, 0, 0, 0},
       {"color-mix(in srgb, transparent, red 50%)", 255, 0, 0, 128},
