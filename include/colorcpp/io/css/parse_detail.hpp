@@ -80,6 +80,11 @@ struct parsed_color_mix {
   std::vector<color_mix_item> items;
 };
 
+struct color_mix_progress_header {
+  color_mix_interpolation_method method{color_mix_space::oklab};
+  float progress = 0.5f;
+};
+
 struct resolved_color_mix_item {
   core::rgbaf_t color;
   float weight = 0.0f;
@@ -241,6 +246,84 @@ inline std::optional<parsed_color_mix> parse_color_mix_item_list(const std::vect
     parsed.items.push_back(*item);
   }
   return parsed;
+}
+
+inline std::optional<float> parse_color_mix_progress_value(details::Cursor& c) {
+  auto value = c.parse_alpha_value();
+  if (!value) return std::nullopt;
+  return static_cast<float>(std::clamp(*value, 0.0, 1.0));
+}
+
+inline std::optional<color_mix_progress_header> parse_color_mix_progress_header(std::string_view s) {
+  details::Cursor c{s, 0};
+  color_mix_progress_header header;
+  bool saw_method = false;
+  bool saw_progress = false;
+
+  auto try_parse_method = [&]() -> bool {
+    const size_t save = c.i;
+    if (!c.consume_ci("in")) {
+      c.i = save;
+      return false;
+    }
+    c.skip_ws();
+    auto method = parse_color_mix_space(c);
+    if (!method) {
+      c.i = save;
+      return false;
+    }
+    header.method = *method;
+    saw_method = true;
+    return true;
+  };
+
+  auto try_parse_progress = [&]() -> bool {
+    const size_t save = c.i;
+    auto value = parse_color_mix_progress_value(c);
+    if (!value) {
+      c.i = save;
+      return false;
+    }
+    header.progress = *value;
+    saw_progress = true;
+    return true;
+  };
+
+  if (!try_parse_method() && !try_parse_progress()) return std::nullopt;
+  if (!saw_method) try_parse_method();
+  if (!saw_progress) try_parse_progress();
+  c.skip_ws();
+  if (!c.eof() || !saw_progress) return std::nullopt;
+  return header;
+}
+
+inline std::optional<parsed_color_mix> parse_color_mix_progress_form(const std::vector<std::string_view>& parts) {
+  if (parts.size() != 3) return std::nullopt;
+
+  auto header = parse_color_mix_progress_header(parts[0]);
+  if (!header) return std::nullopt;
+
+  auto first = parse_color_mix_item(parts[1]);
+  auto second = parse_color_mix_item(parts[2]);
+  if (!first || !second) return std::nullopt;
+  if (first->weight || second->weight) return std::nullopt;
+
+  parsed_color_mix parsed;
+  parsed.method = header->method;
+  parsed.items.push_back(color_mix_item{first->color, 1.0f - header->progress});
+  parsed.items.push_back(color_mix_item{second->color, header->progress});
+  return parsed;
+}
+
+inline std::optional<parsed_color_mix> parse_color_mix_arguments(std::string_view inner) {
+  auto parts = split_top_level_comma_list(inner);
+  if (!parts) return std::nullopt;
+  if (parts->size() == 3) {
+    if (auto progress = parse_color_mix_progress_form(*parts)) {
+      return progress;
+    }
+  }
+  return parse_color_mix_item_list(*parts);
 }
 
 inline float normalize_hue_degrees(float hue) {
@@ -443,13 +526,7 @@ inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, co
   std::string_view inner = *inner_opt;
   details::trim(inner);
 
-  auto parts = split_top_level_comma_list(inner);
-  if (!parts) {
-    c.i = save;
-    return std::nullopt;
-  }
-
-  auto parsed = parse_color_mix_item_list(*parts);
+  auto parsed = parse_color_mix_arguments(inner);
   if (!parsed) {
     c.i = save;
     return std::nullopt;

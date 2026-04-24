@@ -687,6 +687,26 @@ TEST(Css, ColorMixSupportsMultiItemLists) {
   expect_rgbaf_near(*folded, manual->r(), manual->g(), manual->b(), manual->a(), 0.02f);
 }
 
+TEST(Css, ColorMixSupportsProgressForm) {
+  auto simple = parse_css_color_rgbaf("color-mix(25%, red, blue)");
+  auto equivalent = parse_css_color_rgbaf("color-mix(red 75%, blue 25%)");
+  ASSERT_TRUE(simple);
+  ASSERT_TRUE(equivalent);
+  expect_rgbaf_near(*simple, equivalent->r(), equivalent->g(), equivalent->b(), equivalent->a(), 0.01f);
+
+  auto method_first = parse_css_color_rgbaf("color-mix(in srgb 25%, red, blue)");
+  auto method_equivalent = parse_css_color_rgbaf("color-mix(in srgb, red 75%, blue 25%)");
+  ASSERT_TRUE(method_first);
+  ASSERT_TRUE(method_equivalent);
+  expect_rgbaf_near(*method_first, method_equivalent->r(), method_equivalent->g(), method_equivalent->b(),
+                    method_equivalent->a(), 0.01f);
+
+  auto progress_first = parse_css_color_rgbaf("color-mix(25% in srgb, red, blue)");
+  ASSERT_TRUE(progress_first);
+  expect_rgbaf_near(*progress_first, method_equivalent->r(), method_equivalent->g(), method_equivalent->b(),
+                    method_equivalent->a(), 0.01f);
+}
+
 TEST(Css, ColorMixNestedAndInvalidForms) {
   auto nested = parse_css_color_rgba8("color-mix(in srgb, color(srgb 1 0 0), color(display-p3 0 0 1) 50%)");
   ASSERT_TRUE(nested);
@@ -909,6 +929,7 @@ TEST(Css, WptStyleExactCorpus) {
       {"device-cmyk(none none none 100%)", 0, 0, 0, 255},
       {"color-mix(in srgb, red, red)", 255, 0, 0, 255},
       {"color-mix(in srgb, black, white)", 128, 128, 128, 255},
+      {"color-mix(25% in srgb, red, blue)", 191, 0, 64, 255},
       {"color-mix(in srgb, red, green, blue)", 85, 43, 85, 255},
       {"color-mix(in srgb, red 20%, blue 20%)", 128, 0, 128, 102},
       {"color-mix(in srgb, transparent, transparent)", 0, 0, 0, 0},
