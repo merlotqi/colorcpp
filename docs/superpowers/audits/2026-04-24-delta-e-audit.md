@@ -75,7 +75,7 @@ The documentation explains the asymmetry better than the tests do. `docs/referen
 
 #### Risk assessment
 
-Risk is moderate rather than high. The formula review did not reveal a correctness issue, and the docs are reasonably clear about asymmetry, but the automated tests are not strong enough to protect that contract. A future refactor could accidentally make the function symmetric, change reference-color semantics, or alter default weighting behavior without the current suite clearly failing.
+Risk is moderate rather than high. The formula review did not reveal a correctness issue, and the docs are reasonably clear about asymmetry, but the automated tests are not strong enough to protect that contract. A future refactor could accidentally make the function symmetric, change reference-color semantics, or alter default weighting behavior without the current suite failing on that contract.
 
 ### `delta_e_2000`
 
@@ -111,13 +111,13 @@ The current tests prove only narrower properties. They cover zero distance, non-
 
 #### Risk assessment
 
-Risk is moderate. The implementation itself looks formula-faithful, but public numeric reference data was not checked and the current tests are too shallow to prove more than basic invariants. The main remaining risk is silent regression in the reference-color weighting behavior, especially because the asymmetry contract is described in prose and test names more clearly than it is enforced by assertions.
+Risk is moderate. The implementation itself looks formula-faithful, but public numeric reference data was not checked and the current tests are too shallow to prove more than basic invariants. The main remaining risk is silent regression in the reference-color weighting behavior, especially because the asymmetry contract is described in prose and test names but not enforced by assertions.
 
 ### `delta_e_din99`
 
 #### Implementation observations
 
-`din99.hpp` looks questionable, not confidently formula-faithful. It does perform a recognizable DIN99-style transform by logarithmically compressing lightness and chroma and rotating hue by 16 degrees, but the public DIN99 transforms usually include additional intermediate rotated coordinates and scale factors beyond a direct `C99 * cos(h - 16°)` / `C99 * sin(h - 16°)` mapping. This implementation also applies `k_E` inside the coordinate transform and then multiplies the final Euclidean distance by `k_E` again, which makes the overall scaling behavior look suspicious rather than obviously standard.
+`din99.hpp` cannot yet be treated as formula-faithful with confidence. It does perform a recognizable DIN99-style transform by logarithmically compressing lightness and chroma and rotating hue by 16 degrees, but the public DIN99 transforms usually include additional intermediate rotated coordinates and scale factors beyond a direct `C99 * cos(h - 16°)` / `C99 * sin(h - 16°)` mapping. This implementation also applies `k_E` inside the coordinate transform and then multiplies the final Euclidean distance by `k_E` again, which leaves the overall scaling behavior insufficiently justified against the published formulas.
 
 #### Reference comparison
 
@@ -165,7 +165,7 @@ This is the strongest-tested part of the remaining batch, but it still proves SI
 
 #### Risk assessment
 
-Risk is low to moderate. The path is clearly opt-in and currently documented as experimental, and the tests do a decent job of checking SIMD/scalar consistency on the encoded cases. The residual risk is mostly coverage-related: the suite validates consistency, not independent scalar correctness, and it exercises only a small set of hand-picked inputs.
+Risk is low to moderate. The path is opt-in and currently documented as experimental, and the tests do a decent job of checking SIMD/scalar consistency on the encoded cases. The residual risk is mostly coverage-related: the suite validates consistency, not independent scalar correctness, and it exercises only a small set of hand-picked inputs.
 
 ## Cross-Cutting Findings
 
@@ -191,7 +191,7 @@ Start by adding validation, not by rewriting formulas. The highest-value first m
 
 Next, tighten the misuse-prone contracts. Replace the current `ΔE94` and CMC asymmetry smoke tests with cases that actually fail if argument order stops mattering. That work should stand on its own as behavioral contract coverage, separate from the numeric conformance vectors above, so reference/comparison semantics stay protected even before broader published-vector coverage is complete.
 
-Only after those checks are in place should implementation changes be considered. If DIN99 fails the newly added vectors, that becomes the first code-level correction target. If the asymmetric metrics and `ΔE2000` pass their stronger tests, implementation changes are probably unnecessary there and the remaining work shifts to documentation cleanup plus incremental coverage expansion.
+Only after those checks are in place should implementation changes be considered. If DIN99 fails the newly added vectors, that becomes the first code-level correction target. If the asymmetric metrics and `ΔE2000` pass their stronger tests, implementation changes there should wait, and the remaining work shifts to documentation cleanup plus incremental coverage expansion.
 
 ## Suggested Follow-Up Work
 
