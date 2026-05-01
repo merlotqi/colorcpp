@@ -24,7 +24,7 @@ namespace colorcpp::io::literals {
 
 /** @brief HSV template literal; encoding documented in the "HSV Literal Operators" block above. */
 template <char... Chars>
-constexpr auto operator"" _hsv() {
+constexpr auto operator""_hsv() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t h = val / 1000000ULL;
   constexpr uint64_t s = (val / 1000ULL) % 1000ULL;
@@ -37,7 +37,7 @@ constexpr auto operator"" _hsv() {
 
 /** @brief HSVA template literal (four packed fields). */
 template <char... Chars>
-constexpr auto operator"" _hsva() {
+constexpr auto operator""_hsva() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t h = val / 1000000000ULL;
   constexpr uint64_t s = (val / 1000000ULL) % 1000ULL;

@@ -29,7 +29,7 @@ namespace colorcpp::io::literals {
 
 /** @brief HSL template literal; encoding documented in the "HSL Literal Operators" block above. */
 template <char... Chars>
-constexpr auto operator"" _hsl() {
+constexpr auto operator""_hsl() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t h = val / 1000000ULL;
   constexpr uint64_t s = (val / 1000ULL) % 1000ULL;
@@ -43,7 +43,7 @@ constexpr auto operator"" _hsl() {
 
 /** @brief HSLA template literal (four packed decimal fields; A as 000–100 → stored [0,1]). */
 template <char... Chars>
-constexpr auto operator"" _hsla() {
+constexpr auto operator""_hsla() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t h = val / 1000000000ULL;
   constexpr uint64_t s = (val / 1000000ULL) % 1000ULL;

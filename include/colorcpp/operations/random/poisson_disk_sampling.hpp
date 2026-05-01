@@ -10,7 +10,6 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
 #include <colorcpp/algorithms/delta_e.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/operations/conversion.hpp>

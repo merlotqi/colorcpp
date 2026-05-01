@@ -21,7 +21,7 @@ namespace colorcpp::io::literals {
 
 /** @brief CMYK template literal; four 000–100 fields → @ref colorcpp::core::cmyk8_t. */
 template <char... Chars>
-constexpr auto operator"" _cmyk() {
+constexpr auto operator""_cmyk() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t c = val / 1000000000ULL;
   constexpr uint64_t m = (val / 1000000ULL) % 1000ULL;

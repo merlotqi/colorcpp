@@ -24,7 +24,7 @@ namespace colorcpp::io::literals {
 
 /** @brief Oklab template literal; encoding documented in the "Oklab Literal Operators" block above. */
 template <char... Chars>
-constexpr auto operator"" _oklab() {
+constexpr auto operator""_oklab() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t l = val / 1000000ULL;
   constexpr uint64_t a = (val / 1000ULL) % 1000ULL;
@@ -50,7 +50,7 @@ constexpr auto operator"" _oklab() {
 
 /** @brief OkLCH template literal; encoding documented in the "OkLCH Literal Operators" block above. */
 template <char... Chars>
-constexpr auto operator"" _oklch() {
+constexpr auto operator""_oklch() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t l = val / 1000000ULL;
   constexpr uint64_t c = (val / 1000ULL) % 1000ULL;

@@ -24,7 +24,7 @@ namespace colorcpp::io::literals {
 
 /** @brief HWB template literal; encoding documented in the "HWB Literal Operators" block above. */
 template <char... Chars>
-constexpr auto operator"" _hwb() {
+constexpr auto operator""_hwb() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t h = val / 1000000ULL;
   constexpr uint64_t w = (val / 1000ULL) % 1000ULL;
@@ -37,7 +37,7 @@ constexpr auto operator"" _hwb() {
 
 /** @brief HWBA template literal (four packed fields). */
 template <char... Chars>
-constexpr auto operator"" _hwba() {
+constexpr auto operator""_hwba() {
   constexpr uint64_t val = details::parse_dec_template<Chars...>();
   constexpr uint64_t h = val / 1000000000ULL;
   constexpr uint64_t w = (val / 1000000ULL) % 1000ULL;

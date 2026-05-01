@@ -13,7 +13,6 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/operations/random/basic.hpp>
