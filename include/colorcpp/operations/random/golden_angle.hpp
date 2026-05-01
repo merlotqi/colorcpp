@@ -85,6 +85,7 @@ class golden_angle_generator {
   Color next() const {
     if (!first_next_) {
       current_hue = std::fmod(current_hue + kGoldenAngle, 360.0f);
+      if (current_hue < 0.0f) current_hue += 360.0f;
     } else {
       first_next_ = false;
     }

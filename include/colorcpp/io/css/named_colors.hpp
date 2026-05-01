@@ -214,7 +214,7 @@ namespace named_literal {
  * @example "coral"_color → rgba8_t{255, 127, 80, 255}
  * @throws std::invalid_argument if the name is not a valid CSS color.
  */
-inline auto operator"" _color(const char* str, size_t len) {
+inline auto operator""_color(const char* str, size_t len) {
   auto result = get_named_color(std::string_view(str, len));
   if (!result) {
     throw std::invalid_argument(std::string("colorcpp: unknown named color '") + std::string(str, len) + "'");

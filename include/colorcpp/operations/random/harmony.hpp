@@ -100,8 +100,14 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
    * @param samples Vector of existing hue samples (modified in place).
    * @param min_dist Minimum angular distance between hues (default: 1/10 of hue range).
    * @param max_attempts Maximum rejection sampling attempts (default: 200).
-   * @return Color with Poisson-sampled hue, or a random color if no valid hue is found; `samples` is only updated when
-   *         a valid spaced hue is found (including after extra fallback attempts).
+   * @return Color with Poisson-sampled hue.
+   *
+   * @par Failure behavior
+   * If no valid hue is found after `max_attempts` attempts, a second round of
+   * `max_attempts` attempts is tried using a fresh random base color. If that also
+   * fails, a random color is returned but **nothing is appended to `samples`**
+   * (so the list is not polluted with a violating hue). Callers should check
+   * `samples.size()` to determine if the returned color satisfies the distance constraint.
    */
   Color next_poisson(std::vector<T>& samples, T min_dist = traits::hue_max() / 10, std::size_t max_attempts = 200) {
     T h_max = traits::hue_max();

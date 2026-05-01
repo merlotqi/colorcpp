@@ -22,8 +22,9 @@ Available metrics:
         - Configurable weights: l (lightness, default 2.0) and c (chroma, default 1.0)
         - Common presets: l=2, c=1 (acceptability), l=1, c=1 (perceptibility)
     * ``delta_e_din99()`` - DIN99 (DIN 6176)
-        - German standard with improved perceptual uniformity
-        - Applies non-linear transforms to CIELAB
+        - Euclidean distance in the DIN99-transformed LAB space
+        - Supports ``k_L`` lightness scaling and inverse ``k_E`` overall scaling
+        - Checked against equation-derived reference pairs from the published DIN99 transform
 
   * **Modern Perceptual Metric**:
     * ``delta_e_ok()`` - Oklab Euclidean distance
@@ -56,7 +57,7 @@ Typical threshold values for ΔE2000:
 Notes
 -----
 
-* ΔE94 is asymmetric: reference color is the first parameter
+* ΔE94 and CMC l:c are asymmetric: the reference color is the first parameter
 * ΔE2000 uses double precision internally for accuracy near neutral axis
 * ΔE_OK values are approximately 2.5x smaller scale than ΔE2000
 * ``delta_e_ok()`` has an optional experimental SIMD-backed path for Oklab inputs when ``COLORCPP_ENABLE_SIMD=ON`` on supported targets

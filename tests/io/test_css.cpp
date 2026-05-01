@@ -671,7 +671,7 @@ TEST(Css, ColorMixDefaultsToOklabAndAllowsSingleItem) {
 TEST(Css, ColorMixSupportsMultiItemLists) {
   auto equal = parse_css_color_rgba8("color-mix(in srgb, red, green, blue)");
   ASSERT_TRUE(equal);
-  expect_rgba(*equal, 85, 85, 85, 255);
+  expect_rgba(*equal, 85, 43, 85, 255);
 
   auto weighted = parse_css_color_rgba8("color-mix(in srgb, 25% red, blue, white 25%)");
   ASSERT_TRUE(weighted);
@@ -685,6 +685,36 @@ TEST(Css, ColorMixSupportsMultiItemLists) {
   ASSERT_TRUE(folded);
   ASSERT_TRUE(manual);
   expect_rgbaf_near(*folded, manual->r(), manual->g(), manual->b(), manual->a(), 0.02f);
+}
+
+TEST(Css, ColorMixSupportsProgressForm) {
+  auto simple = parse_css_color_rgbaf("color-mix(25%, red, blue)");
+  auto equivalent = parse_css_color_rgbaf("color-mix(red 75%, blue 25%)");
+  ASSERT_TRUE(simple);
+  ASSERT_TRUE(equivalent);
+  expect_rgbaf_near(*simple, equivalent->r(), equivalent->g(), equivalent->b(), equivalent->a(), 0.01f);
+
+  auto method_first = parse_css_color_rgbaf("color-mix(in srgb 25%, red, blue)");
+  auto method_equivalent = parse_css_color_rgbaf("color-mix(in srgb, red 75%, blue 25%)");
+  ASSERT_TRUE(method_first);
+  ASSERT_TRUE(method_equivalent);
+  expect_rgbaf_near(*method_first, method_equivalent->r(), method_equivalent->g(), method_equivalent->b(),
+                    method_equivalent->a(), 0.01f);
+
+  auto progress_first = parse_css_color_rgbaf("color-mix(25% in srgb, red, blue)");
+  ASSERT_TRUE(progress_first);
+  expect_rgbaf_near(*progress_first, method_equivalent->r(), method_equivalent->g(), method_equivalent->b(),
+                    method_equivalent->a(), 0.01f);
+}
+
+TEST(Css, ColorMixRejectsMalformedExtendedForms) {
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(25%, red)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb 25%, red)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red,, blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red 25% 50%, blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb longer hue, red, blue)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red 0%, blue 0%, white 0%)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(25% in srgb, red, blue) trailing").has_value());
 }
 
 TEST(Css, ColorMixNestedAndInvalidForms) {
@@ -909,7 +939,9 @@ TEST(Css, WptStyleExactCorpus) {
       {"device-cmyk(none none none 100%)", 0, 0, 0, 255},
       {"color-mix(in srgb, red, red)", 255, 0, 0, 255},
       {"color-mix(in srgb, black, white)", 128, 128, 128, 255},
-      {"color-mix(in srgb, red, green, blue)", 85, 85, 85, 255},
+      {"color-mix(in srgb, red)", 255, 0, 0, 255},
+      {"color-mix(25% in srgb, red, blue)", 191, 0, 64, 255},
+      {"color-mix(in srgb, red, green, blue)", 85, 43, 85, 255},
       {"color-mix(in srgb, red 20%, blue 20%)", 128, 0, 128, 102},
       {"color-mix(in srgb, transparent, transparent)", 0, 0, 0, 0},
       {"color-mix(in srgb, transparent, red 50%)", 255, 0, 0, 128},
@@ -953,6 +985,12 @@ TEST(Css, InvalidCorpusRejectsMalformedInputs) {
       {"device-cmyk(0 1 1)"},
       {"device-cmyk(0 1 1 0 /)"},
       {"color-mix(in unknown-space, red, blue)"},
+      {"color-mix(25%, red)"},
+      {"color-mix(in srgb 25%, red)"},
+      {"color-mix(in srgb, red,, blue)"},
+      {"color-mix(in srgb, red 25% 50%, blue)"},
+      {"color-mix(in srgb, red 0%, blue 0%, white 0%)"},
+      {"color-mix(25% in srgb, red, blue) trailing"},
       {"color-mix(in srgb, red 0%, blue 0%)"},
       {"color-mix(in srgb red, blue)"},
       {"color-mix(in srgb, red blue)"},

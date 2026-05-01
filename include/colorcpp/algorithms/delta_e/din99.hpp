@@ -3,13 +3,17 @@
  * @brief DIN99 color difference metric.
  *
  * DIN99 (DIN 6176) is a German standard for color difference measurement.
- * It applies a series of non-linear transforms to CIELAB to produce a more
- * perceptually uniform color space, then computes Euclidean distance in that space.
+ * It applies a published non-linear transform from CIELAB into DIN99 coordinates
+ * before computing Euclidean distance in that space.
  *
  * The transformation includes:
- * 1. LAB to LCh conversion
- * 2. Logarithmic chroma compression
- * 3. Hue rotation to reduce blue-region non-uniformity
+ * 1. Lightness compression to L99
+ * 2. 16-degree rotation into intermediate e/f axes
+ * 3. 0.7 compression on the rotated blue-yellow axis
+ * 4. Logarithmic chroma compression in the rotated plane
+ *
+ * The final distance applies k_L to the lightness delta and k_E as an inverse
+ * scale on the Euclidean norm.
  *
  * @see https://en.wikipedia.org/wiki/DIN99
  */
@@ -26,44 +30,39 @@ namespace details {
 /**
  * @brief Transform CIELAB to DIN99 coordinates.
  *
- * Implements DIN 6176:2001 standard transformation.
- * Reference: Witt (1999) "Colour metrics in technology and business"
+ * Implements the published DIN99 transform:
+ * - lightness compression to L99
+ * - 16-degree rotation into intermediate e/f axes
+ * - 0.7 compression on the rotated blue-yellow axis
+ * - logarithmic chroma compression before Euclidean distance in DIN99 space
  *
  * @param L CIELAB L* (0-100).
  * @param a CIELAB a*.
  * @param b CIELAB b*.
- * @param k_L Lightness scaling factor (default: 1.0).
- * @param k_E Overall scaling factor (default: 1.0).
  * @param L99 Output DIN99 L99.
  * @param a99 Output DIN99 a99.
  * @param b99 Output DIN99 b99.
  */
-inline void lab_to_din99(double L, double a, double b, double k_L, double k_E, double& L99, double& a99, double& b99) {
-  constexpr double kPi = 3.14159265358979323846;
-  constexpr double Deg16 = 16.0 * kPi / 180.0;
+inline void lab_to_din99(double L, double a, double b, double& L99, double& a99, double& b99) {
+  constexpr double kCos16 = 0.9612616959383189;
+  constexpr double kSin16 = 0.27563735581699916;
 
-  // Step 1: Compute L99 with lightness scaling
-  L99 = k_E * 105.51 * std::log(1.0 + 0.0158 * L) / k_L;
+  L99 = 105.51 * std::log(1.0 + 0.0158 * L);
 
-  // Step 2: Compute CIELAB chroma
-  double C = std::sqrt(a * a + b * b);
+  const double e = a * kCos16 + b * kSin16;
+  const double f = 0.7 * (b * kCos16 - a * kSin16);
+  const double G = std::sqrt(e * e + f * f);
 
-  // Step 3: Compute hue
-  double h = 0.0;
-  if (b != 0.0 || a != 0.0) {
-    h = std::atan2(b, a);
-    if (h < 0.0) h += 2.0 * kPi;
+  if (G == 0.0) {
+    a99 = 0.0;
+    b99 = 0.0;
+    return;
   }
 
-  // Step 4: Apply logarithmic chroma compression
-  double C99 = std::log(1.0 + 0.045 * C) / 0.045;
-
-  // Step 5: Compute DIN99 hue with rotation
-  double h99 = h - Deg16;
-
-  // Step 6: Convert to DIN99 a99, b99 with overall scaling
-  a99 = k_E * C99 * std::cos(h99);
-  b99 = k_E * C99 * std::sin(h99);
+  const double C99 = std::log(1.0 + 0.045 * G) / 0.045;
+  const double scale = C99 / G;
+  a99 = scale * e;
+  b99 = scale * f;
 }
 
 }  // namespace details
@@ -73,8 +72,8 @@ inline void lab_to_din99(double L, double a, double b, double k_L, double k_E, d
  *
  * @param a First color.
  * @param b Second color.
- * @param k_L Lightness scaling factor (default: 1.0).
- * @param k_E Overall scaling factor (default: 1.0).
+ * @param k_L Positive lightness scaling factor. Non-positive values fall back to 1.0.
+ * @param k_E Positive inverse scaling factor for the final norm. Non-positive values fall back to 1.0.
  * @return ΔE_DIN99 value.
  */
 template <typename ColorA, typename ColorB>
@@ -91,19 +90,20 @@ float delta_e_din99(const ColorA& a, const ColorB& b, float k_L = 1.0f, float k_
   const double a2 = lb.template get_index<1>();
   const double b2 = lb.template get_index<2>();
 
-  // Transform both colors to DIN99
   double L99_1, a99_1, b99_1;
   double L99_2, a99_2, b99_2;
 
-  details::lab_to_din99(L1, a1, b1, k_L, k_E, L99_1, a99_1, b99_1);
-  details::lab_to_din99(L2, a2, b2, k_L, k_E, L99_2, a99_2, b99_2);
+  details::lab_to_din99(L1, a1, b1, L99_1, a99_1, b99_1);
+  details::lab_to_din99(L2, a2, b2, L99_2, a99_2, b99_2);
 
-  // Compute Euclidean distance in DIN99 space
-  const double dL99 = L99_2 - L99_1;
+  const double safe_kL = k_L > 0.0f ? static_cast<double>(k_L) : 1.0;
+  const double safe_kE = k_E > 0.0f ? static_cast<double>(k_E) : 1.0;
+
+  const double dL99 = (L99_2 - L99_1) / safe_kL;
   const double da99 = a99_2 - a99_1;
   const double db99 = b99_2 - b99_1;
 
-  return static_cast<float>(k_E * std::sqrt(dL99 * dL99 + da99 * da99 + db99 * db99));
+  return static_cast<float>((1.0 / safe_kE) * std::sqrt(dL99 * dL99 + da99 * da99 + db99 * db99));
 }
 
 }  // namespace colorcpp::algorithms::delta_e
