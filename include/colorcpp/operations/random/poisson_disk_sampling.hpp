@@ -5,6 +5,9 @@
  * Generates color palettes where all colors are guaranteed to have at least
  * a minimum perceptual distance from each other. Eliminates similar colors
  * and produces visually balanced and distinguishable sets.
+ *
+ * @note Uses OkLab Euclidean distance (not CIEDE2000) for efficiency.
+ *       Results may lie outside display gamuts; convert through a gamut mapper if needed.
  */
 
 #pragma once
@@ -23,8 +26,8 @@ namespace colorcpp::operations::random {
  * @brief Poisson Disk Sampling color generator.
  *
  * Generates a palette of colors where each pair of colors has a minimum
- * perceptual distance ΔE between them. Uses OkLab color space and CIEDE2000
- * for accurate perceptual distance measurement.
+ * perceptual distance ΔE between them. Uses OkLab color space and Euclidean
+ * distance in OkLab for fast perceptual distance measurement.
  *
  * @tparam Color Target output color type.
  * @tparam Engine Random engine type.
@@ -66,7 +69,7 @@ class poisson_disk_generator {
     std::vector<intermediate_type> samples;
     samples.reserve(count);
 
-    basic_random_generator<intermediate_type, Engine> gen(rng_());
+    basic_random_generator<intermediate_type, Engine> gen(rng_);
 
     for (std::size_t i = 0; i < count; ++i) {
       bool found = false;
@@ -106,7 +109,7 @@ class poisson_disk_generator {
   std::vector<Color> generate_max(std::size_t max_attempts = 1000) {
     std::vector<intermediate_type> samples;
 
-    basic_random_generator<intermediate_type, Engine> gen(rng_());
+    basic_random_generator<intermediate_type, Engine> gen(rng_);
 
     std::size_t consecutive_failures = 0;
 

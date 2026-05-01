@@ -35,7 +35,14 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
   using T = typename base::T;
 
  public:
-  /** @brief Min/max for H, S, and V or L when generating; for 4-channel types, also @a a_min / @a a_max for alpha. */
+  /**
+   * @brief Min/max for H, S, and V or L when generating; for 4-channel types, also @a a_min / @a a_max for alpha.
+   *
+   * @par Valid ranges
+   * Typical valid ranges: H [0, hue_max), S [0, max_at<1>()], L/V [0, max_at<2>()], A [0, 1].
+   * Values outside these ranges are accepted but may produce unexpected results
+   * depending on the color space conversion functions.
+   */
   struct options {
     T h_min{T(0)}, h_max{traits::hue_max()};
     T s_min{T(0)}, s_max{traits::template max_at<1>()};
