@@ -35,10 +35,12 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/random/basic.hpp>
+#include <colorcpp/operations/random/contrast.hpp>
 #include <colorcpp/operations/random/details.hpp>
 #include <colorcpp/operations/random/golden_angle.hpp>
 #include <colorcpp/operations/random/harmony.hpp>
 #include <colorcpp/operations/random/hsl.hpp>
+#include <colorcpp/operations/random/luminance.hpp>
 
 /**
  * @namespace colorcpp::operations::random
@@ -101,6 +103,20 @@ using harmony_gen = harmony_generator<core::hsla_float_t>;
 using golden_gen = golden_angle_generator<core::hsl_float_t>;
 ///@}
 
+/** @name Contrast Constrained Generators */
+///@{
+using contrast_rgbf_generator = contrast_generator<core::rgbf_t>;
+using contrast_rgb8_generator = contrast_generator<core::rgb8_t>;
+using contrast_hsl_generator = contrast_generator<core::hsl_float_t>;
+///@}
+
+/** @name Luminance Constrained Generators */
+///@{
+using luminance_rgbf_generator = luminance_generator<core::rgbf_t>;
+using luminance_rgb8_generator = luminance_generator<core::rgb8_t>;
+using luminance_hsl_generator = luminance_generator<core::hsl_float_t>;
+///@}
+
 }  // namespace colorcpp::operations::random
 
 namespace colorcpp::operations {
@@ -139,6 +155,44 @@ template <typename Color>
 std::vector<Color> random_colors(std::size_t count, typename std::mt19937::result_type seed = std::random_device{}()) {
   random::basic_random_generator<Color> gen(seed);
   return gen.generate_n(count);
+}
+
+/**
+ * @brief Generate a random color with minimum WCAG contrast ratio against a reference.
+ *
+ * @tparam Color Color type to generate.
+ * @tparam RefColor Reference color type.
+ * @param reference The reference (typically background) color.
+ * @param min_ratio Minimum contrast ratio (default: 4.5 for WCAG AA normal text).
+ * @param seed Seed for reproducibility.
+ * @return Random color meeting the contrast constraint.
+ */
+template <typename Color, typename RefColor>
+Color random_contrast_color(const RefColor& reference, float min_ratio = 4.5f,
+                            typename std::mt19937::result_type seed = std::random_device{}()) {
+  typename random::contrast_generator<Color>::options o;
+  o.min_ratio = min_ratio;
+  random::contrast_generator<Color> gen(seed, o);
+  return gen.next(reference);
+}
+
+/**
+ * @brief Generate a random color constrained to an OkLab lightness range.
+ *
+ * @tparam Color Color type to generate.
+ * @param l_min Minimum OkLab lightness (default: 0.0).
+ * @param l_max Maximum OkLab lightness (default: 1.0).
+ * @param seed Seed for reproducibility.
+ * @return Random color within the lightness range.
+ */
+template <typename Color>
+Color random_luminance_color(float l_min = 0.0f, float l_max = 1.0f,
+                             typename std::mt19937::result_type seed = std::random_device{}()) {
+  typename random::luminance_generator<Color>::options o;
+  o.l_min = l_min;
+  o.l_max = l_max;
+  random::luminance_generator<Color> gen(seed, o);
+  return gen.next();
 }
 
 }  // namespace colorcpp::operations
