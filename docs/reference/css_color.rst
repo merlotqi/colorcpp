@@ -49,7 +49,7 @@ In colorcpp
         * Nested ``var(--token)`` references anywhere inside expressions
         * Unary minus
         * Delayed AST evaluation with variable binding
-    * ``color-mix()`` - interpolation in ``srgb``, ``srgb-linear``, ``display-p3``, ``display-p3-linear``, ``lab``, ``lch``, ``oklab``, ``oklch``, and ``xyz``; ``lch`` / ``oklch`` also accept ``shorter|longer|increasing|decreasing hue``
+    * ``color-mix()`` - omitted interpolation defaults to ``oklab``; item-list mixes support one or more colors; progress-form mixes support ``color-mix(25% in srgb, red, blue)``; ``lch`` / ``oklch`` also accept ``shorter|longer|increasing|decreasing hue``
     * ``device-cmyk()`` - CMYK device colors with optional alpha
     * ``light-dark()`` - Theme-aware color selection through context-aware parsing
 
@@ -83,6 +83,7 @@ Notes
 * Angle units support: ``deg``, ``rad``, ``grad``, ``turn``
 * Parser accepts both legacy comma syntax and modern space-separated syntax
 * ``color-mix()`` follows CSS premultiplied-alpha mixing semantics, including reduced-alpha results when explicit percentages sum below ``100%``
+* Progress-form ``color-mix()`` inputs are normalized into the same list-based evaluator as the item-list form
 * Relative color support currently covers ``rgb(from ...)`` and ``color(from ...)``; the remaining relative syntaxes are not implemented yet
 * Formatter produces canonical ``rgb()`` output for sRGB colors
 
