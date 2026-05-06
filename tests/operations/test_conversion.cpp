@@ -168,6 +168,13 @@ TEST(ConversionDebugContractTest, PublicDebugHelpersReflectGraphRouting) {
   static_assert(info::has_graph_path);
   static_assert(info::minimal_graph_cost == 2);
   static_assert(info::is_possible);
+
+  const hsl_float_t sample{180.0f, 0.5f, 0.5f};
+  const auto expected = color_cast<oklab_t>(color_cast<rgbf_t>(sample));
+  const auto casted = color_cast<oklab_t>(sample);
+  EXPECT_NEAR(casted.l(), expected.l(), 1e-6f);
+  EXPECT_NEAR(casted.a(), expected.a(), 1e-6f);
+  EXPECT_NEAR(casted.b(), expected.b(), 1e-6f);
 }
 
 // Alpha handling

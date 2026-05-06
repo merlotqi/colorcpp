@@ -188,14 +188,6 @@ constexpr bool can_convert() {
 }
 
 /**
- * @brief Get the hub type for a color type.
- * @tparam Color Color type.
- * @return Hub type or void if no hub.
- */
-template <typename Color>
-using get_hub_t = hub_color_t<Color>;
-
-/**
  * @brief Print conversion path description (for debugging).
  *
  * This function is intended for compile-time debugging. Use with
@@ -207,8 +199,11 @@ using get_hub_t = hub_color_t<Color>;
  *
  * Example:
  * @code
- * static_assert(colorcpp::operations::conversion::verify_path<hsl_t, oklab_t>(),
- *               "HSL to OkLab conversion should be possible");
+ * constexpr bool possible = colorcpp::operations::conversion::can_convert<hsl_t, oklab_t>();
+ * using info = colorcpp::operations::conversion::conversion_path_info<hsl_t, oklab_t>;
+ * static_assert(info::has_graph_path);
+ * static_assert(info::minimal_graph_cost < colorcpp::operations::conversion::graph::inf);
+ * static_assert(colorcpp::operations::conversion::verify_path<hsl_t, oklab_t>());
  * @endcode
  */
 template <typename From, typename To>
