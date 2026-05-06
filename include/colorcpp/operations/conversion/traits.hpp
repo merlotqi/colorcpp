@@ -1,10 +1,11 @@
 /**
  * @file traits.hpp
- * @brief Color space traits for hub-based routing.
+ * @brief Color space traits metadata used alongside graph-driven public routing.
  *
  * Direct conversions between concrete color types are registered with
  * @c COLORCPP_REGISTER_CONVERSION in @c functions/index.hpp (see @c registry.hpp).
- * This header only supplies per-model @c hub_type for automatic multi-hop routing.
+ * Public conversion dispatch happens through @c color_cast and the compile-time graph
+ * in @c graph.hpp; this header provides per-model metadata and compatibility helpers.
  */
 
 #pragma once

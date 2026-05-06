@@ -1,7 +1,7 @@
 Color space conversion
 =======================
 
-Typed color conversion system with automatic routing, compile-time safety and extensible registration architecture.
+Typed color conversion system with compile-time graph routing, safety checks, and extensible registration.
 
 In colorcpp
 ------------
@@ -12,10 +12,8 @@ In colorcpp
 **System features**:
 
   * ✅ **Compile time safety**: Unsupported conversions fail at compile time with clear static_assert messages
-  * ✅ **Multi-layer routing**: 4-level priority routing system with graceful fallback
   * ✅ **Compile-time graph routing**: Full Dijkstra shortest path algorithm runs during compilation
   * ✅ **Weighted edges**: Expensive conversions can be assigned higher cost for optimal path selection
-  * ✅ **Hub architecture**: Hierarchical hub tree for maximum compatibility
   * ✅ **Extensible**: Add new color spaces externally without modifying core library
   * ✅ **constexpr support**: All conversions can be evaluated at compile time
   * ✅ **Zero runtime overhead**: All abstractions resolve directly to function calls with zero indirection
@@ -25,13 +23,13 @@ In colorcpp
 Routing Architecture
 --------------------
 
-colorcpp uses a 4-level priority routing system, evaluated in order:
+colorcpp routes conversions in this order:
 
 1. **Identity conversion (cost 0)**
    - When source and destination types are identical, value is returned directly
    - No operations performed, absolute zero cost
 
-2. **Direct registered conversion (cost 1)**
+2. **Direct registered conversion (registered edge cost)**
    - Explicitly registered direct conversion edges
    - Highest priority, always preferred over indirect routes
 
@@ -41,32 +39,9 @@ colorcpp uses a 4-level priority routing system, evaluated in order:
    - Supports multi-hop routes of arbitrary length
    - All path computation performed entirely at compile time
 
-4. **Hub tree fallback routing (variable cost)**
-   - Graceful fallback when graph routing is not available
-   - Routes via hierarchical hub tree structure
-   - Guaranteed connectivity for all built-in color spaces
-
-
-Hub Tree Structure
-------------------
-
-All color spaces are arranged in a hierarchical hub tree:
-
-.. code-block:: text
-
-                        XYZ (root hub)
-                       / | \
-                      /  |  \
-              Linear RGB  OkLab  CIELAB
-                 |        |        |
-                sRGB     OkLCH   CIELCH
-                / | \
-         HSL HSV HWB CMYK
-
-        Display P3 → Linear RGB → XYZ
-
-Each color space only requires a single conversion to its parent hub,
-automatically enabling conversion to every other color space in the tree.
+4. **Compile-time error if no graph path exists**
+   - Unsupported conversions fail during compilation with a clear ``static_assert``
+   - Register a direct edge or add graph nodes to extend support
 
 
 Conversion Registration
@@ -96,7 +71,7 @@ Extending The System
 To add a custom color space:
 
 1. Specialize ``color_traits`` for your color model
-2. Register conversion edges to existing hub spaces
+2. Register conversion edges to existing graph nodes
 3. Optionally add your type to ``additional_color_nodes`` for full graph routing
 
 .. code-block:: cpp
@@ -122,16 +97,15 @@ Compile-time debugging utilities:
 .. code-block:: cpp
 
     // Check if conversion is possible
-    constexpr bool possible = colorcpp::can_convert<From, To>();
+    constexpr bool possible = colorcpp::operations::conversion::can_convert<From, To>();
 
     // Get detailed conversion path information
     using info = colorcpp::operations::conversion::conversion_path_info<From, To>;
+    static_assert(info::has_graph_path);
+    static_assert(info::minimal_graph_cost < colorcpp::operations::conversion::graph::inf);
 
     // Verify path at compile time
     static_assert(colorcpp::operations::conversion::verify_path<hsl_t, oklab_t>());
-
-    // Get hub type for any color
-    using hub = colorcpp::operations::conversion::get_hub_t<color_type>;
 
 
 Supported color space conversions matrix:

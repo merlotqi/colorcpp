@@ -186,8 +186,8 @@ auto cartesian = color_cast<cielab_t>(lch_color);
 auto ok = color_cast<oklab_t>(lch_color);
 auto polar = color_cast<oklch_t>(oklab_color);
 
-// Cross-space conversions (automatically routed)
-auto lab_to_ok = color_cast<oklab_t>(lab_color);  // via XYZ (no gamut clip)
+// Cross-space conversions (graph-routed)
+auto lab_to_ok = color_cast<oklab_t>(lab_color);  // uses the lowest-cost registered route via XYZ
 ```
 
 ## 🎨 Color Operations

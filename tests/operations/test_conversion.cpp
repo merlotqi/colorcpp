@@ -158,6 +158,18 @@ TEST(ConversionTest, GraphRoutingPrefersLowerWeightedCanonicalPathToOklab) {
   EXPECT_NEAR(casted.b(), expected.b(), 1e-6f);
 }
 
+TEST(ConversionDebugContractTest, PublicDebugHelpersReflectGraphRouting) {
+  static_assert(can_convert<hsl_float_t, oklab_t>());
+  static_assert(verify_path<hsl_float_t, oklab_t>());
+
+  using info = conversion_path_info<hsl_float_t, oklab_t>;
+  static_assert(info::is_identity == false);
+  static_assert(info::has_direct_conversion == false);
+  static_assert(info::has_graph_path);
+  static_assert(info::minimal_graph_cost == 2);
+  static_assert(info::is_possible);
+}
+
 // Alpha handling
 
 TEST(ConversionTest, AlphaPreservedThroughHslRoundTrip) {
