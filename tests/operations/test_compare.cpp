@@ -127,6 +127,15 @@ TEST(PerceptualCompareTest, DifferentColors) {
   EXPECT_FALSE(perceptual_equal(a, b, 1.0f));
 }
 
+TEST(PerceptualCompareTest, CrossTypeDeltaE2000Comparison) {
+  rgb8_t a{128, 64, 32};
+  rgbaf_t b{128.0f / 255.0f, 64.0f / 255.0f, 32.0f / 255.0f, 1.0f};
+
+  EXPECT_TRUE(perceptual_equal(a, b, 0.05f));
+  EXPECT_TRUE(perceptual_equal_de2000(a, b, 0.05f));
+  EXPECT_TRUE((equal<perceptual_policy>(a, b, 0.05f)));
+}
+
 // ============================================================================
 // Cross-type tests
 // ============================================================================

@@ -6,7 +6,7 @@
  * - exact: Exact channel-by-channel equality
  * - epsilon: Comparison within fixed epsilon tolerance
  * - relative: Comparison within relative tolerance
- * - perceptual: Comparison using ΔE2000 perceptual distance
+ * - perceptual: Comparison using ΔE2000 after converting through CIELAB
  *
  * Usage:
  * @code
@@ -18,7 +18,7 @@
  * // Epsilon comparison
  * bool close = compare::equal<compare::epsilon_policy>(color1, color2, 0.01f);
  *
- * // Perceptual comparison
+ * // Perceptual comparison (CIELAB conversion + ΔE2000)
  * bool similar = compare::equal<compare::perceptual_policy>(color1, color2, 1.0f);
  * @endcode
  */

@@ -93,6 +93,10 @@ int main() {
             << '\n';
   std::cout << "  perceptual_equal(#FF0000, #FE0102, threshold=3):  " << compare::perceptual_equal(red, red_close, 3.0f)
             << '\n';
+  rgb8_t ui_rgb{128, 64, 32};
+  rgbaf_t converted_rgb{128.0f / 255.0f, 64.0f / 255.0f, 32.0f / 255.0f, 1.0f};
+  std::cout << "  perceptual_equal_de2000(rgb8, rgbaf, 0.05): "
+            << compare::perceptual_equal_de2000(ui_rgb, converted_rgb, 0.05f) << '\n';
 
   // ========================================================================
   section("5. Generic compare::equal with Policy");
