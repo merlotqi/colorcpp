@@ -2,8 +2,9 @@
  * @file random.hpp
  * @brief Random color and harmony generators (RGB, HSL/HSV, golden angle, palette helpers).
  *
- * This is an aggregate header that includes all random generation components.
- * Individual components can be included separately for faster compilation.
+ * This is an aggregate header for basic random generation, constrained random generation,
+ * and harmony-oriented random helpers. Individual components can be included separately
+ * for faster compilation.
  *
  * @par Thread safety
  * A single generator object is **not** thread-safe: implementations use a `mutable` random engine and `const` member
