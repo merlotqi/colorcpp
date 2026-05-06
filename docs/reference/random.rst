@@ -27,7 +27,8 @@ Capability families
 -------------------
 
 * **Basic uniform generators** — channel-box sampling with no gamut guarantee
-* **Constrained generators** — rejection-sampled outputs that target luminance or contrast constraints
+* **Constrained generators** — best-effort contrast helpers use bounded rejection sampling, while luminance helpers
+  directly sample OkLCH lightness-bounded colors with optional gamut mapping
 * **Perceptual-space sampling caveats** — OkLab, CIELAB, OkLCH, and CIELCH sampling uses axis-aligned boxes and may
   leave common RGB display gamuts
 
@@ -53,8 +54,10 @@ Available generators:
   ``rgb8_generator`` / ``oklab_generator`` cover direct channel-box sampling across the supported spaces.
 * **HSL / HSV / HWB generators**: ``basic_hsl_generator`` and aliases such as ``hsl_generator`` / ``hsva_generator``
   add optional saturation, lightness, value, whiteness, and alpha limits.
-* **Constrained generators**: ``random_contrast_color``, ``random_luminance_color``, ``contrast_generator``, and
-  ``luminance_generator`` target contrast-ratio or lightness bounds via rejection sampling.
+* **Constrained generators**: ``contrast_generator`` and ``random_contrast_color`` perform a bounded, rejection-sampled
+  search for candidates that meet a target contrast ratio and otherwise return the last sampled candidate.
+  ``luminance_generator`` and ``random_luminance_color`` directly sample OkLCH colors within configured lightness
+  bounds, then optionally gamut-map the result while preserving lightness.
 * **Advanced generators**: ``golden_angle_generator`` and ``harmony_generator`` build hue-spaced or harmony-based
   palettes from randomized starting points.
 * **Seed control**: Generators accept a seed or a copied engine for reproducibility.

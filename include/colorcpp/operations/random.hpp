@@ -159,14 +159,16 @@ std::vector<Color> random_colors(std::size_t count, typename std::mt19937::resul
 }
 
 /**
- * @brief Generate a random color with minimum WCAG contrast ratio against a reference.
+ * @brief Attempt to generate a random color targeting a minimum WCAG contrast ratio against a reference.
  *
  * @tparam Color Color type to generate.
  * @tparam RefColor Reference color type.
  * @param reference The reference (typically background) color.
- * @param min_ratio Minimum contrast ratio (default: 4.5 for WCAG AA normal text).
+ * @param min_ratio Minimum target contrast ratio (default: 4.5 for WCAG AA normal text).
  * @param seed Seed for reproducibility.
- * @return Random color meeting the contrast constraint.
+ * @return A best-effort random color from the underlying bounded search. The helper attempts to find a
+ *         candidate meeting the requested contrast ratio using ``contrast_generator``'s default
+ *         ``max_attempts`` budget, and may return the last candidate if that budget is exhausted.
  */
 template <typename Color, typename RefColor>
 Color random_contrast_color(const RefColor& reference, float min_ratio = 4.5f,

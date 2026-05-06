@@ -345,6 +345,7 @@ auto random_lab = random_color<cielab_t>();
 // Constrained random colors
 auto accessible_fg = random_contrast_color<rgbf_t>(rgbf_t{0.08f, 0.10f, 0.14f}, 4.5f);
 auto mid_luminance = random_luminance_color<rgbf_t>(0.35f, 0.65f);
+// random_contrast_color is best-effort within its internal attempt budget; it is not an unconditional guarantee.
 
 // With seed for reproducibility
 auto seeded = random_color<rgbf_t>(seed);
