@@ -13,6 +13,7 @@ namespace colorcpp::operations::compare {
  * @brief Perceptual comparison policy.
  *
  * Compares colors using CIELAB-based ΔE2000 color difference.
+ * Alpha is currently ignored because both inputs are converted to cielab_t.
  * This is not constexpr due to the complexity of ΔE calculations.
  */
 struct perceptual_policy {
@@ -24,6 +25,7 @@ struct perceptual_policy {
    * @param b Second color.
    * @param threshold ΔE2000 threshold (default: 1.0).
    * @return True if ΔE2000 is below threshold.
+   *         Alpha is ignored during the CIELAB conversion step.
    */
   template <typename ColorA, typename ColorB>
   static bool compare(const ColorA& a, const ColorB& b, float threshold = 1.0f) {
@@ -39,6 +41,7 @@ struct perceptual_policy {
  * @param b Second color.
  * @param threshold ΔE2000 threshold.
  * @return True if ΔE2000 is below threshold.
+ *         Alpha is ignored during the CIELAB conversion step.
  */
 template <typename ColorA, typename ColorB>
 bool perceptual_equal_de2000(const ColorA& a, const ColorB& b, float threshold = 1.0f) {
@@ -46,13 +49,14 @@ bool perceptual_equal_de2000(const ColorA& a, const ColorB& b, float threshold =
 }
 
 /**
- * @brief Compare two colors perceptually.
+ * @brief Compare two colors perceptually using CIELAB + ΔE2000.
  * @tparam ColorA First color type.
  * @tparam ColorB Second color type.
  * @param a First color.
  * @param b Second color.
  * @param threshold ΔE2000 threshold.
  * @return True if ΔE2000 is below threshold.
+ *         Alpha is ignored during the CIELAB conversion step.
  */
 template <typename ColorA, typename ColorB>
 bool perceptual_equal(const ColorA& a, const ColorB& b, float threshold = 1.0f) {

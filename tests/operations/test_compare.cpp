@@ -136,6 +136,26 @@ TEST(PerceptualCompareTest, CrossTypeDeltaE2000Comparison) {
   EXPECT_TRUE((equal<perceptual_policy>(a, b, 0.05f)));
 }
 
+TEST(PerceptualCompareTest, CrossSpaceDeltaE2000Comparison) {
+  rgb8_t source{128, 64, 32};
+  auto converted = conversion::color_cast<oklab_t>(source);
+
+  EXPECT_TRUE(perceptual_equal(source, converted, 0.001f));
+  EXPECT_TRUE(perceptual_equal_de2000(source, converted, 0.001f));
+  EXPECT_TRUE((equal<perceptual_policy>(source, converted, 0.001f)));
+}
+
+TEST(PerceptualCompareTest, AlphaIsIgnoredButExactComparisonStillDiffers) {
+  rgbaf_t opaque{0.5f, 0.25f, 0.75f, 1.0f};
+  rgbaf_t transparent{0.5f, 0.25f, 0.75f, 0.1f};
+
+  EXPECT_TRUE(perceptual_equal(opaque, transparent, 0.001f));
+  EXPECT_TRUE(perceptual_equal_de2000(opaque, transparent, 0.001f));
+  EXPECT_TRUE((equal<perceptual_policy>(opaque, transparent, 0.001f)));
+  EXPECT_FALSE(exact_equal(opaque, transparent));
+  EXPECT_FALSE(equal(opaque, transparent));
+}
+
 // ============================================================================
 // Cross-type tests
 // ============================================================================

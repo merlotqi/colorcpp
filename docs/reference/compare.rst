@@ -34,11 +34,13 @@ Usage patterns:
 Notes
 -----
 
-All comparison policies work across supported color spaces. Cross-space comparison is not allowed; inputs must describe the same color space.
+``exact_policy``, ``epsilon_policy``, and ``relative_policy`` are same-type channel comparisons.
 
-``compare::perceptual_policy`` currently uses ``algorithms::delta_e::delta_e_2000()``, which converts both inputs through CIELAB and then applies the requested ΔE2000 threshold.
+``compare::perceptual_policy`` currently uses ``algorithms::delta_e::delta_e_2000()``, which converts both inputs through ``cielab_t`` and then applies the requested ΔE2000 threshold.
 
-``perceptual_equal()`` and ``compare::equal<compare::perceptual_policy>(...)`` support mixed color types as long as both inputs can be converted by ``operations::conversion::color_cast``.
+``perceptual_policy``, ``perceptual_equal()``, and ``perceptual_equal_de2000()`` currently support mixed-type and cross-space inputs as long as both inputs can be converted by ``operations::conversion::color_cast``.
+
+Perceptual comparison currently ignores alpha because both inputs are converted to ``cielab_t`` before ΔE2000 is evaluated.
 
 For most user-facing applications use perceptual_policy. For rendering and graphics use epsilon_policy. For cache keys use exact_policy.
 

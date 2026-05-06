@@ -7,6 +7,7 @@
  * - epsilon: Comparison within fixed epsilon tolerance
  * - relative: Comparison within relative tolerance
  * - perceptual: Comparison using ΔE2000 after converting through CIELAB
+ *   (currently ignoring alpha)
  *
  * Usage:
  * @code
@@ -18,7 +19,7 @@
  * // Epsilon comparison
  * bool close = compare::equal<compare::epsilon_policy>(color1, color2, 0.01f);
  *
- * // Perceptual comparison (CIELAB conversion + ΔE2000)
+ * // Perceptual comparison (CIELAB conversion + ΔE2000, alpha ignored)
  * bool similar = compare::equal<compare::perceptual_policy>(color1, color2, 1.0f);
  * @endcode
  */

@@ -28,6 +28,12 @@ constexpr bool equal(const Color& a, const Color& b) noexcept {
 
 /**
  * @brief Compare two colors using a specific policy.
+ *
+ * Mixed-type support depends on the selected policy. For example,
+ * perceptual_policy accepts mixed-type inputs because it converts both
+ * colors before comparison, while same-type channel policies compare the
+ * provided channel layouts directly.
+ *
  * @tparam Policy Comparison policy type.
  * @tparam ColorA First color type.
  * @tparam ColorB Second color type.
