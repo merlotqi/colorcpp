@@ -209,11 +209,11 @@ using get_hub_t = hub_color_t<Color>;
  *
  * Example:
  * @code
- * constexpr bool possible = colorcpp::operations::conversion::can_convert<hsl_t, oklab_t>();
- * using info = colorcpp::operations::conversion::conversion_path_info<hsl_t, oklab_t>;
+ * constexpr bool possible = colorcpp::operations::conversion::can_convert<hsl_float_t, oklab_t>();
+ * using info = colorcpp::operations::conversion::conversion_path_info<hsl_float_t, oklab_t>;
  * static_assert(info::has_graph_path);
  * static_assert(info::minimal_graph_cost < colorcpp::operations::conversion::graph::inf);
- * static_assert(colorcpp::operations::conversion::verify_path<hsl_t, oklab_t>());
+ * static_assert(colorcpp::operations::conversion::verify_path<hsl_float_t, oklab_t>());
  * @endcode
  */
 template <typename From, typename To>

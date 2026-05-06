@@ -1,7 +1,7 @@
 Color space conversion
 =======================
 
-Typed color conversion system with compile-time graph routing, safety checks, and extensible registration.
+Typed color conversion system with compile-time graph routing, safety checks, and registered conversion edges.
 
 In colorcpp
 ------------
@@ -14,7 +14,7 @@ In colorcpp
   * ✅ **Compile time safety**: Unsupported conversions fail at compile time with clear static_assert messages
   * ✅ **Compile-time graph routing**: Full Dijkstra shortest path algorithm runs during compilation
   * ✅ **Weighted edges**: Expensive conversions can be assigned higher cost for optimal path selection
-  * ✅ **Extensible**: Add new color spaces externally without modifying core library
+  * ✅ **Registered edge extensibility**: Stable public extension focuses on adding direct conversion edges
   * ✅ **constexpr support**: All conversions can be evaluated at compile time
   * ✅ **Zero runtime overhead**: All abstractions resolve directly to function calls with zero indirection
   * ✅ **Compile-time debugging**: Inspect conversion paths, costs and availability at compile time
@@ -41,7 +41,7 @@ colorcpp routes conversions in this order:
 
 4. **Compile-time error if no graph path exists**
    - Unsupported conversions fail during compilation with a clear ``static_assert``
-   - Register a direct edge or add graph nodes to extend support
+   - Register direct edges to extend the stable public contract
 
 
 Conversion Registration
@@ -68,22 +68,26 @@ and will be considered for shortest path calculation.
 Extending The System
 --------------------
 
-To add a custom color space:
+The stable public contract documented here focuses on built-in graph routing plus
+registered direct conversion edges.
+
+For downstream extensions, the supported workflow today is to register direct
+conversion edges for the types you control. More advanced graph-node extension
+hooks exist internally, but their downstream ergonomics are not yet a streamlined
+part of the stable public API.
+
+For example:
 
 1. Specialize ``color_traits`` for your color model
-2. Register conversion edges to existing graph nodes
-3. Optionally add your type to ``additional_color_nodes`` for full graph routing
+2. Register direct conversion edges for the routes you want to support
 
 .. code-block:: cpp
 
-    // Add custom color to global graph
-    template <>
-    struct colorcpp::operations::conversion::graph::additional_color_nodes {
-      using type = node_list<my_custom_color_t>;
-    };
-
-    // Register conversion edge
+    // Register outward conversion edge
     COLORCPP_REGISTER_CONVERSION(my_custom_color_t, xyz_t, my_custom_to_xyz);
+
+    // Register reverse edge too if callers need the opposite direction
+    COLORCPP_REGISTER_CONVERSION(xyz_t, my_custom_color_t, xyz_to_my_custom);
 
 With the registrations you provide, your color space becomes available along
 the directed graph paths those edges make reachable. Conversions in the opposite
@@ -106,7 +110,7 @@ Compile-time debugging utilities:
     static_assert(info::minimal_graph_cost < colorcpp::operations::conversion::graph::inf);
 
     // Verify path at compile time
-    static_assert(colorcpp::operations::conversion::verify_path<hsl_t, oklab_t>());
+    static_assert(colorcpp::operations::conversion::verify_path<hsl_float_t, oklab_t>());
 
 
 Supported color space conversions matrix:
