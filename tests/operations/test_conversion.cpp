@@ -161,6 +161,7 @@ TEST(ConversionTest, GraphRoutingPrefersLowerWeightedCanonicalPathToOklab) {
 TEST(ConversionDebugContractTest, PublicDebugHelpersReflectGraphRouting) {
   static_assert(can_convert<hsl_float_t, oklab_t>());
   static_assert(verify_path<hsl_float_t, oklab_t>());
+  static_assert(std::is_same_v<get_hub_t<hsl_float_t>, rgbf_t>);
 
   using info = conversion_path_info<hsl_float_t, oklab_t>;
   static_assert(info::is_identity == false);

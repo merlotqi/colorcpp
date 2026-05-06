@@ -7,7 +7,7 @@ In colorcpp
 ------------
 
 * Header: ``include/colorcpp/operations/conversion.hpp``
-* Main entry point: ``colorcpp::color_cast<ToColor>(source)``
+* Main entry point: ``colorcpp::operations::conversion::color_cast<ToColor>(source)``
 
 **System features**:
 
@@ -31,7 +31,7 @@ colorcpp routes conversions in this order:
 
 2. **Direct registered conversion (registered edge cost)**
    - Explicitly registered direct conversion edges
-   - Highest priority, always preferred over indirect routes
+   - Participates in the weighted shortest-path graph using its registered edge cost
 
 3. **Global graph shortest path (variable cost)**
    - Full weighted graph routing using Dijkstra algorithm
@@ -85,8 +85,9 @@ To add a custom color space:
     // Register conversion edge
     COLORCPP_REGISTER_CONVERSION(my_custom_color_t, xyz_t, my_custom_to_xyz);
 
-Your color space will automatically be able to convert to and from all
-existing color spaces without any additional code.
+With the registrations you provide, your color space becomes available along
+the directed graph paths those edges make reachable. Conversions in the opposite
+direction require their own registered edges unless an existing path already covers them.
 
 
 Debugging & Inspection

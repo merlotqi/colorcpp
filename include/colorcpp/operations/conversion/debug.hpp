@@ -188,6 +188,15 @@ constexpr bool can_convert() {
 }
 
 /**
+ * @brief Compatibility alias for inspecting configured hub metadata.
+ * @tparam Color Color type.
+ * @note This exposes compatibility/debug metadata only; public routing behavior
+ *       is defined by the compile-time graph used by @c color_cast.
+ */
+template <typename Color>
+using get_hub_t = hub_color_t<Color>;
+
+/**
  * @brief Print conversion path description (for debugging).
  *
  * This function is intended for compile-time debugging. Use with
