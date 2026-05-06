@@ -18,6 +18,7 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/operations/conversion/color_space_registry.hpp>
 #include <colorcpp/operations/conversion/graph.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 #include <colorcpp/operations/conversion/traits.hpp>
