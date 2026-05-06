@@ -71,15 +71,19 @@ Extending The System
 The stable public contract documented here focuses on built-in graph routing plus
 registered direct conversion edges.
 
-For downstream extensions, the supported workflow today is to register direct
-conversion edges for the types you control. More advanced graph-node extension
-hooks exist internally, but their downstream ergonomics are not yet a streamlined
-part of the stable public API.
+For downstream extensions, the supported workflow documented here is to register
+direct conversions involving the custom types you control. That direct-edge path
+is the stable public extension contract today.
+
+Downstream multi-hop graph participation for external node types is not yet a
+streamlined stable public contract. More advanced graph-node extension hooks
+exist internally, but they are outside the conservative API surface documented
+on this page.
 
 For example:
 
-1. Specialize ``color_traits`` for your color model
-2. Register direct conversion edges for the routes you want to support
+1. Register the outward direct conversion you want to support
+2. Register the reverse direct conversion too if callers need that direction
 
 .. code-block:: cpp
 
@@ -89,9 +93,12 @@ For example:
     // Register reverse edge too if callers need the opposite direction
     COLORCPP_REGISTER_CONVERSION(xyz_t, my_custom_color_t, xyz_to_my_custom);
 
-With the registrations you provide, your color space becomes available along
-the directed graph paths those edges make reachable. Conversions in the opposite
-direction require their own registered edges unless an existing path already covers them.
+Those registrations make the documented direct casts available for the directions
+you provide.
+
+If you need compatibility metadata such as hub traits for internal or advanced
+use cases, ``color_traits`` specialization remains available, but it is not
+required for the conservative direct-edge workflow described here.
 
 
 Debugging & Inspection
