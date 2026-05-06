@@ -1,7 +1,7 @@
 
 #include <gtest/gtest.h>
 
-#include <colorcpp/colorcpp.hpp>
+#include <colorcpp/operations/conversion.hpp>
 #include <type_traits>
 
 namespace colorcpp::operations::test {
