@@ -24,10 +24,10 @@ struct material_palette {
 };
 
 /**
- * @brief Generate Material Design 3 primary color palette.
+ * @brief Generate a heuristic Material-style primary tonal palette approximation.
  * @param base Base color.
  * @param count Number of tonal variants (default: 10).
- * @return Palette with primary colors (10-99 tonal values).
+ * @return Palette with approximate primary role tonal values.
  */
 template <typename Color>
 core::palette_set<Color> material_primary(const Color& base, size_t count = 10) {
@@ -45,10 +45,10 @@ core::palette_set<Color> material_primary(const Color& base, size_t count = 10) 
 }
 
 /**
- * @brief Generate Material Design 3 secondary color palette.
+ * @brief Generate a heuristic Material-style secondary tonal palette approximation.
  * @param base Base color.
  * @param count Number of tonal variants (default: 10).
- * @return Palette with secondary colors.
+ * @return Palette with approximate secondary role tonal values.
  */
 template <typename Color>
 core::palette_set<Color> material_secondary(const Color& base, size_t count = 10) {
@@ -65,10 +65,10 @@ core::palette_set<Color> material_secondary(const Color& base, size_t count = 10
 }
 
 /**
- * @brief Generate Material Design 3 tertiary color palette.
+ * @brief Generate a heuristic Material-style tertiary tonal palette approximation.
  * @param base Base color.
  * @param count Number of tonal variants (default: 10).
- * @return Palette with tertiary colors.
+ * @return Palette with approximate tertiary role tonal values.
  */
 template <typename Color>
 core::palette_set<Color> material_tertiary(const Color& base, size_t count = 10) {
@@ -85,10 +85,10 @@ core::palette_set<Color> material_tertiary(const Color& base, size_t count = 10)
 }
 
 /**
- * @brief Generate Material Design 3 neutral color palette.
+ * @brief Generate a heuristic Material-style neutral tonal palette approximation.
  * @param base Base color.
  * @param count Number of tonal variants (default: 10).
- * @return Palette with neutral colors.
+ * @return Palette with approximate neutral role tonal values.
  */
 template <typename Color>
 core::palette_set<Color> material_neutral(const Color& base, size_t count = 10) {
@@ -103,9 +103,9 @@ core::palette_set<Color> material_neutral(const Color& base, size_t count = 10) 
 }
 
 /**
- * @brief Generate Material Design 3 error color palette.
+ * @brief Generate a heuristic Material-style error tonal palette approximation.
  * @param count Number of tonal variants (default: 10).
- * @return Palette with error colors (red-based).
+ * @return Palette with approximate error role tonal values.
  */
 template <typename Color>
 core::palette_set<Color> material_error(size_t count = 10) {
@@ -119,10 +119,10 @@ core::palette_set<Color> material_error(size_t count = 10) {
 }
 
 /**
- * @brief Generate complete Material Design 3 color system.
- * @param base Base color for the design system.
+ * @brief Generate a heuristic Material-style aggregate palette approximation.
+ * @param base Base color for the design helper.
  * @param count Number of tonal variants per role (default: 10).
- * @return Complete Material palette with all color roles.
+ * @return Fixed material_palette aggregate with palette_set<rgba8_t> roles, normalized to 8-bit RGBA output.
  */
 template <typename Color>
 material_palette material_design(const Color& base, size_t count = 10) {
