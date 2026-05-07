@@ -26,7 +26,7 @@
 #include <colorcpp/operations/interpolate/monotonic_spline.hpp>
 #include <colorcpp/operations/interpolate/smooth_path.hpp>
 
-/** @brief Lerps, multi-stop gradients, and easing helpers built on @ref conversion::color_cast. */
+/** @brief Space-aware interpolation families: RGB-style, hue-aware cylindrical, perceptual, and path/spline helpers. */
 namespace colorcpp::operations::interpolate {
 // All functionality is provided by the included sub-modules
 }
