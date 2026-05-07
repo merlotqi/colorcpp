@@ -194,7 +194,7 @@ auto lab_to_ok = color_cast<oklab_t>(lab_color);  // uses the lowest-cost regist
 
 ### Blending
 
-Current note: the shipped `blend()` implementation currently evaluates through `rgbaf_t`; do not read the examples as
+Current note: the shipped `blend()` implementation currently evaluates through `rgbaf_t` and should not be read as
 proof of a linear-sRGB compositing contract.
 
 ```cpp
