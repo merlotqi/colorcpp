@@ -45,14 +45,16 @@ Working space families
 Alpha handling
 ^^^^^^^^^^^^^^
 
-Most interpolation helpers recover alpha separately from ``rgbaf_t`` after color interpolation. Treat that as part of
-the current contract when selecting helpers.
+Alpha behavior is helper-dependent: ``lerp()`` / ``lerp_hsl()`` / ``lerp_hsv()`` interpolate alpha in the same
+working-space pass, several perceptual and cylindrical helpers route alpha through RGBA-style handling, cubic and path
+helpers interpolate or spline alpha as part of their own contracts, and ``lerp_alpha_mode()`` exposes explicit alpha
+strategies.
 
 gamut strategy
 ^^^^^^^^^^^^^^
 
-Interpolation helpers do not promise automatic display-gamut preservation. Use explicit gamut utilities when that
-behavior matters.
+General interpolation helpers do not guarantee automatic display-gamut preservation. ``lerp_chroma_preserving()`` is
+the notable exception: its default ``chroma_mode::preserve_safe`` clamps chroma against the sRGB gamut boundary.
 
 
 Notes
