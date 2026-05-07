@@ -7,6 +7,8 @@
 #include <iomanip>
 #include <iostream>
 
+// implementation note: examples reflect the current encoded-sRGB-style blend path described in docs/reference/blend.rst
+
 using namespace colorcpp;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;
