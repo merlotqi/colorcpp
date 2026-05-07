@@ -1,6 +1,7 @@
 /**
  * @file theme.hpp
- * @brief Semantic theme system with automatic dark mode generation.
+ * @brief Heuristic semantic theme system derived from a seed color.
+ * Semantic roles are derived through heuristic seed transformations.
  */
 
 #pragma once

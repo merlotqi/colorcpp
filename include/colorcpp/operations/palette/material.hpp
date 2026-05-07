@@ -1,6 +1,7 @@
 /**
  * @file material.hpp
- * @brief Material Design 3 color palette generator.
+ * @brief Heuristic Material-style palette generator.
+ * Lightweight heuristic helpers, not a standards-faithful token pipeline.
  */
 
 #pragma once

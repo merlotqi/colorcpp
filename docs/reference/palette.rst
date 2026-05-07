@@ -50,6 +50,19 @@ Implemented Features
 * ``material_error(count)`` - Error colors (red-based)
 * ``material_design(base, count)`` - Complete Material Design 3 system
 
+Structural palette APIs
+-----------------------
+
+* ``schemes::*`` harmony generation
+* scale builders such as ``linear_scale()``, ``visual_scale()``, and ``perceptual_scale()``
+* families and rainbow helpers
+
+Heuristic design-system helpers
+-------------------------------
+
+* ``material_*`` helpers are lightweight heuristic approximations, not a standards-faithful Material token pipeline
+* ``theme`` derives semantic colors heuristically from a seed and should be treated as an evolvable design helper
+
 Notes
 -----
 

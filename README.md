@@ -248,6 +248,8 @@ for (const auto& color : perceptual_palette) {
 auto first = perceptual_palette[0];
 ```
 
+`schemes`, `families`, and scale builders are structural palette APIs; `material_*` and `theme` are heuristic design helpers.
+
 ### Interpolation
 
 Choose interpolation helpers by semantic family first: RGB-style, hue-aware cylindrical, perceptual, or path/spline.
