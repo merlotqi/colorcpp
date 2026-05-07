@@ -201,20 +201,20 @@ proof of a linear-sRGB compositing contract.
 using namespace colorcpp::operations::blend;
 
 // Basic blend modes
-auto normal = blend(red, blue);
-auto multiply = blend(red, blue, blend_mode::multiply);
-auto screen = blend(red, blue, blend_mode::screen);
-auto overlay = blend(red, blue, blend_mode::overlay);
+auto normal = blend(red /* dst */, blue /* src */);
+auto multiply = blend(red /* dst */, blue /* src */, blend_mode::multiply);
+auto screen = blend(red /* dst */, blue /* src */, blend_mode::screen);
+auto overlay = blend(red /* dst */, blue /* src */, blend_mode::overlay);
 
 // All modes: normal, multiply, screen, overlay, darken, lighten,
 // addition, subtraction, difference, exclusion, hard_light,
 // soft_light, color_dodge, color_burn, divide
 
 // With opacity control
-auto semi_transparent = blend(red, blue, blend_mode::multiply, 0.5f);
+auto semi_transparent = blend(red /* dst */, blue /* src */, blend_mode::multiply, 0.5f);
 
 // Non-separable blends (hue, saturation, color, luminosity)
-auto hue_blend = blend(red, blue, blend_mode::hue);
+auto hue_blend = blend(red /* dst */, blue /* src */, blend_mode::hue);
 ```
 
 ### Palette Generation
