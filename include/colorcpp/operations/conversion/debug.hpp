@@ -18,6 +18,7 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/operations/conversion/color_space_registry.hpp>
 #include <colorcpp/operations/conversion/graph.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 #include <colorcpp/operations/conversion/traits.hpp>
@@ -168,12 +169,9 @@ struct conversion_path_info {
 
   static constexpr bool is_identity = std::is_same_v<From, To>;
   static constexpr bool has_direct_conversion = has_registered_conversion_v<From, To>;
-  static constexpr std::size_t graph_cost = graph::minimal_conversion_cost<From, To>();
-  static constexpr bool can_route_via_graph = graph_cost != graph::inf;
-  static constexpr bool can_route_via_from_hub = ::colorcpp::operations::conversion::can_route_via_from_hub<From, To>();
-  static constexpr bool can_route_via_to_hub = ::colorcpp::operations::conversion::can_route_via_to_hub<From, To>();
-  static constexpr bool is_possible =
-      is_identity || has_direct_conversion || can_route_via_graph || can_route_via_from_hub || can_route_via_to_hub;
+  static constexpr std::size_t minimal_graph_cost = graph::minimal_conversion_cost<From, To>();
+  static constexpr bool has_graph_path = minimal_graph_cost != graph::inf;
+  static constexpr bool is_possible = is_identity || has_direct_conversion || has_graph_path;
 };
 
 /**
@@ -191,9 +189,10 @@ constexpr bool can_convert() {
 }
 
 /**
- * @brief Get the hub type for a color type.
+ * @brief Compatibility alias for inspecting configured hub metadata.
  * @tparam Color Color type.
- * @return Hub type or void if no hub.
+ * @note This exposes compatibility/debug metadata only; public routing behavior
+ *       is defined by the compile-time graph used by @c color_cast.
  */
 template <typename Color>
 using get_hub_t = hub_color_t<Color>;
@@ -210,8 +209,11 @@ using get_hub_t = hub_color_t<Color>;
  *
  * Example:
  * @code
- * static_assert(colorcpp::operations::conversion::verify_path<hsl_t, oklab_t>(),
- *               "HSL to OkLab conversion should be possible");
+ * constexpr bool possible = colorcpp::operations::conversion::can_convert<hsl_float_t, oklab_t>();
+ * using info = colorcpp::operations::conversion::conversion_path_info<hsl_float_t, oklab_t>;
+ * static_assert(info::has_graph_path);
+ * static_assert(info::minimal_graph_cost < colorcpp::operations::conversion::graph::inf);
+ * static_assert(colorcpp::operations::conversion::verify_path<hsl_float_t, oklab_t>());
  * @endcode
  */
 template <typename From, typename To>

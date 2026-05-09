@@ -1,10 +1,11 @@
 /**
  * @file traits.hpp
- * @brief Color space traits for hub-based routing.
+ * @brief Color space traits metadata used alongside graph-driven public routing.
  *
  * Direct conversions between concrete color types are registered with
  * @c COLORCPP_REGISTER_CONVERSION in @c functions/index.hpp (see @c registry.hpp).
- * This header only supplies per-model @c hub_type for automatic multi-hop routing.
+ * Public conversion dispatch happens through @c color_cast and the compile-time graph
+ * in @c graph.hpp; this header provides per-model metadata and compatibility helpers.
  */
 
 #pragma once
@@ -78,10 +79,11 @@ template <typename Color>
 using hub_color_t = typename color_traits<extract_model_t<Color>>::hub_type;
 
 /**
- * @brief Get the default conversion hub type for a given color type.
+ * @brief Get the compatibility hub metadata for a given color type.
  * @tparam Color Source color type to retrieve hub for.
- * @note The hub is the intermediate color space used for automatic multi-hop routing
- *       when no direct conversion exists between two color spaces.
+ * @note This alias exposes the metadata used by compatibility helpers and internal
+ *       route-cost utilities. Public conversion dispatch remains graph-driven through
+ *       @c color_cast and @c graph.hpp.
  */
 template <typename Color>
 using hub_color_t = typename color_traits<extract_model_t<Color>>::hub_type;
@@ -104,11 +106,12 @@ inline constexpr bool same_model_v = std::is_same_v<extract_model_t<A>, extract_
 inline constexpr std::size_t invalid_route_cost = std::numeric_limits<std::size_t>::max() / 4;
 
 /**
- * @brief Calculate the minimal conversion cost between two color types.
+ * @brief Calculate a compatibility route cost between two color types.
  *
- * Performs compile-time Dijkstra-style shortest path search over the conversion
- * graph using configured hub spaces as intermediate nodes. Direct conversions
- * have cost 1, each additional hub hop adds 1 to the cost.
+ * This helper predates the graph router and estimates a route cost by following
+ * registered direct conversions plus configured hub metadata. It remains useful
+ * for compatibility checks, but the public conversion contract is determined by
+ * the compile-time graph in @c graph.hpp.
  *
  * @tparam From Source color type
  * @tparam To Destination color type
@@ -177,13 +180,16 @@ constexpr std::size_t route_cost_via_to_hub() {
 }
 
 /**
- * @brief Recursive implementation of minimal route cost calculation.
+ * @brief Recursive implementation of the compatibility route-cost calculation.
  *
- * Search strategy:
+ * Search strategy for this helper:
  * 1. Exact type match → cost 0
  * 2. Direct registered conversion → cost 1
- * 3. Recursively try both source-hub-first and destination-hub-first paths
- * 4. Select the path with lower total cost
+ * 3. Recursively try source-hub and destination-hub metadata paths
+ * 4. Select the lower compatibility cost
+ *
+ * Public dispatch does not use this routine as its contract surface; graph routing
+ * through @c graph.hpp determines the path reported by @c color_cast.
  *
  * @tparam From Source color type
  * @tparam To Destination color type
