@@ -342,10 +342,22 @@ auto random_rgb = random_color<rgbf_t>();
 auto random_hsl = random_color<hsl_float_t>();
 auto random_lab = random_color<cielab_t>();
 
+// Constrained random colors
+auto accessible_fg = random_contrast_color<rgbf_t>(rgbf_t{0.08f, 0.10f, 0.14f}, 4.5f);
+auto mid_luminance = random_luminance_color<rgbf_t>(0.35f, 0.65f);
+// random_contrast_color is best-effort within its internal attempt budget; it is not an unconditional guarantee.
+
 // With seed for reproducibility
 auto seeded = random_color<rgbf_t>(seed);
 rgb8_generator generator(seed);
 auto sample = generator.next();
+
+// Reuse generator families directly
+contrast_rgbf_generator contrast_gen(seed);
+auto contrast_sample = contrast_gen.next(rgbf_t{1.0f, 1.0f, 1.0f});
+
+luminance_rgbf_generator luminance_gen(seed);
+auto luminance_sample = luminance_gen.next();
 ```
 
 ## 📖 I/O Operations

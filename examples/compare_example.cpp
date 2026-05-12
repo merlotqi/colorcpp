@@ -93,6 +93,16 @@ int main() {
             << '\n';
   std::cout << "  perceptual_equal(#FF0000, #FE0102, threshold=3):  " << compare::perceptual_equal(red, red_close, 3.0f)
             << '\n';
+  rgb8_t ui_rgb{128, 64, 32};
+  rgbaf_t converted_rgb{128.0f / 255.0f, 64.0f / 255.0f, 32.0f / 255.0f, 1.0f};
+  std::cout << "  perceptual_equal_de2000(rgb8, rgbaf, 0.05): "
+            << compare::perceptual_equal_de2000(ui_rgb, converted_rgb, 0.05f) << '\n';
+  rgbaf_t alpha_a{0.5f, 0.25f, 0.75f, 1.0f};
+  rgbaf_t alpha_b{0.5f, 0.25f, 0.75f, 0.1f};
+  std::cout << "  perceptual_equal(rgba alpha differs, 0.001):    " << compare::perceptual_equal(alpha_a, alpha_b, 0.001f)
+            << '\n';
+  std::cout << "  exact_equal(rgba alpha differs):                " << compare::exact_equal(alpha_a, alpha_b) << '\n';
+  std::cout << "  note: perceptual compare converts through CIELAB, so alpha is currently ignored\n";
 
   // ========================================================================
   section("5. Generic compare::equal with Policy");
