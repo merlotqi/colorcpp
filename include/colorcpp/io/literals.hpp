@@ -1,8 +1,8 @@
 /**
  * @file literals.hpp
- * @brief Aggregate header for all color literal operators.
+ * @brief Aggregate header for the supported common-authoring-space color literal operators.
  *
- * Includes RGB/RGBA, HSL/HSLA, HSV/HSVA, CMYK, HWB/HWBA, Oklab/OkLCH literal operators.
+ * Includes RGB/RGBA, HSL/HSLA, HSV/HSVA, HWB/HWBA, CMYK, Oklab, and OkLCH literal operators.
  */
 
 #pragma once

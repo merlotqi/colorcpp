@@ -1,7 +1,7 @@
 Color Literals
 ==============
 
-User-defined C++ literals for convenient inline color creation with natural syntax.
+User-defined C++ literals for convenient inline color creation in the supported common authoring spaces.
 
 In colorcpp
 -----------
@@ -12,13 +12,13 @@ Import namespace: ``using namespace colorcpp::io::literals;``
 
 Available literal suffixes:
 
-* ``_rgb`` / ``_rgba`` - sRGB colors (0-255 integer values)
+* ``_rgb`` / ``_rgba`` / ``_argb`` / ``_hex`` - RGBA8-oriented hex literals
 * ``_hsl`` / ``_hsla`` - HSL colors
 * ``_hsv`` / ``_hsva`` - HSV colors
 * ``_hwb`` / ``_hwba`` - HWB colors
 * ``_cmyk`` - CMYK colors
-* ``_oklab`` - Oklab perceptual colors
-* ``_oklch`` - OkLCH cylindrical perceptual colors
+* ``_oklab`` - three-channel Oklab perceptual colors
+* ``_oklch`` - three-channel OkLCH perceptual colors
 
 
 Usage example:
@@ -35,7 +35,7 @@ Usage example:
 
     // HSL
     auto green = 120'100'050_hsl;
-    auto light_purple = 270'070'065_hsla;
+    auto light_purple = 270'070'065'085_hsla;
 
     // HSV / CMYK / Oklab
     auto sky = 210'080'090_hsv;
@@ -46,11 +46,13 @@ Usage example:
 Notes
 -----
 
-All literals are constexpr and can be used at compile time.
+Numeric literal families are constexpr-friendly and use packed numeric groups documented in the header comments.
 
-RGB-style literals use hexadecimal forms such as ``0xRRGGBB_rgb`` and ``0xRRGGBBAA_rgba``.
+``_hex`` validates runtime string input and throws ``std::invalid_argument`` on malformed length or invalid digits.
 
-HSL / HSV / HWB / CMYK / Oklab literals use packed decimal groups as documented in the header comments.
+The literals layer is intentionally curated around common authoring spaces; not every public core color model has a literal suffix.
+
+Oklab / OkLCH currently expose three-channel literal forms only.
 
 
 References

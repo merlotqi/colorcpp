@@ -14,7 +14,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 - **Serialization**: JSON and MessagePack adapters for network/config integration
 - **Binary IO**: Read/write DaVinci Resolve .cube LUT files (1D and 3D)
 - **ANSI terminal**: Colored swatches, palettes, gradients, WCAG contrast previews for debugging
-- **Type-safe literals**: User-defined literals for RGB, HSL, HSV, CMYK, OkLab, named colors
+- **Type-safe literals**: User-defined literals for RGB, HSL, HSV, HWB, CMYK, OkLab, and OkLCH
 - **Template-based**: Zero-cost abstractions with compile-time validation
 - **C++17+**: Works with any C++17 compatible compiler
 
@@ -91,21 +91,19 @@ auto blended = blend(red, blue, blend_mode::multiply);
 using namespace colorcpp::io::literals;
 
 // RGB/Hex literals
-auto coral = 0xFF6347_rgb;           // → rgba8_t{255, 99, 71, 255}
-auto with_alpha = 0xFF634780_rgba;   // → rgba8_t{255, 99, 71, 128}
-auto argb = 0x80FF6347_argb;         // → rgba8_t{255, 99, 71, 128} (AARRGGBB)
-auto from_hex = "#FF6347"_hex;        // → rgba8_t
+auto coral = 0xFF6347_rgb;              // -> rgba8_t{255, 99, 71, 255}
+auto with_alpha = 0xFF634780_rgba;      // -> rgba8_t{255, 99, 71, 128}
+auto argb = 0x80FF6347_argb;            // -> rgba8_t{255, 99, 71, 128} (AARRGGBB)
+auto from_hex = "#FF6347"_hex;          // -> rgba8_t
 
-// HSL literals
-auto mint = 160'070'080_hsl;         // → hsl_float_t{160, 70, 80}
-auto with_alpha = 160'070'080'085_hsla; // → hsla_float_t{160, 70, 80, 85}
+// HSL / HSV literals
+auto mint = 160'070'080_hsl;            // -> hsl_float_t{160.0f, 0.70f, 0.80f}
+auto sky = 210'080'090_hsv;             // -> hsv_float_t{210.0f, 0.80f, 0.90f}
 
-// HSV literals
-auto sky = 210'080'090_hsv;          // → hsv_float_t{210, 80, 90}
-auto with_alpha = 210'080'090'075_hsva; // → hsva_float_t{210, 80, 90, 75}
-
-// CMYK literals
-auto teal = 50'030'000'020_cmyk;     // → cmyk8_t{50, 30, 0, 20}
+// CMYK / Oklab / OkLCH literals
+auto teal = 50'030'000'020_cmyk;        // -> cmyk8_t{50, 30, 0, 20}
+auto neutral = 050'050'050_oklab;       // -> oklab_t{0.50f, 0.0f, 0.0f}
+auto vivid = 050'100'120_oklch;         // -> oklch_t{0.50f, 0.40f, 120.0f}
 ```
 
 ## CSS color parsing
