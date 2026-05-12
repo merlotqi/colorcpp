@@ -133,6 +133,28 @@ TEST(Lut1d, ApplyColorSupportsConvertibleNonRgbType) {
   EXPECT_NEAR(after.b(), before.b(), 1e-5f);
 }
 
+TEST(Lut1d, InvalidLutApplyColorPreservesConvertibleColor) {
+  lut1d lut;
+
+  colorcpp::core::hsl_float_t input{0.0f, 0.03f, 0.0f};
+  const auto output = apply_color(lut, input);
+
+  EXPECT_NEAR(output.h(), input.h(), 1e-5f);
+  EXPECT_NEAR(output.s(), input.s(), 1e-5f);
+  EXPECT_NEAR(output.l(), input.l(), 1e-5f);
+}
+
+TEST(Lut3d, InvalidLutApplyColorPreservesConvertibleColor) {
+  lut3d lut;
+
+  colorcpp::core::hsl_float_t input{0.0f, 0.03f, 0.0f};
+  const auto output = apply_color(lut, input);
+
+  EXPECT_NEAR(output.h(), input.h(), 1e-5f);
+  EXPECT_NEAR(output.s(), input.s(), 1e-5f);
+  EXPECT_NEAR(output.l(), input.l(), 1e-5f);
+}
+
 // ===== .cube Format Tests =====
 
 TEST(Cube, Read3dCube) {
