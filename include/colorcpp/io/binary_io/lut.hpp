@@ -205,6 +205,7 @@ inline std::array<float, 3> apply(const lut3d& lut, float r, float g, float b) {
  */
 template <typename Color>
 Color apply_color(const lut3d& lut, const Color& c) {
+  if (!lut.valid()) return c;
   auto rgba = operations::conversion::color_cast<core::rgbaf_t>(c);
   auto [r, g, b] = apply(lut, rgba.r(), rgba.g(), rgba.b());
   rgba.r() = r;
@@ -220,6 +221,7 @@ Color apply_color(const lut3d& lut, const Color& c) {
  */
 template <typename Color>
 Color apply_color(const lut1d& lut, const Color& c) {
+  if (!lut.valid()) return c;
   auto rgba = operations::conversion::color_cast<core::rgbaf_t>(c);
   auto [r, g, b] = apply(lut, rgba.r(), rgba.g(), rgba.b());
   rgba.r() = r;
