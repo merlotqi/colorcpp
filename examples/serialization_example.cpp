@@ -3,7 +3,7 @@
  * @brief Example: serializing colors to JSON using the serialization module.
  *
  * Demonstrates how to specialize json_adapter for nlohmann::json and use
- * to_json / from_json to serialize and deserialize color objects.
+ * compact JSON plus generic or caller-named object helpers.
  */
 
 #include <colorcpp/colorcpp.hpp>
@@ -76,7 +76,7 @@ int main() {
   serialization_options opts;
   opts.format = serialization_format::named;
   nlohmann::json j_named = to_json<nlohmann::json>(coral, opts);
-  std::cout << "coral named: " << j_named.dump(2) << "\n";
+  std::cout << "coral named (default keys ch0..ch3): " << j_named.dump(2) << "\n";
 
   // Deserialize with auto-detect (works for both compact and named)
   auto recovered_named = from_json<nlohmann::json, rgba8_t>(j_named);
@@ -109,7 +109,7 @@ int main() {
 
   hsl_float_t hsl = color_cast<hsl_float_t>(coral);
   nlohmann::json j_hsl = to_json<nlohmann::json>(hsl, opts);
-  std::cout << "hsl named: " << j_hsl.dump(2) << "\n";
+  std::cout << "hsl named (default keys ch0..ch2): " << j_hsl.dump(2) << "\n";
 
   // --- Array of colors ---
   section("Array of colors");

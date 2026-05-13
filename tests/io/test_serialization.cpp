@@ -1,19 +1,162 @@
 /**
  * @file test_serialization.cpp
- * @brief Unit tests for serialization: traits, options.
- *
- * Note: JSON/MessagePack adapter tests require a concrete adapter specialization.
- * Here we test the traits and the non-adapter-dependent parts.
+ * @brief Unit tests for serialization traits and adapter helpers.
  */
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <map>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
-#include <colorcpp/io/serialization.hpp>
+#include <colorcpp/io/serialization/details.hpp>
+#include <colorcpp/io/serialization/json_adapter.hpp>
+#include <colorcpp/io/serialization/msgpack_adapter.hpp>
+#include <colorcpp/io/serialization/traits.hpp>
 
 using namespace colorcpp;
 using namespace colorcpp::io::serialization;
+
+struct fake_json {
+  enum class kind { null_value, number, array, object };
+
+  kind type = kind::null_value;
+  double number_value = 0.0;
+  std::vector<fake_json> array_values;
+  std::map<std::string, fake_json> object_values;
+};
+
+struct fake_msgpack_packer {
+  enum class mode { none, array, map };
+
+  mode packed_mode = mode::none;
+  std::vector<double> numbers;
+  std::vector<std::pair<std::string, double>> key_values;
+};
+
+struct fake_msgpack_array_view {
+  std::vector<double> values;
+};
+
+struct fake_msgpack_map_view {
+  std::map<std::string, double> values;
+};
+
+template <>
+struct colorcpp::io::serialization::json_adapter<fake_json> {
+  using json_type = fake_json;
+
+  static fake_json make_array() {
+    fake_json json;
+    json.type = fake_json::kind::array;
+    return json;
+  }
+
+  static fake_json make_object() {
+    fake_json json;
+    json.type = fake_json::kind::object;
+    return json;
+  }
+
+  static void push_back(fake_json& arr, double v) {
+    fake_json value;
+    value.type = fake_json::kind::number;
+    value.number_value = v;
+    arr.array_values.push_back(value);
+  }
+
+  static void set(fake_json& obj, std::string_view key, const fake_json& val) { obj.object_values[std::string(key)] = val; }
+
+  static void set(fake_json& obj, std::string_view key, double v) {
+    fake_json value;
+    value.type = fake_json::kind::number;
+    value.number_value = v;
+    obj.object_values[std::string(key)] = value;
+  }
+
+  static void set(fake_json& obj, std::string_view key, std::string_view /*v*/) {
+    fake_json value;
+    value.type = fake_json::kind::null_value;
+    obj.object_values[std::string(key)] = value;
+  }
+
+  static bool is_array(const fake_json& j) { return j.type == fake_json::kind::array; }
+
+  static bool is_object(const fake_json& j) { return j.type == fake_json::kind::object; }
+
+  static std::size_t array_size(const fake_json& j) { return j.array_values.size(); }
+
+  static double get_double(const fake_json& j, std::size_t index) { return j.array_values.at(index).number_value; }
+
+  static double get_double(const fake_json& j, std::string_view key) {
+    return j.object_values.at(std::string(key)).number_value;
+  }
+
+  static bool has_key(const fake_json& j, std::string_view key) {
+    return j.object_values.find(std::string(key)) != j.object_values.end();
+  }
+};
+
+template <>
+struct colorcpp::io::serialization::msgpack_packer<fake_msgpack_packer> {
+  using packer_type = fake_msgpack_packer;
+
+  static void pack_array(fake_msgpack_packer& p, std::size_t /*n*/) {
+    p.packed_mode = fake_msgpack_packer::mode::array;
+    p.numbers.clear();
+    p.key_values.clear();
+  }
+
+  static void pack_map(fake_msgpack_packer& p, std::size_t /*n*/) {
+    p.packed_mode = fake_msgpack_packer::mode::map;
+    p.numbers.clear();
+    p.key_values.clear();
+  }
+
+  static void pack_double(fake_msgpack_packer& p, double v) {
+    if (p.packed_mode == fake_msgpack_packer::mode::array) {
+      p.numbers.push_back(v);
+    } else {
+      p.key_values.back().second = v;
+    }
+  }
+
+  static void pack_string(fake_msgpack_packer& p, std::string_view s) { p.key_values.emplace_back(std::string(s), 0.0); }
+};
+
+template <>
+struct colorcpp::io::serialization::msgpack_unpacker<fake_msgpack_array_view> {
+  using unpacker_type = fake_msgpack_array_view;
+
+  static bool is_array(const fake_msgpack_array_view&) { return true; }
+  static bool is_map(const fake_msgpack_array_view&) { return false; }
+  static std::size_t array_size(const fake_msgpack_array_view& u) { return u.values.size(); }
+  static double get_double(const fake_msgpack_array_view& u, std::size_t index) { return u.values.at(index); }
+  static double get_double(const fake_msgpack_array_view&, std::string_view) { return 0.0; }
+  static bool has_key(const fake_msgpack_array_view&, std::string_view) { return false; }
+};
+
+template <>
+struct colorcpp::io::serialization::msgpack_unpacker<fake_msgpack_map_view> {
+  using unpacker_type = fake_msgpack_map_view;
+
+  static bool is_array(const fake_msgpack_map_view&) { return false; }
+  static bool is_map(const fake_msgpack_map_view&) { return true; }
+  static std::size_t array_size(const fake_msgpack_map_view&) { return 0; }
+  static double get_double(const fake_msgpack_map_view&, std::size_t) { return 0.0; }
+  static double get_double(const fake_msgpack_map_view& u, std::string_view key) {
+    return u.values.at(std::string(key));
+  }
+  static bool has_key(const fake_msgpack_map_view& u, std::string_view key) {
+    return u.values.find(std::string(key)) != u.values.end();
+  }
+};
 
 // ===== Traits Tests =====
 
@@ -36,7 +179,6 @@ TEST(SerializationTraits, ColorSpaceNames) {
 TEST(SerializationTraits, DefaultOptions) {
   serialization_options opts;
   EXPECT_EQ(opts.format, serialization_format::compact);
-  EXPECT_FALSE(opts.include_color_space);
 }
 
 // ===== Details Tests =====
@@ -66,4 +208,121 @@ TEST(SerializationDetails, DefaultChannelNames) {
   EXPECT_EQ(default_channel_name(0), "ch0");
   EXPECT_EQ(default_channel_name(1), "ch1");
   EXPECT_EQ(default_channel_name(2), "ch2");
+}
+
+// ===== JSON Adapter Tests =====
+
+TEST(SerializationJson, CompactRoundTripRgba8) {
+  const core::rgba8_t input{255, 127, 80, 64};
+  const auto json = to_json<fake_json>(input);
+
+  ASSERT_TRUE(json_adapter<fake_json>::is_array(json));
+  ASSERT_EQ(json.array_values.size(), 4u);
+  EXPECT_DOUBLE_EQ(json.array_values[0].number_value, 1.0);
+  EXPECT_DOUBLE_EQ(json.array_values[1].number_value, 127.0 / 255.0);
+  EXPECT_DOUBLE_EQ(json.array_values[2].number_value, 80.0 / 255.0);
+  EXPECT_DOUBLE_EQ(json.array_values[3].number_value, 64.0 / 255.0);
+
+  const auto recovered = from_json<fake_json, core::rgba8_t>(json);
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_EQ(recovered->r(), 255);
+  EXPECT_EQ(recovered->g(), 127);
+  EXPECT_EQ(recovered->b(), 80);
+  EXPECT_EQ(recovered->a(), 64);
+}
+
+TEST(SerializationJson, NamedModeDefaultsToGenericChannelKeys) {
+  serialization_options opts;
+  opts.format = serialization_format::named;
+
+  const core::rgbf_t input{0.25f, 0.5f, 0.75f};
+  const auto json = to_json<fake_json>(input, opts);
+
+  ASSERT_TRUE(json_adapter<fake_json>::is_object(json));
+  EXPECT_TRUE(json_adapter<fake_json>::has_key(json, "ch0"));
+  EXPECT_TRUE(json_adapter<fake_json>::has_key(json, "ch1"));
+  EXPECT_TRUE(json_adapter<fake_json>::has_key(json, "ch2"));
+  EXPECT_DOUBLE_EQ(json_adapter<fake_json>::get_double(json, "ch0"), 0.25);
+  EXPECT_DOUBLE_EQ(json_adapter<fake_json>::get_double(json, "ch1"), 0.5);
+  EXPECT_DOUBLE_EQ(json_adapter<fake_json>::get_double(json, "ch2"), 0.75);
+
+  const auto recovered = from_json<fake_json, core::rgbf_t>(json);
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_FLOAT_EQ(recovered->r(), 0.25f);
+  EXPECT_FLOAT_EQ(recovered->g(), 0.5f);
+  EXPECT_FLOAT_EQ(recovered->b(), 0.75f);
+}
+
+TEST(SerializationJson, NamedModeSupportsCustomKeys) {
+  serialization_options opts;
+  opts.format = serialization_format::named;
+  std::string names[] = {"red", "green", "blue", "alpha"};
+
+  const core::rgba8_t input{12, 34, 56, 78};
+  const auto json = to_json<fake_json>(input, names, opts);
+
+  ASSERT_TRUE(json_adapter<fake_json>::is_object(json));
+  EXPECT_TRUE(json_adapter<fake_json>::has_key(json, "red"));
+  EXPECT_TRUE(json_adapter<fake_json>::has_key(json, "green"));
+  EXPECT_TRUE(json_adapter<fake_json>::has_key(json, "blue"));
+  EXPECT_TRUE(json_adapter<fake_json>::has_key(json, "alpha"));
+
+  const auto recovered = from_json<fake_json, core::rgba8_t>(json, names);
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_EQ(recovered->r(), 12);
+  EXPECT_EQ(recovered->g(), 34);
+  EXPECT_EQ(recovered->b(), 56);
+  EXPECT_EQ(recovered->a(), 78);
+}
+
+// ===== MessagePack Adapter Tests =====
+
+TEST(SerializationMsgpack, PackColorUsesCompactArrayFlow) {
+  fake_msgpack_packer packer;
+  pack_color(packer, core::rgbf_t{0.1f, 0.2f, 0.3f});
+
+  EXPECT_EQ(packer.packed_mode, fake_msgpack_packer::mode::array);
+  ASSERT_EQ(packer.numbers.size(), 3u);
+  EXPECT_NEAR(packer.numbers[0], 0.1, 1e-6);
+  EXPECT_NEAR(packer.numbers[1], 0.2, 1e-6);
+  EXPECT_NEAR(packer.numbers[2], 0.3, 1e-6);
+}
+
+TEST(SerializationMsgpack, PackColorNamedUsesProvidedKeys) {
+  fake_msgpack_packer packer;
+  std::string names[] = {"L", "a", "b"};
+
+  pack_color_named(packer, core::oklab_t{0.5f, 0.1f, -0.2f}, names);
+
+  EXPECT_EQ(packer.packed_mode, fake_msgpack_packer::mode::map);
+  ASSERT_EQ(packer.key_values.size(), 3u);
+  EXPECT_EQ(packer.key_values[0].first, "L");
+  EXPECT_EQ(packer.key_values[1].first, "a");
+  EXPECT_EQ(packer.key_values[2].first, "b");
+  EXPECT_NEAR(packer.key_values[0].second, 0.5, 1e-6);
+  EXPECT_NEAR(packer.key_values[1].second, 0.1, 1e-6);
+  EXPECT_NEAR(packer.key_values[2].second, -0.2, 1e-6);
+}
+
+TEST(SerializationMsgpack, UnpackColorRoundTripsCompactValues) {
+  fake_msgpack_array_view view{{1.0, 127.0 / 255.0, 80.0 / 255.0, 64.0 / 255.0}};
+  const auto recovered = unpack_color<fake_msgpack_array_view, core::rgba8_t>(view);
+
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_EQ(recovered->r(), 255);
+  EXPECT_EQ(recovered->g(), 127);
+  EXPECT_EQ(recovered->b(), 80);
+  EXPECT_EQ(recovered->a(), 64);
+}
+
+TEST(SerializationMsgpack, UnpackColorNamedRoundTripsProvidedKeys) {
+  fake_msgpack_map_view view{{{"red", 12.0 / 255.0}, {"green", 34.0 / 255.0}, {"blue", 56.0 / 255.0}}};
+  std::string names[] = {"red", "green", "blue"};
+
+  const auto recovered = unpack_color_named<fake_msgpack_map_view, core::rgb8_t>(view, names);
+
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_EQ(recovered->r(), 12);
+  EXPECT_EQ(recovered->g(), 34);
+  EXPECT_EQ(recovered->b(), 56);
 }

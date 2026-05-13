@@ -416,9 +416,17 @@ using namespace colorcpp::io::serialization;
 auto j = to_json<nlohmann::json>(coral_color);
 auto recovered = from_json<nlohmann::json, rgba8_t>(j);
 
-// Named format with custom channel names
+// Named format defaults to generic keys such as ch0/ch1/ch2/ch3
+serialization_options opts;
+opts.format = serialization_format::named;
+auto j_generic = to_json<nlohmann::json>(coral, opts);
+
+// Or provide your own channel names explicitly
 std::string names[] = {"red", "green", "blue", "alpha"};
 auto j_named = to_json<nlohmann::json>(coral, names, opts);
+
+// MessagePack support currently uses msgpack_packer/msgpack_unpacker
+// helper traits plus pack_color / unpack_color style functions.
 ```
 
 ### Binary IO (LUT Files)

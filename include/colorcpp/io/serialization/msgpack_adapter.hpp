@@ -1,5 +1,5 @@
 /**
- * @file msgpack.hpp
+ * @file msgpack_adapter.hpp
  * @brief Generic MessagePack serialization adapter for colorcpp colors.
  *
  * This header provides template functions for serializing/deserializing colors

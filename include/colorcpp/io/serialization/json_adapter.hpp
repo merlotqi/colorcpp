@@ -1,5 +1,5 @@
 /**
- * @file json.hpp
+ * @file json_adapter.hpp
  * @brief Generic JSON serialization adapter for colorcpp colors.
  *
  * This header provides template functions for serializing/deserializing colors
