@@ -176,8 +176,9 @@ The revised serialization layer should:
 1. present an honest public contract
 2. converge JSON and MessagePack around the same conceptual options model
 3. support semantic channel naming through explicit traits
-4. add color-space tagging only when the underlying metadata model is real
-5. keep the core library dependency-free
+4. use symmetric adapter-oriented header names that avoid generic third-party collisions
+5. add color-space tagging only when the underlying metadata model is real
+6. keep the core library dependency-free
 
 ## Recommended Direction
 
@@ -191,6 +192,9 @@ Recommended changes:
 - remove or downgrade claims about tagged and binary support until those capabilities exist
 - make the JSON named-mode default story explicit
 - define the current MessagePack surface as lower-level rather than fully parallel
+- rename generic format headers to adapter-oriented names to avoid collisions with third-party headers; specifically,
+  `json.hpp` should become `json_adapter.hpp`, and `msgpack.hpp` should be renamed to a matching peer such as
+  `msgpack_adapter.hpp`
 
 This is the most urgent work because the documentation currently over-promises.
 
