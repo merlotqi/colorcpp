@@ -93,32 +93,37 @@ None of these modules should begin with broad surface expansion. The best early 
 The recommended implementation sequence is intentionally linear. Each branch should start from updated `main` after
 the previous branch has been merged so that correctness hardening lands in the same order as the audit priority.
 
-| Order | Module | Recommended branch name | Why this branch goes here |
-| --- | --- | --- | --- |
-| 1 | `binary_io` | `feature/io-binary-io-hardening` | fixes the highest-risk correctness and safety bugs first |
-| 2 | `literals` | `feature/io-literals-correctness` | repairs public authoring bugs after the LUT foundation work is stable |
-| 3 | `serialization` | `feature/io-serialization-contracts` | aligns docs and contract surface after the lower-level correctness fixes land |
-| 4 | `ansi` | `feature/io-ansi-hardening` | finishes with targeted hardening and stream-hygiene cleanup |
+| Order | Module | Recommended branch name | Current status | Why this branch goes here |
+| --- | --- | --- | --- | --- |
+| 1 | `binary_io` | `feature/io-binary-io-hardening` | Completed | fixes the highest-risk correctness and safety bugs first |
+| 2 | `literals` | `feature/io-literals-correctness` | Completed | repairs public authoring bugs after the LUT foundation work is stable |
+| 3 | `serialization` | `feature/io-serialization-contracts` | Current next branch | aligns docs and contract surface after the lower-level correctness fixes land |
+| 4 | `ansi` | `feature/io-ansi-hardening` | Pending | finishes with targeted hardening and stream-hygiene cleanup |
+
+Current execution point:
+
+- `feature/io-binary-io-hardening` is complete
+- `feature/io-literals-correctness` is complete
+- continue with `feature/io-serialization-contracts`
+- keep `feature/io-ansi-hardening` as the final branch in this sequence
 
 Execution rule:
 
-1. create and finish `feature/io-binary-io-hardening`
-2. merge it
-3. refresh local `main`
-4. create and finish `feature/io-literals-correctness`
-5. merge it
-6. refresh local `main`
-7. create and finish `feature/io-serialization-contracts`
-8. merge it
-9. refresh local `main`
-10. create and finish `feature/io-ansi-hardening`
+1. finish and merge `feature/io-binary-io-hardening`
+2. refresh local `main`
+3. finish and merge `feature/io-literals-correctness`
+4. refresh local `main`
+5. create and finish `feature/io-serialization-contracts`
+6. merge it
+7. refresh local `main`
+8. create and finish `feature/io-ansi-hardening`
 
 ## Suggested Plan Breakdown
 
 The cleanest follow-up sequence is:
 
-1. `binary_io` correctness hardening plan on `feature/io-binary-io-hardening`
-2. `literals` correctness and doc-alignment plan on `feature/io-literals-correctness`
+1. completed `binary_io` correctness hardening on `feature/io-binary-io-hardening`
+2. completed `literals` correctness and doc-alignment on `feature/io-literals-correctness`
 3. `serialization` contract-alignment plan on `feature/io-serialization-contracts`
 4. `ansi` correctness hardening plan on `feature/io-ansi-hardening`
 5. optional second-wave plans for diagnostics, metadata/tagging, and ergonomics
