@@ -1,22 +1,20 @@
 Color space conversion
 =======================
 
-Typed color conversion system with automatic routing, compile-time safety and extensible registration architecture.
+Typed color conversion system with compile-time graph routing, safety checks, and registered conversion edges.
 
 In colorcpp
 ------------
 
 * Header: ``include/colorcpp/operations/conversion.hpp``
-* Main entry point: ``colorcpp::color_cast<ToColor>(source)``
+* Main entry point: ``colorcpp::operations::conversion::color_cast<ToColor>(source)``
 
 **System features**:
 
   * ✅ **Compile time safety**: Unsupported conversions fail at compile time with clear static_assert messages
-  * ✅ **Multi-layer routing**: 4-level priority routing system with graceful fallback
   * ✅ **Compile-time graph routing**: Full Dijkstra shortest path algorithm runs during compilation
   * ✅ **Weighted edges**: Expensive conversions can be assigned higher cost for optimal path selection
-  * ✅ **Hub architecture**: Hierarchical hub tree for maximum compatibility
-  * ✅ **Extensible**: Add new color spaces externally without modifying core library
+  * ✅ **Registered edge extensibility**: Stable public extension focuses on adding direct conversion edges
   * ✅ **constexpr support**: All conversions can be evaluated at compile time
   * ✅ **Zero runtime overhead**: All abstractions resolve directly to function calls with zero indirection
   * ✅ **Compile-time debugging**: Inspect conversion paths, costs and availability at compile time
@@ -25,15 +23,15 @@ In colorcpp
 Routing Architecture
 --------------------
 
-colorcpp uses a 4-level priority routing system, evaluated in order:
+colorcpp routes conversions in this order:
 
 1. **Identity conversion (cost 0)**
    - When source and destination types are identical, value is returned directly
    - No operations performed, absolute zero cost
 
-2. **Direct registered conversion (cost 1)**
+2. **Direct registered conversion (registered edge cost)**
    - Explicitly registered direct conversion edges
-   - Highest priority, always preferred over indirect routes
+   - Participates in the weighted shortest-path graph using its registered edge cost
 
 3. **Global graph shortest path (variable cost)**
    - Full weighted graph routing using Dijkstra algorithm
@@ -41,32 +39,9 @@ colorcpp uses a 4-level priority routing system, evaluated in order:
    - Supports multi-hop routes of arbitrary length
    - All path computation performed entirely at compile time
 
-4. **Hub tree fallback routing (variable cost)**
-   - Graceful fallback when graph routing is not available
-   - Routes via hierarchical hub tree structure
-   - Guaranteed connectivity for all built-in color spaces
-
-
-Hub Tree Structure
-------------------
-
-All color spaces are arranged in a hierarchical hub tree:
-
-.. code-block:: text
-
-                        XYZ (root hub)
-                       / | \
-                      /  |  \
-              Linear RGB  OkLab  CIELAB
-                 |        |        |
-                sRGB     OkLCH   CIELCH
-                / | \
-         HSL HSV HWB CMYK
-
-        Display P3 → Linear RGB → XYZ
-
-Each color space only requires a single conversion to its parent hub,
-automatically enabling conversion to every other color space in the tree.
+4. **Compile-time error if no graph path exists**
+   - Unsupported conversions fail during compilation with a clear ``static_assert``
+   - Register direct edges to extend the stable public contract
 
 
 Conversion Registration
@@ -93,25 +68,37 @@ and will be considered for shortest path calculation.
 Extending The System
 --------------------
 
-To add a custom color space:
+The stable public contract documented here focuses on built-in graph routing plus
+registered direct conversion edges.
 
-1. Specialize ``color_traits`` for your color model
-2. Register conversion edges to existing hub spaces
-3. Optionally add your type to ``additional_color_nodes`` for full graph routing
+For downstream extensions, the supported workflow documented here is to register
+direct conversions involving the custom types you control. That direct-edge path
+is the stable public extension contract today.
+
+Downstream multi-hop graph participation for external node types is not yet a
+streamlined stable public contract. More advanced graph-node extension hooks
+exist internally, but they are outside the conservative API surface documented
+on this page.
+
+For example:
+
+1. Register the outward direct conversion you want to support
+2. Register the reverse direct conversion too if callers need that direction
 
 .. code-block:: cpp
 
-    // Add custom color to global graph
-    template <>
-    struct colorcpp::operations::conversion::graph::additional_color_nodes {
-      using type = node_list<my_custom_color_t>;
-    };
-
-    // Register conversion edge
+    // Register outward conversion edge
     COLORCPP_REGISTER_CONVERSION(my_custom_color_t, xyz_t, my_custom_to_xyz);
 
-Your color space will automatically be able to convert to and from all
-existing color spaces without any additional code.
+    // Register reverse edge too if callers need the opposite direction
+    COLORCPP_REGISTER_CONVERSION(xyz_t, my_custom_color_t, xyz_to_my_custom);
+
+Those registrations make the documented direct casts available for the directions
+you provide.
+
+If you need compatibility metadata such as hub traits for internal or advanced
+use cases, ``color_traits`` specialization remains available, but it is not
+required for the conservative direct-edge workflow described here.
 
 
 Debugging & Inspection
@@ -122,16 +109,15 @@ Compile-time debugging utilities:
 .. code-block:: cpp
 
     // Check if conversion is possible
-    constexpr bool possible = colorcpp::can_convert<From, To>();
+    constexpr bool possible = colorcpp::operations::conversion::can_convert<From, To>();
 
     // Get detailed conversion path information
     using info = colorcpp::operations::conversion::conversion_path_info<From, To>;
+    static_assert(info::has_graph_path);
+    static_assert(info::minimal_graph_cost < colorcpp::operations::conversion::graph::inf);
 
     // Verify path at compile time
-    static_assert(colorcpp::operations::conversion::verify_path<hsl_t, oklab_t>());
-
-    // Get hub type for any color
-    using hub = colorcpp::operations::conversion::get_hub_t<color_type>;
+    static_assert(colorcpp::operations::conversion::verify_path<hsl_float_t, oklab_t>());
 
 
 Supported color space conversions matrix:

@@ -5,9 +5,11 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <colorcpp/io/ansi.hpp>
 #include <colorcpp/io/css/named_colors.hpp>
 #include <colorcpp/io/literals.hpp>
+#include <iomanip>
 #include <sstream>
 
 using namespace colorcpp;
@@ -100,6 +102,21 @@ TEST(Ansi, PrintPalette) {
   EXPECT_NE(output.find("\033[48;2;0;0;255m"), std::string::npos);
 }
 
+TEST(Ansi, PrintPaletteContainerOverload) {
+  std::ostringstream os;
+  std::array<core::rgba8_t, 3> colors = {
+      core::rgba8_t{255, 0, 0, 255},
+      core::rgba8_t{0, 255, 0, 255},
+      core::rgba8_t{0, 0, 255, 255},
+  };
+  print_palette(os, colors);
+  std::string output = os.str();
+
+  EXPECT_NE(output.find("\033[48;2;255;0;0m"), std::string::npos);
+  EXPECT_NE(output.find("\033[48;2;0;255;0m"), std::string::npos);
+  EXPECT_NE(output.find("\033[48;2;0;0;255m"), std::string::npos);
+}
+
 TEST(Ansi, PrintGradient) {
   std::ostringstream os;
   core::rgba8_t black{0, 0, 0, 255};
@@ -110,6 +127,28 @@ TEST(Ansi, PrintGradient) {
   // Should contain start and end colors
   EXPECT_NE(output.find("\033[48;2;0;0;0m"), std::string::npos);
   EXPECT_NE(output.find("\033[48;2;255;255;255m"), std::string::npos);
+}
+
+TEST(Ansi, PrintGradientZeroStepsProducesOnlyNewline) {
+  std::ostringstream os;
+  core::rgba8_t black{0, 0, 0, 255};
+  core::rgba8_t white{255, 255, 255, 255};
+
+  print_gradient(os, black, white, 0);
+
+  EXPECT_EQ(os.str(), "\n");
+}
+
+TEST(Ansi, PrintGradientOneStepUsesStartColor) {
+  std::ostringstream os;
+  core::rgba8_t black{0, 0, 0, 255};
+  core::rgba8_t white{255, 255, 255, 255};
+
+  print_gradient(os, black, white, 1);
+  std::string output = os.str();
+
+  EXPECT_NE(output.find("\033[48;2;0;0;0m"), std::string::npos);
+  EXPECT_EQ(output.find("\033[48;2;255;255;255m"), std::string::npos);
 }
 
 // ===== Contrast Tests =====
@@ -168,6 +207,40 @@ TEST(Ansi, PrintContrast) {
   EXPECT_NE(output.find("21.0:1"), std::string::npos);
   // Should contain AAA level
   EXPECT_NE(output.find("AAA"), std::string::npos);
+}
+
+TEST(Ansi, PrintColorRestoresFormattingState) {
+  std::ostringstream os;
+  os << std::scientific << std::setprecision(3) << std::setfill('_');
+
+  core::rgba8_t red{255, 0, 0, 255};
+  print_color(os, red, "red");
+  os << "|" << 1.25;
+
+  EXPECT_NE(os.str().find("1.250e+00"), std::string::npos);
+}
+
+TEST(Ansi, PrintColorVerboseRestoresFormattingState) {
+  std::ostringstream os;
+  os << std::scientific << std::setprecision(3) << std::setfill('_');
+
+  core::rgba8_t red{255, 0, 0, 255};
+  print_color_verbose(os, red, "red");
+  os << "|" << 1.25;
+
+  EXPECT_NE(os.str().find("1.250e+00"), std::string::npos);
+}
+
+TEST(Ansi, PrintContrastRestoresFormattingState) {
+  std::ostringstream os;
+  os << std::scientific << std::setprecision(3) << std::setfill('_');
+
+  core::rgba8_t white{255, 255, 255, 255};
+  core::rgba8_t black{0, 0, 0, 255};
+  print_contrast(os, white, black);
+  os << "|" << 1.25;
+
+  EXPECT_NE(os.str().find("1.250e+00"), std::string::npos);
 }
 
 // ===== Named Color Integration =====

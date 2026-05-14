@@ -1,7 +1,7 @@
 
 #include <gtest/gtest.h>
 
-#include <colorcpp/colorcpp.hpp>
+#include <colorcpp/operations/conversion.hpp>
 #include <type_traits>
 
 namespace colorcpp::operations::test {
@@ -153,6 +153,26 @@ TEST(ConversionTest, GraphRoutingPrefersLowerWeightedCanonicalPathToOklab) {
           details::display_p3_to_linear_display_p3<linear_display_p3f_t>(sample)));
   const auto casted = color_cast<oklab_t>(sample);
 
+  EXPECT_NEAR(casted.l(), expected.l(), 1e-6f);
+  EXPECT_NEAR(casted.a(), expected.a(), 1e-6f);
+  EXPECT_NEAR(casted.b(), expected.b(), 1e-6f);
+}
+
+TEST(ConversionDebugContractTest, PublicDebugHelpersReflectGraphRouting) {
+  static_assert(can_convert<hsl_float_t, oklab_t>());
+  static_assert(verify_path<hsl_float_t, oklab_t>());
+  static_assert(std::is_same_v<get_hub_t<hsl_float_t>, rgbf_t>);
+
+  using info = conversion_path_info<hsl_float_t, oklab_t>;
+  static_assert(info::is_identity == false);
+  static_assert(info::has_direct_conversion == false);
+  static_assert(info::has_graph_path);
+  static_assert(info::minimal_graph_cost == 2);
+  static_assert(info::is_possible);
+
+  const hsl_float_t sample{180.0f, 0.5f, 0.5f};
+  const auto expected = color_cast<oklab_t>(color_cast<rgbf_t>(sample));
+  const auto casted = color_cast<oklab_t>(sample);
   EXPECT_NEAR(casted.l(), expected.l(), 1e-6f);
   EXPECT_NEAR(casted.a(), expected.a(), 1e-6f);
   EXPECT_NEAR(casted.b(), expected.b(), 1e-6f);

@@ -23,6 +23,15 @@ Per-channel and perceptual spaces
 * ``basic_random_generator`` draws each channel **uniformly** in its model min/max. For **OkLab, CIELAB, OkLCH, CIELCH**, etc., that is an **axis-aligned box** in those coordinates; results are **not** clamped to sRGB, Display P3, or other display gamuts.
 * ``std::uniform_real_distribution`` produces values in **[a, b)**; the upper bound is not included (usually negligible for floats).
 
+Capability families
+-------------------
+
+* **Basic uniform generators** — channel-box sampling with no gamut guarantee
+* **Constrained generators** — best-effort contrast helpers use bounded rejection sampling, while luminance helpers
+  directly sample OkLCH lightness-bounded colors with optional gamut mapping
+* **Perceptual-space sampling caveats** — OkLab, CIELAB, OkLCH, and CIELCH sampling uses axis-aligned boxes and may
+  leave common RGB display gamuts
+
 HSL / HSV / HWB and alpha
 --------------------------
 
@@ -41,21 +50,17 @@ Poisson disk (hue)
 
 Available generators:
 
-  * **Basic uniform generators**:
-    * ``random_color<ColorType>()`` — single random color
-    * ``basic_random_generator`` — generic per-channel uniform
-    * Supports many color spaces (see header typedefs)
-
-  * **HSL / HSV / HWB generators**:
-    * ``basic_hsl_generator`` / ``hsl_generator``, ``hsva_generator``, etc.
-    * Optional saturation / lightness (or value/whiteness) range limits; alpha range for 4-channel models
-
-  * **Advanced generators**:
-    * ``golden_angle_generator`` — golden-angle hue stepping from a random start
-    * ``harmony_generator`` — palettes following harmony rules (see :doc:`harmony`)
-
-  * **Seed control**:
-    * Generators accept a seed or a copied engine for reproducibility
+* **Basic uniform generators**: ``random_color<ColorType>()``, ``basic_random_generator``, and aliases such as
+  ``rgb8_generator`` / ``oklab_generator`` cover direct channel-box sampling across the supported spaces.
+* **HSL / HSV / HWB generators**: ``basic_hsl_generator`` and aliases such as ``hsl_generator`` / ``hsva_generator``
+  add optional saturation, lightness, value, whiteness, and alpha limits.
+* **Constrained generators**: ``contrast_generator`` and ``random_contrast_color`` perform a bounded, rejection-sampled
+  search for candidates that meet a target contrast ratio and otherwise return the last sampled candidate.
+  ``luminance_generator`` and ``random_luminance_color`` directly sample OkLCH colors within configured lightness
+  bounds, then optionally gamut-map the result while preserving lightness.
+* **Advanced generators**: ``golden_angle_generator`` and ``harmony_generator`` build hue-spaced or harmony-based
+  palettes from randomized starting points.
+* **Seed control**: Generators accept a seed or a copied engine for reproducibility.
 
 
 Generator properties:

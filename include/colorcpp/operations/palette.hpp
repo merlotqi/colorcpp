@@ -9,7 +9,7 @@
  * - operations/palette/schemes.hpp: Formal harmony scheme generators built on algorithms::harmony rules
  * - algorithms/palette/rainbow.hpp: Rainbow palette generator
  * - algorithms/palette/families.hpp: Warm, cool, and neutral palette families
- * - operations/palette/material.hpp: Material Design 3 color system
+ * - operations/palette/material.hpp: Heuristic Material-style palette helpers
  * - operations/palette/theme.hpp: Semantic theme derivation from a seed color
  */
 
@@ -24,7 +24,7 @@
 #include <colorcpp/operations/palette/material.hpp>
 #include <colorcpp/operations/palette/theme.hpp>
 
-/** @brief Named palettes and gradient scales built on @ref interpolate and harmony rules. */
+/** @brief structural palette APIs plus heuristic theme and material helpers built on interpolate and harmony rules. */
 namespace colorcpp::operations::palette {
 // All functionality is provided by the included sub-modules.
 // palette_set is available at colorcpp::core::palette_set<Color>.

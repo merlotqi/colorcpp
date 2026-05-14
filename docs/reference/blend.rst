@@ -1,7 +1,16 @@
 Alpha blending and blend modes
 ==============================
 
-Compositing combines a **source** and **destination** color with alpha. colorcpp performs blending in **linearized sRGB** after ``color_cast``, using separable RGB formulas aligned with common **CSS Compositing** blend modes, plus **Porter–Duff**-style alpha composition.
+Compositing combines a **source** and **destination** color with alpha. The current colorcpp implementation converts
+inputs through ``rgbaf_t`` and applies the blend formulas there. Treat this as the current encoded ``rgbaf_t`` working
+space contract, not as a verified linear-sRGB compositing claim.
+
+Current implementation note
+---------------------------
+
+* The public implementation currently works in encoded ``rgbaf_t`` space.
+* The documentation therefore describes the module as an encoded working-space implementation, even though a future
+  follow-up may introduce a true linear-sRGB policy.
 
 In colorcpp
 ------------
@@ -21,7 +30,7 @@ Available blend modes:
 Notes
 -----
 
-* All blending operations are performed in linearized sRGB space
+* All blending operations currently use the encoded ``rgbaf_t`` working space described above
 * Non-separable modes use the W3C hue/saturation/luminosity decomposition helpers, not Oklch
 * ``COLORCPP_ENABLE_SIMD=ON`` currently accelerates selected separable modes only; unsupported modes fall back to the scalar path
 * Blend mode behavior follows the W3C compositing model used elsewhere in CSS tooling

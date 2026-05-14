@@ -16,6 +16,8 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 
 namespace colorcpp::io::ansi {
 
@@ -37,6 +39,35 @@ inline std::string fmt_int(int v, int width = 3) {
   ss << std::setw(width) << v;
   return ss.str();
 }
+
+/**
+ * @brief Preserve and restore stream formatting state.
+ */
+class ostream_state_guard {
+ public:
+  explicit ostream_state_guard(std::ostream& os)
+      : os_(os), flags_(os.flags()), precision_(os.precision()), fill_(os.fill()) {}
+
+  ~ostream_state_guard() {
+    os_.flags(flags_);
+    os_.precision(precision_);
+    os_.fill(fill_);
+  }
+
+ private:
+  std::ostream& os_;
+  std::ios::fmtflags flags_;
+  std::streamsize precision_;
+  char fill_;
+};
+
+template <typename T, typename = void>
+struct has_data_size : std::false_type {};
+
+template <typename T>
+struct has_data_size<T,
+                     std::void_t<decltype(std::declval<const T&>().data()), decltype(std::declval<const T&>().size())>>
+    : std::true_type {};
 
 }  // namespace details
 
@@ -86,6 +117,7 @@ void print_swatch(std::ostream& os, const Color& c, int width = 6) {
  */
 template <typename Color>
 void print_color(std::ostream& os, const Color& c, std::string_view label = "") {
+  const details::ostream_state_guard guard(os);
   auto rgba = details::to_rgba8(c);
 
   // Swatch
@@ -114,6 +146,7 @@ void print_color(std::ostream& os, const Color& c, std::string_view label = "") 
  */
 template <typename Color>
 void print_color_verbose(std::ostream& os, const Color& c, std::string_view label = "") {
+  const details::ostream_state_guard guard(os);
   auto rgba = details::to_rgba8(c);
 
   // Swatch
@@ -175,6 +208,14 @@ void print_palette(std::ostream& os, const Color* colors, std::size_t count, int
 }
 
 /**
+ * @brief Print a palette from any contiguous container exposing data() and size().
+ */
+template <typename Container, typename std::enable_if_t<details::has_data_size<Container>::value, int> = 0>
+void print_palette(std::ostream& os, const Container& colors, int swatch_width = 6) {
+  print_palette(os, colors.data(), static_cast<std::size_t>(colors.size()), swatch_width);
+}
+
+/**
  * @brief Print a gradient between two colors.
  * @param os Output stream.
  * @param a Start color.
@@ -185,6 +226,15 @@ template <typename ColorA, typename ColorB>
 void print_gradient(std::ostream& os, const ColorA& a, const ColorB& b, int steps = 16) {
   auto ra = details::to_rgba8(a);
   auto rb = details::to_rgba8(b);
+
+  if (steps <= 0) {
+    os << "\n";
+    return;
+  }
+  if (steps == 1) {
+    os << bg(ra.r(), ra.g(), ra.b()) << "  " << reset() << "\n";
+    return;
+  }
 
   for (int i = 0; i < steps; ++i) {
     float t = static_cast<float>(i) / static_cast<float>(steps - 1);
@@ -236,6 +286,7 @@ inline std::string_view wcag_level(float ratio) {
  */
 template <typename FgColor, typename BgColor>
 void print_contrast(std::ostream& os, const FgColor& fg_color, const BgColor& bg_color) {
+  const details::ostream_state_guard guard(os);
   auto fg_rgba = details::to_rgba8(fg_color);
   auto bg_rgba = details::to_rgba8(bg_color);
 

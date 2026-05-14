@@ -3,9 +3,11 @@
  * @brief Unit tests for binary_io: LUT data structures and .cube format.
  */
 
+#include <colorcpp/core/hsl.hpp>
+#include <colorcpp/io/binary_io.hpp>
+#include <colorcpp/operations/conversion.hpp>
 #include <gtest/gtest.h>
 
-#include <colorcpp/io/binary_io.hpp>
 #include <sstream>
 #include <string>
 
@@ -65,6 +67,17 @@ TEST(Lut3d, InvalidLutPassthrough) {
   EXPECT_FLOAT_EQ(result[2], 0.1f);
 }
 
+TEST(Lut3d, SingleEntryLutReturnsStoredColor) {
+  lut3d lut;
+  lut.size = 1;
+  lut.data = {{{0.25f, 0.5f, 0.75f}}};
+
+  auto result = apply(lut, 0.3f, 0.4f, 0.5f);
+  EXPECT_FLOAT_EQ(result[0], 0.25f);
+  EXPECT_FLOAT_EQ(result[1], 0.5f);
+  EXPECT_FLOAT_EQ(result[2], 0.75f);
+}
+
 // ===== LUT 1D Tests =====
 
 TEST(Lut1d, DefaultConstruction) {
@@ -85,6 +98,61 @@ TEST(Lut1d, IdentityLut) {
   EXPECT_NEAR(result[0], 0.5f, 1e-5f);
   EXPECT_NEAR(result[1], 0.5f, 1e-5f);
   EXPECT_NEAR(result[2], 0.5f, 1e-5f);
+}
+
+TEST(Lut1d, ApplyColorPreservesRgba8Identity) {
+  lut1d lut;
+  lut.size = 2;
+  lut.r = {0.0f, 1.0f};
+  lut.g = {0.0f, 1.0f};
+  lut.b = {0.0f, 1.0f};
+
+  colorcpp::core::rgba8_t input{255, 32, 0, 128};
+  auto output = apply_color(lut, input);
+
+  EXPECT_EQ(output.r(), 255);
+  EXPECT_EQ(output.g(), 32);
+  EXPECT_EQ(output.b(), 0);
+  EXPECT_EQ(output.a(), 128);
+}
+
+TEST(Lut1d, ApplyColorSupportsConvertibleNonRgbType) {
+  lut1d lut;
+  lut.size = 2;
+  lut.r = {0.0f, 1.0f};
+  lut.g = {0.0f, 1.0f};
+  lut.b = {0.0f, 1.0f};
+
+  colorcpp::core::hsl_float_t input{210.0f, 0.75f, 0.40f};
+  const auto before = colorcpp::operations::conversion::color_cast<colorcpp::core::rgbaf_t>(input);
+  const auto output = apply_color(lut, input);
+  const auto after = colorcpp::operations::conversion::color_cast<colorcpp::core::rgbaf_t>(output);
+
+  EXPECT_NEAR(after.r(), before.r(), 1e-5f);
+  EXPECT_NEAR(after.g(), before.g(), 1e-5f);
+  EXPECT_NEAR(after.b(), before.b(), 1e-5f);
+}
+
+TEST(Lut1d, InvalidLutApplyColorPreservesConvertibleColor) {
+  lut1d lut;
+
+  colorcpp::core::hsl_float_t input{0.0f, 0.03f, 0.0f};
+  const auto output = apply_color(lut, input);
+
+  EXPECT_NEAR(output.h(), input.h(), 1e-5f);
+  EXPECT_NEAR(output.s(), input.s(), 1e-5f);
+  EXPECT_NEAR(output.l(), input.l(), 1e-5f);
+}
+
+TEST(Lut3d, InvalidLutApplyColorPreservesConvertibleColor) {
+  lut3d lut;
+
+  colorcpp::core::hsl_float_t input{0.0f, 0.03f, 0.0f};
+  const auto output = apply_color(lut, input);
+
+  EXPECT_NEAR(output.h(), input.h(), 1e-5f);
+  EXPECT_NEAR(output.s(), input.s(), 1e-5f);
+  EXPECT_NEAR(output.l(), input.l(), 1e-5f);
 }
 
 // ===== .cube Format Tests =====

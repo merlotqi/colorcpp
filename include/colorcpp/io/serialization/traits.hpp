@@ -99,11 +99,8 @@ constexpr std::string_view color_space_name(color_space_id id) {
  * @brief Serialization options.
  */
 struct serialization_options {
-  /** @brief Output format (compact array or named object). */
+  /** @brief Output format (compact array or generic named object). */
   serialization_format format = serialization_format::compact;
-
-  /** @brief Whether to include color space metadata in named format. */
-  bool include_color_space = false;
 };
 
 }  // namespace colorcpp::io::serialization

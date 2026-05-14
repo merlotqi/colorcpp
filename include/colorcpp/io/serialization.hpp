@@ -9,5 +9,5 @@
 
 #pragma once
 
-#include <colorcpp/io/serialization/json.hpp>
-#include <colorcpp/io/serialization/msgpack.hpp>
+#include <colorcpp/io/serialization/json_adapter.hpp>
+#include <colorcpp/io/serialization/msgpack_adapter.hpp>

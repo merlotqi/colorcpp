@@ -14,7 +14,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 - **Serialization**: JSON and MessagePack adapters for network/config integration
 - **Binary IO**: Read/write DaVinci Resolve .cube LUT files (1D and 3D)
 - **ANSI terminal**: Colored swatches, palettes, gradients, WCAG contrast previews for debugging
-- **Type-safe literals**: User-defined literals for RGB, HSL, HSV, CMYK, OkLab, named colors
+- **Type-safe literals**: User-defined literals for RGB, HSL, HSV, HWB, CMYK, OkLab, and OkLCH
 - **Template-based**: Zero-cost abstractions with compile-time validation
 - **C++17+**: Works with any C++17 compatible compiler
 
@@ -91,21 +91,19 @@ auto blended = blend(red, blue, blend_mode::multiply);
 using namespace colorcpp::io::literals;
 
 // RGB/Hex literals
-auto coral = 0xFF6347_rgb;           // → rgba8_t{255, 99, 71, 255}
-auto with_alpha = 0xFF634780_rgba;   // → rgba8_t{255, 99, 71, 128}
-auto argb = 0x80FF6347_argb;         // → rgba8_t{255, 99, 71, 128} (AARRGGBB)
-auto from_hex = "#FF6347"_hex;        // → rgba8_t
+auto coral = 0xFF6347_rgb;              // -> rgba8_t{255, 99, 71, 255}
+auto with_alpha = 0xFF634780_rgba;      // -> rgba8_t{255, 99, 71, 128}
+auto argb = 0x80FF6347_argb;            // -> rgba8_t{255, 99, 71, 128} (AARRGGBB)
+auto from_hex = "#FF6347"_hex;          // -> rgba8_t
 
-// HSL literals
-auto mint = 160'070'080_hsl;         // → hsl_float_t{160, 70, 80}
-auto with_alpha = 160'070'080'085_hsla; // → hsla_float_t{160, 70, 80, 85}
+// HSL / HSV literals
+auto mint = 160'070'080_hsl;            // -> hsl_float_t{160.0f, 0.70f, 0.80f}
+auto sky = 210'080'090_hsv;             // -> hsv_float_t{210.0f, 0.80f, 0.90f}
 
-// HSV literals
-auto sky = 210'080'090_hsv;          // → hsv_float_t{210, 80, 90}
-auto with_alpha = 210'080'090'075_hsva; // → hsva_float_t{210, 80, 90, 75}
-
-// CMYK literals
-auto teal = 50'030'000'020_cmyk;     // → cmyk8_t{50, 30, 0, 20}
+// CMYK / Oklab / OkLCH literals
+auto teal = 50'030'000'020_cmyk;        // -> cmyk8_t{50, 30, 0, 20}
+auto neutral = 050'050'050_oklab;       // -> oklab_t{0.50f, 0.0f, 0.0f}
+auto vivid = 050'100'120_oklch;         // -> oklch_t{0.50f, 0.40f, 120.0f}
 ```
 
 ## CSS color parsing
@@ -186,32 +184,35 @@ auto cartesian = color_cast<cielab_t>(lch_color);
 auto ok = color_cast<oklab_t>(lch_color);
 auto polar = color_cast<oklch_t>(oklab_color);
 
-// Cross-space conversions (automatically routed)
-auto lab_to_ok = color_cast<oklab_t>(lab_color);  // via XYZ (no gamut clip)
+// Cross-space conversions (graph-routed)
+auto lab_to_ok = color_cast<oklab_t>(lab_color);  // uses the lowest-cost registered route via XYZ
 ```
 
 ## 🎨 Color Operations
 
 ### Blending
 
+Current note: the shipped `blend()` implementation currently evaluates through `rgbaf_t` and should not be read as
+proof of a linear-sRGB compositing contract.
+
 ```cpp
 using namespace colorcpp::operations::blend;
 
 // Basic blend modes
-auto normal = blend(red, blue);
-auto multiply = blend(red, blue, blend_mode::multiply);
-auto screen = blend(red, blue, blend_mode::screen);
-auto overlay = blend(red, blue, blend_mode::overlay);
+auto normal = blend(red /* dst */, blue /* src */);
+auto multiply = blend(red /* dst */, blue /* src */, blend_mode::multiply);
+auto screen = blend(red /* dst */, blue /* src */, blend_mode::screen);
+auto overlay = blend(red /* dst */, blue /* src */, blend_mode::overlay);
 
 // All modes: normal, multiply, screen, overlay, darken, lighten,
 // addition, subtraction, difference, exclusion, hard_light,
 // soft_light, color_dodge, color_burn, divide
 
 // With opacity control
-auto semi_transparent = blend(red, blue, blend_mode::multiply, 0.5f);
+auto semi_transparent = blend(red /* dst */, blue /* src */, blend_mode::multiply, 0.5f);
 
 // Non-separable blends (hue, saturation, color, luminosity)
-auto hue_blend = blend(red, blue, blend_mode::hue);
+auto hue_blend = blend(red /* dst */, blue /* src */, blend_mode::hue);
 ```
 
 ### Palette Generation
@@ -245,7 +246,11 @@ for (const auto& color : perceptual_palette) {
 auto first = perceptual_palette[0];
 ```
 
+`schemes`, `families`, and scale builders are structural palette APIs; `material_*` and `theme` are heuristic design helpers.
+
 ### Interpolation
+
+Choose interpolation helpers by semantic family first: RGB-style, hue-aware cylindrical, perceptual, or path/spline.
 
 ```cpp
 using namespace colorcpp::operations::interpolate;
@@ -342,10 +347,22 @@ auto random_rgb = random_color<rgbf_t>();
 auto random_hsl = random_color<hsl_float_t>();
 auto random_lab = random_color<cielab_t>();
 
+// Constrained random colors
+auto accessible_fg = random_contrast_color<rgbf_t>(rgbf_t{0.08f, 0.10f, 0.14f}, 4.5f);
+auto mid_luminance = random_luminance_color<rgbf_t>(0.35f, 0.65f);
+// random_contrast_color is best-effort within its internal attempt budget; it is not an unconditional guarantee.
+
 // With seed for reproducibility
 auto seeded = random_color<rgbf_t>(seed);
 rgb8_generator generator(seed);
 auto sample = generator.next();
+
+// Reuse generator families directly
+contrast_rgbf_generator contrast_gen(seed);
+auto contrast_sample = contrast_gen.next(rgbf_t{1.0f, 1.0f, 1.0f});
+
+luminance_rgbf_generator luminance_gen(seed);
+auto luminance_sample = luminance_gen.next();
 ```
 
 ## 📖 I/O Operations
@@ -401,9 +418,17 @@ using namespace colorcpp::io::serialization;
 auto j = to_json<nlohmann::json>(coral_color);
 auto recovered = from_json<nlohmann::json, rgba8_t>(j);
 
-// Named format with custom channel names
+// Named format defaults to generic keys such as ch0/ch1/ch2/ch3
+serialization_options opts;
+opts.format = serialization_format::named;
+auto j_generic = to_json<nlohmann::json>(coral, opts);
+
+// Or provide your own channel names explicitly
 std::string names[] = {"red", "green", "blue", "alpha"};
 auto j_named = to_json<nlohmann::json>(coral, names, opts);
+
+// MessagePack support currently uses msgpack_packer/msgpack_unpacker
+// helper traits plus pack_color / unpack_color style functions.
 ```
 
 ### Binary IO (LUT Files)
@@ -437,7 +462,7 @@ print_color(std::cout, c, "coral");
 // Output: ██████ coral #ff7f50ff  RGB(255,127,80)
 
 // Print palette
-print_palette(std::cout, colors.data(), colors.size());
+print_palette(std::cout, colors);
 
 // Print gradient
 print_gradient(std::cout, "red"_color, "blue"_color);
@@ -445,6 +470,11 @@ print_gradient(std::cout, "red"_color, "blue"_color);
 // Print WCAG contrast check
 print_contrast(std::cout, "white"_color, "navy"_color);
 // Output:  Aa  #fff on #000080  contrast: 14.4:1  AAA
+
+// Notes:
+// - ANSI output is a terminal preview from rgba8 conversion.
+// - Alpha is shown numerically but is not rendered as terminal transparency.
+// - Verbose HSL values are derived from converted RGB.
 ```
 
 ### Color Temperature

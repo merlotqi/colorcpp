@@ -31,6 +31,31 @@ Available interpolation algorithms:
     * ``lerp_chroma_preserving()`` - Preserve chroma across the transition
     * ``lerp_alpha_mode()`` - Interpolate color and alpha independently
 
+Semantic grouping
+-----------------
+
+Working space families
+^^^^^^^^^^^^^^^^^^^^^^
+
+* **RGB-style interpolation** — ``lerp()``
+* **Cylindrical hue-aware interpolation** — ``lerp_hsl()``, ``lerp_hsv()``, ``lerp_oklch()``, ``lerp_lch()``
+* **Perceptual cartesian interpolation** — ``lerp_oklab()``, ``lerp_lab()``
+* **Curve/path helpers** — cubic, Catmull-Rom, monotonic spline, and path helpers layered on the same space choices
+
+Alpha handling
+^^^^^^^^^^^^^^
+
+Alpha behavior is helper-dependent: ``lerp()`` / ``lerp_hsl()`` / ``lerp_hsv()`` interpolate alpha in the same
+working-space pass, several perceptual and cylindrical helpers route alpha through RGBA-style handling, cubic and path
+helpers interpolate or spline alpha as part of their own contracts, and ``lerp_alpha_mode()`` exposes explicit alpha
+strategies.
+
+gamut strategy
+^^^^^^^^^^^^^^
+
+General interpolation helpers do not guarantee automatic display-gamut preservation. ``lerp_chroma_preserving()`` is
+the notable exception: its default ``chroma_mode::preserve_safe`` clamps chroma against the sRGB gamut boundary.
+
 
 Notes
 -----

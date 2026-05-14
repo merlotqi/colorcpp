@@ -1,12 +1,13 @@
 /**
  * @file color_space_registry.hpp
- * @brief Color space traits registration for hub-based routing.
+ * @brief Color space traits registration supporting graph-driven public routing.
  *
- * This file defines the hub_type for each color space, enabling automatic
- * hub-based routing when direct conversions are not registered.
+ * Public conversion dispatch is graph-driven via @c color_cast and @c graph.hpp.
+ * This file defines compatibility metadata for built-in color spaces so registered
+ * edges and legacy hub relationships remain available to the routing layer.
  *
- * Hub Tree Structure:
- * ==================
+ * Compatibility Hub Metadata:
+ * ==========================
  *
  *                        XYZ (root hub)
  *                       / | \
@@ -19,20 +20,8 @@
  *
  *         Display P3 → Linear RGB → XYZ
  *
- * Conversion Priority:
- * ====================
- *   1. Identity (From == To)
- *   2. Registered direct conversion (COLORCPP_REGISTER_CONVERSION)
- *   3. Route via source hub (From → FromHub → To)
- *   4. Route via destination hub (From → ToHub → To)
- *   5. Compile-time error (static_assert)
- *
- * Example Paths:
- * =============
- *   HSL → sRGB → Linear RGB → XYZ → OkLab
- *   HSV → sRGB → Linear RGB → XYZ → CIELAB
- *   CMYK → sRGB → Linear RGB → XYZ
- *   Display P3 → Linear RGB → XYZ → Linear RGB → sRGB
+ * These relationships provide metadata and compatibility support for the
+ * registered conversion graph rather than defining the public dispatch contract.
  */
 
 #pragma once

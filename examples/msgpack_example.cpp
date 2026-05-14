@@ -2,9 +2,10 @@
  * @file msgpack_example.cpp
  * @brief Example: serializing colors to MessagePack using the serialization module.
  *
- * Demonstrates how to specialize msgpack_packer / msgpack_unpacker for a
- * simple in-memory buffer packer. In production, replace with msgpack-cpp or
- * another MessagePack library.
+ * Demonstrates the current lower-level MessagePack helper surface by
+ * specializing msgpack_packer / msgpack_unpacker for a simple in-memory
+ * buffer packer. In production, replace with msgpack-cpp or another
+ * MessagePack library.
  */
 
 #include <colorcpp/colorcpp.hpp>
@@ -18,7 +19,7 @@ using namespace colorcpp::io::serialization;
 using namespace colorcpp::io::ansi;
 
 // =============================================================================
-// Minimal in-memory MessagePack packer (for demonstration only)
+// Minimal in-memory MessagePack packer used by the helper-based adapter API
 // =============================================================================
 
 struct simple_packer {
@@ -72,7 +73,7 @@ struct simple_packer {
 };
 
 // =============================================================================
-// Minimal in-memory MessagePack unpacker (for demonstration only)
+// Minimal in-memory MessagePack unpacker used by the helper-based adapter API
 // =============================================================================
 
 struct simple_unpacker {

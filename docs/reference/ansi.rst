@@ -19,6 +19,7 @@ Functions
 - ``ansi::print_color(os, color, label)`` — print swatch + hex + RGB
 - ``ansi::print_color_verbose(os, color, label)`` — print swatch + hex + RGB + HSL
 - ``ansi::print_palette(os, colors, count)`` — print multiple swatches in a row
+- ``ansi::print_palette(os, container)`` — print multiple swatches from a contiguous container
 - ``ansi::print_gradient(os, a, b, steps)`` — print a gradient between two colors
 - ``ansi::print_contrast(os, fg, bg)`` — print WCAG contrast check with preview
 
@@ -53,8 +54,10 @@ Notes
 -----
 
 - Uses 24-bit (true color) ANSI escape codes — requires a modern terminal
-- Any color type is accepted (automatically converted to rgba8_t for display)
-- HSL values in verbose mode are computed from RGB (not from the original color space)
+- Any color type is accepted (automatically converted to ``rgba8_t`` for terminal preview)
+- Output is a terminal preview of converted RGB values, not native-space rendering of the source model
+- Alpha is shown numerically (hex/typed channels) and is not rendered as terminal transparency
+- HSL values in verbose mode are computed from converted RGB (not from the original color space)
 
 References
 ----------

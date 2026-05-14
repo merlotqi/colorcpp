@@ -47,6 +47,7 @@ int main() {
   std::cout << "rgb8   hex:  " << coral3 << "\n" << std::dec;
 
   // 2. All color model output
+  // ANSI helpers preview via rgba8 conversion; alpha is numeric-only metadata in text output.
   section("All color models: output");
 
   hsl_float_t hsl = color_cast<hsl_float_t>(coral);
@@ -81,13 +82,15 @@ int main() {
   auto lit_rgb = 0xFF6347_rgb;           // -> rgba8_t{255,99,71,255}
   auto lit_rgba = 0xFF634780_rgba;       // -> rgba8_t{255,99,71,128}
   auto lit_argb = 0x80FF6347_argb;       // -> rgba8_t{255,99,71,128}  (AARRGGBB)
-  auto lit_hex = "#FF6347"_hex;          // -> rgba8_t, shorthand string
+  auto lit_hex = "#FF6347"_hex;          // -> rgba8_t, full hex string
   auto lit_hex3 = "#F63"_hex;            // shorthand #RGB -> #FF6633
-  auto lit_hsl = 120'050'075_hsl;        // hsl_float_t{120, 50, 75}
-  auto lit_hsla = 120'050'075'100_hsla;  // hsla_float_t{120, 50, 75, 100}
-  auto lit_hsv = 210'080'090_hsv;        // hsv_float_t{210, 80, 90}
-  auto lit_hsva = 210'080'090'075_hsva;  // hsva_float_t{210, 80, 90, 75}
+  auto lit_hsl = 120'050'075_hsl;        // hsl_float_t{120.0f, 0.50f, 0.75f}
+  auto lit_hsla = 120'050'075'100_hsla;  // hsla_float_t{120.0f, 0.50f, 0.75f, 1.0f}
+  auto lit_hsv = 210'080'090_hsv;        // hsv_float_t{210.0f, 0.80f, 0.90f}
+  auto lit_hsva = 210'080'090'075_hsva;  // hsva_float_t{210.0f, 0.80f, 0.90f, 0.75f}
   auto lit_cmyk = 50'030'000'020_cmyk;   // cmyk8_t{50, 30, 0, 20}
+  auto lit_oklab = 050'050'050_oklab;    // oklab_t{0.50f, 0.0f, 0.0f}
+  auto lit_oklch = 050'100'120_oklch;    // oklch_t{0.50f, 0.40f, 120.0f}
 
   std::cout << std::hex;
   std::cout << "0xFF6347_rgb:          ";
@@ -121,6 +124,12 @@ int main() {
   std::cout << "50'030'000'020_cmyk:   ";
   print_swatch(std::cout, lit_cmyk, 4);
   std::cout << " " << lit_cmyk << "\n";
+  std::cout << "050'050'050_oklab:      ";
+  print_swatch(std::cout, lit_oklab, 4);
+  std::cout << " " << lit_oklab << "\n";
+  std::cout << "050'100'120_oklch:      ";
+  print_swatch(std::cout, lit_oklch, 4);
+  std::cout << " " << lit_oklch << "\n";
 
   // 4. Parsing from strings
   section("Input: parsing from string");

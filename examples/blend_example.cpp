@@ -7,6 +7,8 @@
 #include <iomanip>
 #include <iostream>
 
+// implementation note: examples reflect the current encoded rgbaf_t working-space path described in docs/reference/blend.rst
+
 using namespace colorcpp;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;
@@ -15,6 +17,7 @@ using namespace colorcpp::io::literals;
 static void section(const char* title) { std::cout << '\n' << bold() << "=== " << title << " ===" << reset() << '\n'; }
 
 static void demo_blend(const char* name, operations::blend::blend_mode mode, rgba8_t bg, rgba8_t fg) {
+  // The public API is blend(dst, src, mode).
   auto result = operations::blend::blend(bg, fg, mode);
   std::cout << "  " << std::left << std::setw(20) << name << "  ";
   print_swatch(std::cout, bg, 3);
@@ -34,7 +37,7 @@ int main() {
   auto steelblue = 0x4682B4_rgb;
 
   // ========================================================================
-  section("1. Basic Porter-Duff Blend Modes");
+  section("1. Basic Blend Modes");
 
   using operations::blend::blend_mode;
 
