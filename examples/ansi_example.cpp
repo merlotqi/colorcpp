@@ -4,6 +4,7 @@
  */
 
 #include <colorcpp/colorcpp.hpp>
+#include <array>
 #include <iostream>
 
 using namespace colorcpp;
@@ -54,11 +55,11 @@ int main() {
   // === Palette ===
   section("Palette");
 
-  core::rgba8_t palette[] = {
+  std::array<core::rgba8_t, 7> palette = {
       "red"_color, "orange"_color, "yellow"_color, "green"_color, "blue"_color, "indigo"_color, "violet"_color,
   };
   std::cout << "Rainbow: ";
-  print_palette(std::cout, palette, 7);
+  print_palette(std::cout, palette);
 
   // === Gradient ===
   section("Gradient");

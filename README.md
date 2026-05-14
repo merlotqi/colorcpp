@@ -460,7 +460,7 @@ print_color(std::cout, c, "coral");
 // Output: ██████ coral #ff7f50ff  RGB(255,127,80)
 
 // Print palette
-print_palette(std::cout, colors.data(), colors.size());
+print_palette(std::cout, colors);
 
 // Print gradient
 print_gradient(std::cout, "red"_color, "blue"_color);
@@ -468,6 +468,11 @@ print_gradient(std::cout, "red"_color, "blue"_color);
 // Print WCAG contrast check
 print_contrast(std::cout, "white"_color, "navy"_color);
 // Output:  Aa  #fff on #000080  contrast: 14.4:1  AAA
+
+// Notes:
+// - ANSI output is a terminal preview from rgba8 conversion.
+// - Alpha is shown numerically but is not rendered as terminal transparency.
+// - Verbose HSL values are derived from converted RGB.
 ```
 
 ### Color Temperature

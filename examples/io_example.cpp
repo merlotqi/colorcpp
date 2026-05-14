@@ -47,6 +47,7 @@ int main() {
   std::cout << "rgb8   hex:  " << coral3 << "\n" << std::dec;
 
   // 2. All color model output
+  // ANSI helpers preview via rgba8 conversion; alpha is numeric-only metadata in text output.
   section("All color models: output");
 
   hsl_float_t hsl = color_cast<hsl_float_t>(coral);
