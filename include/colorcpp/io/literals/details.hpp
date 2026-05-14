@@ -68,9 +68,23 @@ constexpr uint8_t hex_expand(char c) {
   return static_cast<uint8_t>((static_cast<unsigned>(v) << 4u) | static_cast<unsigned>(v));
 }
 
+constexpr bool is_hex_digit(char c) {
+  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+constexpr void validate_hex_chars(const char* s, size_t offset, size_t len) {
+  for (size_t i = 0; i < len; ++i) {
+    if (!is_hex_digit(s[offset + i])) {
+      throw std::invalid_argument("colorcpp: invalid hex digit in _hex literal");
+    }
+  }
+}
+
 constexpr core::rgba8_t parse_hex_string(const char* s, size_t n) {
   size_t offset = (n > 0 && s[0] == '#') ? 1 : 0;
   size_t len = n - offset;
+
+  validate_hex_chars(s, offset, len);
 
   auto get_val = [&](size_t i) { return char_to_hex(s[offset + i]); };
 

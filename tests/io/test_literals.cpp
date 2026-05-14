@@ -149,6 +149,12 @@ TEST(HexLiteralTest, InvalidLengthThrows) {
   EXPECT_THROW((void)"#FF63471"_hex, std::invalid_argument);  // 7 hex digits (not 3/4/6/8)
 }
 
+TEST(HexLiteralTest, InvalidHexDigitsThrow) {
+  EXPECT_THROW((void)"#GG0000"_hex, std::invalid_argument);
+  EXPECT_THROW((void)"#12X"_hex, std::invalid_argument);
+  EXPECT_THROW((void)"#F63Z"_hex, std::invalid_argument);
+}
+
 // _hsl
 
 TEST(HslLiteralTest, GreenHsl) {
@@ -255,6 +261,20 @@ TEST(HsvaLiteralTest, FullyOpaque) {
 TEST(HsvaLiteralTest, FullyTransparent) {
   constexpr auto hsva = 0'100'100'000_hsva;
   EXPECT_FLOAT_EQ(hsva.a(), 0.0f);
+}
+
+TEST(OklabLiteralTest, NeutralMidpoint) {
+  constexpr auto lab = 050'050'050_oklab;
+  static_assert(lab.l() == 0.5f);
+  EXPECT_FLOAT_EQ(lab.a(), 0.0f);
+  EXPECT_FLOAT_EQ(lab.b(), 0.0f);
+}
+
+TEST(OklchLiteralTest, MaxChromaMapsToPointFour) {
+  auto lch = 050'100'120_oklch;
+  EXPECT_FLOAT_EQ(lch.l(), 0.5f);
+  EXPECT_FLOAT_EQ(lch.c(), 0.4f);
+  EXPECT_FLOAT_EQ(lch.h(), 120.0f);
 }
 
 // _cmyk

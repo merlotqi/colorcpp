@@ -13,12 +13,11 @@ namespace colorcpp::io::literals {
 /**
  * @name Oklab Literal Operators
  *
+ * Supported forms: three-channel Oklab literals only.
+ *
  * Encoding: val = L * 1'000'000 + A * 1'000 + B
  *   - L: 0–100 (percentage, 0–1 in storage), A/B: 000–100 (mapped to -0.5–0.5)
- * Example: 050'050'050_oklab → oklab_t{0.50f, 0.0f, 0.0f}  (neutral gray)
- *
- * 4-channel encoding: val = L * 1'000'000'000 + A * 1'000'000 + B * 1'000 + Alpha
- * Example: 050'050'050'100_oklaba → oklaba_t{0.50f, 0.0f, 0.0f, 1.0f}
+ * Example: 050'050'050_oklab → oklab_t{0.50f, 0.0f, 0.0f}
  * @{
  */
 
@@ -39,12 +38,11 @@ constexpr auto operator""_oklab() {
 /**
  * @name OkLCH Literal Operators
  *
- * Encoding: val = L * 1'000'000 + C * 1'000 + H
- *   - L: 0–100 (percentage, 0–1 in storage), C: 000–100 (mapped to 0–0.4), H: 0–360 (degrees)
- * Example: 050'040'120_oklch → oklch_t{0.50f, 0.40f, 120.0f}
+ * Supported forms: three-channel OkLCH literals only.
  *
- * 4-channel encoding: val = L * 1'000'000'000 + C * 1'000'000 + H * 1'000 + Alpha
- * Example: 050'040'120'100_oklcha → oklcha_t{0.50f, 0.40f, 120.0f, 1.0f}
+ * Encoding: val = L * 1'000'000 + C * 1'000 + H
+ *   - L: 0–100 (percentage, 0–1 in storage), C: 000–100 (mapped to 0.0–0.4), H: 0–360 (degrees)
+ * Example: 050'100'120_oklch → oklch_t{0.50f, 0.40f, 120.0f}
  * @{
  */
 
@@ -58,7 +56,8 @@ constexpr auto operator""_oklch() {
   static_assert(l <= 100, "colorcpp: _oklch L out of range (000–100)");
   static_assert(c <= 100, "colorcpp: _oklch C out of range (000–100)");
   static_assert(h <= 360, "colorcpp: _oklch H out of range (0–360)");
-  return core::oklch_t{static_cast<float>(l) / 100.0f, static_cast<float>(c) / 100.0f, static_cast<float>(h)};
+  return core::oklch_t{static_cast<float>(l) / 100.0f, static_cast<float>(c) * 0.4f / 100.0f,
+                       static_cast<float>(h)};
 }
 
 /** @} */
