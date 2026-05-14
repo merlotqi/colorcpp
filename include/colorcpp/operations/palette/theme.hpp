@@ -1,6 +1,7 @@
 /**
  * @file theme.hpp
- * @brief Semantic theme system with automatic dark mode generation.
+ * @brief Heuristic semantic theme system derived from a seed color.
+ * Semantic roles are derived through heuristic seed transformations.
  */
 
 #pragma once
@@ -27,6 +28,7 @@ struct semantic_palette {
 
 class theme {
  public:
+  /** @brief Interpret @p seed as 0xRRGGBB and construct an opaque seed color with alpha set to 0xFF. */
   static theme from_seed(uint32_t seed) {
     return from_seed(core::rgba8_t{
         static_cast<uint8_t>((seed >> 16) & 0xFF),

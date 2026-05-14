@@ -42,13 +42,26 @@ Implemented Features
 * ``families::cool(base, count)`` - Cool colors (blues, greens, purples)
 * ``families::neutral(base, count)`` - Neutral grays with subtle tint
 
-**Material Design:**
-* ``material_primary(base, count)`` - Primary color tonal variants
-* ``material_secondary(base, count)`` - Secondary color (hue +60°)
-* ``material_tertiary(base, count)`` - Tertiary color (hue +120°)
-* ``material_neutral(base, count)`` - Neutral colors (low saturation)
-* ``material_error(count)`` - Error colors (red-based)
-* ``material_design(base, count)`` - Complete Material Design 3 system
+**Material-style heuristics:**
+* ``material_primary(base, count)`` - Heuristic primary role tonal approximation
+* ``material_secondary(base, count)`` - Heuristic secondary role approximation (hue +60°)
+* ``material_tertiary(base, count)`` - Heuristic tertiary role approximation (hue +120°)
+* ``material_neutral(base, count)`` - Heuristic neutral role approximation (low saturation)
+* ``material_error(count)`` - Heuristic error role approximation (red-based)
+* ``material_design(base, count)`` - Fixed ``material_palette`` aggregate with ``palette_set<rgba8_t>`` roles
+
+Structural palette APIs
+-----------------------
+
+* ``schemes::*`` harmony generation
+* scale builders such as ``linear_scale()``, ``visual_scale()``, and ``perceptual_scale()``
+* families and rainbow helpers
+
+Heuristic design-system helpers
+-------------------------------
+
+* ``material_*`` helpers are lightweight heuristic approximations, not a standards-faithful Material token pipeline
+* ``theme`` derives semantic colors heuristically from a seed and should be treated as an evolvable design helper
 
 Notes
 -----
