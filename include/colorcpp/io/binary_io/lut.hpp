@@ -1,13 +1,16 @@
 /**
  * @file lut.hpp
- * @brief Color lookup table (LUT) data structures for 1D and 3D LUTs.
+ * @brief LUT data structures and apply helpers for the current `.cube` workflow.
  *
- * Provides LUT types used by industry-standard formats (e.g. .cube, .csp).
+ * Provides 1D and 3D LUT types plus interpolation helpers used by the current
+ * DaVinci Resolve `.cube` reader/writer implementation.
  */
 
 #pragma once
 
 #include <array>
+#include <colorcpp/core/rgb.hpp>
+#include <colorcpp/operations/conversion.hpp>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -147,6 +150,7 @@ inline std::array<float, 3> apply(const lut1d& lut, float r, float g, float b) {
  */
 inline std::array<float, 3> apply(const lut3d& lut, float r, float g, float b) {
   if (!lut.valid()) return {r, g, b};
+  if (lut.size == 1) return lut.data.front();
 
   float tr = details::normalize(r, lut.domain_min[0], lut.domain_max[0]);
   float tg = details::normalize(g, lut.domain_min[1], lut.domain_max[1]);
@@ -195,31 +199,35 @@ inline std::array<float, 3> apply(const lut3d& lut, float r, float g, float b) {
 }
 
 /**
- * @brief Apply a 3D LUT to any color type with r(), g(), b() accessors.
- * @tparam Color Color type with float r(), g(), b() methods.
- * @return New color with LUT-applied values.
+ * @brief Apply a 3D LUT to any color type convertible to and from `core::rgbaf_t`.
+ * @details The input color is converted to `core::rgbaf_t`, the LUT is evaluated in normalized RGB space,
+ *          and the result is converted back to `Color`.
  */
 template <typename Color>
 Color apply_color(const lut3d& lut, const Color& c) {
-  auto [r, g, b] = apply(lut, c.r(), c.g(), c.b());
-  Color result = c;
-  result.r() = r;
-  result.g() = g;
-  result.b() = b;
-  return result;
+  if (!lut.valid()) return c;
+  auto rgba = operations::conversion::color_cast<core::rgbaf_t>(c);
+  auto [r, g, b] = apply(lut, rgba.r(), rgba.g(), rgba.b());
+  rgba.r() = r;
+  rgba.g() = g;
+  rgba.b() = b;
+  return operations::conversion::color_cast<Color>(rgba);
 }
 
 /**
- * @brief Apply a 1D LUT to any color type with r(), g(), b() accessors.
+ * @brief Apply a 1D LUT to any color type convertible to and from `core::rgbaf_t`.
+ * @details The input color is converted to `core::rgbaf_t`, the LUT is evaluated in normalized RGB space,
+ *          and the result is converted back to `Color`.
  */
 template <typename Color>
 Color apply_color(const lut1d& lut, const Color& c) {
-  auto [r, g, b] = apply(lut, c.r(), c.g(), c.b());
-  Color result = c;
-  result.r() = r;
-  result.g() = g;
-  result.b() = b;
-  return result;
+  if (!lut.valid()) return c;
+  auto rgba = operations::conversion::color_cast<core::rgbaf_t>(c);
+  auto [r, g, b] = apply(lut, rgba.r(), rgba.g(), rgba.b());
+  rgba.r() = r;
+  rgba.g() = g;
+  rgba.b() = b;
+  return operations::conversion::color_cast<Color>(rgba);
 }
 
 }  // namespace colorcpp::io::binary_io
