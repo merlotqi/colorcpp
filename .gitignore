@@ -24,3 +24,11 @@ docs/_build
 imgui.ini
 .worktrees
 .codex
+
+# Debian packaging build artifacts
+obj-*/
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/*.substvars
+debian/libcolorcpp-dev/

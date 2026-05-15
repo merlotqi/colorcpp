@@ -37,6 +37,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 ## Documentation
 
 - **Algorithm reference (reStructuredText):** [docs/reference/index.rst](docs/reference/index.rst) — background, conventions, and links to specs/papers for conversions, ΔE, blending, gamut, accessibility (WCAG 2 + APCA), vision simulation, CSS parsing, and related topics. Start from [docs/index.rst](docs/index.rst) for how this relates to other doc outputs.
+- **Changelog:** [CHANGELOG.md](CHANGELOG.md) — user-facing release history and version notes.
 - **API reference (Doxygen):** Configure CMake with `-DCOLORCPP_BUILD_DOCS=ON`, build target `doc`, and open the generated HTML (output directory is set in [doxygen/Doxygen.in](doxygen/Doxygen.in)).
 - **Sphinx HTML (optional):** Install Sphinx (`pip install -r requirements-docs.txt`), then run `sphinx-build -b html docs docs/_build/html`, or configure with `-DCOLORCPP_BUILD_SPHINX=ON` and build the `sphinx` CMake target.
 
