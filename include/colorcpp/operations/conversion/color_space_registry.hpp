@@ -10,15 +10,17 @@
  * ==========================
  *
  *                        XYZ (root hub)
- *                       / | \
- *                      /  |  \
- *              Linear RGB  OkLab  CIELAB
- *                 |        |        |
- *                sRGB     OkLCH   CIELCH
- *                / | \
- *         HSL HSV HWB CMYK
- *
- *         Display P3 → Linear RGB → XYZ
+ *                       / | \ \
+ *                      /  |  \  \-----------\
+ *              Linear RGB  OkLab  CIELAB     \
+ *                 |        |        |         \
+ *                sRGB     OkLCH   CIELCH       \
+ *               / | \                           \
+ *         HSL HSV HWB CMYK                       \
+ *                                                 \
+ *   Display P3  → Linear Display P3  → XYZ         \
+ *   Adobe RGB   → Linear Adobe RGB   → XYZ          \
+ *   ProPhoto    → Linear ProPhoto    → XYZ (Bradford D50↔D65)
  *
  * These relationships provide metadata and compatibility support for the
  * registered conversion graph rather than defining the public dispatch contract.
@@ -26,10 +28,12 @@
 
 #pragma once
 
+#include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
@@ -166,6 +170,50 @@ struct color_traits<core::display_p3::model::linear_display_p3f> {
 
 template <>
 struct color_traits<core::display_p3::model::linear_display_p3af> {
+  using hub_type = core::xyz_t;
+};
+
+// Adobe RGB uses Linear Adobe RGB as hub
+template <>
+struct color_traits<core::adobe_rgb::model::adobe_rgb> {
+  using hub_type = core::linear_adobe_rgbf_t;
+};
+
+template <>
+struct color_traits<core::adobe_rgb::model::adobe_rgba> {
+  using hub_type = core::linear_adobe_rgbaf_t;
+};
+
+// Linear Adobe RGB uses XYZ as hub
+template <>
+struct color_traits<core::adobe_rgb::model::linear_adobe_rgbf> {
+  using hub_type = core::xyz_t;
+};
+
+template <>
+struct color_traits<core::adobe_rgb::model::linear_adobe_rgbaf> {
+  using hub_type = core::xyz_t;
+};
+
+// ProPhoto RGB uses Linear ProPhoto RGB as hub
+template <>
+struct color_traits<core::prophoto_rgb::model::prophoto_rgb> {
+  using hub_type = core::linear_prophoto_rgbf_t;
+};
+
+template <>
+struct color_traits<core::prophoto_rgb::model::prophoto_rgba> {
+  using hub_type = core::linear_prophoto_rgbaf_t;
+};
+
+// Linear ProPhoto RGB uses XYZ as hub
+template <>
+struct color_traits<core::prophoto_rgb::model::linear_prophoto_rgbf> {
+  using hub_type = core::xyz_t;
+};
+
+template <>
+struct color_traits<core::prophoto_rgb::model::linear_prophoto_rgbaf> {
   using hub_type = core::xyz_t;
 };
 
