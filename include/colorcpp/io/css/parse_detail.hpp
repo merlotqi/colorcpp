@@ -8,9 +8,11 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/oklab.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/io/css/color_function.hpp>
 #include <colorcpp/io/css/context.hpp>
@@ -62,6 +64,10 @@ enum class color_mix_space {
   xyz,
   display_p3,
   display_p3_linear,
+  a98_rgb,
+  a98_rgb_linear,
+  prophoto_rgb,
+  prophoto_rgb_linear,
 };
 
 struct color_mix_interpolation_method {
@@ -201,6 +207,14 @@ inline std::optional<color_mix_interpolation_method> parse_color_mix_space(detai
     space = color_mix_space::display_p3_linear;
   else if (c.consume_ci("display-p3"))
     space = color_mix_space::display_p3;
+  else if (c.consume_ci("a98-rgb-linear"))
+    space = color_mix_space::a98_rgb_linear;
+  else if (c.consume_ci("a98-rgb"))
+    space = color_mix_space::a98_rgb;
+  else if (c.consume_ci("prophoto-rgb-linear"))
+    space = color_mix_space::prophoto_rgb_linear;
+  else if (c.consume_ci("prophoto-rgb"))
+    space = color_mix_space::prophoto_rgb;
   else if (c.consume_ci("lab"))
     space = color_mix_space::lab;
   else if (c.consume_ci("lch"))
@@ -438,6 +452,14 @@ inline core::rgbaf_t mix_colors_in_space(const color_mix_interpolation_method& m
       return mix_in_rectangular_space<core::display_p3f_t>(a, b, weights);
     case color_mix_space::display_p3_linear:
       return mix_in_rectangular_space<core::linear_display_p3f_t>(a, b, weights);
+    case color_mix_space::a98_rgb:
+      return mix_in_rectangular_space<core::adobe_rgbf_t>(a, b, weights);
+    case color_mix_space::a98_rgb_linear:
+      return mix_in_rectangular_space<core::linear_adobe_rgbf_t>(a, b, weights);
+    case color_mix_space::prophoto_rgb:
+      return mix_in_rectangular_space<core::prophoto_rgbf_t>(a, b, weights);
+    case color_mix_space::prophoto_rgb_linear:
+      return mix_in_rectangular_space<core::linear_prophoto_rgbf_t>(a, b, weights);
   }
 
   return mix_in_rectangular_space<core::rgbf_t>(a, b, weights);
