@@ -9,6 +9,7 @@
 #pragma once
 
 #include <array>
+#include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/display_p3.hpp>
@@ -17,6 +18,7 @@
 #include <colorcpp/core/hwb.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/oklab.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion/functions/index.hpp>
@@ -193,7 +195,9 @@ using builtin_color_nodes =
               core::xyz_t, core::cielab_t, core::cielch_t, core::oklab_t, core::oklch_t, core::hsl_float_t,
               core::hsla_float_t, core::hsv_float_t, core::hsva_float_t, core::hwb_float_t, core::hwba_float_t,
               core::cmyk8_t, core::cmyk_float_t, core::display_p3f_t, core::display_p3af_t, core::linear_display_p3f_t,
-              core::linear_display_p3af_t>;
+              core::linear_display_p3af_t, core::adobe_rgbf_t, core::adobe_rgbaf_t, core::linear_adobe_rgbf_t,
+              core::linear_adobe_rgbaf_t, core::prophoto_rgbf_t, core::prophoto_rgbaf_t, core::linear_prophoto_rgbf_t,
+              core::linear_prophoto_rgbaf_t>;
 
 /**
  * @brief Global color graph node set including user extensions.
