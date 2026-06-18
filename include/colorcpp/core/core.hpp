@@ -8,11 +8,13 @@
 
 #pragma once
 
+#include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/constants.hpp>
 #include <colorcpp/core/display_p3.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>

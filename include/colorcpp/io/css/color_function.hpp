@@ -6,8 +6,10 @@
 #pragma once
 
 #include <algorithm>
+#include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/io/css/details.hpp>
@@ -329,18 +331,12 @@ inline std::optional<Color> parsed_color_function_to_color(const parsed_color_fu
       return color_cast_from_css_source<Color>(
           core::xyz_t{clamp_xyz_channel(xyz.x), clamp_xyz_channel(xyz.y), clamp_xyz_channel(xyz.z)}, a);
     }
-    case Space::a98_rgb: {
-      const auto xyz = linear_a98_to_xyz_d65(gamma_decode_a98(r), gamma_decode_a98(g), gamma_decode_a98(b));
+    case Space::a98_rgb:
       return color_cast_from_css_source<Color>(
-          core::xyz_t{clamp_xyz_channel(xyz.x), clamp_xyz_channel(xyz.y), clamp_xyz_channel(xyz.z)}, a);
-    }
-    case Space::prophoto_rgb: {
-      const auto xyz_d50 =
-          linear_prophoto_to_xyz_d50(gamma_decode_prophoto(r), gamma_decode_prophoto(g), gamma_decode_prophoto(b));
-      const auto xyz = xyz_d50_to_d65(xyz_d50.x, xyz_d50.y, xyz_d50.z);
+          core::adobe_rgbf_t{clamp_unit_channel(r), clamp_unit_channel(g), clamp_unit_channel(b)}, a);
+    case Space::prophoto_rgb:
       return color_cast_from_css_source<Color>(
-          core::xyz_t{clamp_xyz_channel(xyz.x), clamp_xyz_channel(xyz.y), clamp_xyz_channel(xyz.z)}, a);
-    }
+          core::prophoto_rgbf_t{clamp_unit_channel(r), clamp_unit_channel(g), clamp_unit_channel(b)}, a);
     case Space::rec2020: {
       const auto xyz =
           linear_rec2020_to_xyz_d65(gamma_decode_rec2020(r), gamma_decode_rec2020(g), gamma_decode_rec2020(b));

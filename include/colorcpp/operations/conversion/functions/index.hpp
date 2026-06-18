@@ -6,10 +6,12 @@
 #pragma once
 
 // Include all conversion function files
+#include <colorcpp/operations/conversion/functions/adobe_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/cmyk.hpp>
 #include <colorcpp/operations/conversion/functions/cmyk8_reg.hpp>
 #include <colorcpp/operations/conversion/functions/display_p3.hpp>
 #include <colorcpp/operations/conversion/functions/hsl.hpp>
+#include <colorcpp/operations/conversion/functions/prophoto_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/hsv.hpp>
 #include <colorcpp/operations/conversion/functions/hwb.hpp>
 #include <colorcpp/operations/conversion/functions/lab.hpp>
@@ -209,5 +211,52 @@ COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::hwba_float_t, core::linear_rgb
                                             details::hwb_to_linear_rgb<core::linear_rgbaf_t>,
                                             details::linear_rgb_to_hwb<core::hwba_float_t>, route_cost::shortcut_2_hop,
                                             route_cost::shortcut_2_hop)
+
+// Adobe RGB ↔ Linear Adobe RGB
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::adobe_rgbf_t, core::linear_adobe_rgbf_t,
+                                   details::adobe_rgb_to_linear_adobe_rgb<core::linear_adobe_rgbf_t>,
+                                   details::linear_adobe_rgb_to_adobe_rgb<core::adobe_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::adobe_rgbaf_t, core::linear_adobe_rgbaf_t,
+                                   details::adobe_rgb_to_linear_adobe_rgb<core::linear_adobe_rgbaf_t>,
+                                   details::linear_adobe_rgb_to_adobe_rgb<core::adobe_rgbaf_t>)
+
+// Linear Adobe RGB ↔ XYZ
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_adobe_rgbf_t, core::xyz_t,
+                                   details::linear_adobe_rgb_to_xyz<core::xyz_t>,
+                                   details::xyz_to_linear_adobe_rgb<core::linear_adobe_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_adobe_rgbaf_t, core::xyz_t,
+                                   details::linear_adobe_rgb_to_xyz<core::xyz_t>,
+                                   details::xyz_to_linear_adobe_rgb<core::linear_adobe_rgbaf_t>)
+
+// Adobe RGB ↔ sRGB (direct short link: 1 hop instead of 4 via Linear ARGB → XYZ → Linear sRGB)
+COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::adobe_rgbf_t, core::rgbf_t,
+                                            details::adobe_rgb_to_srgb<core::rgbf_t>,
+                                            details::srgb_to_adobe_rgb<core::adobe_rgbf_t>,
+                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::adobe_rgbaf_t, core::rgbaf_t,
+                                            details::adobe_rgb_to_srgb<core::rgbaf_t>,
+                                            details::srgb_to_adobe_rgb<core::adobe_rgbaf_t>,
+                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+
+// ProPhoto RGB ↔ Linear ProPhoto RGB
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::prophoto_rgbf_t, core::linear_prophoto_rgbf_t,
+                                   details::prophoto_rgb_to_linear_prophoto_rgb<core::linear_prophoto_rgbf_t>,
+                                   details::linear_prophoto_rgb_to_prophoto_rgb<core::prophoto_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::prophoto_rgbaf_t, core::linear_prophoto_rgbaf_t,
+                                   details::prophoto_rgb_to_linear_prophoto_rgb<core::linear_prophoto_rgbaf_t>,
+                                   details::linear_prophoto_rgb_to_prophoto_rgb<core::prophoto_rgbaf_t>)
+
+// Linear ProPhoto RGB ↔ XYZ
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_prophoto_rgbf_t, core::xyz_t,
+                                   details::linear_prophoto_rgb_to_xyz<core::xyz_t>,
+                                   details::xyz_to_linear_prophoto_rgb<core::linear_prophoto_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_prophoto_rgbaf_t, core::xyz_t,
+                                   details::linear_prophoto_rgb_to_xyz<core::xyz_t>,
+                                   details::xyz_to_linear_prophoto_rgb<core::linear_prophoto_rgbaf_t>)
 
 }  // namespace colorcpp::operations::conversion
