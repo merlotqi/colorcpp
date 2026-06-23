@@ -1,0 +1,1 @@
+extend-diff-ignore = "(^|/)(\.cache/|\.worktrees/|\.vscode/|\.codex|build/|obj-[^/]+/)"

@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCOLORCPP_INSTALL_HEADERS=ON \
+		-DCOLORCPP_BUILD_TESTS=OFF \
+		-DCOLORCPP_BUILD_EXAMPLES=OFF \
+		-DCOLORCPP_BUILD_BENCHMARKS=OFF \
+		-DCOLORCPP_BUILD_DOCS=OFF \
+		-DCOLORCPP_BUILD_SPHINX=OFF
+
+override_dh_auto_test:
+	:

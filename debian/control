@@ -1,0 +1,16 @@
+Source: colorcpp
+Section: libdevel
+Priority: optional
+Maintainer: Merlot Qi <merlotrain.mc@gmail.com>
+Build-Depends: debhelper-compat (= 13), cmake, g++
+Standards-Version: 4.7.0
+Homepage: https://github.com/merlotqi/colorcpp
+Rules-Requires-Root: no
+
+Package: libcolorcpp-dev
+Architecture: all
+Depends: ${misc:Depends}
+Description: Modern header-only C++ library for color manipulation
+ Colorcpp provides C++17 header-only utilities for color conversion,
+ color space operations, ANSI terminal previews, palettes, gradients,
+ accessibility checks, and related helpers.

@@ -82,7 +82,7 @@ jobs:
 
   build-test-windows-vs2022:
     name: MSVC + Visual Studio 17 2022 (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2022
     defaults:
       run:
         shell: bash
