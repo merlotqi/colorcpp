@@ -129,9 +129,9 @@ constexpr To linear_prophoto_rgb_to_xyz(const From& src) {
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);
-    return pack_to<To>(from_unit<To, 0>(x), from_unit<To, 1>(y), from_unit<To, 2>(z), from_unit<To, 3>(a));
+    return pack_to<To>(from_value<To, 0>(x), from_value<To, 1>(y), from_value<To, 2>(z), from_value<To, 3>(a));
   } else {
-    return pack_to<To>(from_unit<To, 0>(x), from_unit<To, 1>(y), from_unit<To, 2>(z));
+    return pack_to<To>(from_value<To, 0>(x), from_value<To, 1>(y), from_value<To, 2>(z));
   }
 }
 
@@ -147,9 +147,10 @@ constexpr To linear_prophoto_rgb_to_xyz(const From& src) {
  */
 template <typename To, typename From>
 constexpr To xyz_to_linear_prophoto_rgb(const From& src) {
-  float x = to_unit<From, 0>(src.template get_index<0>());
-  float y = to_unit<From, 1>(src.template get_index<1>());
-  float z = to_unit<From, 2>(src.template get_index<2>());
+  // Read XYZ directly (XYZ channels have [0,2] range, so to_unit would incorrectly rescale)
+  float x = static_cast<float>(src.template get_index<0>());
+  float y = static_cast<float>(src.template get_index<1>());
+  float z = static_cast<float>(src.template get_index<2>());
 
   // Combined matrix: XYZ(D65) → ProPhoto linear (D50) via inverse Bradford
   float r = 1.403092f * x - 0.223133f * y - 0.101553f * z;

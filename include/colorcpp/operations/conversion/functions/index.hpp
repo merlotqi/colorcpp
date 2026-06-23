@@ -12,6 +12,7 @@
 #include <colorcpp/operations/conversion/functions/display_p3.hpp>
 #include <colorcpp/operations/conversion/functions/hsl.hpp>
 #include <colorcpp/operations/conversion/functions/prophoto_rgb.hpp>
+#include <colorcpp/operations/conversion/functions/rec2020.hpp>
 #include <colorcpp/operations/conversion/functions/hsv.hpp>
 #include <colorcpp/operations/conversion/functions/hwb.hpp>
 #include <colorcpp/operations/conversion/functions/lab.hpp>
@@ -258,5 +259,34 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_prophoto_rgbf_t, core::xyz_t,
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_prophoto_rgbaf_t, core::xyz_t,
                                    details::linear_prophoto_rgb_to_xyz<core::xyz_t>,
                                    details::xyz_to_linear_prophoto_rgb<core::linear_prophoto_rgbaf_t>)
+
+// Rec.2020 ↔ Linear Rec.2020
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::rec2020_rgbf_t, core::linear_rec2020_rgbf_t,
+                                   details::rec2020_to_linear_rec2020<core::linear_rec2020_rgbf_t>,
+                                   details::linear_rec2020_to_rec2020<core::rec2020_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::rec2020_rgbaf_t, core::linear_rec2020_rgbaf_t,
+                                   details::rec2020_to_linear_rec2020<core::linear_rec2020_rgbaf_t>,
+                                   details::linear_rec2020_to_rec2020<core::rec2020_rgbaf_t>)
+
+// Linear Rec.2020 ↔ XYZ
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_rec2020_rgbf_t, core::xyz_t,
+                                   details::linear_rec2020_to_xyz<core::xyz_t>,
+                                   details::xyz_to_linear_rec2020<core::linear_rec2020_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_rec2020_rgbaf_t, core::xyz_t,
+                                   details::linear_rec2020_to_xyz<core::xyz_t>,
+                                   details::xyz_to_linear_rec2020<core::linear_rec2020_rgbaf_t>)
+
+// Rec.2020 ↔ sRGB (direct short link)
+COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rec2020_rgbf_t, core::rgbf_t,
+                                            details::rec2020_to_srgb<core::rgbf_t>,
+                                            details::srgb_to_rec2020<core::rec2020_rgbf_t>,
+                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rec2020_rgbaf_t, core::rgbaf_t,
+                                            details::rec2020_to_srgb<core::rgbaf_t>,
+                                            details::srgb_to_rec2020<core::rec2020_rgbaf_t>,
+                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
 
 }  // namespace colorcpp::operations::conversion

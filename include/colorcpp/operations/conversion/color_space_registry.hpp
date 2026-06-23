@@ -34,6 +34,7 @@
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/prophoto_rgb.hpp>
+#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
@@ -214,6 +215,28 @@ struct color_traits<core::prophoto_rgb::model::linear_prophoto_rgbf> {
 
 template <>
 struct color_traits<core::prophoto_rgb::model::linear_prophoto_rgbaf> {
+  using hub_type = core::xyz_t;
+};
+
+// Rec.2020 uses Linear Rec.2020 as hub
+template <>
+struct color_traits<core::rec2020::model::rec2020> {
+  using hub_type = core::linear_rec2020_rgbf_t;
+};
+
+template <>
+struct color_traits<core::rec2020::model::rec2020a> {
+  using hub_type = core::linear_rec2020_rgbaf_t;
+};
+
+// Linear Rec.2020 uses XYZ as hub
+template <>
+struct color_traits<core::rec2020::model::linear_rec2020f> {
+  using hub_type = core::xyz_t;
+};
+
+template <>
+struct color_traits<core::rec2020::model::linear_rec2020af> {
   using hub_type = core::xyz_t;
 };
 
