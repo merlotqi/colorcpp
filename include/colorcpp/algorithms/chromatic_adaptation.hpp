@@ -17,7 +17,11 @@
 #include <algorithm>
 #include <cmath>
 #include <colorcpp/core/xyz.hpp>
-#include <colorcpp/operations/conversion.hpp>
+namespace colorcpp::operations::conversion {
+// Forward declaration — full definition in conversion.hpp
+template <typename To, typename From>
+constexpr To color_cast(const From& src);
+}
 
 namespace colorcpp::algorithms::chromatic_adaptation {
 
