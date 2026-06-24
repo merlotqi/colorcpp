@@ -164,7 +164,7 @@ COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::display_p3f_t, core::rgbf_t,
 COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::display_p3af_t, core::rgbaf_t,
                                             details::display_p3_to_srgb<core::rgbaf_t>,
                                             details::srgb_to_display_p3<core::display_p3af_t>,
-                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+                                            route_cost::shortcut_2_hop, route_cost::shortcut_2_hop)
 
 // sRGB ↔ CIELAB (direct short link: 1 hop instead of 2 via Linear RGB)
 COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rgbf_t, core::cielab_t, details::srgb_to_lab<core::cielab_t>,

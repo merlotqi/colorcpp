@@ -239,8 +239,6 @@ TEST(DisplayP3Test, TypeTraits) {
   static_assert(traits::has_channel_tag_v<display_p3::model::display_p3a, display_p3::channel::a_tag>);
 }
 
-// Known color conversions - Temporarily disabled due to missing conversion implementation
-/*
 TEST(DisplayP3ConversionTest, BlackConversion) {
   auto p3 = color_cast<display_p3f_t>(rgbf_t{0.0f, 0.0f, 0.0f});
   EXPECT_NEAR(p3.r(), 0.0f, 1e-4f);
@@ -301,6 +299,5 @@ TEST(DisplayP3LinearTest, LinearRoundTrip) {
   EXPECT_NEAR(back.g(), orig.g(), 1e-4f);
   EXPECT_NEAR(back.b(), orig.b(), 1e-4f);
 }
-*/
 
 }  // namespace colorcpp::core::test
