@@ -90,9 +90,7 @@ inline void linrgb_to_adobergb(float lr, float lg, float lb, float& r, float& g,
 // ProPhoto RGB → linear RGB (D50 white point via conversion)
 inline void prophoto_to_linrgb(float r, float g, float b, float& lr, float& lg, float& lb) noexcept {
   // ProPhoto uses gamma 1.8 with linear segment below 1/512
-  auto gamma_decode = [](float v) noexcept {
-    return (v < (1.0f / 32.0f)) ? (v / 16.0f) : std::pow(v, 1.8f);
-  };
+  auto gamma_decode = [](float v) noexcept { return (v < (1.0f / 32.0f)) ? (v / 16.0f) : std::pow(v, 1.8f); };
   lr = gamma_decode(r);
   lg = gamma_decode(g);
   lb = gamma_decode(b);

@@ -5,8 +5,8 @@
  * Build: cmake -DCOLORCPP_BUILD_EXAMPLES=ON && make rec2020_example
  */
 
-#include <iostream>
 #include <colorcpp/colorcpp.hpp>
+#include <iostream>
 
 using namespace colorcpp;
 
@@ -42,8 +42,7 @@ int main() {
   // 3. Round-trip fidelity
   std::cout << "3. Rec.2020 round-trip fidelity\n";
   core::rec2020_rgbf_t orig(0.5f, 0.3f, 0.7f);
-  auto via_srgb = conversion::color_cast<core::rec2020_rgbf_t>(
-      conversion::color_cast<core::rgbf_t>(orig));
+  auto via_srgb = conversion::color_cast<core::rec2020_rgbf_t>(conversion::color_cast<core::rgbf_t>(orig));
   std::cout << "   Original:  " << orig << "\n";
   std::cout << "   Via sRGB:   " << via_srgb << "\n\n";
 
@@ -58,12 +57,11 @@ int main() {
   // 5. CSS parsing
   std::cout << "5. CSS color(rec2020 ...) parsing\n";
   using namespace colorcpp::io::css;
-  auto css = parse_css_color<core::rec2020_rgbaf_t>(
-      "color(rec2020 0.64 0.33 0.21)");
+  auto css = parse_css_color<core::rec2020_rgbaf_t>("color(rec2020 0.64 0.33 0.21)");
   if (css) {
     std::cout << "   Parsed: " << *css << "\n";
-    std::cout << "   CSS string (sRGB fallback): "
-              << to_css_color_string(conversion::color_cast<core::rgbaf_t>(*css)) << "\n";
+    std::cout << "   CSS string (sRGB fallback): " << to_css_color_string(conversion::color_cast<core::rgbaf_t>(*css))
+              << "\n";
   }
   std::cout << "\n";
 

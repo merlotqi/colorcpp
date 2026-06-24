@@ -14,14 +14,14 @@
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/constants.hpp>
 #include <colorcpp/core/display_p3.hpp>
-#include <colorcpp/core/prophoto_rgb.hpp>
-#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
 #include <colorcpp/core/io.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/oklab.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
+#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 

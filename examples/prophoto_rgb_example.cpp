@@ -5,8 +5,8 @@
  * Build: cmake -DCOLORCPP_BUILD_EXAMPLES=ON && make prophoto_rgb_example
  */
 
-#include <iostream>
 #include <colorcpp/colorcpp.hpp>
+#include <iostream>
 
 using namespace colorcpp;
 
@@ -37,33 +37,30 @@ int main() {
   core::xyz_t white_d50 = algorithms::chromatic_adaptation::WHITEPOINT_D50;
   std::cout << "   D65 white: " << white_d65 << "\n";
   std::cout << "   D50 white: " << white_d50 << "\n";
-  auto d65_to_d50 = algorithms::chromatic_adaptation::bradford_adapt(
-      white_d65, white_d65, white_d50);
+  auto d65_to_d50 = algorithms::chromatic_adaptation::bradford_adapt(white_d65, white_d65, white_d50);
   std::cout << "   Bradford(D65→D50): " << d65_to_d50 << "\n\n";
 
   // 4. Gamut check
   std::cout << "4. Gamut membership\n";
   core::rgbf_t in_gamut(0.5f, 0.5f, 0.5f);
-  std::cout << "   Gray 0.5 in ProPhoto? " << std::boolalpha
-            << algorithms::gamut::is_in_prophoto_gamut(in_gamut) << "\n";
+  std::cout << "   Gray 0.5 in ProPhoto? " << std::boolalpha << algorithms::gamut::is_in_prophoto_gamut(in_gamut)
+            << "\n";
   // ProPhoto is huge — most sRGB colors are well inside it
-  std::cout << "   sRGB red in ProPhoto? "
-            << algorithms::gamut::is_in_prophoto_gamut(srgb_red) << "\n\n";
+  std::cout << "   sRGB red in ProPhoto? " << algorithms::gamut::is_in_prophoto_gamut(srgb_red) << "\n\n";
 
   // 5. CSS parsing
   std::cout << "5. CSS color(prophoto-rgb ...) parsing\n";
-  auto css = colorcpp::io::css::parse_css_color<core::prophoto_rgbaf_t>(
-      "color(prophoto-rgb 0.5 0.3 0.7 / 0.9)");
+  auto css = colorcpp::io::css::parse_css_color<core::prophoto_rgbaf_t>("color(prophoto-rgb 0.5 0.3 0.7 / 0.9)");
   if (css) {
     std::cout << "   Parsed: " << *css << "\n";
-    std::cout << "   CSS string: " << colorcpp::io::css::to_css_color_string(conversion::color_cast<core::rgbaf_t>(*css)) << "\n";
+    std::cout << "   CSS string: "
+              << colorcpp::io::css::to_css_color_string(conversion::color_cast<core::rgbaf_t>(*css)) << "\n";
   }
   std::cout << "\n";
 
   // 6. Gamma encoding
   std::cout << "6. Gamma encoding (Gamma 1.8 with linear segment)\n";
-  auto linear_pp = conversion::color_cast<core::linear_prophoto_rgbf_t>(
-      core::prophoto_rgbf_t{0.5f, 0.5f, 0.5f});
+  auto linear_pp = conversion::color_cast<core::linear_prophoto_rgbf_t>(core::prophoto_rgbf_t{0.5f, 0.5f, 0.5f});
   std::cout << "   ProPhoto (gamma):  " << core::prophoto_rgbf_t{0.5f, 0.5f, 0.5f} << "\n";
   std::cout << "   Linear ProPhoto:   " << linear_pp << "\n";
   std::cout << "   (Gamma 1.8 is gentler than sRGB's ~2.2)\n\n";

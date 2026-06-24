@@ -5,8 +5,8 @@
  * Build: cmake -DCOLORCPP_BUILD_EXAMPLES=ON && make chromatic_adaptation_example
  */
 
-#include <iostream>
 #include <colorcpp/colorcpp.hpp>
+#include <iostream>
 
 using namespace colorcpp;
 

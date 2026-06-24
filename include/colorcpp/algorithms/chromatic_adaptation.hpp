@@ -21,7 +21,7 @@ namespace colorcpp::operations::conversion {
 // Forward declaration — full definition in conversion.hpp
 template <typename To, typename From>
 constexpr To color_cast(const From& src);
-}
+}  // namespace colorcpp::operations::conversion
 
 namespace colorcpp::algorithms::chromatic_adaptation {
 
@@ -52,16 +52,12 @@ namespace details {
 
 // Von Kries LMS matrix (Hunt-Pointer-Estevez, normalized to D65)
 inline constexpr float M_VK[9] = {
-    0.40024f,  0.70760f, -0.08081f,
-   -0.22630f,  1.16532f,  0.04570f,
-    0.00000f,  0.00000f,  0.91822f,
+    0.40024f, 0.70760f, -0.08081f, -0.22630f, 1.16532f, 0.04570f, 0.00000f, 0.00000f, 0.91822f,
 };
 
 // Inverse Von Kries LMS matrix
 inline constexpr float M_VK_inv[9] = {
-    1.8599364f, -1.1293816f,  0.2198974f,
-    0.3611914f,  0.6388125f, -0.0000064f,
-    0.0000000f,  0.0000000f,  1.0890636f,
+    1.8599364f, -1.1293816f, 0.2198974f, 0.3611914f, 0.6388125f, -0.0000064f, 0.0000000f, 0.0000000f, 1.0890636f,
 };
 
 }  // namespace details
@@ -88,20 +84,17 @@ ColorT von_kries_adapt(const ColorT& color, const core::xyz_t& src_white, const 
   // Compute LMS of source and destination whites
   float lms_src[3], lms_dst[3];
   for (int i = 0; i < 3; ++i) {
-    lms_src[i] = details::M_VK[i * 3 + 0] * (&src_white.x())[0] +
-                 details::M_VK[i * 3 + 1] * (&src_white.y())[0] +
+    lms_src[i] = details::M_VK[i * 3 + 0] * (&src_white.x())[0] + details::M_VK[i * 3 + 1] * (&src_white.y())[0] +
                  details::M_VK[i * 3 + 2] * (&src_white.z())[0];
-    lms_dst[i] = details::M_VK[i * 3 + 0] * (&dst_white.x())[0] +
-                 details::M_VK[i * 3 + 1] * (&dst_white.y())[0] +
+    lms_dst[i] = details::M_VK[i * 3 + 0] * (&dst_white.x())[0] + details::M_VK[i * 3 + 1] * (&dst_white.y())[0] +
                  details::M_VK[i * 3 + 2] * (&dst_white.z())[0];
   }
 
   // Convert source color to LMS
   float lms[3];
   for (int i = 0; i < 3; ++i) {
-    lms[i] = details::M_VK[i * 3 + 0] * src.x() +
-             details::M_VK[i * 3 + 1] * src.y() +
-             details::M_VK[i * 3 + 2] * src.z();
+    lms[i] =
+        details::M_VK[i * 3 + 0] * src.x() + details::M_VK[i * 3 + 1] * src.y() + details::M_VK[i * 3 + 2] * src.z();
   }
 
   // Apply diagonal scaling
@@ -127,16 +120,12 @@ namespace details {
 
 // Bradford LMS matrix (from Bruce Lindbloom)
 inline constexpr float M_BFD[9] = {
-     0.8951000f,  0.2664000f, -0.1614000f,
-    -0.7502000f,  1.7135000f,  0.0367000f,
-     0.0389000f, -0.0685000f,  1.0296000f,
+    0.8951000f, 0.2664000f, -0.1614000f, -0.7502000f, 1.7135000f, 0.0367000f, 0.0389000f, -0.0685000f, 1.0296000f,
 };
 
 // Inverse Bradford LMS matrix
 inline constexpr float M_BFD_inv[9] = {
-     0.9869929f, -0.1470543f,  0.1599627f,
-     0.4323053f,  0.5183603f,  0.0492912f,
-    -0.0085287f,  0.0400428f,  0.9684867f,
+    0.9869929f, -0.1470543f, 0.1599627f, 0.4323053f, 0.5183603f, 0.0492912f, -0.0085287f, 0.0400428f, 0.9684867f,
 };
 
 }  // namespace details
@@ -164,20 +153,17 @@ ColorT bradford_adapt(const ColorT& color, const core::xyz_t& src_white, const c
   // Compute LMS of source and destination whites
   float lms_src[3], lms_dst[3];
   for (int i = 0; i < 3; ++i) {
-    lms_src[i] = details::M_BFD[i * 3 + 0] * (&src_white.x())[0] +
-                 details::M_BFD[i * 3 + 1] * (&src_white.y())[0] +
+    lms_src[i] = details::M_BFD[i * 3 + 0] * (&src_white.x())[0] + details::M_BFD[i * 3 + 1] * (&src_white.y())[0] +
                  details::M_BFD[i * 3 + 2] * (&src_white.z())[0];
-    lms_dst[i] = details::M_BFD[i * 3 + 0] * (&dst_white.x())[0] +
-                 details::M_BFD[i * 3 + 1] * (&dst_white.y())[0] +
+    lms_dst[i] = details::M_BFD[i * 3 + 0] * (&dst_white.x())[0] + details::M_BFD[i * 3 + 1] * (&dst_white.y())[0] +
                  details::M_BFD[i * 3 + 2] * (&dst_white.z())[0];
   }
 
   // Convert source color to LMS
   float lms[3];
   for (int i = 0; i < 3; ++i) {
-    lms[i] = details::M_BFD[i * 3 + 0] * src.x() +
-             details::M_BFD[i * 3 + 1] * src.y() +
-             details::M_BFD[i * 3 + 2] * src.z();
+    lms[i] =
+        details::M_BFD[i * 3 + 0] * src.x() + details::M_BFD[i * 3 + 1] * src.y() + details::M_BFD[i * 3 + 2] * src.z();
   }
 
   // Apply diagonal scaling

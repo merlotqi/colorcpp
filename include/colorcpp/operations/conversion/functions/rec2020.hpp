@@ -27,10 +27,10 @@ namespace colorcpp::operations::conversion::details {
 namespace rec2020_tf {
 
 constexpr float alpha = 1.09929682680944f;
-constexpr float beta  = 0.018053968510807f;
-constexpr float beta_times_4_5 = beta * 4.5f;   // ≈ 0.081242858
-constexpr float exponent = 0.45f;                 // 1/2.222...
-constexpr float inv_exponent = 1.0f / 0.45f;      // ≈ 2.222...
+constexpr float beta = 0.018053968510807f;
+constexpr float beta_times_4_5 = beta * 4.5f;  // ≈ 0.081242858
+constexpr float exponent = 0.45f;              // 1/2.222...
+constexpr float inv_exponent = 1.0f / 0.45f;   // ≈ 2.222...
 
 /**
  * @brief Linearize a Rec.2020 encoded channel value.
@@ -102,8 +102,8 @@ constexpr To linear_rec2020_to_xyz(const From& src) {
   float b = to_unit<From, 2>(src.template get_index<2>());
 
   float x = 0.6369580483012914f * r + 0.14461690358620838f * g + 0.16888097516417213f * b;
-  float y = 0.2627002120112671f * r  + 0.6779980715188708f * g  + 0.05930171646986196f * b;
-  float z = 0.0000000000000000f * r  + 0.028072693049087428f * g + 1.0609850577107909f * b;
+  float y = 0.2627002120112671f * r + 0.6779980715188708f * g + 0.05930171646986196f * b;
+  float z = 0.0000000000000000f * r + 0.028072693049087428f * g + 1.0609850577107909f * b;
 
   // Use from_value for XYZ output (XYZ channels have [0,2] range, not [0,1])
   if constexpr (To::channels >= 4) {
@@ -126,9 +126,9 @@ constexpr To xyz_to_linear_rec2020(const From& src) {
   float y = static_cast<float>(src.template get_index<1>());
   float z = static_cast<float>(src.template get_index<2>());
 
-  float r =  1.7166511879712679f  * x - 0.35567078377639240f * y - 0.25336628137365992f * z;
-  float g = -0.6666843518324889f  * x + 1.6164812366349388f  * y + 0.015768545813911114f * z;
-  float b =  0.01763985744531078f * x - 0.04277061325780865f * y + 0.942103121235474f    * z;
+  float r = 1.7166511879712679f * x - 0.35567078377639240f * y - 0.25336628137365992f * z;
+  float g = -0.6666843518324889f * x + 1.6164812366349388f * y + 0.015768545813911114f * z;
+  float b = 0.01763985744531078f * x - 0.04277061325780865f * y + 0.942103121235474f * z;
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);
@@ -153,7 +153,7 @@ constexpr To rec2020_to_srgb(const From& src) {
   float a = get_src_alpha(src);
 
   // Step 2: Matrix: Linear Rec.2020 -> Linear sRGB (computed as M_xyz_to_srgb * M_rec2020_to_xyz)
-  float r_srgb_lin =  1.6605f * r_lin - 0.5876f * g_lin - 0.0728f * b_lin;
+  float r_srgb_lin = 1.6605f * r_lin - 0.5876f * g_lin - 0.0728f * b_lin;
   float g_srgb_lin = -0.1246f * r_lin + 1.1329f * g_lin - 0.0083f * b_lin;
   float b_srgb_lin = -0.0182f * r_lin - 0.1006f * g_lin + 1.1187f * b_lin;
 
@@ -189,9 +189,9 @@ constexpr To srgb_to_rec2020(const From& src) {
   float a = get_src_alpha(src);
 
   // Step 2: Matrix: Linear sRGB -> Linear Rec.2020 (inverse of above)
-  float r_r2020_lin =  0.6274f * r_lin + 0.3293f * g_lin + 0.0433f * b_lin;
-  float g_r2020_lin =  0.0691f * r_lin + 0.9195f * g_lin + 0.0114f * b_lin;
-  float b_r2020_lin =  0.0164f * r_lin + 0.0880f * g_lin + 0.8956f * b_lin;
+  float r_r2020_lin = 0.6274f * r_lin + 0.3293f * g_lin + 0.0433f * b_lin;
+  float g_r2020_lin = 0.0691f * r_lin + 0.9195f * g_lin + 0.0114f * b_lin;
+  float b_r2020_lin = 0.0164f * r_lin + 0.0880f * g_lin + 0.8956f * b_lin;
 
   // Step 3: Gamma encode Rec.2020
   auto gamma_encode = [](float v) noexcept {

@@ -28,9 +28,7 @@ namespace colorcpp::operations::conversion::details {
 template <typename To, typename From>
 constexpr To adobe_rgb_to_linear_adobe_rgb(const From& src) {
   // Pure Gamma 2.2 linearization (no sRGB-style linear segment)
-  auto linearize = [](float v) noexcept {
-    return std::pow(v, 2.2f);
-  };
+  auto linearize = [](float v) noexcept { return std::pow(v, 2.2f); };
   float r = linearize(to_unit<From, 0>(src.template get_index<0>()));
   float g = linearize(to_unit<From, 1>(src.template get_index<1>()));
   float b = linearize(to_unit<From, 2>(src.template get_index<2>()));
@@ -130,9 +128,7 @@ constexpr To xyz_to_linear_adobe_rgb(const From& src) {
 template <typename To, typename From>
 constexpr To adobe_rgb_to_srgb(const From& src) {
   // Step 1: Linearize (Gamma 2.2)
-  auto linearize = [](float v) noexcept {
-    return std::pow(v, 2.2f);
-  };
+  auto linearize = [](float v) noexcept { return std::pow(v, 2.2f); };
   float r_lin = linearize(to_unit<From, 0>(src.template get_index<0>()));
   float g_lin = linearize(to_unit<From, 1>(src.template get_index<1>()));
   float b_lin = linearize(to_unit<From, 2>(src.template get_index<2>()));

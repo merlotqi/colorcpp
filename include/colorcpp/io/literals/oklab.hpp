@@ -56,8 +56,7 @@ constexpr auto operator""_oklch() {
   static_assert(l <= 100, "colorcpp: _oklch L out of range (000–100)");
   static_assert(c <= 100, "colorcpp: _oklch C out of range (000–100)");
   static_assert(h <= 360, "colorcpp: _oklch H out of range (0–360)");
-  return core::oklch_t{static_cast<float>(l) / 100.0f, static_cast<float>(c) * 0.4f / 100.0f,
-                       static_cast<float>(h)};
+  return core::oklch_t{static_cast<float>(l) / 100.0f, static_cast<float>(c) * 0.4f / 100.0f, static_cast<float>(h)};
 }
 
 /** @} */

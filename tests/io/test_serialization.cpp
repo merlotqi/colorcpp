@@ -6,6 +6,12 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <colorcpp/core/oklab.hpp>
+#include <colorcpp/core/rgb.hpp>
+#include <colorcpp/io/serialization/details.hpp>
+#include <colorcpp/io/serialization/json_adapter.hpp>
+#include <colorcpp/io/serialization/msgpack_adapter.hpp>
+#include <colorcpp/io/serialization/traits.hpp>
 #include <map>
 #include <optional>
 #include <string>
@@ -13,18 +19,16 @@
 #include <utility>
 #include <vector>
 
-#include <colorcpp/core/oklab.hpp>
-#include <colorcpp/core/rgb.hpp>
-#include <colorcpp/io/serialization/details.hpp>
-#include <colorcpp/io/serialization/json_adapter.hpp>
-#include <colorcpp/io/serialization/msgpack_adapter.hpp>
-#include <colorcpp/io/serialization/traits.hpp>
-
 using namespace colorcpp;
 using namespace colorcpp::io::serialization;
 
 struct fake_json {
-  enum class kind { null_value, number, array, object };
+  enum class kind {
+    null_value,
+    number,
+    array,
+    object
+  };
 
   kind type = kind::null_value;
   double number_value = 0.0;
@@ -33,7 +37,11 @@ struct fake_json {
 };
 
 struct fake_msgpack_packer {
-  enum class mode { none, array, map };
+  enum class mode {
+    none,
+    array,
+    map
+  };
 
   mode packed_mode = mode::none;
   std::vector<double> numbers;
@@ -71,7 +79,9 @@ struct colorcpp::io::serialization::json_adapter<fake_json> {
     arr.array_values.push_back(value);
   }
 
-  static void set(fake_json& obj, std::string_view key, const fake_json& val) { obj.object_values[std::string(key)] = val; }
+  static void set(fake_json& obj, std::string_view key, const fake_json& val) {
+    obj.object_values[std::string(key)] = val;
+  }
 
   static void set(fake_json& obj, std::string_view key, double v) {
     fake_json value;
@@ -127,7 +137,9 @@ struct colorcpp::io::serialization::msgpack_packer<fake_msgpack_packer> {
     }
   }
 
-  static void pack_string(fake_msgpack_packer& p, std::string_view s) { p.key_values.emplace_back(std::string(s), 0.0); }
+  static void pack_string(fake_msgpack_packer& p, std::string_view s) {
+    p.key_values.emplace_back(std::string(s), 0.0);
+  }
 };
 
 template <>

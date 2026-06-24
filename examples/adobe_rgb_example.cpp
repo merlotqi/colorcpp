@@ -5,8 +5,8 @@
  * Build: cmake -DCOLORCPP_BUILD_EXAMPLES=ON && make adobe_rgb_example
  */
 
-#include <iostream>
 #include <colorcpp/colorcpp.hpp>
+#include <iostream>
 
 using namespace colorcpp;
 using namespace colorcpp::io::ansi;
@@ -55,7 +55,8 @@ int main() {
   auto css = colorcpp::io::css::parse_css_color<core::adobe_rgbaf_t>("color(a98-rgb 0.64 0.33 0.21)");
   if (css) {
     std::cout << "   Parsed: " << *css << "\n";
-    std::cout << "   CSS string: " << colorcpp::io::css::to_css_color_string(conversion::color_cast<core::rgbaf_t>(*css)) << "\n";
+    std::cout << "   CSS string: "
+              << colorcpp::io::css::to_css_color_string(conversion::color_cast<core::rgbaf_t>(*css)) << "\n";
   }
   std::cout << "\n";
 

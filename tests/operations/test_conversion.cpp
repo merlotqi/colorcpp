@@ -148,9 +148,8 @@ TEST(ConversionTest, GraphRoutingPrefersLowerWeightedCanonicalPathToOklab) {
   static_assert(std::is_same_v<graph::next_hop_t<rgbf_t, cielab_t>, linear_rgbf_t>);
 
   const display_p3f_t sample{0.90f, 0.35f, 0.15f};
-  const auto expected =
-      details::xyz_to_oklab<oklab_t>(details::linear_display_p3_to_xyz<xyz_t>(
-          details::display_p3_to_linear_display_p3<linear_display_p3f_t>(sample)));
+  const auto expected = details::xyz_to_oklab<oklab_t>(
+      details::linear_display_p3_to_xyz<xyz_t>(details::display_p3_to_linear_display_p3<linear_display_p3f_t>(sample)));
   const auto casted = color_cast<oklab_t>(sample);
 
   EXPECT_NEAR(casted.l(), expected.l(), 1e-6f);

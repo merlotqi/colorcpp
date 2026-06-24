@@ -40,10 +40,10 @@ class luminance_generator : public basic_random_generator<Color, Engine> {
  public:
   /** @brief Generation options. */
   struct options {
-    float l_min = 0.0f;        ///< OkLab lightness lower bound [0, 1].
-    float l_max = 1.0f;        ///< OkLab lightness upper bound [0, 1].
-    float chroma_max = 0.4f;   ///< OkLCH chroma upper bound [0, 0.4].
-    bool gamut_map = true;     ///< Clip to sRGB gamut via lightness-preserving mapper.
+    float l_min = 0.0f;       ///< OkLab lightness lower bound [0, 1].
+    float l_max = 1.0f;       ///< OkLab lightness upper bound [0, 1].
+    float chroma_max = 0.4f;  ///< OkLCH chroma upper bound [0, 0.4].
+    bool gamut_map = true;    ///< Clip to sRGB gamut via lightness-preserving mapper.
   };
 
   explicit luminance_generator(const Engine& e, const options& o = {}) : base(e), opts_(o) { validate(opts_); }

@@ -14,8 +14,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/algorithms/chromatic_adaptation.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
 
@@ -129,16 +129,14 @@ constexpr To linear_prophoto_rgb_to_xyz(const From& src) {
   // Step 2: Bradford chromatic adaptation D50 → D65
   core::xyz_t xyz_d50{x_d50, y_d50, z_d50};
   auto xyz_d65 = algorithms::chromatic_adaptation::bradford_adapt(
-      xyz_d50, algorithms::chromatic_adaptation::WHITEPOINT_D50,
-      algorithms::chromatic_adaptation::WHITEPOINT_D65);
+      xyz_d50, algorithms::chromatic_adaptation::WHITEPOINT_D50, algorithms::chromatic_adaptation::WHITEPOINT_D65);
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);
-    return pack_to<To>(from_value<To, 0>(xyz_d65.x()), from_value<To, 1>(xyz_d65.y()),
-                       from_value<To, 2>(xyz_d65.z()), from_value<To, 3>(a));
+    return pack_to<To>(from_value<To, 0>(xyz_d65.x()), from_value<To, 1>(xyz_d65.y()), from_value<To, 2>(xyz_d65.z()),
+                       from_value<To, 3>(a));
   } else {
-    return pack_to<To>(from_value<To, 0>(xyz_d65.x()), from_value<To, 1>(xyz_d65.y()),
-                       from_value<To, 2>(xyz_d65.z()));
+    return pack_to<To>(from_value<To, 0>(xyz_d65.x()), from_value<To, 1>(xyz_d65.y()), from_value<To, 2>(xyz_d65.z()));
   }
 }
 
@@ -159,14 +157,13 @@ constexpr To xyz_to_linear_prophoto_rgb(const From& src) {
   // Step 1: Bradford chromatic adaptation D65 → D50
   core::xyz_t xyz_d65{x, y, z};
   auto xyz_d50 = algorithms::chromatic_adaptation::bradford_adapt(
-      xyz_d65, algorithms::chromatic_adaptation::WHITEPOINT_D65,
-      algorithms::chromatic_adaptation::WHITEPOINT_D50);
+      xyz_d65, algorithms::chromatic_adaptation::WHITEPOINT_D65, algorithms::chromatic_adaptation::WHITEPOINT_D50);
 
   // Step 2: XYZ(D50) → Linear ProPhoto RGB via inverse primaries matrix
   // M_xyz_to_prophoto(D50) from Bruce Lindbloom
-  float r =  1.3459433f * xyz_d50.x() - 0.2556075f * xyz_d50.y() - 0.0511118f * xyz_d50.z();
+  float r = 1.3459433f * xyz_d50.x() - 0.2556075f * xyz_d50.y() - 0.0511118f * xyz_d50.z();
   float g = -0.5445989f * xyz_d50.x() + 1.5081673f * xyz_d50.y() + 0.0205351f * xyz_d50.z();
-  float b =  0.0000000f * xyz_d50.x() + 0.0000000f * xyz_d50.y() + 1.2119587f * xyz_d50.z();
+  float b = 0.0000000f * xyz_d50.x() + 0.0000000f * xyz_d50.y() + 1.2119587f * xyz_d50.z();
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);

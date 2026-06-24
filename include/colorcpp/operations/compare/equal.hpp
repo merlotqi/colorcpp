@@ -5,12 +5,11 @@
 
 #pragma once
 
-#include <utility>
-
 #include <colorcpp/operations/compare/epsilon.hpp>
 #include <colorcpp/operations/compare/exact.hpp>
 #include <colorcpp/operations/compare/perceptual.hpp>
 #include <colorcpp/operations/compare/relative.hpp>
+#include <utility>
 
 namespace colorcpp::operations::compare {
 
@@ -44,9 +43,9 @@ constexpr bool equal(const Color& a, const Color& b) noexcept {
  * @return True if colors are equal according to the policy.
  */
 template <typename Policy, typename ColorA, typename ColorB, typename... Args>
-constexpr auto equal(const ColorA& a, const ColorB& b, Args&&... args)
-    noexcept(noexcept(Policy::compare(a, b, std::forward<Args>(args)...)))
-        -> decltype(Policy::compare(a, b, std::forward<Args>(args)...)) {
+constexpr auto equal(const ColorA& a, const ColorB& b,
+                     Args&&... args) noexcept(noexcept(Policy::compare(a, b, std::forward<Args>(args)...)))
+    -> decltype(Policy::compare(a, b, std::forward<Args>(args)...)) {
   return Policy::compare(a, b, std::forward<Args>(args)...);
 }
 

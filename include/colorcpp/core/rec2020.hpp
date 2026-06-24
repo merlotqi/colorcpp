@@ -48,8 +48,8 @@ namespace colorcpp::traits {
 
 template <>
 struct model_traits<core::rec2020::model::rec2020> {
-  using channels_type = std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green,
-                                   core::rec2020::channel::f32_blue>;
+  using channels_type =
+      std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green, core::rec2020::channel::f32_blue>;
   static constexpr std::string_view prefix = "rec2020";
   static constexpr std::size_t channel_size = 3;
 };
@@ -64,8 +64,8 @@ struct model_traits<core::rec2020::model::rec2020a> {
 
 template <>
 struct model_traits<core::rec2020::model::linear_rec2020f> {
-  using channels_type = std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green,
-                                   core::rec2020::channel::f32_blue>;
+  using channels_type =
+      std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green, core::rec2020::channel::f32_blue>;
   static constexpr std::string_view prefix = "linear-rec2020";
   static constexpr std::size_t channel_size = 3;
 };
@@ -108,28 +108,44 @@ struct basic_rec2020 : basic_color<Model> {
 
  public:
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::r_tag>>>
-  constexpr auto& r() { return channel<rec2020::channel::r_tag>(); }
+  constexpr auto& r() {
+    return channel<rec2020::channel::r_tag>();
+  }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::r_tag>>>
-  constexpr const auto& r() const { return channel<rec2020::channel::r_tag>(); }
+  constexpr const auto& r() const {
+    return channel<rec2020::channel::r_tag>();
+  }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::g_tag>>>
-  constexpr auto& g() { return channel<rec2020::channel::g_tag>(); }
+  constexpr auto& g() {
+    return channel<rec2020::channel::g_tag>();
+  }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::g_tag>>>
-  constexpr const auto& g() const { return channel<rec2020::channel::g_tag>(); }
+  constexpr const auto& g() const {
+    return channel<rec2020::channel::g_tag>();
+  }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::b_tag>>>
-  constexpr auto& b() { return channel<rec2020::channel::b_tag>(); }
+  constexpr auto& b() {
+    return channel<rec2020::channel::b_tag>();
+  }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::b_tag>>>
-  constexpr const auto& b() const { return channel<rec2020::channel::b_tag>(); }
+  constexpr const auto& b() const {
+    return channel<rec2020::channel::b_tag>();
+  }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::a_tag>>>
-  constexpr auto& a() { return channel<rec2020::channel::a_tag>(); }
+  constexpr auto& a() {
+    return channel<rec2020::channel::a_tag>();
+  }
 
   template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::a_tag>>>
-  constexpr const auto& a() const { return channel<rec2020::channel::a_tag>(); }
+  constexpr const auto& a() const {
+    return channel<rec2020::channel::a_tag>();
+  }
 };
 
 /** @brief Rec.2020 with float channels. */

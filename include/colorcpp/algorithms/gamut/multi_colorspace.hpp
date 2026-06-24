@@ -16,10 +16,10 @@ namespace colorcpp::algorithms::gamut {
  * @brief Gamut types supported for checking and clipping.
  */
 enum class gamut_type {
-  srgb,         ///< Standard RGB (sRGB)
-  display_p3,   ///< Display P3 (wide gamut)
-  adobe_rgb,    ///< Adobe RGB (wide gamut)
-  prophoto_rgb, ///< ProPhoto RGB (widest gamut)
+  srgb,          ///< Standard RGB (sRGB)
+  display_p3,    ///< Display P3 (wide gamut)
+  adobe_rgb,     ///< Adobe RGB (wide gamut)
+  prophoto_rgb,  ///< ProPhoto RGB (widest gamut)
 };
 
 namespace details {
@@ -48,9 +48,8 @@ inline bool linrgb_in_adobergb_gamut(float r, float g, float b, float eps = 1e-4
 inline bool linrgb_in_prophoto_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
   float pprgb_r, pprgb_g, pprgb_b;
   linrgb_to_prophoto(r, g, b, pprgb_r, pprgb_g, pprgb_b);
-  return pprgb_r >= -eps && pprgb_r <= 1.0f + eps &&
-         pprgb_g >= -eps && pprgb_g <= 1.0f + eps &&
-         pprgb_b >= -eps && pprgb_b <= 1.0f + eps;
+  return pprgb_r >= -eps && pprgb_r <= 1.0f + eps && pprgb_g >= -eps && pprgb_g <= 1.0f + eps && pprgb_b >= -eps &&
+         pprgb_b <= 1.0f + eps;
 }
 
 // Generic gamut check based on gamut type

@@ -6,16 +6,15 @@
 #pragma once
 
 #include <algorithm>
+#include <colorcpp/operations/interpolate/catmull_rom.hpp>
+#include <colorcpp/operations/interpolate/cubic.hpp>
+#include <colorcpp/operations/interpolate/lerp.hpp>
+#include <colorcpp/operations/interpolate/monotonic_spline.hpp>
 #include <cstddef>
 #include <initializer_list>
 #include <iterator>
 #include <type_traits>
 #include <utility>
-
-#include <colorcpp/operations/interpolate/catmull_rom.hpp>
-#include <colorcpp/operations/interpolate/cubic.hpp>
-#include <colorcpp/operations/interpolate/lerp.hpp>
-#include <colorcpp/operations/interpolate/monotonic_spline.hpp>
 
 namespace colorcpp::operations::interpolate {
 
@@ -88,8 +87,7 @@ auto lerp_path_impl(const Container& colors, float t, path_algorithm algorithm, 
  */
 template <typename Container>
 auto lerp_path(const Container& colors, float t, path_algorithm algorithm = path_algorithm::monotonic_spline,
-               cr_mode catmull_mode = cr_mode::centripetal, float tension = 0.0f)
-    -> details::path_color_t<Container> {
+               cr_mode catmull_mode = cr_mode::centripetal, float tension = 0.0f) -> details::path_color_t<Container> {
   return details::lerp_path_impl(colors, t, algorithm, catmull_mode, tension);
 }
 

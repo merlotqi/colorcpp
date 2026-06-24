@@ -7,7 +7,8 @@
 #include <iomanip>
 #include <iostream>
 
-// implementation note: examples reflect the current encoded rgbaf_t working-space path described in docs/reference/blend.rst
+// implementation note: examples reflect the current encoded rgbaf_t working-space path described in
+// docs/reference/blend.rst
 
 using namespace colorcpp;
 using namespace colorcpp::operations::conversion;

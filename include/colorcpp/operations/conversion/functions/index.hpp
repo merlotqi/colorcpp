@@ -11,13 +11,13 @@
 #include <colorcpp/operations/conversion/functions/cmyk8_reg.hpp>
 #include <colorcpp/operations/conversion/functions/display_p3.hpp>
 #include <colorcpp/operations/conversion/functions/hsl.hpp>
-#include <colorcpp/operations/conversion/functions/prophoto_rgb.hpp>
-#include <colorcpp/operations/conversion/functions/rec2020.hpp>
 #include <colorcpp/operations/conversion/functions/hsv.hpp>
 #include <colorcpp/operations/conversion/functions/hwb.hpp>
 #include <colorcpp/operations/conversion/functions/lab.hpp>
 #include <colorcpp/operations/conversion/functions/linear_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/oklab.hpp>
+#include <colorcpp/operations/conversion/functions/prophoto_rgb.hpp>
+#include <colorcpp/operations/conversion/functions/rec2020.hpp>
 #include <colorcpp/operations/conversion/functions/rgbf_oklab_reg.hpp>
 #include <colorcpp/operations/conversion/functions/srgb8_cast.hpp>
 #include <colorcpp/operations/conversion/functions/xyz.hpp>
@@ -232,15 +232,14 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_adobe_rgbaf_t, core::xyz_t,
                                    details::xyz_to_linear_adobe_rgb<core::linear_adobe_rgbaf_t>)
 
 // Adobe RGB ↔ sRGB (direct short link: 1 hop instead of 4 via Linear ARGB → XYZ → Linear sRGB)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::adobe_rgbf_t, core::rgbf_t,
-                                            details::adobe_rgb_to_srgb<core::rgbf_t>,
-                                            details::srgb_to_adobe_rgb<core::adobe_rgbf_t>,
-                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::adobe_rgbf_t, core::rgbf_t, details::adobe_rgb_to_srgb<core::rgbf_t>,
+                                            details::srgb_to_adobe_rgb<core::adobe_rgbf_t>, route_cost::shortcut_4_hop,
+                                            route_cost::shortcut_4_hop)
 
 COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::adobe_rgbaf_t, core::rgbaf_t,
                                             details::adobe_rgb_to_srgb<core::rgbaf_t>,
-                                            details::srgb_to_adobe_rgb<core::adobe_rgbaf_t>,
-                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+                                            details::srgb_to_adobe_rgb<core::adobe_rgbaf_t>, route_cost::shortcut_4_hop,
+                                            route_cost::shortcut_4_hop)
 
 // ProPhoto RGB ↔ Linear ProPhoto RGB
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::prophoto_rgbf_t, core::linear_prophoto_rgbf_t,
@@ -279,14 +278,13 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_rec2020_rgbaf_t, core::xyz_t,
                                    details::xyz_to_linear_rec2020<core::linear_rec2020_rgbaf_t>)
 
 // Rec.2020 ↔ sRGB (direct short link)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rec2020_rgbf_t, core::rgbf_t,
-                                            details::rec2020_to_srgb<core::rgbf_t>,
-                                            details::srgb_to_rec2020<core::rec2020_rgbf_t>,
-                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rec2020_rgbf_t, core::rgbf_t, details::rec2020_to_srgb<core::rgbf_t>,
+                                            details::srgb_to_rec2020<core::rec2020_rgbf_t>, route_cost::shortcut_4_hop,
+                                            route_cost::shortcut_4_hop)
 
 COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rec2020_rgbaf_t, core::rgbaf_t,
                                             details::rec2020_to_srgb<core::rgbaf_t>,
-                                            details::srgb_to_rec2020<core::rec2020_rgbaf_t>,
-                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
+                                            details::srgb_to_rec2020<core::rec2020_rgbaf_t>, route_cost::shortcut_4_hop,
+                                            route_cost::shortcut_4_hop)
 
 }  // namespace colorcpp::operations::conversion
