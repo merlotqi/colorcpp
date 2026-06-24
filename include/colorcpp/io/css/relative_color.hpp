@@ -9,6 +9,7 @@
 #include <cctype>
 #include <cmath>
 #include <colorcpp/core/display_p3.hpp>
+#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/io/css/color_function.hpp>
@@ -1009,6 +1010,33 @@ inline std::optional<Color> evaluate(
   context.variable_resolver = std::move(variable_resolver);
   context.numeric_variable_resolver = std::move(numeric_variable_resolver);
   return evaluate<Color>(ast, context);
+}
+
+// Forward declare parse_css_color primary template to enable specialization
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str);
+
+// Rec.2020 specialization — parsed by generic color() infrastructure,
+// but this overload enables parse_css_color<rec2020_rgbaf_t>().
+template <>
+inline std::optional<core::rec2020_rgbaf_t> parse_css_color<core::rec2020_rgbaf_t>(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+
+  // Try direct typed parsing — handles color(rec2020 ...) with correct alpha
+  details::Cursor c{str, 0};
+  if (auto typed = parse_color_function_as<core::rec2020_rgbaf_t>(c)) {
+    c.skip_ws();
+    if (c.eof()) return typed;
+  }
+
+  // Fallback: parse as sRGB and convert to Rec.2020
+  auto parsed = parse_css_color_rgbaf(str);
+  if (!parsed) return std::nullopt;
+  auto out = operations::conversion::color_cast<core::rec2020_rgbaf_t>(*parsed);
+  // Restore alpha — conversion via xyz_t hub drops it
+  out.a() = std::clamp(parsed->a(), 0.0f, 1.0f);
+  return out;
 }
 
 }  // namespace colorcpp::io::css

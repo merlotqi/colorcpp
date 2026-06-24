@@ -10,6 +10,7 @@
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/prophoto_rgb.hpp>
+#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/io/css/details.hpp>
@@ -137,8 +138,11 @@ inline core::rgbaf_t prophoto_to_rgbaf(float r, float g, float b, float a) {
 }
 
 inline core::rgbaf_t rec2020_to_rgbaf(float r, float g, float b, float a) {
-  const auto xyz = linear_rec2020_to_xyz_d65(gamma_decode_rec2020(r), gamma_decode_rec2020(g), gamma_decode_rec2020(b));
-  return xyz_d65_to_rgbaf(xyz.x, xyz.y, xyz.z, a);
+  auto r2020 = core::rec2020_rgbaf_t{r, g, b, a};
+  auto out = operations::conversion::color_cast<core::rgbaf_t>(r2020);
+  // Restore alpha — conversion via xyz_t hub drops it
+  out.a() = std::clamp(a, 0.0f, 1.0f);
+  return out;
 }
 
 inline bool parse_channel_unbounded(details::Cursor& d, float& out) {
