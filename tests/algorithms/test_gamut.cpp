@@ -303,4 +303,33 @@ TEST(PreserveModeTest, GamutClipWithInfo) {
   }
 }
 
+// --- ProPhoto RGB gamut ---
+
+TEST(MultiColorspaceGamutTest, ProPhotoInGamut) {
+  // Colors near sRGB primaries should all be within ProPhoto's massive gamut
+  EXPECT_TRUE(is_in_gamut(rgbf_t{1.0f, 0.0f, 0.0f}, gamut_type::prophoto_rgb));
+  EXPECT_TRUE(is_in_gamut(rgbf_t{0.0f, 1.0f, 0.0f}, gamut_type::prophoto_rgb));
+  EXPECT_TRUE(is_in_gamut(rgbf_t{0.0f, 0.0f, 1.0f}, gamut_type::prophoto_rgb));
+  EXPECT_TRUE(is_in_gamut(rgbf_t{0.0f, 0.0f, 0.0f}, gamut_type::prophoto_rgb));
+  EXPECT_TRUE(is_in_gamut(rgbf_t{1.0f, 1.0f, 1.0f}, gamut_type::prophoto_rgb));
+}
+
+TEST(MultiColorspaceGamutTest, ProPhotoConvenienceFunction) {
+  EXPECT_TRUE(is_in_prophoto_gamut(rgbf_t{0.5f, 0.5f, 0.5f}));
+}
+
+TEST(MultiColorspaceGamutTest, GamutClipToProPhoto) {
+  // Clipping a valid sRGB color to ProPhoto should return it (ProPhoto is larger)
+  auto result = gamut_clip_to_gamut(rgbf_t{0.3f, 0.6f, 0.9f}, gamut_type::prophoto_rgb);
+  EXPECT_NEAR(result.template get_index<0>(), 0.3f, 1e-2f);
+  EXPECT_NEAR(result.template get_index<1>(), 0.6f, 1e-2f);
+  EXPECT_NEAR(result.template get_index<2>(), 0.9f, 1e-2f);
+}
+
+TEST(MultiColorspaceGamutTest, ProPhotoClippedResultIsInGamut) {
+  // Clip an out-of-gamut color to ProPhoto, verify in-gamut
+  auto clipped = gamut_clip_to_gamut(core::oklab_t{0.5f, 0.4f, 0.0f}, gamut_type::prophoto_rgb);
+  EXPECT_TRUE(is_in_gamut(clipped, gamut_type::prophoto_rgb));
+}
+
 }  // namespace colorcpp::algorithms::test
