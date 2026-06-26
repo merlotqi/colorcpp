@@ -594,9 +594,8 @@ TEST(Css, RelativeColorAstEvaluateSupportsVar) {
   auto concrete = parse_css_color_ast("red");
   ASSERT_TRUE(concrete);
   EXPECT_TRUE(concrete->is_concrete());
-  auto concrete_eval = evaluate<rgba8_t>(*concrete, [](std::string_view) -> std::optional<rgbaf_t> {
-    return std::nullopt;
-  });
+  auto concrete_eval =
+      evaluate<rgba8_t>(*concrete, [](std::string_view) -> std::optional<rgbaf_t> { return std::nullopt; });
   ASSERT_TRUE(concrete_eval);
   expect_rgba(*concrete_eval, 255, 0, 0, 255);
 }
@@ -612,7 +611,8 @@ TEST(Css, RelativeColorParsingUsesContextVariableResolver) {
   ASSERT_TRUE(rgb_relative);
   expect_rgbaf_near(*rgb_relative, 0.9f, 0.2f, 0.48f, 0.8f, 0.01f);
 
-  auto color_relative = parse_css_color_rgbaf("color(from var(--theme-primary) srgb calc(r * 0.5) g b / alpha)", context);
+  auto color_relative =
+      parse_css_color_rgbaf("color(from var(--theme-primary) srgb calc(r * 0.5) g b / alpha)", context);
   ASSERT_TRUE(color_relative);
   expect_rgbaf_near(*color_relative, 0.45f, 0.2f, 0.4f, 1.0f, 0.01f);
 
@@ -760,8 +760,8 @@ TEST(Css, ColorMixHueInterpolationKeywords) {
   auto shorter_expected = parse_css_color_rgbaf("oklch(0.7 0.04 60)");
   ASSERT_TRUE(shorter);
   ASSERT_TRUE(shorter_expected);
-  expect_rgbaf_near(*shorter, shorter_expected->r(), shorter_expected->g(), shorter_expected->b(), shorter_expected->a(),
-                    0.01f);
+  expect_rgbaf_near(*shorter, shorter_expected->r(), shorter_expected->g(), shorter_expected->b(),
+                    shorter_expected->a(), 0.01f);
 
   auto longer = parse_css_color_rgbaf("color-mix(in oklch longer hue, oklch(0.7 0.04 30), oklch(0.7 0.04 90))");
   auto longer_expected = parse_css_color_rgbaf("oklch(0.7 0.04 240)");

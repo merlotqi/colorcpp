@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <colorcpp/algorithms/chromatic_adaptation.hpp>
 #include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
@@ -106,12 +107,9 @@ constexpr To linear_prophoto_rgb_to_prophoto_rgb(const From& src) {
 /**
  * @brief Convert Linear ProPhoto RGB (D50) to CIE XYZ (D65).
  *
- * This conversion combines two steps:
+ * This is a two-step conversion:
  *   1. Linear ProPhoto RGB → XYZ(D50) via ProPhoto primaries matrix
  *   2. XYZ(D50) → XYZ(D65) via Bradford chromatic adaptation
- *
- * Combined matrix computed from:
- *   M_bfd(D50→D65) × M_prophoto_rgb_to_xyz(D50)
  *
  * Reference:
  *   http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -122,39 +120,50 @@ constexpr To linear_prophoto_rgb_to_xyz(const From& src) {
   float g = to_unit<From, 1>(src.template get_index<1>());
   float b = to_unit<From, 2>(src.template get_index<2>());
 
-  // Combined matrix: ProPhoto (D50) → XYZ(D65) via Bradford adaptation
-  float x = 0.755586f * r + 0.112772f * g + 0.108835f * b;
-  float y = 0.268238f * r + 0.715018f * g + 0.015744f * b;
-  float z = 0.003912f * r - 0.012919f * g + 1.097797f * b;
+  // Step 1: Linear ProPhoto RGB → XYZ(D50) via pure primaries matrix
+  // M_prophoto_to_xyz(D50) from Bruce Lindbloom
+  float x_d50 = 0.7977605f * r + 0.1351858f * g + 0.0313493f * b;
+  float y_d50 = 0.2880711f * r + 0.7118432f * g + 0.0000857f * b;
+  float z_d50 = 0.0000000f * r + 0.0000000f * g + 0.8251046f * b;
+
+  // Step 2: Bradford chromatic adaptation D50 → D65
+  core::xyz_t xyz_d50{x_d50, y_d50, z_d50};
+  auto xyz_d65 = algorithms::chromatic_adaptation::bradford_adapt(
+      xyz_d50, algorithms::chromatic_adaptation::WHITEPOINT_D50, algorithms::chromatic_adaptation::WHITEPOINT_D65);
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);
-    return pack_to<To>(from_unit<To, 0>(x), from_unit<To, 1>(y), from_unit<To, 2>(z), from_unit<To, 3>(a));
+    return pack_to<To>(from_value<To, 0>(xyz_d65.x()), from_value<To, 1>(xyz_d65.y()), from_value<To, 2>(xyz_d65.z()),
+                       from_value<To, 3>(a));
   } else {
-    return pack_to<To>(from_unit<To, 0>(x), from_unit<To, 1>(y), from_unit<To, 2>(z));
+    return pack_to<To>(from_value<To, 0>(xyz_d65.x()), from_value<To, 1>(xyz_d65.y()), from_value<To, 2>(xyz_d65.z()));
   }
 }
 
 /**
  * @brief Convert CIE XYZ (D65) to Linear ProPhoto RGB (D50).
  *
- * This conversion combines two steps:
+ * This is a two-step conversion:
  *   1. XYZ(D65) → XYZ(D50) via inverse Bradford chromatic adaptation
  *   2. XYZ(D50) → Linear ProPhoto RGB via inverse ProPhoto primaries matrix
- *
- * Combined matrix computed from:
- *   M_prophoto_xyz_to_rgb(D50) × M_bfd_inv(D65→D50)
  */
 template <typename To, typename From>
 constexpr To xyz_to_linear_prophoto_rgb(const From& src) {
-  float x = to_unit<From, 0>(src.template get_index<0>());
-  float y = to_unit<From, 1>(src.template get_index<1>());
-  float z = to_unit<From, 2>(src.template get_index<2>());
+  // Read XYZ directly — XYZ channels use natural [0,2] range, not unit [0,1]
+  float x = static_cast<float>(src.template get_index<0>());
+  float y = static_cast<float>(src.template get_index<1>());
+  float z = static_cast<float>(src.template get_index<2>());
 
-  // Combined matrix: XYZ(D65) → ProPhoto linear (D50) via inverse Bradford
-  float r = 1.403092f * x - 0.223133f * y - 0.101553f * z;
-  float g = -0.526200f * x + 1.481540f * y + 0.017034f * z;
-  float b = -0.011191f * x + 0.018231f * y + 0.911478f * z;
+  // Step 1: Bradford chromatic adaptation D65 → D50
+  core::xyz_t xyz_d65{x, y, z};
+  auto xyz_d50 = algorithms::chromatic_adaptation::bradford_adapt(
+      xyz_d65, algorithms::chromatic_adaptation::WHITEPOINT_D65, algorithms::chromatic_adaptation::WHITEPOINT_D50);
+
+  // Step 2: XYZ(D50) → Linear ProPhoto RGB via inverse primaries matrix
+  // M_xyz_to_prophoto(D50) from Bruce Lindbloom
+  float r = 1.3459433f * xyz_d50.x() - 0.2556075f * xyz_d50.y() - 0.0511118f * xyz_d50.z();
+  float g = -0.5445989f * xyz_d50.x() + 1.5081673f * xyz_d50.y() + 0.0205351f * xyz_d50.z();
+  float b = 0.0000000f * xyz_d50.x() + 0.0000000f * xyz_d50.y() + 1.2119587f * xyz_d50.z();
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);

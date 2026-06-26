@@ -3,8 +3,8 @@
  * @brief Example: ANSI terminal color utilities for debugging and visualization.
  */
 
-#include <colorcpp/colorcpp.hpp>
 #include <array>
+#include <colorcpp/colorcpp.hpp>
 #include <iostream>
 
 using namespace colorcpp;

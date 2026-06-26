@@ -16,9 +16,10 @@ namespace colorcpp::algorithms::gamut {
  * @brief Gamut types supported for checking and clipping.
  */
 enum class gamut_type {
-  srgb,        ///< Standard RGB (sRGB)
-  display_p3,  ///< Display P3 (wide gamut)
-  adobe_rgb,   ///< Adobe RGB (wide gamut)
+  srgb,          ///< Standard RGB (sRGB)
+  display_p3,    ///< Display P3 (wide gamut)
+  adobe_rgb,     ///< Adobe RGB (wide gamut)
+  prophoto_rgb,  ///< ProPhoto RGB (widest gamut)
 };
 
 namespace details {
@@ -43,6 +44,14 @@ inline bool linrgb_in_adobergb_gamut(float r, float g, float b, float eps = 1e-4
          argb_b <= 1.0f + eps;
 }
 
+// Check if linear RGB is in ProPhoto RGB gamut
+inline bool linrgb_in_prophoto_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
+  float pprgb_r, pprgb_g, pprgb_b;
+  linrgb_to_prophoto(r, g, b, pprgb_r, pprgb_g, pprgb_b);
+  return pprgb_r >= -eps && pprgb_r <= 1.0f + eps && pprgb_g >= -eps && pprgb_g <= 1.0f + eps && pprgb_b >= -eps &&
+         pprgb_b <= 1.0f + eps;
+}
+
 // Generic gamut check based on gamut type
 inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float eps = 1e-4f) noexcept {
   switch (type) {
@@ -52,6 +61,8 @@ inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float ep
       return linrgb_in_displayp3_gamut(r, g, b, eps);
     case gamut_type::adobe_rgb:
       return linrgb_in_adobergb_gamut(r, g, b, eps);
+    case gamut_type::prophoto_rgb:
+      return linrgb_in_prophoto_gamut(r, g, b, eps);
     default:
       return details::linrgb_in_gamut(r, g, b, eps);
   }
@@ -91,6 +102,14 @@ bool is_in_displayp3_gamut(const Color& c) {
 template <typename Color>
 bool is_in_adobergb_gamut(const Color& c) {
   return is_in_gamut(c, gamut_type::adobe_rgb);
+}
+
+/**
+ * @brief Check if a color is in ProPhoto RGB gamut.
+ */
+template <typename Color>
+bool is_in_prophoto_gamut(const Color& c) {
+  return is_in_gamut(c, gamut_type::prophoto_rgb);
 }
 
 /**

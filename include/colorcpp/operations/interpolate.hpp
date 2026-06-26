@@ -26,7 +26,8 @@
 #include <colorcpp/operations/interpolate/monotonic_spline.hpp>
 #include <colorcpp/operations/interpolate/smooth_path.hpp>
 
-/** @brief Space-aware interpolation families: RGB-style, hue-aware cylindrical, perceptual, and path/spline helpers with multi-stop gradients, easing, and alpha-control helpers. */
+/** @brief Space-aware interpolation families: RGB-style, hue-aware cylindrical, perceptual, and path/spline helpers
+ * with multi-stop gradients, easing, and alpha-control helpers. */
 namespace colorcpp::operations::interpolate {
 // All functionality is provided by the included sub-modules
 }

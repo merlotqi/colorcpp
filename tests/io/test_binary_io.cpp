@@ -3,11 +3,11 @@
  * @brief Unit tests for binary_io: LUT data structures and .cube format.
  */
 
+#include <gtest/gtest.h>
+
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/io/binary_io.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <gtest/gtest.h>
-
 #include <sstream>
 #include <string>
 

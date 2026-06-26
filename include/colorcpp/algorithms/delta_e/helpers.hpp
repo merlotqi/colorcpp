@@ -60,7 +60,8 @@ bool is_visually_same_cmc(const ColorA& a, const ColorB& b, float threshold = 1.
  * @return true if colors are visually the same by DIN99 metric.
  */
 template <typename ColorA, typename ColorB>
-bool is_visually_same_din99(const ColorA& a, const ColorB& b, float threshold = 1.0f, float k_L = 1.0f, float k_E = 1.0f) {
+bool is_visually_same_din99(const ColorA& a, const ColorB& b, float threshold = 1.0f, float k_L = 1.0f,
+                            float k_E = 1.0f) {
   return delta_e_din99(a, b, k_L, k_E) < threshold;
 }
 

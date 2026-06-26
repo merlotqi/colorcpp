@@ -87,4 +87,24 @@ inline void linrgb_to_adobergb(float lr, float lg, float lb, float& r, float& g,
   b = std::pow(std::clamp(lb, 0.0f, 1.0f), inv_gamma);
 }
 
+// ProPhoto RGB → linear RGB (D50 white point via conversion)
+inline void prophoto_to_linrgb(float r, float g, float b, float& lr, float& lg, float& lb) noexcept {
+  // ProPhoto uses gamma 1.8 with linear segment below 1/512
+  auto gamma_decode = [](float v) noexcept { return (v < (1.0f / 32.0f)) ? (v / 16.0f) : std::pow(v, 1.8f); };
+  lr = gamma_decode(r);
+  lg = gamma_decode(g);
+  lb = gamma_decode(b);
+}
+
+// linear RGB → ProPhoto RGB
+inline void linrgb_to_prophoto(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
+  auto gamma_encode = [](float v) noexcept {
+    v = std::clamp(v, 0.0f, 1.0f);
+    return (v < (1.0f / 512.0f)) ? (v * 16.0f) : std::pow(v, 1.0f / 1.8f);
+  };
+  r = gamma_encode(lr);
+  g = gamma_encode(lg);
+  b = gamma_encode(lb);
+}
+
 }  // namespace colorcpp::algorithms::gamut::details

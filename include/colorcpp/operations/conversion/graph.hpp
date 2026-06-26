@@ -197,7 +197,8 @@ using builtin_color_nodes =
               core::cmyk8_t, core::cmyk_float_t, core::display_p3f_t, core::display_p3af_t, core::linear_display_p3f_t,
               core::linear_display_p3af_t, core::adobe_rgbf_t, core::adobe_rgbaf_t, core::linear_adobe_rgbf_t,
               core::linear_adobe_rgbaf_t, core::prophoto_rgbf_t, core::prophoto_rgbaf_t, core::linear_prophoto_rgbf_t,
-              core::linear_prophoto_rgbaf_t>;
+              core::linear_prophoto_rgbaf_t, core::rec2020_rgbf_t, core::rec2020_rgbaf_t, core::linear_rec2020_rgbf_t,
+              core::linear_rec2020_rgbaf_t>;
 
 /**
  * @brief Global color graph node set including user extensions.
@@ -266,7 +267,7 @@ struct search_state {
   std::array<std::size_t, NodeCount> prev{};
 };
 
-template <typename Nodes, typename Edges, typename Source, typename Target, std::size_t MaxNodes = 32>
+template <typename Nodes, typename Edges, typename Source, typename Target, std::size_t MaxNodes = 64>
 struct shortest_path_for_nodes {
  private:
   static constexpr std::size_t node_count = Nodes::size;
@@ -348,7 +349,7 @@ struct shortest_path_for_nodes {
  * @tparam Target Target color type
  * @tparam MaxNodes Safety bound on the known node count
  */
-template <typename Edges, typename Source, typename Target, std::size_t MaxNodes = 32>
+template <typename Edges, typename Source, typename Target, std::size_t MaxNodes = 64>
 struct shortest_path : shortest_path_for_nodes<global_color_nodes, Edges, Source, Target, MaxNodes> {};
 
 template <typename From, typename To>

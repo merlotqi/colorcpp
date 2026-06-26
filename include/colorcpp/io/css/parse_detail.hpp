@@ -482,12 +482,11 @@ inline std::optional<resolved_color_mix> resolve_color_mix_items(const parsed_co
     }
   }
 
-  const float fill_weight =
-      missing_count == 0
-          ? 0.0f
-          : (explicit_sum <= 0.0f && missing_count == parsed.items.size()
-                 ? 1.0f / static_cast<float>(missing_count)
-                 : std::max(0.0f, 1.0f - explicit_sum) / static_cast<float>(missing_count));
+  const float fill_weight = missing_count == 0
+                                ? 0.0f
+                                : (explicit_sum <= 0.0f && missing_count == parsed.items.size()
+                                       ? 1.0f / static_cast<float>(missing_count)
+                                       : std::max(0.0f, 1.0f - explicit_sum) / static_cast<float>(missing_count));
 
   float total = 0.0f;
   for (const auto& item : parsed.items) {

@@ -28,9 +28,7 @@ namespace colorcpp::operations::conversion::details {
 template <typename To, typename From>
 constexpr To adobe_rgb_to_linear_adobe_rgb(const From& src) {
   // Pure Gamma 2.2 linearization (no sRGB-style linear segment)
-  auto linearize = [](float v) noexcept {
-    return std::pow(v, 2.2f);
-  };
+  auto linearize = [](float v) noexcept { return std::pow(v, 2.2f); };
   float r = linearize(to_unit<From, 0>(src.template get_index<0>()));
   float g = linearize(to_unit<From, 1>(src.template get_index<1>()));
   float b = linearize(to_unit<From, 2>(src.template get_index<2>()));
@@ -88,9 +86,9 @@ constexpr To linear_adobe_rgb_to_xyz(const From& src) {
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);
-    return pack_to<To>(from_unit<To, 0>(x), from_unit<To, 1>(y), from_unit<To, 2>(z), from_unit<To, 3>(a));
+    return pack_to<To>(from_value<To, 0>(x), from_value<To, 1>(y), from_value<To, 2>(z), from_value<To, 3>(a));
   } else {
-    return pack_to<To>(from_unit<To, 0>(x), from_unit<To, 1>(y), from_unit<To, 2>(z));
+    return pack_to<To>(from_value<To, 0>(x), from_value<To, 1>(y), from_value<To, 2>(z));
   }
 }
 
@@ -101,9 +99,10 @@ constexpr To linear_adobe_rgb_to_xyz(const From& src) {
  */
 template <typename To, typename From>
 constexpr To xyz_to_linear_adobe_rgb(const From& src) {
-  float x = to_unit<From, 0>(src.template get_index<0>());
-  float y = to_unit<From, 1>(src.template get_index<1>());
-  float z = to_unit<From, 2>(src.template get_index<2>());
+  // Read XYZ directly (XYZ channels have [0,2] range, so to_unit would incorrectly rescale)
+  float x = static_cast<float>(src.template get_index<0>());
+  float y = static_cast<float>(src.template get_index<1>());
+  float z = static_cast<float>(src.template get_index<2>());
 
   float r = 2.0413690f * x - 0.5649654f * y - 0.3446945f * z;
   float g = -0.9692660f * x + 1.8760108f * y + 0.0415560f * z;
@@ -129,9 +128,7 @@ constexpr To xyz_to_linear_adobe_rgb(const From& src) {
 template <typename To, typename From>
 constexpr To adobe_rgb_to_srgb(const From& src) {
   // Step 1: Linearize (Gamma 2.2)
-  auto linearize = [](float v) noexcept {
-    return std::pow(v, 2.2f);
-  };
+  auto linearize = [](float v) noexcept { return std::pow(v, 2.2f); };
   float r_lin = linearize(to_unit<From, 0>(src.template get_index<0>()));
   float g_lin = linearize(to_unit<From, 1>(src.template get_index<1>()));
   float b_lin = linearize(to_unit<From, 2>(src.template get_index<2>()));

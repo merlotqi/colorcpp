@@ -6,10 +6,10 @@
 
 #pragma once
 
+#include <colorcpp/algorithms/palette/details.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
-#include <colorcpp/algorithms/palette/details.hpp>
 
 namespace colorcpp::operations::palette {
 
@@ -30,12 +30,8 @@ class theme {
  public:
   /** @brief Interpret @p seed as 0xRRGGBB and construct an opaque seed color with alpha set to 0xFF. */
   static theme from_seed(uint32_t seed) {
-    return from_seed(core::rgba8_t{
-        static_cast<uint8_t>((seed >> 16) & 0xFF),
-        static_cast<uint8_t>((seed >> 8) & 0xFF),
-        static_cast<uint8_t>(seed & 0xFF),
-        0xFF
-    });
+    return from_seed(core::rgba8_t{static_cast<uint8_t>((seed >> 16) & 0xFF), static_cast<uint8_t>((seed >> 8) & 0xFF),
+                                   static_cast<uint8_t>(seed & 0xFF), 0xFF});
   }
   static theme from_seed(core::rgba8_t seed) { return theme(seed); }
 

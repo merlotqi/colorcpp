@@ -68,5 +68,17 @@ if(COLORCPP_BUILD_EXAMPLES)
 
   add_executable(harmony_example harmony_example.cpp)
   target_link_libraries(harmony_example colorcpp::colorcpp)
-  
+
+  add_executable(adobe_rgb_example adobe_rgb_example.cpp)
+  target_link_libraries(adobe_rgb_example colorcpp::colorcpp)
+
+  add_executable(chromatic_adaptation_example chromatic_adaptation_example.cpp)
+  target_link_libraries(chromatic_adaptation_example colorcpp::colorcpp)
+
+  add_executable(prophoto_rgb_example prophoto_rgb_example.cpp)
+  target_link_libraries(prophoto_rgb_example colorcpp::colorcpp)
+
+  add_executable(rec2020_example rec2020_example.cpp)
+  target_link_libraries(rec2020_example colorcpp::colorcpp)
+
 endif()

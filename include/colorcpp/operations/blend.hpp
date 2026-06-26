@@ -19,7 +19,8 @@
 #include <colorcpp/operations/blend/mode.hpp>
 #include <colorcpp/operations/blend/non_separable.hpp>
 
-/** @brief Alpha-aware blending with selectable blend mode in `blend(dst, src, mode)` order; current implementation uses an encoded `rgbaf_t` working space rather than a verified linear-sRGB compositing path. */
+/** @brief Alpha-aware blending with selectable blend mode in `blend(dst, src, mode)` order; current implementation uses
+ * an encoded `rgbaf_t` working space rather than a verified linear-sRGB compositing path. */
 namespace colorcpp::operations::blend {
 // All functionality is provided by the included sub-modules
 }

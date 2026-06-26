@@ -5,7 +5,8 @@
  * This header includes all palette sub-modules:
  * - core/palette_set.hpp: Ordered list of colors with wrap indexing
  * - algorithms/palette/scales.hpp: Gradient scale generators (linear, visual, perceptual)
- * - algorithms/palette/advanced_scales.hpp: Advanced gradient generators with easing functions, spline curves, and multi-color transitions
+ * - algorithms/palette/advanced_scales.hpp: Advanced gradient generators with easing functions, spline curves, and
+ * multi-color transitions
  * - operations/palette/schemes.hpp: Formal harmony scheme generators built on algorithms::harmony rules
  * - algorithms/palette/rainbow.hpp: Rainbow palette generator
  * - algorithms/palette/families.hpp: Warm, cool, and neutral palette families
@@ -15,13 +16,13 @@
 
 #pragma once
 
-#include <colorcpp/core/palette_set.hpp>
-#include <colorcpp/algorithms/palette/scales.hpp>
 #include <colorcpp/algorithms/palette/advanced_scales.hpp>
-#include <colorcpp/algorithms/palette/rainbow.hpp>
 #include <colorcpp/algorithms/palette/families.hpp>
-#include <colorcpp/operations/palette/schemes.hpp>
+#include <colorcpp/algorithms/palette/rainbow.hpp>
+#include <colorcpp/algorithms/palette/scales.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/palette/material.hpp>
+#include <colorcpp/operations/palette/schemes.hpp>
 #include <colorcpp/operations/palette/theme.hpp>
 
 /** @brief structural palette APIs plus heuristic theme and material helpers built on interpolate and harmony rules. */
