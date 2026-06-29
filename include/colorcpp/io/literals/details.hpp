@@ -25,6 +25,24 @@ constexpr uint32_t char_to_hex(char c) {
 }
 
 /**
+ * @brief Count effective hex digits in a template character pack
+ * @tparam Chars Character pack representing the hexadecimal literal
+ * @return Number of hex digits (excluding 0x/0X prefix and ' separators)
+ */
+template <char... Chars>
+constexpr size_t count_hex_template_digits() {
+  constexpr char s[] = {Chars...};
+  constexpr size_t n = sizeof(s);
+  size_t start = (n > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) ? 2 : 0;
+  size_t count = 0;
+  for (size_t i = start; i < n; ++i) {
+    if (s[i] == '\'') continue;
+    ++count;
+  }
+  return count;
+}
+
+/**
  * @brief Parse template character sequence as hexadecimal uint64_t
  * @tparam Chars Character pack representing the hexadecimal literal
  * @return Parsed hexadecimal value as uint64_t
