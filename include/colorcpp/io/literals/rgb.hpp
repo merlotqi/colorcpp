@@ -21,12 +21,12 @@ namespace colorcpp::io::literals {
  */
 template <char... Chars>
 constexpr auto operator""_rgb() {
-  constexpr uint64_t val = details::parse_hex_template<Chars...>();
-  static_assert(details::count_hex_template_digits<Chars...>() == 6,
+  constexpr auto parsed = details::parse_hex_template<Chars...>();
+  static_assert(parsed.digits == 6,
                 "colorcpp: _rgb requires exactly 6 hex digits (RRGGBB format). "
                 "Got a different number of digits — check your hex literal.");
-  static_assert(val <= 0xFFFFFF, "colorcpp: _rgb template value exceeds 0xFFFFFF (24-bit limit)");
-  return core::rgba8_t{(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF, 255};
+  static_assert(parsed.value <= 0xFFFFFF, "colorcpp: _rgb template value exceeds 0xFFFFFF (24-bit limit)");
+  return core::rgba8_t{(parsed.value >> 16) & 0xFF, (parsed.value >> 8) & 0xFF, parsed.value & 0xFF, 255};
 }
 
 /**
@@ -35,12 +35,13 @@ constexpr auto operator""_rgb() {
  */
 template <char... Chars>
 constexpr auto operator""_rgba() {
-  constexpr uint64_t val = details::parse_hex_template<Chars...>();
-  static_assert(details::count_hex_template_digits<Chars...>() == 8,
+  constexpr auto parsed = details::parse_hex_template<Chars...>();
+  static_assert(parsed.digits == 8,
                 "colorcpp: _rgba requires exactly 8 hex digits (RRGGBBAA format). "
                 "Got a different number of digits — check your hex literal.");
-  static_assert(val <= 0xFFFFFFFF, "colorcpp: _rgba template value exceeds 0xFFFFFFFF (32-bit limit)");
-  return core::rgba8_t{(val >> 24) & 0xFF, (val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF};
+  static_assert(parsed.value <= 0xFFFFFFFF, "colorcpp: _rgba template value exceeds 0xFFFFFFFF (32-bit limit)");
+  return core::rgba8_t{(parsed.value >> 24) & 0xFF, (parsed.value >> 16) & 0xFF, (parsed.value >> 8) & 0xFF,
+                       parsed.value & 0xFF};
 }
 
 /**
@@ -49,12 +50,13 @@ constexpr auto operator""_rgba() {
  */
 template <char... Chars>
 constexpr auto operator""_argb() {
-  constexpr uint64_t val = details::parse_hex_template<Chars...>();
-  static_assert(details::count_hex_template_digits<Chars...>() == 8,
+  constexpr auto parsed = details::parse_hex_template<Chars...>();
+  static_assert(parsed.digits == 8,
                 "colorcpp: _argb requires exactly 8 hex digits (AARRGGBB format). "
                 "Got a different number of digits — check your hex literal.");
-  static_assert(val <= 0xFFFFFFFF, "colorcpp: _argb template value exceeds 0xFFFFFFFF (32-bit limit)");
-  return core::rgba8_t{(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF, (val >> 24) & 0xFF};
+  static_assert(parsed.value <= 0xFFFFFFFF, "colorcpp: _argb template value exceeds 0xFFFFFFFF (32-bit limit)");
+  return core::rgba8_t{(parsed.value >> 16) & 0xFF, (parsed.value >> 8) & 0xFF, parsed.value & 0xFF,
+                       (parsed.value >> 24) & 0xFF};
 }
 
 /** @brief Runtime numeric literal: RRGGBB hex → rgba8_t (alpha=255). See template @c operator""_rgb for examples. */

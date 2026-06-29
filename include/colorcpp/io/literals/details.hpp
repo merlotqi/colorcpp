@@ -25,41 +25,39 @@ constexpr uint32_t char_to_hex(char c) {
 }
 
 /**
- * @brief Count effective hex digits in a template character pack
- * @tparam Chars Character pack representing the hexadecimal literal
- * @return Number of hex digits (excluding 0x/0X prefix and ' separators)
+ * @brief Result of parsing a hex template literal
  */
-template <char... Chars>
-constexpr size_t count_hex_template_digits() {
-  constexpr char s[] = {Chars...};
-  constexpr size_t n = sizeof(s);
-  size_t start = (n > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) ? 2 : 0;
-  size_t count = 0;
-  for (size_t i = start; i < n; ++i) {
-    if (s[i] == '\'') continue;
-    ++count;
-  }
-  return count;
-}
+struct hex_template_result {
+  uint64_t value;
+  size_t digits;
+};
 
 /**
- * @brief Parse template character sequence as hexadecimal uint64_t
+ * @brief Parse and validate template character sequence as hexadecimal
  * @tparam Chars Character pack representing the hexadecimal literal
- * @return Parsed hexadecimal value as uint64_t
- * @note Supports optional 0x/0X prefix and digit separators (')
+ * @return {value, digits} — parsed uint64_t and effective hex digit count
+ * @note Supports optional 0x/0X prefix and digit separators (').
+ *       Invalid hex characters trigger a compile-time error via constexpr throw.
  */
 template <char... Chars>
-constexpr uint64_t parse_hex_template() {
+constexpr hex_template_result parse_hex_template() {
   constexpr char s[] = {Chars...};
   uint64_t res = 0;
+  size_t digits = 0;
   constexpr size_t n = sizeof(s);
   size_t start = (n > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) ? 2 : 0;
 
   for (size_t i = start; i < n; ++i) {
     if (s[i] == '\'') continue;
+    if (!is_hex_digit(s[i])) {
+      throw std::invalid_argument(
+          "colorcpp: invalid hex digit in template literal. "
+          "Only 0-9, A-F, a-f are allowed.");
+    }
     res = (res << 4) | char_to_hex(s[i]);
+    ++digits;
   }
-  return res;
+  return {res, digits};
 }
 
 /**
