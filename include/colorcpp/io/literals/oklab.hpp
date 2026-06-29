@@ -24,10 +24,14 @@ namespace colorcpp::io::literals {
 /** @brief Oklab template literal; encoding documented in the "Oklab Literal Operators" block above. */
 template <char... Chars>
 constexpr auto operator""_oklab() {
-  constexpr uint64_t val = details::parse_dec_template<Chars...>();
-  constexpr uint64_t l = val / 1000000ULL;
-  constexpr uint64_t a = (val / 1000ULL) % 1000ULL;
-  constexpr uint64_t b = val % 1000ULL;
+  constexpr auto parsed = details::parse_dec_template<Chars...>();
+  static_assert(parsed.digits >= 7 && parsed.digits <= 9,
+                "colorcpp: _oklab requires 7–9 digits (LLLAAABBB format, "
+                "leading zeros on the first field may be omitted). "
+                "Got an unexpected number of digits — check your literal.");
+  constexpr uint64_t l = parsed.value / 1000000ULL;
+  constexpr uint64_t a = (parsed.value / 1000ULL) % 1000ULL;
+  constexpr uint64_t b = parsed.value % 1000ULL;
   static_assert(l <= 100, "colorcpp: _oklab L out of range (000–100)");
   static_assert(a <= 100, "colorcpp: _oklab A out of range (000–100)");
   static_assert(b <= 100, "colorcpp: _oklab B out of range (000–100)");
@@ -49,10 +53,14 @@ constexpr auto operator""_oklab() {
 /** @brief OkLCH template literal; encoding documented in the "OkLCH Literal Operators" block above. */
 template <char... Chars>
 constexpr auto operator""_oklch() {
-  constexpr uint64_t val = details::parse_dec_template<Chars...>();
-  constexpr uint64_t l = val / 1000000ULL;
-  constexpr uint64_t c = (val / 1000ULL) % 1000ULL;
-  constexpr uint64_t h = val % 1000ULL;
+  constexpr auto parsed = details::parse_dec_template<Chars...>();
+  static_assert(parsed.digits >= 7 && parsed.digits <= 9,
+                "colorcpp: _oklch requires 7–9 digits (LLLCCCHHH format, "
+                "leading zeros on the first field may be omitted). "
+                "Got an unexpected number of digits — check your literal.");
+  constexpr uint64_t l = parsed.value / 1000000ULL;
+  constexpr uint64_t c = (parsed.value / 1000ULL) % 1000ULL;
+  constexpr uint64_t h = parsed.value % 1000ULL;
   static_assert(l <= 100, "colorcpp: _oklch L out of range (000–100)");
   static_assert(c <= 100, "colorcpp: _oklch C out of range (000–100)");
   static_assert(h <= 360, "colorcpp: _oklch H out of range (0–360)");

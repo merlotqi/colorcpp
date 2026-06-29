@@ -25,10 +25,14 @@ namespace colorcpp::io::literals {
 /** @brief HSV template literal; encoding documented in the "HSV Literal Operators" block above. */
 template <char... Chars>
 constexpr auto operator""_hsv() {
-  constexpr uint64_t val = details::parse_dec_template<Chars...>();
-  constexpr uint64_t h = val / 1000000ULL;
-  constexpr uint64_t s = (val / 1000ULL) % 1000ULL;
-  constexpr uint64_t v = val % 1000ULL;
+  constexpr auto parsed = details::parse_dec_template<Chars...>();
+  static_assert(parsed.digits >= 7 && parsed.digits <= 9,
+                "colorcpp: _hsv requires 7–9 digits (HHHSSSVVV format, "
+                "leading zeros on the first field may be omitted). "
+                "Got an unexpected number of digits — check your literal.");
+  constexpr uint64_t h = parsed.value / 1000000ULL;
+  constexpr uint64_t s = (parsed.value / 1000ULL) % 1000ULL;
+  constexpr uint64_t v = parsed.value % 1000ULL;
   static_assert(h <= 360, "colorcpp: _hsv H out of range (0–360)");
   static_assert(s <= 100, "colorcpp: _hsv S out of range (000–100)");
   static_assert(v <= 100, "colorcpp: _hsv V out of range (000–100)");
@@ -38,11 +42,15 @@ constexpr auto operator""_hsv() {
 /** @brief HSVA template literal (four packed fields). */
 template <char... Chars>
 constexpr auto operator""_hsva() {
-  constexpr uint64_t val = details::parse_dec_template<Chars...>();
-  constexpr uint64_t h = val / 1000000000ULL;
-  constexpr uint64_t s = (val / 1000000ULL) % 1000ULL;
-  constexpr uint64_t v = (val / 1000ULL) % 1000ULL;
-  constexpr uint64_t a = val % 1000ULL;
+  constexpr auto parsed = details::parse_dec_template<Chars...>();
+  static_assert(parsed.digits >= 10 && parsed.digits <= 12,
+                "colorcpp: _hsva requires 10–12 digits (HHHSSSVVVAAA format, "
+                "leading zeros on the first field may be omitted). "
+                "Got an unexpected number of digits — check your literal.");
+  constexpr uint64_t h = parsed.value / 1000000000ULL;
+  constexpr uint64_t s = (parsed.value / 1000000ULL) % 1000ULL;
+  constexpr uint64_t v = (parsed.value / 1000ULL) % 1000ULL;
+  constexpr uint64_t a = parsed.value % 1000ULL;
   static_assert(h <= 360, "colorcpp: _hsva H out of range (0–360)");
   static_assert(s <= 100, "colorcpp: _hsva S out of range (000–100)");
   static_assert(v <= 100, "colorcpp: _hsva V out of range (000–100)");

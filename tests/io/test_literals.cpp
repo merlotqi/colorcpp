@@ -289,7 +289,7 @@ TEST(CmykLiteralTest, PrintInk) {
 }
 
 TEST(CmykLiteralTest, AllZero) {
-  constexpr auto cmyk = 0'0'0'0_cmyk;
+  constexpr auto cmyk = 000'000'000'000_cmyk;
   static_assert(cmyk.c() == 0 && cmyk.m() == 0 && cmyk.y() == 0 && cmyk.k() == 0);
 }
 

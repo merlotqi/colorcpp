@@ -61,22 +61,38 @@ constexpr hex_template_result parse_hex_template() {
 }
 
 /**
- * @brief Parse template character sequence as decimal uint64_t
+ * @brief Result of parsing a decimal template literal
+ */
+struct dec_template_result {
+  uint64_t value;
+  size_t digits;
+};
+
+/**
+ * @brief Parse and validate template character sequence as decimal
  * @tparam Chars Character pack representing the decimal literal
- * @return Parsed decimal value as uint64_t
- * @note Supports digit separators (')
+ * @return {value, digits} — parsed uint64_t and effective digit count
+ * @note Supports digit separators (').
+ *       Invalid characters trigger a compile-time error via constexpr throw.
  */
 template <char... Chars>
-constexpr uint64_t parse_dec_template() {
+constexpr dec_template_result parse_dec_template() {
   constexpr char s[] = {Chars...};
   uint64_t res = 0;
+  size_t digits = 0;
   for (char c : s) {
     if (c >= '0' && c <= '9') {
-      res = res * 10 + (c - '0');
-    } else if (c == '\'')
+      res = res * 10 + static_cast<uint64_t>(c - '0');
+      ++digits;
+    } else if (c == '\'') {
       continue;
+    } else {
+      throw std::invalid_argument(
+          "colorcpp: invalid character in decimal template literal. "
+          "Only 0-9 and ' separators are allowed.");
+    }
   }
-  return res;
+  return {res, digits};
 }
 
 constexpr uint8_t hex_expand(char c) {

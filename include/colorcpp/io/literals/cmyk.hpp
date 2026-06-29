@@ -22,11 +22,15 @@ namespace colorcpp::io::literals {
 /** @brief CMYK template literal; four 000–100 fields → @ref colorcpp::core::cmyk8_t. */
 template <char... Chars>
 constexpr auto operator""_cmyk() {
-  constexpr uint64_t val = details::parse_dec_template<Chars...>();
-  constexpr uint64_t c = val / 1000000000ULL;
-  constexpr uint64_t m = (val / 1000000ULL) % 1000ULL;
-  constexpr uint64_t y = (val / 1000ULL) % 1000ULL;
-  constexpr uint64_t k = val % 1000ULL;
+  constexpr auto parsed = details::parse_dec_template<Chars...>();
+  static_assert(parsed.digits >= 10 && parsed.digits <= 12,
+                "colorcpp: _cmyk requires 10–12 digits (CCCMMMYYYKKK format, "
+                "leading zeros on the first field may be omitted). "
+                "Got an unexpected number of digits — check your literal.");
+  constexpr uint64_t c = parsed.value / 1000000000ULL;
+  constexpr uint64_t m = (parsed.value / 1000000ULL) % 1000ULL;
+  constexpr uint64_t y = (parsed.value / 1000ULL) % 1000ULL;
+  constexpr uint64_t k = parsed.value % 1000ULL;
   static_assert(c <= 100, "colorcpp: _cmyk C out of range (000–100)");
   static_assert(m <= 100, "colorcpp: _cmyk M out of range (000–100)");
   static_assert(y <= 100, "colorcpp: _cmyk Y out of range (000–100)");
