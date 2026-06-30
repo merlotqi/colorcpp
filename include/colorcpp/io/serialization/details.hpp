@@ -5,9 +5,11 @@
 
 #pragma once
 
+#include <cmath>
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/io/serialization/traits.hpp>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -33,6 +35,9 @@ constexpr double to_double(T val) {
  */
 template <typename T>
 constexpr T from_double(double val) {
+  if (std::isnan(val)) {
+    throw std::invalid_argument("colorcpp::serialization::from_double: NaN is not a valid channel value");
+  }
   if constexpr (std::is_same_v<T, uint8_t>) {
     double v = val * 255.0;
     if (v < 0.0) v = 0.0;

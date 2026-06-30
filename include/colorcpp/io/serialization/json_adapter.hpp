@@ -10,8 +10,10 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <colorcpp/io/serialization/details.hpp>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 
@@ -95,6 +97,9 @@ Json to_json_compact(const Color& c) {
  */
 template <typename Json, typename Color>
 Json to_json_named(const Color& c, const std::string* names) {
+  if (!names) {
+    throw std::invalid_argument("colorcpp::serialization::to_json_named: channel names pointer must not be null");
+  }
   using Adapter = json_adapter<Json>;
   constexpr std::size_t N = Color::channels;
   std::array<double, N> vals{};
@@ -132,6 +137,11 @@ Json to_json(const Color& c, const std::string* channel_names, const serializati
   if (opts.format == serialization_format::compact) {
     return to_json_compact<Json>(c);
   }
+  if (!channel_names) {
+    throw std::invalid_argument(
+        "colorcpp::serialization::to_json: channel_names pointer must not be null "
+        "when using named format");
+  }
   return to_json_named<Json>(c, channel_names);
 }
 
@@ -144,7 +154,7 @@ std::optional<Color> from_json_compact(const Json& j) {
   if (!Adapter::is_array(j)) return std::nullopt;
 
   constexpr std::size_t N = Color::channels;
-  if (Adapter::array_size(j) < N) return std::nullopt;
+  if (Adapter::array_size(j) != N) return std::nullopt;
 
   std::array<double, N> vals{};
   for (std::size_t i = 0; i < N; ++i) {
@@ -158,6 +168,7 @@ std::optional<Color> from_json_compact(const Json& j) {
  */
 template <typename Json, typename Color>
 std::optional<Color> from_json_named(const Json& j, const std::string* names) {
+  if (!names) return std::nullopt;
   using Adapter = json_adapter<Json>;
   if (!Adapter::is_object(j)) return std::nullopt;
 
@@ -196,6 +207,7 @@ std::optional<Color> from_json(const Json& j) {
  */
 template <typename Json, typename Color>
 std::optional<Color> from_json(const Json& j, const std::string* channel_names) {
+  if (!channel_names) return std::nullopt;
   using Adapter = json_adapter<Json>;
   if (Adapter::is_array(j)) {
     return from_json_compact<Json, Color>(j);

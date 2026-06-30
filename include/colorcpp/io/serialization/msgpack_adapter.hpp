@@ -12,6 +12,7 @@
 #include <array>
 #include <colorcpp/io/serialization/details.hpp>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 
@@ -92,6 +93,9 @@ void pack_color(Packer& p, const Color& c) {
  */
 template <typename Packer, typename Color>
 void pack_color_named(Packer& p, const Color& c, const std::string* names) {
+  if (!names) {
+    throw std::invalid_argument("colorcpp::serialization::pack_color_named: channel names pointer must not be null");
+  }
   using Traits = msgpack_packer<Packer>;
   constexpr std::size_t N = Color::channels;
   std::array<double, N> vals{};
@@ -116,7 +120,7 @@ std::optional<Color> unpack_color(Unpacker& u) {
   if (!Traits::is_array(u)) return std::nullopt;
 
   constexpr std::size_t N = Color::channels;
-  if (Traits::array_size(u) < N) return std::nullopt;
+  if (Traits::array_size(u) != N) return std::nullopt;
 
   std::array<double, N> vals{};
   for (std::size_t i = 0; i < N; ++i) {
@@ -130,6 +134,7 @@ std::optional<Color> unpack_color(Unpacker& u) {
  */
 template <typename Unpacker, typename Color>
 std::optional<Color> unpack_color_named(Unpacker& u, const std::string* names) {
+  if (!names) return std::nullopt;
   using Traits = msgpack_unpacker<Unpacker>;
   if (!Traits::is_map(u)) return std::nullopt;
 
