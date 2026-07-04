@@ -68,7 +68,8 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
       sv.remove_prefix(11);
       details::trim(sv);
       auto val = details::parse_int(sv);
-      if (val && *val > 0) lut_1d_size = *val;
+      if (!val || *val <= 0) return std::monostate{};
+      lut_1d_size = *val;
       continue;
     }
 
@@ -77,7 +78,8 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
       sv.remove_prefix(11);
       details::trim(sv);
       auto val = details::parse_int(sv);
-      if (val && *val > 0) lut_3d_size = *val;
+      if (!val || *val <= 0) return std::monostate{};
+      lut_3d_size = *val;
       continue;
     }
 
@@ -86,14 +88,12 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
       sv.remove_prefix(10);
       details::trim(sv);
       auto tokens = details::split_ws(sv);
-      if (tokens.size() >= 3) {
-        auto r = details::parse_float(tokens[0]);
-        auto g = details::parse_float(tokens[1]);
-        auto b = details::parse_float(tokens[2]);
-        if (r && g && b) {
-          domain_min = {*r, *g, *b};
-        }
-      }
+      if (tokens.size() != 3) return std::monostate{};
+      auto r = details::parse_float(tokens[0]);
+      auto g = details::parse_float(tokens[1]);
+      auto b = details::parse_float(tokens[2]);
+      if (!r || !g || !b) return std::monostate{};
+      domain_min = {*r, *g, *b};
       continue;
     }
 
@@ -102,26 +102,26 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
       sv.remove_prefix(10);
       details::trim(sv);
       auto tokens = details::split_ws(sv);
-      if (tokens.size() >= 3) {
-        auto r = details::parse_float(tokens[0]);
-        auto g = details::parse_float(tokens[1]);
-        auto b = details::parse_float(tokens[2]);
-        if (r && g && b) {
-          domain_max = {*r, *g, *b};
-        }
-      }
-      continue;
-    }
-
-    // Parse data line: r g b
-    auto tokens = details::split_ws(sv);
-    if (tokens.size() >= 3) {
+      if (tokens.size() != 3) return std::monostate{};
       auto r = details::parse_float(tokens[0]);
       auto g = details::parse_float(tokens[1]);
       auto b = details::parse_float(tokens[2]);
-      if (r && g && b) {
-        data.push_back({*r, *g, *b});
-      }
+      if (!r || !g || !b) return std::monostate{};
+      domain_max = {*r, *g, *b};
+      continue;
+    }
+
+    // Parse data line: must be exactly 3 whitespace-separated floats
+    auto tokens = details::split_ws(sv);
+    if (tokens.size() == 3) {
+      auto r = details::parse_float(tokens[0]);
+      auto g = details::parse_float(tokens[1]);
+      auto b = details::parse_float(tokens[2]);
+      if (!r || !g || !b) return std::monostate{};
+      data.push_back({*r, *g, *b});
+    } else {
+      // Malformed data line: wrong token count — reject the entire file
+      return std::monostate{};
     }
   }
 
