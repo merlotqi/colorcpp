@@ -40,7 +40,7 @@ inline int to_hex_digit(char c) {
 inline uint8_t hex_expand(char c) {
   int v = to_hex_digit(c);
   if (v < 0) return 0;
-  return static_cast<uint8_t>((v << 4) | v);
+  return static_cast<uint8_t>((static_cast<unsigned>(v) << 4) | static_cast<unsigned>(v));
 }
 
 struct Cursor {
@@ -167,27 +167,6 @@ struct Cursor {
   }
 
   std::optional<double> parse_hue_angle() {
-    auto num = parse_number();
-    if (!num) return std::nullopt;
-    skip_ws();
-    double deg = *num;
-    if (consume_ci("deg"))
-      ;
-    else if (consume_ci("grad"))
-      deg = *num * (360.0 / 400.0);
-    else if (consume_ci("rad"))
-      deg = *num * (180.0 / 3.14159265358979323846);
-    else if (consume_ci("turn"))
-      deg = *num * 360.0;
-    else
-      deg = *num;
-    deg = std::fmod(deg, 360.0);
-    if (deg < 0.0) deg += 360.0;
-    return deg;
-  }
-
-  // Parse HWB hue angle (CSS Color Level 4 allows degree units)
-  std::optional<double> parse_hwb_hue_angle() {
     auto num = parse_number();
     if (!num) return std::nullopt;
     skip_ws();

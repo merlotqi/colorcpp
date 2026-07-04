@@ -27,7 +27,7 @@ inline std::optional<core::rgba8_t> parse_hwb_function(details::Cursor& c) {
     details::Cursor d{c.s, c.i};
     float hue = 0.f;
     if (!d.try_consume_none()) {
-      auto h = d.parse_hwb_hue_angle();
+      auto h = d.parse_hue_angle();
       if (!h) return std::nullopt;
       hue = static_cast<float>(*h);
     }
@@ -73,7 +73,7 @@ inline std::optional<core::rgba8_t> parse_hwb_function(details::Cursor& c) {
     details::Cursor d{c.s, c.i};
     float hue = 0.f;
     if (!d.try_consume_none()) {
-      auto h = d.parse_hwb_hue_angle();
+      auto h = d.parse_hue_angle();
       if (!h) return std::nullopt;
       hue = static_cast<float>(*h);
     }
@@ -130,7 +130,7 @@ inline std::optional<core::rgbaf_t> parse_hwb_function_rgbaf(details::Cursor& c)
     details::Cursor d{c.s, c.i};
     float hue = 0.f;
     if (!d.try_consume_none()) {
-      auto h = d.parse_hwb_hue_angle();
+      auto h = d.parse_hue_angle();
       if (!h) return std::nullopt;
       hue = static_cast<float>(*h);
     }
@@ -172,7 +172,7 @@ inline std::optional<core::rgbaf_t> parse_hwb_function_rgbaf(details::Cursor& c)
     details::Cursor d{c.s, c.i};
     float hue = 0.f;
     if (!d.try_consume_none()) {
-      auto h = d.parse_hwb_hue_angle();
+      auto h = d.parse_hue_angle();
       if (!h) return std::nullopt;
       hue = static_cast<float>(*h);
     }

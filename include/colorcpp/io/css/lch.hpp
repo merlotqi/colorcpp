@@ -38,11 +38,7 @@ inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c) {
       auto l_cv = d.parse_component_value();
       if (!l_cv) return std::nullopt;
       L = static_cast<float>(l_cv->first);
-      if (l_cv->second) {
-        L = std::clamp(L, 0.0f, 100.0f);
-      } else {
-        L = std::clamp(L, 0.0f, 100.0f);
-      }
+      L = std::clamp(L, 0.0f, 100.0f);
     }
 
     d.skip_ws();
