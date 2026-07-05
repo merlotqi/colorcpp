@@ -234,9 +234,11 @@ inline size_t find_top_level_comma(std::string_view s, size_t start = 0) {
 /**
  * @brief After optional whitespace, consume @c '(' and return inner contents up to matching @c ')'.
  * @post On success, @p c.i is immediately after the closing @c ')'.
+ * @post On failure, @p c.i is restored to its position before this call.
  */
 inline std::optional<std::string_view> consume_parenthesized_contents(Cursor& c) {
   c.skip_ws();
+  const size_t saved = c.i;
   if (!c.consume_char('(')) return std::nullopt;
   const size_t start = c.i;
   int depth = 1;
@@ -250,6 +252,8 @@ inline std::optional<std::string_view> consume_parenthesized_contents(Cursor& c)
       }
     }
   }
+  // Unmatched '(' — restore cursor so callers don't see a half-consumed state
+  c.i = saved;
   return std::nullopt;
 }
 
