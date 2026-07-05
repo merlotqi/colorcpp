@@ -7,10 +7,11 @@
 
 #include <algorithm>
 #include <cctype>
-#include <charconv>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace colorcpp::io::css::details {
@@ -94,9 +95,11 @@ struct Cursor {
       }
     }
     if (!has_digit) return std::nullopt;
-    double v = 0.0;
-    auto [ptr, ec] = std::from_chars(s.data() + start, s.data() + i, v);
-    if (ec != std::errc{} || ptr != s.data() + i) return std::nullopt;
+    std::string buf(s.substr(start, i - start));
+    char* end = nullptr;
+    double v = std::strtod(buf.c_str(), &end);
+    if (end == buf.c_str()) return std::nullopt;
+    if (std::isnan(v) || std::isinf(v)) return std::nullopt;
     return v;
   }
 

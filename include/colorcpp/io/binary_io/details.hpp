@@ -7,6 +7,7 @@
 
 #include <cctype>
 #include <charconv>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <istream>
@@ -50,8 +51,20 @@ inline std::optional<float> parse_float(std::string_view s) {
   trim(s);
   if (s.empty()) return std::nullopt;
   float result;
+
+#if defined(__APPLE__)
+  // std::from_chars for float is not available on Apple libc++ at this deployment target.
+  // Use strtof with NaN/Inf guard.
+  char* end_ptr = nullptr;
+  result = std::strtof(s.data(), &end_ptr);
+  if (end_ptr == s.data() || end_ptr != s.data() + s.size()) return std::nullopt;
+  if (std::isnan(result) || std::isinf(result)) return std::nullopt;
+  if (result == HUGE_VALF || result == -HUGE_VALF) return std::nullopt;
+#else
   auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
   if (ec != std::errc{} || ptr != s.data() + s.size()) return std::nullopt;
+#endif
+
   return result;
 }
 
