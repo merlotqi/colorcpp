@@ -5,12 +5,41 @@
 
 #pragma once
 
+#include <cctype>
 #include <colorcpp/core/rgb.hpp>
+#include <cstddef>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
 
 namespace colorcpp::io::css {
+namespace details {
+
+/// Case-insensitive hash for std::string_view (FNV-1a, lowercase-normalized).
+struct ci_hash {
+  size_t operator()(std::string_view s) const {
+    size_t h = 14695981039346656037ULL;
+    for (char c : s) {
+      h ^= static_cast<size_t>(std::tolower(static_cast<unsigned char>(c)));
+      h *= 1099511628211ULL;
+    }
+    return h;
+  }
+};
+
+/// Case-insensitive equality for std::string_view.
+struct ci_equal {
+  bool operator()(std::string_view a, std::string_view b) const {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+      if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i])))
+        return false;
+    }
+    return true;
+  }
+};
+
+}  // namespace details
 
 /**
  * @brief Get the RGBA value for a CSS named color or the @c transparent keyword.
@@ -19,7 +48,8 @@ namespace colorcpp::io::css {
  */
 inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
   // CSS Color Level 4 named colors plus the transparent keyword.
-  static const std::unordered_map<std::string_view, core::rgba8_t> named_colors = {
+  // Case-insensitive lookup via custom hash/equality — no heap allocation.
+  static const std::unordered_map<std::string_view, core::rgba8_t, details::ci_hash, details::ci_equal> named_colors = {
       {"transparent", core::rgba8_t{0, 0, 0, 0}},
 
       // Pink colors
@@ -184,15 +214,8 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
       {"black", core::rgba8_t{0, 0, 0, 255}},
   };
 
-  // Case-insensitive search
-  // Convert to lowercase for comparison
-  std::string lower_name;
-  lower_name.reserve(name.size());
-  for (char c : name) {
-    lower_name.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-  }
-
-  auto it = named_colors.find(lower_name);
+  // Case-insensitive lookup — zero allocation, directly via custom hash/equality.
+  auto it = named_colors.find(name);
   if (it != named_colors.end()) {
     return it->second;
   }
