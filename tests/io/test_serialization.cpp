@@ -5,7 +5,6 @@
 
 #include <gtest/gtest.h>
 
-#include <array>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/io/serialization/details.hpp>
