@@ -11,6 +11,7 @@
 #include <colorcpp/io/serialization/json_adapter.hpp>
 #include <colorcpp/io/serialization/msgpack_adapter.hpp>
 #include <colorcpp/io/serialization/traits.hpp>
+#include <limits>
 #include <map>
 #include <optional>
 #include <string>
@@ -214,6 +215,18 @@ TEST(SerializationDetails, FromDoubleFloat) {
   EXPECT_FLOAT_EQ(from_double<float>(1.0f), 1.0f);
 }
 
+TEST(SerializationDetails, FromDoubleNaNThrows) {
+  using namespace colorcpp::io::serialization::details;
+  EXPECT_THROW(from_double<uint8_t>(std::numeric_limits<double>::quiet_NaN()), std::invalid_argument);
+  EXPECT_THROW(from_double<uint8_t>(-std::numeric_limits<double>::quiet_NaN()), std::invalid_argument);
+}
+
+TEST(SerializationDetails, FromDoubleInfPropagatesToFloat) {
+  using namespace colorcpp::io::serialization::details;
+  // float channels propagate Inf (only NaN is guarded)
+  EXPECT_TRUE(std::isinf(from_double<float>(std::numeric_limits<double>::infinity())));
+}
+
 TEST(SerializationDetails, DefaultChannelNames) {
   using namespace colorcpp::io::serialization::details;
   EXPECT_EQ(default_channel_name(0), "ch0");
@@ -286,6 +299,44 @@ TEST(SerializationJson, NamedModeSupportsCustomKeys) {
   EXPECT_EQ(recovered->a(), 78);
 }
 
+TEST(SerializationJson, FromJsonCompactWrongArraySizeReturnsNullopt) {
+  // rgba8_t has 4 channels — deserializing an array with 3 elements should fail
+  fake_json arr = json_adapter<fake_json>::make_array();
+  json_adapter<fake_json>::push_back(arr, 0.0);
+  json_adapter<fake_json>::push_back(arr, 0.5);
+  json_adapter<fake_json>::push_back(arr, 1.0);  // only 3 — missing alpha
+
+  EXPECT_FALSE((from_json<fake_json, core::rgba8_t>(arr).has_value()));
+  EXPECT_FALSE((from_json_compact<fake_json, core::rgba8_t>(arr).has_value()));
+
+  // 5 elements for a 4-channel color should also fail
+  json_adapter<fake_json>::push_back(arr, 0.0);
+  json_adapter<fake_json>::push_back(arr, 0.0);
+  EXPECT_FALSE((from_json<fake_json, core::rgba8_t>(arr).has_value()));
+}
+
+TEST(SerializationJson, ToJsonNamedNullNamesThrows) {
+  const core::rgba8_t color{255, 0, 0, 255};
+  EXPECT_THROW(to_json_named<fake_json>(color, nullptr), std::invalid_argument);
+}
+
+TEST(SerializationJson, FromJsonNamedNullNamesReturnsNullopt) {
+  fake_json obj = json_adapter<fake_json>::make_object();
+  EXPECT_FALSE((from_json_named<fake_json, core::rgba8_t>(obj, nullptr).has_value()));
+}
+
+TEST(SerializationJson, ToJsonTwoArgNullNamesThrows) {
+  const core::rgba8_t color{255, 0, 0, 255};
+  serialization_options opts;
+  opts.format = serialization_format::named;
+  EXPECT_THROW(to_json<fake_json>(color, nullptr, opts), std::invalid_argument);
+}
+
+TEST(SerializationJson, FromJsonTwoArgNullNamesReturnsNullopt) {
+  fake_json obj = json_adapter<fake_json>::make_object();
+  EXPECT_FALSE((from_json<fake_json, core::rgba8_t>(obj, nullptr).has_value()));
+}
+
 // ===== MessagePack Adapter Tests =====
 
 TEST(SerializationMsgpack, PackColorUsesCompactArrayFlow) {
@@ -336,4 +387,24 @@ TEST(SerializationMsgpack, UnpackColorNamedRoundTripsProvidedKeys) {
   EXPECT_EQ(recovered->r(), 12);
   EXPECT_EQ(recovered->g(), 34);
   EXPECT_EQ(recovered->b(), 56);
+}
+
+TEST(SerializationMsgpack, UnpackColorWrongElementCountReturnsNullopt) {
+  // rgba8_t has 4 channels — 3-element array should fail
+  fake_msgpack_array_view short_view{{1.0, 127.0 / 255.0, 80.0 / 255.0}};
+  EXPECT_FALSE((unpack_color<fake_msgpack_array_view, core::rgba8_t>(short_view).has_value()));
+
+  // 5-element array for a 4-channel color should also fail
+  fake_msgpack_array_view long_view{{0.0, 0.0, 0.0, 0.0, 0.0}};
+  EXPECT_FALSE((unpack_color<fake_msgpack_array_view, core::rgba8_t>(long_view).has_value()));
+}
+
+TEST(SerializationMsgpack, PackColorNamedNullNamesThrows) {
+  fake_msgpack_packer packer;
+  EXPECT_THROW(pack_color_named(packer, core::rgb8_t{255, 0, 0}, nullptr), std::invalid_argument);
+}
+
+TEST(SerializationMsgpack, UnpackColorNamedNullNamesReturnsNullopt) {
+  fake_msgpack_map_view view{{}};
+  EXPECT_FALSE((unpack_color_named<fake_msgpack_map_view, core::rgb8_t>(view, nullptr).has_value()));
 }

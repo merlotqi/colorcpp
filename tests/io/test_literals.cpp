@@ -277,6 +277,45 @@ TEST(OklchLiteralTest, MaxChromaMapsToPointFour) {
   EXPECT_FLOAT_EQ(lch.h(), 120.0f);
 }
 
+// _hwb / _hwba
+
+TEST(HwbLiteralTest, Green) {
+  constexpr auto hwb = 120'050'075_hwb;
+  EXPECT_FLOAT_EQ(hwb.h(), 120.0f);
+  EXPECT_FLOAT_EQ(hwb.w(), 0.5f);
+  EXPECT_FLOAT_EQ(hwb.b(), 0.75f);
+}
+
+TEST(HwbLiteralTest, AllZero) {
+  constexpr auto hwb = 0'000'000_hwb;
+  EXPECT_FLOAT_EQ(hwb.h(), 0.0f);
+  EXPECT_FLOAT_EQ(hwb.w(), 0.0f);
+  EXPECT_FLOAT_EQ(hwb.b(), 0.0f);
+}
+
+TEST(HwbLiteralTest, MaxHue) {
+  constexpr auto hwb = 360'050'050_hwb;
+  EXPECT_FLOAT_EQ(hwb.h(), 360.0f);
+}
+
+TEST(HwbaLiteralTest, WithAlpha) {
+  constexpr auto hwba = 120'050'075'100_hwba;
+  EXPECT_FLOAT_EQ(hwba.h(), 120.0f);
+  EXPECT_FLOAT_EQ(hwba.w(), 0.5f);
+  EXPECT_FLOAT_EQ(hwba.b(), 0.75f);
+  EXPECT_FLOAT_EQ(hwba.a(), 1.0f);
+}
+
+TEST(HwbaLiteralTest, SemiTransparent) {
+  constexpr auto hwba = 120'050'075'050_hwba;
+  EXPECT_FLOAT_EQ(hwba.a(), 0.5f);
+}
+
+TEST(HwbaLiteralTest, FullyTransparent) {
+  constexpr auto hwba = 120'050'075'000_hwba;
+  EXPECT_FLOAT_EQ(hwba.a(), 0.0f);
+}
+
 // _cmyk
 
 TEST(CmykLiteralTest, PrintInk) {
@@ -328,6 +367,8 @@ TEST(LiteralConstexprTest, AllLiteralsAreConstexpr) {
   static_assert((0'100'050'100_hsla).a() == 1.0f);
   static_assert((0'100'100_hsv).v() == 1.0f);
   static_assert((210'080'090'075_hsva).a() == 0.75f);
+  static_assert((120'050'075_hwb).h() == 120.0f);
+  static_assert((120'050'075'100_hwba).a() == 1.0f);
   static_assert((000'000'000'100_cmyk).k() == 100);
 }
 

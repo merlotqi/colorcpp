@@ -314,3 +314,66 @@ TEST(Cube, InvalidLutWriteFails) {
   std::ostringstream out;
   EXPECT_FALSE(cube::write(out, lut));
 }
+
+// ===== .cube Malformed Input Tests =====
+
+TEST(Cube, MalformedDataLineReturnsMonostate) {
+  // Data line with only 2 tokens instead of 3
+  const char* cube_data = R"(LUT_3D_SIZE 2
+0.0 0.0 0.0
+0.0 0.0
+0.0 1.0 0.0
+)";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+TEST(Cube, DataLineWithFourTokensReturnsMonostate) {
+  const char* cube_data = R"(LUT_3D_SIZE 2
+0.0 0.0 0.0
+0.0 0.0 1.0 9.9
+0.0 1.0 0.0
+)";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+TEST(Cube, MalformedDomainMinReturnsMonostate) {
+  // DOMAIN_MIN with only 2 values
+  const char* cube_data = R"(LUT_3D_SIZE 2
+DOMAIN_MIN 0.0 0.0
+0.0 0.0 0.0
+0.0 0.0 1.0
+)";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+TEST(Cube, MalformedDomainMaxNonNumericReturnsMonostate) {
+  // DOMAIN_MAX with non-float tokens
+  const char* cube_data = R"(LUT_3D_SIZE 2
+DOMAIN_MAX 1.0 abc 1.0
+0.0 0.0 0.0
+0.0 0.0 1.0
+)";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+TEST(Cube, ZeroLutSizeReturnsMonostate) {
+  const char* cube_data = "LUT_3D_SIZE 0\n0.0 0.0 0.0\n";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+TEST(Cube, NegativeLutSizeReturnsMonostate) {
+  const char* cube_data = "LUT_3D_SIZE -5\n0.0 0.0 0.0\n";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+TEST(Cube, NonNumericLutSizeReturnsMonostate) {
+  const char* cube_data = "LUT_3D_SIZE abc\n0.0 0.0 0.0\n";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}

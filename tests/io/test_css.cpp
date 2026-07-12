@@ -183,6 +183,19 @@ TEST(Css, Invalid) {
   EXPECT_FALSE(parse_css_color_rgba8("notacolor").has_value());
 }
 
+TEST(Css, ParseNumberRejectsNaN) {
+  // rgb(nan ...) — strtod would parse "nan" as NaN, but parse_number rejects it
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(nan, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(-nan, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(NAN, 0, 0)").has_value());
+}
+
+TEST(Css, ParseNumberRejectsInf) {
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(inf, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(-inf, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(infinity, 0, 0)").has_value());
+}
+
 TEST(Css, NamedColors) {
   // Basic named colors
   auto red = parse_css_color_rgba8("red");
