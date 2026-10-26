@@ -133,10 +133,10 @@ int main() {
 
   std::cout << "  50% coral over gray — evaluated in different spaces:\n\n";
   std::cout << "  srgb (W3C/CSS):  ";
-  print_swatch(std::cout,
-               operations::blend::blend(gray_mid, rgba8_t{0xFF, 0x63, 0x47, 0x80}, blend_mode::normal, 1.0f,
-                                        blend_space::srgb),
-               4);
+  print_swatch(
+      std::cout,
+      operations::blend::blend(gray_mid, rgba8_t{0xFF, 0x63, 0x47, 0x80}, blend_mode::normal, 1.0f, blend_space::srgb),
+      4);
   std::cout << "\n  linear light:    ";
   print_swatch(std::cout,
                operations::blend::blend(gray_mid, rgba8_t{0xFF, 0x63, 0x47, 0x80}, blend_mode::normal, 1.0f,

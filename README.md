@@ -151,23 +151,25 @@ auto relative = colorcpp::io::css::parse_css_color_rgbaf(
 - **`hwb()`**
 - **`oklab(L a b)`:** L as number/percentage, a/b as numbers/percentages
 - **`oklch(L C H)`:** L as number/percentage, C as number/percentage, H as hue angle
-- **`lab(L a b)`:** CIE L\*a\*b\* with D65 white point
-- **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form
+- **`lab(L a b)`:** CIE L\*a\*b\* (D50 per CSS; Bradford-adapted to the D65 core types)
+- **`lch(L C H)`:** CIE L\*C\*h\* cylindrical form (D50 per CSS; adapted like `lab()`)
 - **`hwb(H W B)`:** Hue-Whiteness-Blackness
 - **`color(...)`:** `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`
-- **Relative colors:** `rgb(from …)` and `color(from …)` with full expression support:
+- **Relative colors:** `rgb(from …)`, `hsl(from …)`, `hwb(from …)`, `lab(from …)`, `lch(from …)`, and `color(from …)` with full expression support:
     * Arithmetic operations `+ - * /`
     * Parenthesized expressions and `calc()` wrapper syntax
+    * Hue angle units (`deg`/`grad`/`rad`/`turn`) in channel expressions
     * Nested `var(--token)` references anywhere inside expressions
     * Delayed AST evaluation with `parse_css_color_ast()` / `evaluate()`
     * Separate `variable_resolver` (color values) and `numeric_variable_resolver` (scalar values)
+- **`contrast-color(<color>)`:** CSS Color 5 — white or black by WCAG contrast against the argument (equal contrast → white)
 - **`color-mix()`:** omitted method defaults to `oklab`; item-list mixes support one or more colors; progress-form mixes support `color-mix(25% in srgb, red, blue)`; interpolation spaces include `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`, `lab`, `lch`, `oklab`, `oklch`, and `xyz`
 - **`device-cmyk(...)`:** CMYK device colors, including slash alpha
 - **Named colors and keywords:** all 140+ CSS named colors plus `transparent` — case-insensitive
 
 **Context-aware support:** `currentColor`, CSS system colors, `light-dark()`, and `var(--token)`-backed relative colors are available through the overloads that accept `parse_css_color_context`.
 
-**Still pending:** relative syntaxes beyond `rgb(from …)` / `color(from …)` and the remaining context-sensitive CSS color features that depend on authoring-time style state.
+**Still pending:** relative syntaxes for `oklab(from …)` / `oklch(from …)` and the remaining context-sensitive CSS color features that depend on authoring-time style state.
 
 ## 🔄 Color Conversion
 

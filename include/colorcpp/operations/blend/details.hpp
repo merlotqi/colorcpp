@@ -29,7 +29,8 @@ constexpr float composite(float dst, float da, float src, float sa, Fn&& blend_f
 inline core::rgbaf_t to_linear_working(const core::rgbaf_t& c) {
   const auto lin = conversion::color_cast<core::linear_rgbaf_t>(c);
   return core::rgbaf_t{static_cast<float>(lin.template get_index<0>()), static_cast<float>(lin.template get_index<1>()),
-                       static_cast<float>(lin.template get_index<2>()), static_cast<float>(lin.template get_index<3>())};
+                       static_cast<float>(lin.template get_index<2>()),
+                       static_cast<float>(lin.template get_index<3>())};
 }
 
 /**

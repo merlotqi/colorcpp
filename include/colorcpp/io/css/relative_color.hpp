@@ -1,6 +1,8 @@
 /**
  * @file relative_color.hpp
- * @brief Relative CSS color parsing and delayed evaluation for @c rgb(from ...) and @c color(from ...).
+ * @brief Relative CSS color parsing and delayed evaluation for @c rgb(from ...), @c hsl(from ...),
+ *        @c hwb(from ...), @c lab(from ...), @c lch(from ...), @c color(from ...), @c oklab(from ...)
+ *        and @c oklch(from ...) (CSS Color 5).
  */
 
 #pragma once
@@ -9,12 +11,14 @@
 #include <cctype>
 #include <cmath>
 #include <colorcpp/core/display_p3.hpp>
+#include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/io/css/color_function.hpp>
 #include <colorcpp/io/css/context.hpp>
 #include <colorcpp/io/css/details.hpp>
+#include <colorcpp/io/css/lab.hpp>
 #include <colorcpp/io/css/named_colors.hpp>
 #include <colorcpp/io/css/parse_detail.hpp>
 #include <colorcpp/operations/conversion.hpp>
@@ -30,7 +34,13 @@ namespace colorcpp::io::css {
 
 enum class relative_color_function_kind {
   rgb,
+  hsl,
+  hwb,
+  lab,
+  lch,
   color,
+  oklab,
+  oklch,
 };
 
 enum class relative_color_space {
@@ -254,6 +264,12 @@ class channel_expression_parser {
   size_t position() const { return pos_; }
   void set_position(size_t pos) { pos_ = pos; }
 
+  // Channel-list mode: a binary +/- must be followed by whitespace (the CSS
+  // calc() convention) so "25% -50%" parses as two channels — unary channel
+  // minus vs. subtraction. calc() and parenthesized groups switch it off
+  // internally to keep lenient tight arithmetic like calc(h+180).
+  void set_channel_list_mode(bool on) { channel_list_mode_ = on; }
+
   void skip_ws() {
     while (pos_ < text_.size() && details::is_space(text_[pos_])) ++pos_;
   }
@@ -289,16 +305,16 @@ class channel_expression_parser {
     while (true) {
       const size_t checkpoint = pos_;
       skip_ws();
-      if (pos_ < text_.size() && text_[pos_] == '+') {
+      if (pos_ < text_.size() && (text_[pos_] == '+' || text_[pos_] == '-')) {
+        if (channel_list_mode_ && (pos_ + 1 >= text_.size() || !details::is_space(text_[pos_ + 1]))) {
+          pos_ = checkpoint;
+          break;  // no whitespace after the sign: next channel, not an operator
+        }
+        const bool is_add = text_[pos_] == '+';
         ++pos_;
         auto rhs = parse_multiplicative();
         if (!rhs) return nullptr;
-        lhs = make_binary_expr(channel_expression::op::add, lhs, rhs);
-      } else if (pos_ < text_.size() && text_[pos_] == '-') {
-        ++pos_;
-        auto rhs = parse_multiplicative();
-        if (!rhs) return nullptr;
-        lhs = make_binary_expr(channel_expression::op::sub, lhs, rhs);
+        lhs = make_binary_expr(is_add ? channel_expression::op::add : channel_expression::op::sub, lhs, rhs);
       } else {
         pos_ = checkpoint;
         break;
@@ -348,7 +364,10 @@ class channel_expression_parser {
 
     if (consume_ci("calc")) {
       if (!consume_char('(')) return nullptr;
+      const bool saved = channel_list_mode_;
+      channel_list_mode_ = false;  // calc() keeps lenient tight arithmetic (calc(h+180))
       auto inner = parse_expression();
+      channel_list_mode_ = saved;
       if (!inner) return nullptr;
       if (!consume_char(')')) return nullptr;
       return inner;
@@ -356,7 +375,10 @@ class channel_expression_parser {
 
     pos_ = save;
     if (consume_char('(')) {
+      const bool saved = channel_list_mode_;
+      channel_list_mode_ = false;
       auto inner = parse_expression();
+      channel_list_mode_ = saved;
       if (!inner) return nullptr;
       if (!consume_char(')')) return nullptr;
       return inner;
@@ -372,6 +394,34 @@ class channel_expression_parser {
       if (pos_ < text_.size() && text_[pos_] == '%') {
         ++pos_;
         return make_literal_expr(static_cast<float>(*number), channel_expression::op::percentage);
+      }
+      // Angle units attach directly to the number (no whitespace) and resolve
+      // to degrees: deg, grad, rad, turn (CSS Color 4 §4).
+      static constexpr std::array<std::pair<std::string_view, float>, 4> kAngleUnits = {
+          std::pair<std::string_view, float>{"deg", 1.0f},
+          {"grad", 0.9f},
+          {"rad", 57.29577951308232f},
+          {"turn", 360.0f},
+      };
+      for (const auto& unit : kAngleUnits) {
+        const std::string_view suffix = unit.first;
+        if (pos_ + suffix.size() > text_.size()) continue;
+        bool match = true;
+        for (size_t i = 0; i < suffix.size(); ++i) {
+          if (std::tolower(static_cast<unsigned char>(text_[pos_ + i])) !=
+              std::tolower(static_cast<unsigned char>(suffix[i]))) {
+            match = false;
+            break;
+          }
+        }
+        if (!match) continue;
+        const size_t end = pos_ + suffix.size();
+        if (end < text_.size() &&
+            (std::isalnum(static_cast<unsigned char>(text_[end])) || text_[end] == '-' || text_[end] == '_')) {
+          continue;  // part of a longer identifier (e.g. "dega"), not a unit
+        }
+        pos_ = end;
+        return make_literal_expr(static_cast<float>(*number) * unit.second, channel_expression::op::literal);
       }
       return make_literal_expr(static_cast<float>(*number), channel_expression::op::literal);
     }
@@ -410,6 +460,7 @@ class channel_expression_parser {
 
   std::string_view text_;
   size_t pos_ = 0;
+  bool channel_list_mode_ = false;
 };
 
 inline bool consume_required_ws(channel_expression_parser& parser) {
@@ -445,6 +496,7 @@ inline size_t find_top_level_solidus(std::string_view s) {
 inline std::optional<std::array<std::shared_ptr<channel_expression>, 4>> parse_relative_rgb_tail(
     std::string_view tail) {
   channel_expression_parser parser{tail};
+  parser.set_channel_list_mode(true);  // binary +/- needs ws after the sign; " -50%" is the next channel
   std::array<std::shared_ptr<channel_expression>, 4> channels{};
 
   channels[0] = parser.parse_expression();
@@ -544,6 +596,7 @@ parse_relative_color_tail(std::string_view tail) {
   if (!space) return std::nullopt;
 
   channel_expression_parser parser{tail, space_cursor.i};
+  parser.set_channel_list_mode(true);  // same channel-list rule as parse_relative_rgb_tail
   if (!consume_required_ws(parser)) return std::nullopt;
 
   std::array<std::shared_ptr<channel_expression>, 4> channels{};
@@ -638,9 +691,107 @@ inline std::optional<relative_color> parse_relative_color_function(std::string_v
   return std::nullopt;
 }
 
+// Shared shape of CSS Color 5 relative functions whose tail is
+// "<channel>{3} [<slash-alpha>]": oklab(from …), oklch(from …), …
+inline std::optional<relative_color> parse_relative_named_function(std::string_view str, std::string_view name,
+                                                                   relative_color_function_kind kind) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+
+  details::Cursor c{str, 0};
+  const size_t save = c.i;
+  if (!c.consume_ci(name)) return std::nullopt;
+  auto inner_opt = details::consume_parenthesized_contents(c);
+  if (!inner_opt) {
+    c.i = save;
+    return std::nullopt;
+  }
+  c.skip_ws();
+  if (!c.eof()) {
+    c.i = save;
+    return std::nullopt;
+  }
+
+  std::string_view inner = *inner_opt;
+  details::trim(inner);
+  details::Cursor ic{inner, 0};
+  if (!ic.consume_ci("from")) {
+    c.i = save;
+    return std::nullopt;
+  }
+  const size_t after_from = ic.i;
+  ic.skip_ws();
+  if (ic.i == after_from || ic.eof()) {
+    c.i = save;
+    return std::nullopt;
+  }
+
+  const size_t source_start = ic.i;
+  int depth = 0;
+  for (size_t i = source_start; i < inner.size(); ++i) {
+    const char ch = inner[i];
+    if (ch == '(') {
+      ++depth;
+    } else if (ch == ')') {
+      if (depth > 0) --depth;
+    } else if (depth == 0 && details::is_space(ch)) {
+      std::string_view source = inner.substr(source_start, i - source_start);
+      details::trim(source);
+      size_t tail_start = i;
+      while (tail_start < inner.size() && details::is_space(inner[tail_start])) ++tail_start;
+      if (source.empty() || tail_start >= inner.size() || !looks_like_color_source_expression(source)) continue;
+
+      auto channels = parse_relative_rgb_tail(inner.substr(tail_start));
+      if (!channels) continue;
+
+      relative_color out;
+      out.function = kind;
+      out.source_expression = std::string(source);
+      out.channels = std::move(*channels);
+      return out;
+    }
+  }
+
+  c.i = save;
+  return std::nullopt;
+}
+
+inline std::optional<relative_color> parse_relative_oklab_function(std::string_view str) {
+  return parse_relative_named_function(str, "oklab", relative_color_function_kind::oklab);
+}
+
+inline std::optional<relative_color> parse_relative_oklch_function(std::string_view str) {
+  return parse_relative_named_function(str, "oklch", relative_color_function_kind::oklch);
+}
+
+// hsla() is a legacy alias of hsl(); try the longer name first so "hsla(...)"
+// is not consumed as "hsl" followed by a stray "a".
+inline std::optional<relative_color> parse_relative_hsl_function(std::string_view str) {
+  if (auto hsla = parse_relative_named_function(str, "hsla", relative_color_function_kind::hsl)) return hsla;
+  return parse_relative_named_function(str, "hsl", relative_color_function_kind::hsl);
+}
+
+inline std::optional<relative_color> parse_relative_hwb_function(std::string_view str) {
+  return parse_relative_named_function(str, "hwb", relative_color_function_kind::hwb);
+}
+
+inline std::optional<relative_color> parse_relative_lab_function(std::string_view str) {
+  return parse_relative_named_function(str, "lab", relative_color_function_kind::lab);
+}
+
+inline std::optional<relative_color> parse_relative_lch_function(std::string_view str) {
+  return parse_relative_named_function(str, "lch", relative_color_function_kind::lch);
+}
+
 inline std::optional<relative_color> parse_relative_css_color(std::string_view str) {
   if (auto rgb = parse_relative_rgb_function(str)) return rgb;
+  if (auto hsl = parse_relative_hsl_function(str)) return hsl;
+  if (auto hwb = parse_relative_hwb_function(str)) return hwb;
+  if (auto lab = parse_relative_lab_function(str)) return lab;
+  if (auto lch = parse_relative_lch_function(str)) return lch;
   if (auto color = parse_relative_color_function(str)) return color;
+  if (auto oklab = parse_relative_oklab_function(str)) return oklab;
+  if (auto oklch = parse_relative_oklch_function(str)) return oklch;
   return std::nullopt;
 }
 
@@ -933,6 +1084,198 @@ inline channel_environment make_color_environment(relative_color_space space, co
   return env;
 }
 
+inline float normalize_hue_degrees(float h) {
+  h = std::fmod(h, 360.0f);
+  return h < 0.0f ? h + 360.0f : h;
+}
+
+// Oklab → linear sRGB with the Ottosson/CSS constants (same as
+// operations::conversion::details::oklab_to_linear_rgb), kept raw so
+// out-of-gamut relative results are not clamped before encoding.
+inline details_color_fn::rgb3f oklab_to_linear_srgb_raw(float L, float a, float b) {
+  const float l_ = L + 0.3963377774f * a + 0.2158037573f * b;
+  const float m_ = L - 0.1055613458f * a - 0.0638541728f * b;
+  const float s_ = L - 0.0894841775f * a - 1.2914855480f * b;
+
+  const float lms_l = l_ * l_ * l_;
+  const float lms_m = m_ * m_ * m_;
+  const float lms_s = s_ * s_ * s_;
+
+  return {
+      4.0767416621f * lms_l - 3.3077115913f * lms_m + 0.2309699292f * lms_s,
+      -1.2684380046f * lms_l + 2.6097574011f * lms_m - 0.3413193965f * lms_s,
+      -0.0041960863f * lms_l - 0.7034186147f * lms_m + 1.7076147010f * lms_s,
+  };
+}
+
+inline std::optional<source_channel_values> resolve_relative_oklab_source(std::string_view source_expression,
+                                                                          bool cylindrical,
+                                                                          const parse_css_color_context& context) {
+  if (cylindrical) {
+    auto source = resolve_source_color<core::oklch_t>(source_expression, context);
+    if (!source) return std::nullopt;
+    return source_channel_values{source->l(), source->c(), normalize_hue_degrees(source->h()), 1.0f};
+  }
+  auto source = resolve_source_color<core::oklab_t>(source_expression, context);
+  if (!source) return std::nullopt;
+  return source_channel_values{source->l(), source->a(), source->b(), 1.0f};
+}
+
+inline channel_environment make_oklab_environment(bool cylindrical, const source_channel_values& source) {
+  channel_environment env;
+  if (cylindrical) {
+    env.set("l", source.c1);
+    env.set("c", source.c2);
+    env.set("h", source.c3);
+  } else {
+    env.set("l", source.c1);
+    env.set("a", source.c2);
+    env.set("b", source.c3);
+  }
+  return env;
+}
+
+// --- HSL/HWB raw math -------------------------------------------------------
+// CSS Color 4 relative-channel results are not clamped before conversion, so
+// these helpers mirror core/operations math without constructing core types
+// (basic_color throws std::out_of_range for out-of-range channels).
+
+inline void rgb_to_hsl_raw(float r, float g, float b, float& h_degrees, float& s, float& l) {
+  const float max_c = std::max({r, g, b});
+  const float min_c = std::min({r, g, b});
+  l = (max_c + min_c) * 0.5f;
+  if (max_c == min_c) {
+    h_degrees = 0.0f;
+    s = 0.0f;
+    return;
+  }
+  const float d = max_c - min_c;
+  s = l > 0.5f ? d / (2.0f - max_c - min_c) : d / (max_c + min_c);
+  if (max_c == r) {
+    h_degrees = (g - b) / d + (g < b ? 6.0f : 0.0f);
+  } else if (max_c == g) {
+    h_degrees = (b - r) / d + 2.0f;
+  } else {
+    h_degrees = (r - g) / d + 4.0f;
+  }
+  h_degrees *= 60.0f;
+}
+
+inline float hue2rgb_channel(float p, float q, float t) {
+  if (t < 0.0f) t += 1.0f;
+  if (t > 1.0f) t -= 1.0f;
+  if (t < 1.0f / 6.0f) return p + (q - p) * 6.0f * t;
+  if (t < 1.0f / 2.0f) return q;
+  if (t < 2.0f / 3.0f) return p + (q - p) * (2.0f / 3.0f - t) * 6.0f;
+  return p;
+}
+
+// h in degrees, s/l as fractions — raw (unclamped) gamma-encoded sRGB.
+inline details_color_fn::rgb3f hsl_to_srgb_raw(float h_degrees, float s, float l) {
+  const float h = normalize_hue_degrees(h_degrees) / 360.0f;
+  if (s == 0.0f) return {l, l, l};
+  const float q = l < 0.5f ? l * (1.0f + s) : l + s - l * s;
+  const float p = 2.0f * l - q;
+  return {
+      hue2rgb_channel(p, q, h + 1.0f / 3.0f),
+      hue2rgb_channel(p, q, h),
+      hue2rgb_channel(p, q, h - 1.0f / 3.0f),
+  };
+}
+
+inline void rgb_to_hwb_raw(float r, float g, float b, float& h_degrees, float& w, float& blackness) {
+  float s = 0.0f;
+  float l = 0.0f;
+  rgb_to_hsl_raw(r, g, b, h_degrees, s, l);  // hue angle only (HSV/HSL share it)
+  w = std::min({r, g, b});
+  blackness = 1.0f - std::max({r, g, b});
+}
+
+// CSS Color 4 §8: C·(1−W−B)+W, with the W+B≥1 gray rule. W/B in fractions.
+inline details_color_fn::rgb3f hwb_to_srgb_raw(float h_degrees, float w, float blackness) {
+  if (w + blackness >= 1.0f) {
+    const float gray = w / (w + blackness);
+    return {gray, gray, gray};
+  }
+  const auto hue_color = hsl_to_srgb_raw(h_degrees, 1.0f, 0.5f);
+  const float factor = 1.0f - w - blackness;
+  return {
+      hue_color.x * factor + w,
+      hue_color.y * factor + w,
+      hue_color.z * factor + w,
+  };
+}
+
+// Source channels on the CSS scale: h in degrees, s/l/w/b as 0–100.
+inline std::optional<source_channel_values> resolve_relative_hsl_source(std::string_view source_expression,
+                                                                        const parse_css_color_context& context) {
+  auto source = resolve_source_color<core::rgbaf_t>(source_expression, context);
+  if (!source) return std::nullopt;
+  float h = 0.0f;
+  float s = 0.0f;
+  float l = 0.0f;
+  rgb_to_hsl_raw(source->r(), source->g(), source->b(), h, s, l);
+  return source_channel_values{normalize_hue_degrees(h), s * 100.0f, l * 100.0f, source->a()};
+}
+
+inline std::optional<source_channel_values> resolve_relative_hwb_source(std::string_view source_expression,
+                                                                        const parse_css_color_context& context) {
+  auto source = resolve_source_color<core::rgbaf_t>(source_expression, context);
+  if (!source) return std::nullopt;
+  float h = 0.0f;
+  float w = 0.0f;
+  float b = 0.0f;
+  rgb_to_hwb_raw(source->r(), source->g(), source->b(), h, w, b);
+  return source_channel_values{normalize_hue_degrees(h), w * 100.0f, b * 100.0f, source->a()};
+}
+
+inline channel_environment make_hsl_environment(const source_channel_values& source) {
+  channel_environment env;
+  env.set("h", source.c1);
+  env.set("s", source.c2);
+  env.set("l", source.c3);
+  return env;
+}
+
+inline channel_environment make_hwb_environment(const source_channel_values& source) {
+  channel_environment env;
+  env.set("h", source.c1);
+  env.set("w", source.c2);
+  env.set("b", source.c3);
+  return env;
+}
+
+// Relative lab/lch channels resolve to the origin's D50 values (CSS lab/lch
+// white point); the D65 core type is converted back at the boundary.
+inline std::optional<source_channel_values> resolve_relative_lab_source(std::string_view source_expression,
+                                                                        bool cylindrical,
+                                                                        const parse_css_color_context& context) {
+  auto source = resolve_source_color<core::cielab_t>(source_expression, context);
+  if (!source) return std::nullopt;
+  const auto d50 = css_lab_detail::lab_d65_to_d50(*source);
+  if (cylindrical) {
+    const float c = std::sqrt(d50.a() * d50.a() + d50.b() * d50.b());
+    float h = std::atan2(d50.b(), d50.a()) * (180.0f / 3.14159265358979323846f);
+    if (h < 0.0f) h += 360.0f;
+    return source_channel_values{d50.l(), c, h, 1.0f};
+  }
+  return source_channel_values{d50.l(), d50.a(), d50.b(), 1.0f};
+}
+
+inline channel_environment make_lab_environment(bool cylindrical, const source_channel_values& source) {
+  channel_environment env;
+  if (cylindrical) {
+    env.set("l", source.c1);
+    env.set("c", source.c2);
+    env.set("h", source.c3);
+  } else {
+    env.set("l", source.c1);
+    env.set("a", source.c2);
+    env.set("b", source.c3);
+  }
+  return env;
+}
+
 template <typename Color>
 inline std::optional<Color> evaluate_relative_color(const relative_color& parsed,
                                                     const parse_css_color_context& context) {
@@ -957,6 +1300,164 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
         std::clamp(*alpha, 0.0f, 1.0f),
     };
     return operations::conversion::color_cast<Color>(out);
+  }
+
+  if (parsed.function == relative_color_function_kind::hsl || parsed.function == relative_color_function_kind::hwb) {
+    // CSS Color 5 relative hsl()/hwb(): channel keywords h/s/l (hsl) or
+    // h/w/b (hwb) plus alpha. Percentage resolution: h 100% = 360 (lenient —
+    // hue percentages are invalid CSS), s/l/w/b 100% = 100. Channels are not
+    // clamped before conversion; the resulting sRGB channels and alpha are.
+    const bool is_hsl = parsed.function == relative_color_function_kind::hsl;
+
+    auto alpha_source = resolve_source_color<core::rgbaf_t>(parsed.source_expression, context);
+    if (!alpha_source) return std::nullopt;
+    auto source = is_hsl ? resolve_relative_hsl_source(parsed.source_expression, context)
+                         : resolve_relative_hwb_source(parsed.source_expression, context);
+    if (!source) return std::nullopt;
+
+    auto env = is_hsl ? make_hsl_environment(*source) : make_hwb_environment(*source);
+    env.set("alpha", alpha_source->a());
+
+    auto h = evaluate_expression(parsed.channels[0], env, 360.0f, context);
+    auto c2 = evaluate_expression(parsed.channels[1], env, 100.0f, context);
+    auto c3 = evaluate_expression(parsed.channels[2], env, 100.0f, context);
+    if (!h || !c2 || !c3) return std::nullopt;
+
+    auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
+                                    : std::optional<float>{source->alpha};
+    if (!alpha) return std::nullopt;
+    const float out_alpha = std::clamp(*alpha, 0.0f, 1.0f);
+
+    const auto rgb =
+        is_hsl ? hsl_to_srgb_raw(*h, *c2 / 100.0f, *c3 / 100.0f) : hwb_to_srgb_raw(*h, *c2 / 100.0f, *c3 / 100.0f);
+    core::rgbaf_t out{
+        std::clamp(rgb.x, 0.0f, 1.0f),
+        std::clamp(rgb.y, 0.0f, 1.0f),
+        std::clamp(rgb.z, 0.0f, 1.0f),
+        out_alpha,
+    };
+    return operations::conversion::color_cast<Color>(out);
+  }
+
+  if (parsed.function == relative_color_function_kind::lab || parsed.function == relative_color_function_kind::lch) {
+    // CSS Color 5 relative lab()/lch(): channel keywords l/a/b (lab) or
+    // l/c/h (lch) plus alpha, evaluated in D50 (the CSS lab white point) and
+    // Bradford-adapted to D65 for the core types/sRGB. Percentage resolution:
+    // l 100% = 100; a/b 100% = ±125; c 100% = 150; h percentages are not
+    // valid CSS (scale 360 as a lenient stand-in). Channels are not clamped
+    // before conversion; the adapted core channels and alpha are.
+    const bool cylindrical = parsed.function == relative_color_function_kind::lch;
+
+    auto alpha_source = resolve_source_color<core::rgbaf_t>(parsed.source_expression, context);
+    if (!alpha_source) return std::nullopt;
+    auto source = resolve_relative_lab_source(parsed.source_expression, cylindrical, context);
+    if (!source) return std::nullopt;
+
+    auto env = make_lab_environment(cylindrical, *source);
+    env.set("alpha", alpha_source->a());
+
+    const float l_scale = 100.0f;
+    const float axis_scale = cylindrical ? 150.0f : 125.0f;
+    const float third_scale = cylindrical ? 360.0f : 125.0f;
+    auto l = evaluate_expression(parsed.channels[0], env, l_scale, context);
+    auto c2 = evaluate_expression(parsed.channels[1], env, axis_scale, context);
+    auto c3 = evaluate_expression(parsed.channels[2], env, third_scale, context);
+    if (!l || !c2 || !c3) return std::nullopt;
+
+    auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
+                                    : std::optional<float>{alpha_source->a()};
+    if (!alpha) return std::nullopt;
+    const float out_alpha = std::clamp(*alpha, 0.0f, 1.0f);
+
+    // Evaluate in D50, then adapt to the D65 core type (helpers clamp to the
+    // channel ranges, so construction never throws).
+    float a50 = *c2;
+    float b50 = *c3;
+    if (cylindrical) {
+      const float h_rad = normalize_hue_degrees(*c3) * (3.14159265358979323846f / 180.0f);
+      a50 = *c2 * std::cos(h_rad);
+      b50 = *c2 * std::sin(h_rad);
+    }
+    const auto lab65 = css_lab_detail::lab_d50_to_d65(*l, a50, b50);
+
+    if constexpr (std::is_same_v<Color, core::cielab_t>) {
+      (void)out_alpha;
+      return lab65;
+    } else if constexpr (std::is_same_v<Color, core::cielch_t>) {
+      (void)out_alpha;
+      const float c_out = std::sqrt(lab65.a() * lab65.a() + lab65.b() * lab65.b());
+      float h_out = std::atan2(lab65.b(), lab65.a()) * (180.0f / 3.14159265358979323846f);
+      if (h_out < 0.0f) h_out += 360.0f;
+      return core::cielch_t{lab65.l(), std::clamp(c_out, 0.0f, 200.0f), h_out};
+    } else {
+      auto out = operations::conversion::color_cast<core::rgbaf_t>(lab65);
+      out.a() = out_alpha;
+      return operations::conversion::color_cast<Color>(out);
+    }
+  }
+
+  if (parsed.function == relative_color_function_kind::oklab ||
+      parsed.function == relative_color_function_kind::oklch) {
+    // CSS Color 5 relative oklab()/oklch(): channel keywords l, a, b (oklab) or
+    // l, c, h (oklch) plus alpha. Percentage resolution: l 100% = 1.0;
+    // a/b 100% = ±0.4; c 100% = 0.4; h percentages are not valid CSS (scale 360
+    // as a lenient stand-in). Channels are not clamped; alpha is.
+    const bool cylindrical = parsed.function == relative_color_function_kind::oklch;
+
+    auto alpha_source = resolve_source_color<core::rgbaf_t>(parsed.source_expression, context);
+    if (!alpha_source) return std::nullopt;
+    auto source = resolve_relative_oklab_source(parsed.source_expression, cylindrical, context);
+    if (!source) return std::nullopt;
+
+    auto env = make_oklab_environment(cylindrical, *source);
+    env.set("alpha", alpha_source->a());
+
+    const float l_scale = 1.0f;
+    const float axis_scale = 0.4f;
+    const float hue_scale = 360.0f;
+    auto l = evaluate_expression(parsed.channels[0], env, l_scale, context);
+    auto c2 = evaluate_expression(parsed.channels[1], env, axis_scale, context);
+    auto c3 = evaluate_expression(parsed.channels[2], env, cylindrical ? hue_scale : axis_scale, context);
+    if (!l || !c2 || !c3) return std::nullopt;
+
+    auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
+                                    : std::optional<float>{alpha_source->a()};
+    if (!alpha) return std::nullopt;
+    const float out_alpha = std::clamp(*alpha, 0.0f, 1.0f);
+
+    if (cylindrical) {
+      const float C = *c2;
+      const float H = normalize_hue_degrees(*c3);
+      if constexpr (std::is_same_v<Color, core::oklch_t>) {
+        return core::oklch_t{std::clamp(*l, 0.0f, 1.0f), std::clamp(C, 0.0f, 0.4f), H};
+      } else {
+        constexpr float deg_to_rad = 3.14159265358979323846f / 180.0f;
+        const float A = C * std::cos(H * deg_to_rad);
+        const float B = C * std::sin(H * deg_to_rad);
+        if constexpr (std::is_same_v<Color, core::oklab_t>) {
+          return core::oklab_t{std::clamp(*l, 0.0f, 1.0f), std::clamp(A, -0.5f, 0.5f), std::clamp(B, -0.5f, 0.5f)};
+        } else {
+          const auto lin = oklab_to_linear_srgb_raw(*l, A, B);
+          return operations::conversion::color_cast<Color>(
+              details_color_fn::linear_srgb_to_rgbaf(lin.x, lin.y, lin.z, out_alpha));
+        }
+      }
+    } else {
+      if constexpr (std::is_same_v<Color, core::oklab_t>) {
+        return core::oklab_t{std::clamp(*l, 0.0f, 1.0f), std::clamp(*c2, -0.5f, 0.5f), std::clamp(*c3, -0.5f, 0.5f)};
+      } else {
+        if constexpr (std::is_same_v<Color, core::oklch_t>) {
+          const float C = std::sqrt(*c2 * *c2 + *c3 * *c3);
+          float H = std::atan2(*c3, *c2) * (180.0f / 3.14159265358979323846f);
+          if (H < 0.0f) H += 360.0f;
+          return core::oklch_t{std::clamp(*l, 0.0f, 1.0f), std::clamp(C, 0.0f, 0.4f), H};
+        } else {
+          const auto lin = oklab_to_linear_srgb_raw(*l, *c2, *c3);
+          return operations::conversion::color_cast<Color>(
+              details_color_fn::linear_srgb_to_rgbaf(lin.x, lin.y, lin.z, out_alpha));
+        }
+      }
+    }
   }
 
   if (!parsed.target_space) return std::nullopt;

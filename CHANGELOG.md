@@ -6,6 +6,16 @@ All notable changes to `colorcpp` are documented here.
 
 ### Fixed
 
+- **CSS `lab()` / `lch()` white point (breaking)**: CSS lab()/lch() are
+  D50-based (CSS Color 4 §9.1), but the parser returned raw D50 channels in
+  the D65-based `core::cielab_t` / `core::cielch_t`. Absolute parses now
+  Bradford-adapt D50→D65 (neutrals unchanged, chromatic values shift by up to
+  ~4.5° hue); typed test expectations updated accordingly.
+- **Relative channel lists**: a channel beginning with a negative number (e.g.
+  `lab(from white 50% 25% -50%)`) was greedily consumed as binary subtraction,
+  failing the parse. In channel lists a binary `+`/`-` now requires whitespace
+  after the sign (the CSS calc() convention), leaving ` -50%` to the next
+  channel; `calc()` and parenthesized groups keep lenient tight arithmetic.
 - **Oklab/Oklch** (`oklab.hpp`, gamut clipping): the M2 b-axis row and the
   inverse LMS matrix coefficients did not match the Ottosson/CSS standard
   (b was scaled by ~0.54x). Oklch chroma/hue, `lerp_oklab`, `delta_e_ok`, and
@@ -44,6 +54,21 @@ All notable changes to `colorcpp` are documented here.
   internally (W3C Compositing and Blending Level 1). The previous "not a
   linear-sRGB compositing contract" disclaimers in `blend.hpp`, the README and
   the docs are removed.
+- **CSS relative color syntax for `hsl()` / `hwb()`**: `hsl(from …)` and
+  `hwb(from …)` with channel keywords (`h`/`s`/`l`, `h`/`w`/`b`, `alpha`),
+  percentage scales (s/l/w/b: 100), and hue angle units `deg`/`grad`/`rad`/
+  `turn` inside relative channel expressions (CSS Color 4 §5).
+- **CSS relative color syntax for `lab()` / `lch()`**: `lab(from …)` and
+  `lch(from …)` evaluate in the D50 domain (source channels adapted D65→D50,
+  result adapted D50→D65) with percentage scales l: 100, a/b: ±125, c: 150,
+  h: 360; typed `cielab_t` / `cielch_t` results available.
+- **CSS `contrast-color()`** (CSS Color 5 §8): resolves to white or black,
+  whichever contrasts more as text on the argument used as a solid background
+  (WCAG 2.x relative luminance; equal contrast resolves to white per the
+  spec). The argument is a full `<color>` — `light-dark()`, `color-mix()`,
+  relative colors, and variables resolve with the ambient context. Background
+  alpha is ignored; the result is opaque. Accepted by `parse_css_color_rgbaf`,
+  `parse_css_color_rgba8`, and typed `parse_css_color<Color>()`.
 
 ### Changed
 

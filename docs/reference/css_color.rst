@@ -40,16 +40,18 @@ In colorcpp
     * ``hsl()`` / ``hsla()`` - hue/saturation/lightness
     * ``hwb()`` - hue/whiteness/blackness
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
-    * ``lab()`` / ``lch()`` - CIE LAB space
+    * ``lab()`` / ``lch()`` - CIE LAB space (D50 per CSS; Bradford-adapted to the D65 core types)
     * ``color(display-p3)`` - Display P3 wide gamut
-    * ``rgb(from ...)`` / ``color(from ...)`` - relative colors with full expression support, including:
+    * ``rgb(from ...)`` / ``hsl(from ...)`` / ``hwb(from ...)`` / ``lab(from ...)`` / ``lch(from ...)`` / ``color(from ...)`` - relative colors with full expression support, including:
         * Arithmetic operations ``+ - * /``
         * Parenthesized expressions
         * ``calc()`` wrapper syntax
+        * Hue angle units (``deg`` / ``grad`` / ``rad`` / ``turn``) in channel expressions
         * Nested ``var(--token)`` references anywhere inside expressions
         * Unary minus
         * Delayed AST evaluation with variable binding
     * ``color-mix()`` - omitted interpolation defaults to ``oklab``; item-list mixes support one or more colors; progress-form mixes support ``color-mix(25% in srgb, red, blue)``; ``lch`` / ``oklch`` also accept ``shorter|longer|increasing|decreasing hue``
+    * ``contrast-color()`` - CSS Color 5; resolves to white or black by WCAG 2.x relative luminance against the argument used as a solid background (equal contrast resolves to white); the argument is a full ``<color>`` and resolves with the ambient context
     * ``device-cmyk()`` - CMYK device colors with optional alpha
     * ``light-dark()`` - Theme-aware color selection through context-aware parsing
 
@@ -84,7 +86,8 @@ Notes
 * Parser accepts both legacy comma syntax and modern space-separated syntax
 * ``color-mix()`` follows CSS premultiplied-alpha mixing semantics, including reduced-alpha results when explicit percentages sum below ``100%``
 * Progress-form ``color-mix()`` inputs are normalized into the same list-based evaluator as the item-list form
-* Relative color support currently covers ``rgb(from ...)`` and ``color(from ...)``; the remaining relative syntaxes are not implemented yet
+* Relative color support covers ``rgb`` / ``hsl`` / ``hwb`` / ``lab`` / ``lch`` / ``color`` ``from`` syntaxes; ``oklab(from ...)`` / ``oklch(from ...)`` are not implemented yet
+* ``contrast-color()`` sources are rejected in relative color syntax (sources resolve through the atomic parser); inside ``color-mix()`` items currently resolve through the full parser, so nesting parses there (same as ``light-dark()``) — this deviates from the spec, which makes both non-absolute
 * Formatter produces canonical ``rgb()`` output for sRGB colors
 
 

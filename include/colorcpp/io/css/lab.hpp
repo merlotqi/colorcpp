@@ -1,11 +1,14 @@
 /**
  * @file lab.hpp
- * @brief CSS lab() color parsing.
+ * @brief CSS lab() color parsing (D50) with adaptation to the D65 core type.
  */
 
 #pragma once
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <colorcpp/algorithms/chromatic_adaptation.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/io/css/details.hpp>
 #include <optional>
@@ -13,8 +16,87 @@
 
 namespace colorcpp::io::css {
 
+namespace css_lab_detail {
+
+namespace ca = colorcpp::algorithms::chromatic_adaptation;
+
+// CIE L*a*b* ↔ XYZ with an arbitrary reference white (CSS lab()/lch() are
+// D50-based; core::cielab_t is D65-based).
+inline std::array<float, 3> lab_to_xyz(float L, float a, float b, const core::xyz_t& wp) {
+  const float fy = (L + 16.0f) / 116.0f;
+  const float fx = a / 500.0f + fy;
+  const float fz = fy - b / 200.0f;
+
+  constexpr float delta = 6.0f / 29.0f;
+  constexpr float delta2 = delta * delta;
+  const auto g = [=](float f) noexcept { return f > delta ? f * f * f : 3.0f * delta2 * (f - 4.0f / 29.0f); };
+
+  return {wp.x() * g(fx), wp.y() * g(fy), wp.z() * g(fz)};
+}
+
+inline core::cielab_t xyz_to_lab(const std::array<float, 3>& xyz, const core::xyz_t& wp) {
+  constexpr float delta = 6.0f / 29.0f;
+  constexpr float delta3 = delta * delta * delta;
+  constexpr float k = 1.0f / (3.0f * delta * delta);
+  constexpr float b0 = 4.0f / 29.0f;
+  const auto f = [=](float t) noexcept { return t > delta3 ? std::cbrt(t) : k * t + b0; };
+
+  const float fx = f(xyz[0] / wp.x());
+  const float fy = f(xyz[1] / wp.y());
+  const float fz = f(xyz[2] / wp.z());
+
+  // Clamp to the core channel ranges so construction never throws — the
+  // parser contract is nullopt-on-failure, never exceptions.
+  const float L = std::clamp(116.0f * fy - 16.0f, 0.0f, 100.0f);
+  const float A = std::clamp(500.0f * (fx - fy), -128.0f, 128.0f);
+  const float B = std::clamp(200.0f * (fy - fz), -128.0f, 128.0f);
+  return core::cielab_t{L, A, B};
+}
+
+// Bradford chromatic adaptation on raw XYZ triples (avoids materializing
+// intermediate core types whose channel ranges may reject intermediate values).
+inline std::array<float, 3> bradford_adapt(const std::array<float, 3>& xyz, const core::xyz_t& src_wp,
+                                           const core::xyz_t& dst_wp) {
+  const auto mul = [](const float* m, float x, float y, float z) {
+    return std::array<float, 3>{
+        m[0] * x + m[1] * y + m[2] * z,
+        m[3] * x + m[4] * y + m[5] * z,
+        m[6] * x + m[7] * y + m[8] * z,
+    };
+  };
+
+  const auto lms_src = mul(&ca::details::M_BFD[0], src_wp.x(), src_wp.y(), src_wp.z());
+  const auto lms_dst = mul(&ca::details::M_BFD[0], dst_wp.x(), dst_wp.y(), dst_wp.z());
+  auto lms = mul(&ca::details::M_BFD[0], xyz[0], xyz[1], xyz[2]);
+  for (int i = 0; i < 3; ++i) {
+    if (lms_src[i] != 0.0f) lms[i] *= lms_dst[i] / lms_src[i];
+  }
+  return mul(&ca::details::M_BFD_inv[0], lms[0], lms[1], lms[2]);
+}
+
+// CSS lab()/lch() D50 channels → D65 core::cielab_t (CSS Color 4 §9.1:
+// Bradford adaptation between white points).
+inline core::cielab_t lab_d50_to_d65(float L, float a, float b) {
+  const auto xyz50 = lab_to_xyz(L, a, b, ca::WHITEPOINT_D50);
+  const auto xyz65 = bradford_adapt(xyz50, ca::WHITEPOINT_D50, ca::WHITEPOINT_D65);
+  return xyz_to_lab(xyz65, ca::WHITEPOINT_D65);
+}
+
+// Inverse direction — used by relative lab(from …)/lch(from …), whose
+// channel keywords resolve to D50 values.
+inline core::cielab_t lab_d65_to_d50(const core::cielab_t& lab) {
+  const auto xyz65 = lab_to_xyz(lab.l(), lab.a(), lab.b(), ca::WHITEPOINT_D65);
+  const auto xyz50 = bradford_adapt(xyz65, ca::WHITEPOINT_D65, ca::WHITEPOINT_D50);
+  return xyz_to_lab(xyz50, ca::WHITEPOINT_D50);
+}
+
+}  // namespace css_lab_detail
+
 /**
  * @brief Parse lab(L a b [/ alpha]) — CSS Color Level 4.
+ *
+ * CSS lab() uses the D50 white point; the result is Bradford-adapted to the
+ * D65-based core::cielab_t.
  *
  * L: 0-100% or 0-100 (lightness)
  * a: -125 to 125 (green-red axis)
@@ -86,7 +168,7 @@ inline std::optional<core::cielab_t> parse_lab_function(details::Cursor& c) {
     if (!d.eof()) return std::nullopt;
 
     c.i = d.i;
-    return core::cielab_t{L, A, B};
+    return css_lab_detail::lab_d50_to_d65(L, A, B);
   };
 
   if (auto r = try_space()) return r;

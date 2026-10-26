@@ -6,17 +6,16 @@
  */
 
 #include <gtest/gtest.h>
-#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <colorcpp/colorcpp.hpp>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
 #include <variant>
-
-#include <colorcpp/colorcpp.hpp>
 
 namespace colorcpp::reference_test {
 
@@ -26,8 +25,8 @@ namespace gamut = colorcpp::algorithms::gamut;
 
 namespace {
 
-using AnyColor = std::variant<rgbf_t, linear_rgbf_t, display_p3f_t, linear_display_p3f_t, adobe_rgbf_t,
-                              prophoto_rgbf_t, rec2020_rgbf_t, xyz_t, oklab_t, oklch_t>;
+using AnyColor = std::variant<rgbf_t, linear_rgbf_t, display_p3f_t, linear_display_p3f_t, adobe_rgbf_t, prophoto_rgbf_t,
+                              rec2020_rgbf_t, xyz_t, oklab_t, oklch_t>;
 
 using Vec3 = std::array<float, 3>;
 
@@ -144,4 +143,3 @@ TEST(CssColor4Reference, GamutMapP3YellowToSrgb) {
 }
 
 }  // namespace colorcpp::reference_test
- 

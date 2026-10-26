@@ -1,13 +1,15 @@
 /**
  * @file lch.hpp
- * @brief CSS lch() color parsing.
+ * @brief CSS lch() color parsing (D50) with adaptation to the D65 core type.
  */
 
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/io/css/details.hpp>
+#include <colorcpp/io/css/lab.hpp>
 #include <optional>
 #include <string_view>
 
@@ -15,6 +17,9 @@ namespace colorcpp::io::css {
 
 /**
  * @brief Parse lch(L C H [/ alpha]) — CSS Color Level 4.
+ *
+ * CSS lch() uses the D50 white point (like lab()); the result is
+ * Bradford-adapted to the D65-based core::cielch_t.
  *
  * L: 0-100% or 0-100 (lightness)
  * C: 0-150 or 0-150% (chroma)
@@ -80,7 +85,15 @@ inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c) {
     if (!d.eof()) return std::nullopt;
 
     c.i = d.i;
-    return core::cielch_t{L, C, H};
+
+    // D50 lch → D50 lab → Bradford → D65 lab → D65 lch
+    const float h_rad = H * (3.14159265358979323846f / 180.0f);
+    const auto lab_d65 = css_lab_detail::lab_d50_to_d65(L, C * std::cos(h_rad), C * std::sin(h_rad));
+
+    const float c_out = std::sqrt(lab_d65.a() * lab_d65.a() + lab_d65.b() * lab_d65.b());
+    float h_out = std::atan2(lab_d65.b(), lab_d65.a()) * (180.0f / 3.14159265358979323846f);
+    if (h_out < 0.0f) h_out += 360.0f;
+    return core::cielch_t{lab_d65.l(), std::clamp(c_out, 0.0f, 200.0f), h_out};
   };
 
   if (auto r = try_space()) return r;

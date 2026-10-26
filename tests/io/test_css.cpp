@@ -240,26 +240,29 @@ TEST(Css, TransparentKeyword) {
 }
 
 TEST(Css, LabBasic) {
+  // lab() is CIE L*a*b* with the D50 white point (CSS Color 4 §9.1); the
+  // parser adapts to the D65-based core::cielab_t via Bradford, so expected
+  // values are the D65 equivalents (computed independently in double precision).
   // lab(L a b) with numbers — direct lab() parse (no rgba8 hub)
   auto c1 = parse_css_color<cielab_t>("lab(50 25 -30)");
   ASSERT_TRUE(c1.has_value());
-  EXPECT_NEAR(c1->l(), 50.0f, 0.01f);
-  EXPECT_NEAR(c1->a(), 25.0f, 0.01f);
-  EXPECT_NEAR(c1->b(), -30.0f, 0.01f);
+  EXPECT_NEAR(c1->l(), 50.2149f, 0.01f);
+  EXPECT_NEAR(c1->a(), 27.7958f, 0.01f);
+  EXPECT_NEAR(c1->b(), -29.8948f, 0.01f);
 
   // lab(L a b) with percentage for L
   auto c2 = parse_css_color<cielab_t>("lab(75% 20 -25)");
   ASSERT_TRUE(c2.has_value());
-  EXPECT_NEAR(c2->l(), 75.0f, 0.01f);
-  EXPECT_NEAR(c2->a(), 20.0f, 0.01f);
-  EXPECT_NEAR(c2->b(), -25.0f, 0.01f);
+  EXPECT_NEAR(c2->l(), 75.1601f, 0.01f);
+  EXPECT_NEAR(c2->a(), 22.3285f, 0.01f);
+  EXPECT_NEAR(c2->b(), -24.9638f, 0.01f);
 
   // lab(L a b / alpha) - alpha is parsed but ignored
   auto c3 = parse_css_color<cielab_t>("lab(60 30 -40 / 0.5)");
   ASSERT_TRUE(c3.has_value());
-  EXPECT_NEAR(c3->l(), 60.0f, 0.01f);
-  EXPECT_NEAR(c3->a(), 30.0f, 0.01f);
-  EXPECT_NEAR(c3->b(), -40.0f, 0.01f);
+  EXPECT_NEAR(c3->l(), 60.3283f, 0.01f);
+  EXPECT_NEAR(c3->a(), 33.8153f, 0.01f);
+  EXPECT_NEAR(c3->b(), -39.7658f, 0.01f);
 }
 
 TEST(Css, LabEdgeCases) {
@@ -289,26 +292,29 @@ TEST(Css, LabInvalid) {
 }
 
 TEST(Css, LChBasic) {
+  // lch() is D50-based like lab(); expectations are the Bradford-adapted
+  // D65 equivalents of the parsed values (independent double-precision
+  // computation) — note the hue shift the white-point change induces.
   // lch(L C H) with numbers — direct lch() parse (no rgba8 hub)
   auto c1 = parse_css_color<cielch_t>("lch(70 30 180)");
   ASSERT_TRUE(c1.has_value());
-  EXPECT_NEAR(c1->l(), 70.0f, 0.01f);
-  EXPECT_NEAR(c1->c(), 30.0f, 0.01f);
-  EXPECT_NEAR(c1->h(), 180.0f, 0.01f);
+  EXPECT_NEAR(c1->l(), 70.1745f, 0.01f);
+  EXPECT_NEAR(c1->c(), 29.7571f, 0.01f);
+  EXPECT_NEAR(c1->h(), 179.1885f, 0.01f);
 
   // lch(L C H) with percentage for L and C
   auto c2 = parse_css_color<cielch_t>("lch(75% 20% 90deg)");
   ASSERT_TRUE(c2.has_value());
-  EXPECT_NEAR(c2->l(), 75.0f, 0.01f);
-  EXPECT_NEAR(c2->c(), 30.0f, 0.01f);
-  EXPECT_NEAR(c2->h(), 90.0f, 0.01f);
+  EXPECT_NEAR(c2->l(), 74.7517f, 0.01f);
+  EXPECT_NEAR(c2->c(), 29.9620f, 0.01f);
+  EXPECT_NEAR(c2->h(), 94.4713f, 0.01f);
 
   // lch(L C H / alpha) - alpha is parsed but ignored
   auto c3 = parse_css_color<cielch_t>("lch(50 40 270 / 0.8)");
   ASSERT_TRUE(c3.has_value());
-  EXPECT_NEAR(c3->l(), 50.0f, 0.01f);
-  EXPECT_NEAR(c3->c(), 40.0f, 0.01f);
-  EXPECT_NEAR(c3->h(), 270.0f, 0.01f);
+  EXPECT_NEAR(c3->l(), 50.5554f, 0.01f);
+  EXPECT_NEAR(c3->c(), 39.6064f, 0.01f);
+  EXPECT_NEAR(c3->h(), 277.3211f, 0.01f);
 }
 
 TEST(Css, LChHueUnits) {
@@ -338,6 +344,19 @@ TEST(Css, LChInvalid) {
 
   // Invalid format
   EXPECT_FALSE(parse_css_color<cielch_t>("lch(50, 30, 180)").has_value());
+}
+
+TEST(Css, LabLchD50RendersCssExample) {
+  // D50 lab/lch of peru (#CD853F) — CSS Color 4 worked example numbers for
+  // lch(62.2532 54.0114 63.6769). Both forms must render to peru in sRGB;
+  // storing the D50 channels unadapted in the D65 core type breaks this.
+  auto from_lch = parse_css_color_rgbaf("lch(62.2532 54.0114 63.6769)");
+  ASSERT_TRUE(from_lch);
+  expect_rgbaf_near(*from_lch, 0.803922f, 0.521569f, 0.247059f, 1.0f, 0.003f);
+
+  auto from_lab = parse_css_color_rgbaf("lab(62.2532 23.9504 48.4108)");
+  ASSERT_TRUE(from_lab);
+  expect_rgbaf_near(*from_lab, 0.803922f, 0.521569f, 0.247059f, 1.0f, 0.003f);
 }
 
 TEST(Css, OkLabBasic) {
@@ -657,6 +676,195 @@ TEST(Css, RelativeColorTypedParsingPreservesTargetSpace) {
   EXPECT_NEAR(relative_xyz->x(), expected_xyz->x(), 0.002f);
   EXPECT_NEAR(relative_xyz->y(), expected_xyz->y(), 0.002f);
   EXPECT_NEAR(relative_xyz->z(), expected_xyz->z(), 0.002f);
+}
+
+// ---------------------------------------------------------------------------
+// CSS Color 5 relative color syntax: oklab(from ...)/oklch(from ...)
+// Expected sRGB values computed independently in double precision from the
+// spec's resulting oklab/oklch channel values (not via colorcpp).
+// ---------------------------------------------------------------------------
+
+TEST(Css, RelativeOklabSpecExample) {
+  // CSS Color 5: oklab(from var(--bluegreen) calc(1.0 - l) calc(a * 0.8) b)
+  // with --bluegreen: oklab(54.3% -22.5% -5%) => result oklab(0.457 -0.072 -0.02)
+  auto c = parse_css_color_rgbaf("oklab(from oklab(0.543 -0.09 -0.02) calc(1 - l) calc(a * 0.8) b)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.04696f, 0.391693f, 0.393793f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeOklchHueRotate) {
+  // oklch(from oklch(0.526 0.115 44.6deg) l c calc(h + 90)) => oklch(0.526 0.115 134.6)
+  auto c = parse_css_color_rgbaf("oklch(from oklch(0.526 0.115 44.6deg) l c calc(h + 90))");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.300863f, 0.473593f, 0.184649f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeOklchIdentity) {
+  auto c = parse_css_color_rgbaf("oklch(from oklch(0.526 0.115 44.6deg) l c h)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.626653f, 0.321147f, 0.17627f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeOklchAlphaClamped) {
+  // CSS Color 5: alpha is clamped to [0, 1]; channels are not scaled.
+  auto c = parse_css_color_rgbaf("oklch(from rgb(255 0 0 / 0.7) l c h / calc(alpha * 2))");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(c->a(), 1.0f, 0.0001f);
+  // channels: red's oklch round-trip must stay red
+  expect_rgbaf_near(*c, 1.0f, 0.0f, 0.0f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeOklchDefaultAlphaIsSource) {
+  auto c = parse_css_color_rgbaf("oklch(from rgb(255 0 0 / 0.7) l c h)");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(c->a(), 0.7f, 0.003f);
+}
+
+TEST(Css, RelativeOklchPercentageScales) {
+  // oklch percentages: l 100% = 1, c 100% = 0.4.
+  // oklch(from white 0% 100% 0) => oklch(0 0.4 0) — out of sRGB gamut, clamps to ~black-red edge.
+  auto c = parse_css_color<oklch_t>("oklch(from white 50% 50% 0)");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(c->l(), 0.5f, 0.0001f);
+  EXPECT_NEAR(c->c(), 0.2f, 0.0001f);
+  EXPECT_NEAR(c->h(), 0.0f, 0.0001f);
+}
+
+TEST(Css, RelativeColorRejectsMalformed) {
+  EXPECT_FALSE(parse_css_color_rgbaf("oklch(from red 1 2)").has_value());      // missing channel
+  EXPECT_FALSE(parse_css_color_rgbaf("oklch(from red 1 2 3 4)").has_value());  // extra channel
+  EXPECT_FALSE(parse_css_color_rgbaf("oklch(from red w g b)").has_value());    // wrong keywords
+  EXPECT_FALSE(parse_css_color_rgbaf("oklab(from red l c h)").has_value());    // c not in oklab
+}
+
+// ---------------------------------------------------------------------------
+// CSS Color 5 relative color syntax: hsl(from ...)/hwb(from ...)
+// Expected sRGB values computed independently in double precision.
+// ---------------------------------------------------------------------------
+
+TEST(Css, RelativeHslIdentity) {
+  // peru = #CD853F = hsl(29.5775 58.6777% 52.549%); identity must round-trip.
+  auto c = parse_css_color_rgbaf("hsl(from peru h s l)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.803922f, 0.521569f, 0.247059f, 1.0f, 0.002f);
+}
+
+TEST(Css, RelativeHslHueRotate) {
+  // CSS Color 5: hsl(from var(--accent) calc(h + 180) s l) — complement.
+  // lightseagreen #20B2AA = hsl(176.7123 69.5238% 41.1765%) => hsl(356.7123 ...)
+  auto c = parse_css_color_rgbaf("hsl(from lightseagreen calc(h + 180) s l)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.698039f, 0.125490f, 0.156863f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeHslAngleUnitsInCalc) {
+  // Angle units resolve to degrees: calc(h + 90deg) on peru.
+  auto c = parse_css_color_rgbaf("hsl(from peru calc(h + 90deg) s l)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.250980f, 0.803922f, 0.247059f, 1.0f, 0.003f);
+
+  auto turn = parse_css_color_rgbaf("hsl(from peru calc(h + 0.25turn) s l)");
+  ASSERT_TRUE(turn);
+  expect_rgbaf_near(*turn, 0.250980f, 0.803922f, 0.247059f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeHslPercentageScales) {
+  // hsl percentages: s and l, 100% = 100. hsl(from peru h 100% 50%) = hsl(29.5775 100% 50%).
+  auto c = parse_css_color_rgbaf("hsl(from peru h 100% 50%)");
+  ASSERT_TRUE(c);
+  // full-saturation mid-lightness of peru's hue: r=1, g=x, b=0 with m=0
+  expect_rgbaf_near(*c, 1.0f, 0.492958f, 0.0f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeHwbIdentity) {
+  // peru as HWB: whiteness = min channel = 24.7059%, blackness = 1 - max = 19.6078%.
+  auto c = parse_css_color_rgbaf("hwb(from peru h w b)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.803922f, 0.521569f, 0.247059f, 1.0f, 0.002f);
+}
+
+TEST(Css, RelativeHwbSpecFormula) {
+  // CSS Color 4/5: result = C * (1 - W - B) + W on the full-saturation hue color.
+  auto c = parse_css_color_rgbaf("hwb(from peru h 30% 20%)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.8f, 0.546479f, 0.3f, 1.0f, 0.003f);
+
+  auto whiteish = parse_css_color_rgbaf("hwb(from peru h 100% 0%)");
+  ASSERT_TRUE(whiteish);
+  expect_rgbaf_near(*whiteish, 1.0f, 1.0f, 1.0f, 1.0f, 0.0001f);
+}
+
+TEST(Css, RelativeHslHwbRejectWrongKeywords) {
+  EXPECT_FALSE(parse_css_color_rgbaf("hsl(from red r g b)").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("hwb(from red r g b)").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("hsl(from red h s)").has_value());
+}
+
+// ---------------------------------------------------------------------------
+// CSS Color 5 relative color syntax: lab(from ...)/lch(from ...)
+// Channels resolve in D50 (CSS lab/lch white point) and are adapted to D65
+// for the core types/sRGB. Expected values computed independently.
+// ---------------------------------------------------------------------------
+
+TEST(Css, RelativeLabIdentity) {
+  auto c = parse_css_color_rgbaf("lab(from peru l a b)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.803922f, 0.521569f, 0.247059f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeLabLighten) {
+  // CSS Color 5 pattern: lab(from <color> calc(l + 10) a b).
+  auto c = parse_css_color_rgbaf("lab(from peru calc(l + 10) a b)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.9210f, 0.6250f, 0.3453f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeLabPercentageScales) {
+  // lab percentages: l 100% = 100; a/b 100% = ±125. White origin: l=100, a=b=0.
+  auto typed = parse_css_color<cielab_t>("lab(from white 50% 25% -50%)");
+  ASSERT_TRUE(typed);
+  EXPECT_NEAR(typed->l(), 50.8066f, 0.01f);
+  EXPECT_NEAR(typed->a(), 38.0474f, 0.01f);
+  EXPECT_NEAR(typed->b(), -61.5119f, 0.01f);
+
+  auto c = parse_css_color_rgbaf("lab(from white 50% 25% -50%)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.4682f, 0.4019f, 0.8909f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeLchIdentity) {
+  auto c = parse_css_color_rgbaf("lch(from peru l c h)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.803922f, 0.521569f, 0.247059f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeLchChromaScale) {
+  auto c = parse_css_color_rgbaf("lch(from peru l calc(c * 1.5) h)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.8799f, 0.4807f, 0.0f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeLchPercentageScales) {
+  // lch percentages: l 100% = 100; c 100% = 150. lch(from white 50% 50% 0) = D50 lch(50 75 0).
+  auto c = parse_css_color_rgbaf("lch(from white 50% 50% 0)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.8811f, 0.0806f, 0.4814f, 1.0f, 0.003f);
+}
+
+TEST(Css, RelativeLabAlphaDefaultsToSource) {
+  auto c = parse_css_color_rgbaf("lab(from rgb(255 0 0 / 0.7) l a b)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 1.0f, 0.0f, 0.0f, 0.7f, 0.005f);
+
+  auto clamped = parse_css_color_rgbaf("lab(from rgb(255 0 0 / 0.7) l a b / calc(alpha * 2))");
+  ASSERT_TRUE(clamped);
+  EXPECT_NEAR(clamped->a(), 1.0f, 0.001f);
+}
+
+TEST(Css, RelativeLabLchRejectWrongKeywords) {
+  EXPECT_FALSE(parse_css_color_rgbaf("lab(from red l c h)").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("lch(from red l a b)").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("lab(from red l a)").has_value());
 }
 
 TEST(Css, ColorMixInSrgb) {
@@ -1061,6 +1269,118 @@ TEST(Css, LightDarkInvalidCorpus) {
     SCOPED_TRACE(row.input);
     EXPECT_FALSE(parse_css_color_light_dark_rgba8(row.input, false).has_value());
     EXPECT_FALSE(parse_css_color_light_dark_rgba8(row.input, true).has_value());
+  }
+}
+
+// contrast-color(<color>) — CSS Color 5 §8: resolves to white or black,
+// whichever contrasts more (WCAG luminance); equal contrast → white.
+
+TEST(Css, ContrastColorPicksWhiteOnDark) {
+  auto c = parse_css_color_rgbaf("contrast-color(black)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 1.0f, 1.0f, 1.0f, 1.0f, 0.002f);
+}
+
+TEST(Css, ContrastColorPicksBlackOnLight) {
+  auto c = parse_css_color_rgbaf("contrast-color(white)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.0f, 0.0f, 0.0f, 1.0f, 0.002f);
+  // WCAG luminance of gray 128 is ~0.2159 > tie (~0.17913) → black
+  auto g = parse_css_color_rgbaf("rgb(128 128 128)");
+  ASSERT_TRUE(g);
+  auto r = parse_css_color_rgbaf("contrast-color(rgb(128 128 128))");
+  ASSERT_TRUE(r);
+  expect_rgbaf_near(*r, 0.0f, 0.0f, 0.0f, 1.0f, 0.002f);
+}
+
+TEST(Css, ContrastColorTieBoundary) {
+  // Grays straddling the WCAG tie luminance sqrt(0.0525) - 0.05 ≈ 0.1791287847
+  // (independent double-precision reference; ±1e-5 in luminance).
+  auto below = parse_css_color_rgbaf("color(srgb 0.460301333 0.460301333 0.460301333)");
+  ASSERT_TRUE(below);
+  auto rb = parse_css_color_rgbaf("contrast-color(color(srgb 0.460301333 0.460301333 0.460301333))");
+  ASSERT_TRUE(rb);
+  expect_rgbaf_near(*rb, 1.0f, 1.0f, 1.0f, 1.0f, 0.002f);
+
+  auto above = parse_css_color_rgbaf("color(srgb 0.460325306 0.460325306 0.460325306)");
+  ASSERT_TRUE(above);
+  auto ra = parse_css_color_rgbaf("contrast-color(color(srgb 0.460325306 0.460325306 0.460325306))");
+  ASSERT_TRUE(ra);
+  expect_rgbaf_near(*ra, 0.0f, 0.0f, 0.0f, 1.0f, 0.002f);
+}
+
+TEST(Css, ContrastColorIgnoresAlpha) {
+  // Background alpha does not affect the luminance decision; output is opaque.
+  auto c = parse_css_color_rgbaf("contrast-color(rgba(255 255 255 / 0))");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.0f, 0.0f, 0.0f, 1.0f, 0.002f);
+}
+
+TEST(Css, ContrastColorAcceptsFullColorArgument) {
+  // The argument is a full <color>: relative syntax and color-mix() recurse.
+  auto rel = parse_css_color_rgbaf("contrast-color(rgb(from black r g b))");
+  ASSERT_TRUE(rel);
+  expect_rgbaf_near(*rel, 1.0f, 1.0f, 1.0f, 1.0f, 0.002f);
+
+  auto mix = parse_css_color_rgbaf("contrast-color(color-mix(in srgb, black 50%, white))");
+  ASSERT_TRUE(mix);
+  expect_rgbaf_near(*mix, 0.0f, 0.0f, 0.0f, 1.0f, 0.002f);
+
+  // color-mix() items resolve through the full parser (spec deviation that
+  // mirrors light-dark()): contrast-color() nested there currently parses.
+  auto nested = parse_css_color_rgbaf("color-mix(in srgb, contrast-color(black), black)");
+  ASSERT_TRUE(nested);
+  expect_rgbaf_near(*nested, 0.5f, 0.5f, 0.5f, 1.0f, 0.002f);
+}
+
+TEST(Css, ContrastColorContextAwareArgument) {
+  // light-dark() inside the argument resolves with the ambient context.
+  auto light = parse_css_color_rgbaf("contrast-color(light-dark(black, white))");
+  ASSERT_TRUE(light);
+  expect_rgbaf_near(*light, 1.0f, 1.0f, 1.0f, 1.0f, 0.002f);
+
+  parse_css_color_context ctx;
+  ctx.dark_theme = true;
+  auto dark = parse_css_color_rgbaf("contrast-color(light-dark(black, white))", ctx);
+  ASSERT_TRUE(dark);
+  expect_rgbaf_near(*dark, 0.0f, 0.0f, 0.0f, 1.0f, 0.002f);
+}
+
+TEST(Css, ContrastColorTypedAndRgba8) {
+  auto lab = parse_css_color<core::cielab_t>("contrast-color(white)");
+  ASSERT_TRUE(lab);
+  EXPECT_NEAR(lab->l(), 0.0f, 0.02f);
+  EXPECT_NEAR(lab->a(), 0.0f, 0.02f);
+  EXPECT_NEAR(lab->b(), 0.0f, 0.02f);
+
+  auto rgbf = parse_css_color<core::rgbf_t>("contrast-color(black)");
+  ASSERT_TRUE(rgbf);
+  EXPECT_NEAR(rgbf->r(), 1.0f, 0.002f);
+  EXPECT_NEAR(rgbf->g(), 1.0f, 0.002f);
+  EXPECT_NEAR(rgbf->b(), 1.0f, 0.002f);
+
+  auto rgba = parse_css_color_rgba8("contrast-color(white)");
+  ASSERT_TRUE(rgba);
+  expect_rgba(*rgba, 0, 0, 0, 255);
+}
+
+TEST(Css, ContrastColorRejectsMalformed) {
+  const std::vector<InvalidCssCase> cases = {
+      {"contrast-color()"},
+      {"contrast-color(white black)"},
+      {"contrast-color(nope)"},
+      {"contrast-color(white"},
+      {"contrast-color(white))"},
+      {"contrast-color white)"},
+      {"contrast-color(rgb(1 2 3)"},
+      // relative sources resolve through the atomic parser: non-absolute
+      // contrast-color() is not accepted there
+      {"rgb(from contrast-color(white) r g b)"},
+  };
+  for (const auto& row : cases) {
+    SCOPED_TRACE(row.input);
+    EXPECT_FALSE(parse_css_color_rgbaf(row.input).has_value());
+    EXPECT_FALSE(parse_css_color_rgba8(row.input).has_value());
   }
 }
 
