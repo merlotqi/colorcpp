@@ -81,9 +81,11 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
         max_C = mid_C;
     }
 
-    // Construct via OKLab with reduced chroma.
+    // Construct via OKLab with reduced chroma, then restore the original alpha
+    // (oklab_t carries no alpha; the cast would reset it to 1.0).
     // min_C * |cos_h| ≤ |a_ok| ≤ 0.5, so the channel range is always valid.
-    return color_cast<Color>(color_cast<core::rgbaf_t>(core::oklab_t{L, min_C * cos_h, min_C * sin_h}));
+    auto rgb = color_cast<core::rgbaf_t>(core::oklab_t{L, min_C * cos_h, min_C * sin_h});
+    return color_cast<Color>(core::rgbaf_t{rgb.get_index<0>(), rgb.get_index<1>(), rgb.get_index<2>(), alpha});
   }
 
   // Method: css_color4
@@ -123,7 +125,9 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
         max_C = mid_C;
       } else {
         // ΔE ≈ JND: the clipped version is the answer.
-        return color_cast<Color>(core::rgbaf_t{r_c, g_c, b_c, alpha});
+        // r_c/g_c/b_c are *linear* sRGB — wrap in linear_rgbaf_t so downstream
+        // casts apply the sRGB transfer function instead of double-decoding.
+        return color_cast<Color>(core::linear_rgbaf_t{r_c, g_c, b_c, alpha});
       }
     }
 
@@ -131,7 +135,7 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
     float r, g, b;
     details::oklab_to_linrgb(L, min_C * cos_h, min_C * sin_h, r, g, b);
     return color_cast<Color>(
-        core::rgbaf_t{std::clamp(r, 0.0f, 1.0f), std::clamp(g, 0.0f, 1.0f), std::clamp(b, 0.0f, 1.0f), alpha});
+        core::linear_rgbaf_t{std::clamp(r, 0.0f, 1.0f), std::clamp(g, 0.0f, 1.0f), std::clamp(b, 0.0f, 1.0f), alpha});
   }
 }
 

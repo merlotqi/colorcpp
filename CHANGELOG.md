@@ -2,6 +2,71 @@
 
 All notable changes to `colorcpp` are documented here.
 
+## [Unreleased]
+
+### Fixed
+
+- **Gamut mapping** (`gamut_clip`, default `css_color4`): linear sRGB values
+  from `oklab_to_linrgb` were stored into `rgbaf_t` without sRGB encoding,
+  darkening mapped colours (lightness shifted by ~0.12 for strongly
+  out-of-gamut inputs); the result is now constructed via `linear_rgbaf_t`.
+- **Gamut mapping** (`chroma_reduce`): preserve the input alpha instead of
+  resetting it to 1.0.
+- **CMake**: `-Werror`/`/W4`/`/WX` are no longer exported on the `colorcpp`
+  INTERFACE target — consumers no longer inherit the library's warning flags.
+  First-party strict warnings moved to an internal `colorcpp_warnings` target;
+  `/utf-8` remains on the INTERFACE for MSVC (non-ASCII header comments).
+
+### Changed
+
+- **README**: documented HWB, Adobe RGB, ProPhoto RGB, Rec.2020, and chromatic
+  adaptation; completed the examples and benchmarks lists.
+
+## [1.0.3] - 2026-07-06
+
+Patch release focused on parser robustness, platform fixes, and validation.
+
+### Fixed
+
+- **CSS parsing**: prevent undefined behaviour in hex expansion (`hex_expand`) and
+  refactor hue parsing.
+- **CSS parsing**: restore the cursor position on failed parenthesized content
+  parsing.
+- **Float parsing**: use `strtof`/`strtod` on Apple platforms, where
+  `std::from_chars` for floating-point is unavailable; simplify the shared
+  `parse_float` implementation around `std::from_chars`.
+- **`.cube` parser**: return an error on invalid size, domain, or data lines
+  instead of accepting malformed LUT files.
+
+### Added
+
+- **Literals**: hex validation and `static_assert` for hex digit counts;
+  improved decimal literal parsing and validation.
+- **Serialization**: validation for null channel names and NaN values.
+
+### Changed
+
+- **CSS named colors**: case-insensitive lookup without heap allocation (perf).
+
+## [1.0.2] - 2026-06-27
+
+Wide-gamut release adding three RGB working spaces and white-point adaptation.
+
+### Added
+
+- **Core colour spaces**: `core::adobe_rgb_t`, `core::prophoto_rgb_t`, and
+  `core::rec2020_t` (with linear and alpha variants), including examples
+  (`adobe_rgb_example`, `prophoto_rgb_example`, `rec2020_example`).
+- **`algorithms::chromatic_adaptation`** — Bradford and Von Kries white-point
+  adaptation; ProPhoto RGB conversions use explicit Bradford adaptation.
+- **Conversion graph**: registered edges for Adobe RGB, ProPhoto RGB, and
+  Rec.2020.
+- **Gamut**: ProPhoto RGB support in multi-colourspace gamut mapping.
+- **CSS parsing**: Adobe RGB and ProPhoto RGB direct support; Rec.2020 wired to
+  the core type.
+- **Tests**: coverage for Adobe RGB / ProPhoto RGB models and conversions;
+  enabled Display P3 conversion tests.
+
 ## [1.0.1] - 2026-05-23
 
 v1.0.1 is the first stable release of colorcpp. It consolidates 28+ feature PRs,

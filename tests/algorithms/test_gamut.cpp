@@ -123,6 +123,35 @@ TEST(GamutClipTest, CssColor4PreservesLightnessExtreme) {
   EXPECT_NEAR(rgb.b(), 1.0f, 1e-3f);
 }
 
+TEST(GamutClipTest, CssColor4PreservesLightnessWithinJnd) {
+  // CSS Color 4 §14.2: bisection accepts clipping whose ΔE_OK stays under one
+  // JND (0.02), so the mapped result's lightness may shift by at most JND.
+  // Chroma reduction itself is intentional and not JND-bounded.
+  // Regression: storing linear sRGB into rgbaf_t without encoding shifted L
+  // by ~0.12 — far beyond the JND bound.
+  core::oklab_t in(0.5f, 0.4f, 0.0f);
+  auto result = gamut_clip(in, clip_method::css_color4);
+  EXPECT_TRUE(is_in_srgb_gamut(result));
+  EXPECT_LE(std::abs(result.get_index<0>() - in.get_index<0>()), 0.02f + 1e-3f);
+}
+
+TEST(GamutClipTest, ChromaReducePreservesLightness) {
+  // chroma_reduce returns the bisected in-gamut candidate without channel
+  // clipping, so lightness must round-trip exactly.
+  core::oklab_t out_of_gamut(0.5f, 0.4f, 0.0f);
+  auto result = gamut_clip(out_of_gamut, clip_method::chroma_reduce);
+  EXPECT_NEAR(result.get_index<0>(), 0.5f, 1e-4f);
+}
+
+TEST(GamutClipTest, ChromaReducePreservesAlpha) {
+  // Wide-gamut input carrying alpha: chroma reduction must not reset it.
+  display_p3af_t out_of_gamut(1.0f, 0.0f, 1.0f, 0.5f);
+  ASSERT_FALSE(is_in_srgb_gamut(out_of_gamut));
+  auto result = gamut_clip(out_of_gamut, clip_method::chroma_reduce);
+  auto rgb = color_cast<rgbaf_t>(result);
+  EXPECT_NEAR(rgb.a(), 0.5f, 1e-3f);
+}
+
 // All methods preserve alpha
 
 TEST(GamutClipTest, AllMethodsProduceValidRgbOutput) {

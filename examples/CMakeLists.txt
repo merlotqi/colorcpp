@@ -81,4 +81,11 @@ if(COLORCPP_BUILD_EXAMPLES)
   add_executable(rec2020_example rec2020_example.cpp)
   target_link_libraries(rec2020_example colorcpp::colorcpp)
 
+  # Strict warnings apply to first-party example code only, never to consumers.
+  # (Plain signature to match the target_link_libraries calls above.)
+  get_property(_example_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+  foreach(_example_target IN LISTS _example_targets)
+    target_link_libraries(${_example_target} colorcpp_warnings)
+  endforeach()
+
 endif()

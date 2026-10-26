@@ -63,10 +63,19 @@ elseif(COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD)
 endif()
 
 if(MSVC)
-  # /utf-8: treat sources as UTF-8 (avoids C4819 on non-ASCII comments/strings under CP936).
-  target_compile_options(colorcpp INTERFACE /W4 /WX /utf-8)
+  # /utf-8 only: headers contain non-ASCII comments/strings; without this MSVC
+  # raises C4819 under CP936. Strict warnings are NOT exported — see below.
+  target_compile_options(colorcpp INTERFACE /utf-8)
+endif()
+
+# Strict warnings for first-party code (tests/examples/benchmarks) only.
+# Deliberately NOT part of the exported `colorcpp` INTERFACE: consumers must
+# not inherit -Werror / /WX from a header-only dependency.
+add_library(colorcpp_warnings INTERFACE)
+if(MSVC)
+  target_compile_options(colorcpp_warnings INTERFACE /W4 /WX)
 else()
-  target_compile_options(colorcpp INTERFACE 
+  target_compile_options(colorcpp_warnings INTERFACE
     -Wall -Wextra -Wpedantic -Werror
     -Wno-unused-parameter
     -Wno-unused-variable

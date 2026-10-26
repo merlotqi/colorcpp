@@ -7,7 +7,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 ## ✨ Features
 
 - **Header-only**: No build required, just include and use
-- **Multiple color spaces**: RGB, HSV, HSL, HWB, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ, Display P3
+- **Multiple color spaces**: RGB, HSV, HSL, HWB, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ, Display P3, Adobe RGB, ProPhoto RGB, Rec.2020
 - **Perceptually uniform**: Built-in support for CIELAB and OkLab for perceptual operations
 - **Color operations**: Blending, interpolation, palette generation, accessibility checking, color temperature
 - **I/O support**: CSS Color 4 parsing (hex, rgb, hsl, oklab, oklch, display-p3, lab, lch, hwb, named colors)
@@ -25,6 +25,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 | **RGB** | Standard red-green-blue (8-bit and float) |
 | **HSV** | Hue-Saturation-Value (cylindrical) |
 | **HSL** | Hue-Saturation-Lightness (cylindrical) |
+| **HWB** | Hue-Whiteness-Blackness (cylindrical) |
 | **CMYK** | Cyan-Magenta-Yellow-Key (printing) |
 | **Linear RGB** | Gamma-corrected RGB (no sRGB transfer) |
 | **CIELAB** | CIE L\*a\*b\* (perceptual uniformity, D65) |
@@ -33,6 +34,12 @@ A modern, header-only C++ library for color manipulation and conversion between 
 | **OkLCH** | Cylindrical form of OkLab |
 | **CIE XYZ** | Device-independent reference space (D65) |
 | **Display P3** | DCI-P3 primaries with D65 white point (wide gamut) |
+| **Adobe RGB** | Adobe RGB (1998), gamma 2.2 (wide gamut, print) |
+| **ProPhoto RGB** | ProPhoto RGB, D50 white point (ultra-wide gamut) |
+| **Rec.2020** | ITU-R BT.2020 UHDTV primaries (wide gamut) |
+
+Chromatic adaptation between white points (Bradford, Von Kries) is available via
+`colorcpp::algorithms::chromatic_adaptation`.
 
 ## Documentation
 
@@ -59,7 +66,7 @@ Canonical public namespaces:
 
 - `colorcpp::core` for color types, constants, and stream I/O
 - `colorcpp::operations::{conversion, blend, interpolate, palette, random, compare}`
-- `colorcpp::algorithms::{accessibility, color_temperature, delta_e, gamut, gradient, harmony, vision}`
+- `colorcpp::algorithms::{accessibility, chromatic_adaptation, color_temperature, delta_e, gamut, gradient, harmony, vision}`
 - `colorcpp::io::{css, literals, serialization, binary_io, ansi}`
 
 When you include [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp), `core`, `operations`, and `algorithms`
@@ -538,15 +545,26 @@ show how the library is expected to be consumed, validated, and documented.
 See the `examples/` directory for complete working examples:
 
 - `io_example.cpp` - Parsing and formatting colors
+- `css_example.cpp` - CSS Color 4/5 parsing (including `color-mix()` and relative colors)
 - `cast_example.cpp` - Color space conversions
+- `blend_example.cpp` - Porter-Duff compositing and W3C blend modes
 - `interpolate_example.cpp` - Color interpolation
+- `gradient_example.cpp` - Gradient generation
 - `palette_example.cpp` - Palette generation
+- `harmony_example.cpp` - Color harmony schemes
 - `random_example.cpp` - Random color generation
 - `accessibility_example.cpp` - WCAG 2 and APCA helpers
+- `apca_example.cpp` - APCA perceptual contrast
+- `compare_example.cpp` - Color comparison
 - `gamut_example.cpp` - Gamut mapping and clipping
 - `delta_e_example.cpp` - Color difference metrics
 - `vision_example.cpp` - Vision deficiency simulation
+- `color_temperature_example.cpp` - Color temperature shifts
+- `display_p3_example.cpp` / `adobe_rgb_example.cpp` / `prophoto_rgb_example.cpp` / `rec2020_example.cpp` - Wide-gamut color spaces
+- `chromatic_adaptation_example.cpp` - White-point adaptation (Bradford, Von Kries)
 - `serialization_example.cpp` - JSON and MessagePack adapters
+- `msgpack_example.cpp` - MessagePack encoding/decoding
+- `ansi_example.cpp` - ANSI terminal swatches and previews
 
 ## ⏱️ Benchmarks
 
@@ -560,8 +578,9 @@ cmake --build build
 ```
 
 Sources under `benchmarks/` are split by area and each builds into its own executable, such as
-`benchmark_conversion`, `benchmark_blend`, `benchmark_interpolate`, `benchmark_delta_e`, `benchmark_io`, and
-`benchmark_gamut_palette`.
+`benchmark_conversion`, `benchmark_blend`, `benchmark_interpolate`, `benchmark_delta_e`, `benchmark_io`,
+`benchmark_gamut_palette`, `benchmark_harmony`, `benchmark_accessibility`, `benchmark_vision`,
+`benchmark_palette`, `benchmark_compare`, and `benchmark_simd_candidates`.
 
 `COLORCPP_ENABLE_SIMD=ON` is currently an opt-in fast path for selected operations. Confirmed accelerated paths cover
 selected separable `blend()` modes. `delta_e_ok()` also has an experimental SIMD-backed implementation; unsupported
