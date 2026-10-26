@@ -1,14 +1,15 @@
 /**
  * @file blend_example.cpp
- * @brief Example: All blend modes, separable vs non-separable, and SIMD acceleration.
+ * @brief Example: All blend modes, separable vs non-separable, blend spaces, and SIMD acceleration.
  */
 
 #include <colorcpp/colorcpp.hpp>
 #include <iomanip>
 #include <iostream>
 
-// implementation note: examples reflect the current encoded rgbaf_t working-space path described in
-// docs/reference/blend.rst
+// Compositing contract: see docs/reference/blend.rst — straight alpha at the
+// API boundary, premultiplied Porter-Duff steps, selectable blend_space
+// (sRGB per W3C/CSS, or linear-light).
 
 using namespace colorcpp;
 using namespace colorcpp::operations::conversion;
@@ -123,6 +124,25 @@ int main() {
   std::cout << "  Burn effect:                ";
   print_swatch(std::cout, operations::blend::blend(steelblue, coral, blend_mode::color_burn), 4);
   std::cout << "  color_burn\n";
+
+  // ========================================================================
+  section("7. Blend Space (sRGB vs linear light)");
+
+  using operations::blend::blend_space;
+  auto gray_mid = 0x808080_rgb;
+
+  std::cout << "  50% coral over gray — evaluated in different spaces:\n\n";
+  std::cout << "  srgb (W3C/CSS):  ";
+  print_swatch(std::cout,
+               operations::blend::blend(gray_mid, rgba8_t{0xFF, 0x63, 0x47, 0x80}, blend_mode::normal, 1.0f,
+                                        blend_space::srgb),
+               4);
+  std::cout << "\n  linear light:    ";
+  print_swatch(std::cout,
+               operations::blend::blend(gray_mid, rgba8_t{0xFF, 0x63, 0x47, 0x80}, blend_mode::normal, 1.0f,
+                                        blend_space::linear),
+               4);
+  std::cout << "\n  (linear light keeps mid-tones brighter; non-separable modes always use sRGB HSL)\n";
 
   std::cout << "\n";
   return 0;

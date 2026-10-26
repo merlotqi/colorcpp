@@ -35,6 +35,15 @@ All notable changes to `colorcpp` are documented here.
   (`css_color4_vectors.json`) via `color_cast`, covering sRGB, sRGB-linear,
   Display P3 (linear), Adobe RGB, ProPhoto RGB, Rec.2020, XYZ D65, Oklab and
   Oklch, plus the §14.2 chroma-reduction gamut-mapping example.
+- **`blend()` compositing semantics**: new `blend_space` parameter —
+  `blend_space::srgb` (default, W3C/CSS parity: formulas on gamma-encoded
+  sRGB) or `blend_space::linear` (linear-light compositing: linearize,
+  composite, re-encode). Non-separable modes keep the W3C sRGB-HSL definition
+  regardless of `blend_space`. The API contract is now documented: straight
+  (un-premultiplied) alpha at the boundary, premultiplied Porter-Duff steps
+  internally (W3C Compositing and Blending Level 1). The previous "not a
+  linear-sRGB compositing contract" disclaimers in `blend.hpp`, the README and
+  the docs are removed.
 
 ### Changed
 

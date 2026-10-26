@@ -183,4 +183,81 @@ TEST(BlendTest, WorksWithRgba8Input) {
   EXPECT_LE(result.r(), 255);
 }
 
+// blend_space
+
+TEST(BlendTest, BlendSpaceDefaultMatchesSrgb) {
+  core::rgbaf_t dst(0.2f, 0.4f, 0.6f, 1.0f);
+  core::rgbaf_t src(0.8f, 0.5f, 0.1f, 0.5f);
+  auto def = blend::blend(dst, src, blend_mode::normal);
+  auto srgb = blend::blend(dst, src, blend_mode::normal, 1.0f, blend_space::srgb);
+  EXPECT_NEAR(def.r(), srgb.r(), 0.0f);
+  EXPECT_NEAR(def.g(), srgb.g(), 0.0f);
+  EXPECT_NEAR(def.b(), srgb.b(), 0.0f);
+  EXPECT_NEAR(def.a(), srgb.a(), 0.0f);
+}
+
+TEST(BlendTest, LinearNormalCompositesInLinearLight) {
+  // dst opaque + src at 50% alpha. In linear light the per-channel average of
+  // linearized values re-encodes to ~0.600 (not the sRGB-space 0.500).
+  // Reference values: independent double-precision computation of
+  // enc((dec(dst)+dec(src))/2) with the sRGB transfer function.
+  auto result = blend::blend(core::rgbaf_t(0.2f, 0.4f, 0.6f, 1.0f), core::rgbaf_t(0.8f, 0.5f, 0.1f, 0.5f),
+                             blend_mode::normal, 1.0f, blend_space::linear);
+  EXPECT_NEAR(result.r(), 0.599931f, 1e-4f);
+  EXPECT_NEAR(result.g(), 0.453448f, 1e-4f);
+  EXPECT_NEAR(result.b(), 0.442071f, 1e-4f);
+  EXPECT_NEAR(result.a(), 1.0f, 1e-6f);
+}
+
+TEST(BlendTest, LinearNormalMixedAlpha) {
+  // Partial alpha on both sides: Porter-Duff weighting in linear space,
+  // un-premultiplied and re-encoded. out_a = 0.6 + 0.4*(1-0.6) = 0.76.
+  auto result = blend::blend(core::rgbaf_t(0.2f, 0.4f, 0.6f, 0.4f), core::rgbaf_t(0.8f, 0.5f, 0.1f, 0.6f),
+                             blend_mode::normal, 1.0f, blend_space::linear);
+  EXPECT_NEAR(result.r(), 0.724501f, 1e-4f);
+  EXPECT_NEAR(result.g(), 0.481088f, 1e-4f);
+  EXPECT_NEAR(result.b(), 0.303483f, 1e-4f);
+  EXPECT_NEAR(result.a(), 0.76f, 1e-6f);
+}
+
+TEST(BlendTest, LinearMultiplyDiffersFromSrgbSpace) {
+  core::rgbaf_t mid(0.5f, 0.5f, 0.5f, 1.0f);
+  auto lin = blend::blend(mid, mid, blend_mode::multiply, 1.0f, blend_space::linear);
+  auto srgb = blend::blend(mid, mid, blend_mode::multiply);
+  EXPECT_NEAR(lin.r(), 0.236967f, 1e-4f);
+  EXPECT_NEAR(srgb.r(), 0.25f, 1e-6f);
+}
+
+TEST(BlendTest, LinearOpaqueNormalIsIdentity) {
+  auto result = blend::blend(core::rgbaf_t(0.3f, 0.6f, 0.9f, 1.0f), core::rgbaf_t(0.3f, 0.6f, 0.9f, 1.0f),
+                             blend_mode::normal, 1.0f, blend_space::linear);
+  EXPECT_NEAR(result.r(), 0.3f, 1e-5f);
+  EXPECT_NEAR(result.g(), 0.6f, 1e-5f);
+  EXPECT_NEAR(result.b(), 0.9f, 1e-5f);
+}
+
+TEST(BlendTest, LinearClampsOutOfRangeResults) {
+  // subtraction 0.3-0.8 is negative in linear space -> clamp to 0;
+  // addition 0.8+0.7 exceeds 1 in linear space -> clamp to 1.
+  auto sub = blend::blend(core::rgbaf_t(0.3f, 0.3f, 0.3f, 1.0f), core::rgbaf_t(0.8f, 0.8f, 0.8f, 1.0f),
+                          blend_mode::subtraction, 1.0f, blend_space::linear);
+  EXPECT_NEAR(sub.r(), 0.0f, 1e-6f);
+  auto add = blend::blend(core::rgbaf_t(0.8f, 0.8f, 0.8f, 1.0f), core::rgbaf_t(0.7f, 0.7f, 0.7f, 1.0f),
+                          blend_mode::addition, 1.0f, blend_space::linear);
+  EXPECT_NEAR(add.r(), 1.0f, 1e-6f);
+}
+
+TEST(BlendTest, NonSeparableModesAlwaysUseW3CSrgbDefinition) {
+  // hue/saturation/color/luminosity decompose via sRGB HSL (W3C); the
+  // blend_space argument does not change their result.
+  core::rgbaf_t dst(0.9f, 0.2f, 0.2f, 1.0f);
+  core::rgbaf_t src(0.2f, 0.5f, 0.9f, 0.8f);
+  auto lin = blend::blend(dst, src, blend_mode::hue, 1.0f, blend_space::linear);
+  auto srgb = blend::blend(dst, src, blend_mode::hue, 1.0f, blend_space::srgb);
+  EXPECT_NEAR(lin.r(), srgb.r(), 0.0f);
+  EXPECT_NEAR(lin.g(), srgb.g(), 0.0f);
+  EXPECT_NEAR(lin.b(), srgb.b(), 0.0f);
+  EXPECT_NEAR(lin.a(), srgb.a(), 0.0f);
+}
+
 }  // namespace colorcpp::operations::test

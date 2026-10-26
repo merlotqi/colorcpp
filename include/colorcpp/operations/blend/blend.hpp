@@ -16,24 +16,25 @@
 
 namespace colorcpp::operations::blend {
 
+namespace details {
+
+inline bool is_non_separable(blend_mode mode) noexcept {
+  return mode == blend_mode::hue || mode == blend_mode::saturation || mode == blend_mode::color_blend ||
+         mode == blend_mode::luminosity;
+}
+
 /**
- * @brief Composite @p src over @p dst using @p mode and effective source alpha scaled by @p opacity.
- * @tparam Color Any color type supported by @ref conversion::color_cast to @c rgbaf_t.
- * @param dst Destination (bottom) color.
- * @param src Source (top) color.
- * @param mode Blend/compositing mode (W3C-style for RGB; special modes use HSL luminance/saturation decomposition).
- * @param opacity Extra multiplier on source alpha, clamped to [0, 1].
+ * @brief Core compositing on @c rgbaf_t working channels.
+ *
+ * Channels at the API boundary are straight (un-premultiplied); the
+ * Porter-Duff steps below weight them by alpha (premultiplied form,
+ * W3C Compositing and Blending Level 1 general formula) and the result is
+ * un-premultiplied again via division by the output alpha.
  */
-template <typename Color>
-Color blend(const Color& dst, const Color& src, blend_mode mode = blend_mode::normal, float opacity = 1.0f) {
-  using namespace conversion;
-
-  auto d = color_cast<core::rgbaf_t>(dst);
-  auto s = color_cast<core::rgbaf_t>(src);
-
+inline core::rgbaf_t blend_rgbaf(const core::rgbaf_t& d, const core::rgbaf_t& s, blend_mode mode, float opacity) {
   core::rgbaf_t fast_result;
-  if (details::try_blend_rgbaf_fast_path(fast_result, d, s, mode, opacity)) {
-    return color_cast<Color>(fast_result);
+  if (try_blend_rgbaf_fast_path(fast_result, d, s, mode, opacity)) {
+    return fast_result;
   }
 
   float da = d.template get_index<3>();
@@ -41,9 +42,8 @@ Color blend(const Color& dst, const Color& src, blend_mode mode = blend_mode::no
 
   float out_a = sa + da * (1.0f - sa);
 
-  if (mode == blend_mode::hue || mode == blend_mode::saturation || mode == blend_mode::color_blend ||
-      mode == blend_mode::luminosity) {
-    if (out_a <= 0.0f) return color_cast<Color>(core::rgbaf_t{0.0f, 0.0f, 0.0f, 0.0f});
+  if (is_non_separable(mode)) {
+    if (out_a <= 0.0f) return core::rgbaf_t{0.0f, 0.0f, 0.0f, 0.0f};
 
     details::rgb3 d3{d.template get_index<0>(), d.template get_index<1>(), d.template get_index<2>()};
     details::rgb3 s3{s.template get_index<0>(), s.template get_index<1>(), s.template get_index<2>()};
@@ -71,8 +71,7 @@ Color blend(const Color& dst, const Color& src, blend_mode mode = blend_mode::no
       return std::clamp(res / out_a, 0.0f, 1.0f);
     };
 
-    core::rgbaf_t result{comp3(d3.r, s3.r, mixed.r), comp3(d3.g, s3.g, mixed.g), comp3(d3.b, s3.b, mixed.b), out_a};
-    return color_cast<Color>(result);
+    return core::rgbaf_t{comp3(d3.r, s3.r, mixed.r), comp3(d3.g, s3.g, mixed.g), comp3(d3.b, s3.b, mixed.b), out_a};
   }
 
   auto apply = [&](float d_ch, float s_ch) -> float {
@@ -133,9 +132,49 @@ Color blend(const Color& dst, const Color& src, blend_mode mode = blend_mode::no
     return std::clamp(res_ch / out_a, 0.0f, 1.0f);
   };
 
-  core::rgbaf_t result{apply(d.template get_index<0>(), s.template get_index<0>()),
+  return core::rgbaf_t{apply(d.template get_index<0>(), s.template get_index<0>()),
                        apply(d.template get_index<1>(), s.template get_index<1>()),
                        apply(d.template get_index<2>(), s.template get_index<2>()), out_a};
+}
+
+}  // namespace details
+
+/**
+ * @brief Composite @p src over @p dst using @p mode and effective source alpha scaled by @p opacity.
+ *
+ * Compositing contract: channels are straight (un-premultiplied) alpha at the
+ * API boundary; the Porter-Duff steps are computed in premultiplied form
+ * (Cs·αs·(1-αd) + Cd·αd·(1-αs) + B·αs·αd, W3C Compositing and Blending Level 1)
+ * and un-premultiplied via division by the output alpha. Results are clamped
+ * to [0, 1].
+ *
+ * @tparam Color Any color type supported by @ref conversion::color_cast to @c rgbaf_t.
+ * @param dst Destination (bottom) color.
+ * @param src Source (top) color.
+ * @param mode Blend/compositing mode (W3C-style for RGB; special modes use HSL luminance/saturation decomposition).
+ * @param opacity Extra multiplier on source alpha, clamped to [0, 1].
+ * @param space Working space for the blend formulas — @c blend_space::srgb (default,
+ *        W3C/CSS parity: formulas on gamma-encoded sRGB) or @c blend_space::linear
+ *        (linearize, composite, re-encode: "linear light" compositing). Ignored for
+ *        the non-separable modes, which W3C defines on sRGB HSL only.
+ */
+template <typename Color>
+Color blend(const Color& dst, const Color& src, blend_mode mode = blend_mode::normal, float opacity = 1.0f,
+            blend_space space = blend_space::srgb) {
+  using namespace conversion;
+
+  auto d = color_cast<core::rgbaf_t>(dst);
+  auto s = color_cast<core::rgbaf_t>(src);
+
+  const bool use_linear = (space == blend_space::linear) && !details::is_non_separable(mode);
+  if (use_linear) {
+    d = details::to_linear_working(d);
+    s = details::to_linear_working(s);
+  }
+
+  core::rgbaf_t result = details::blend_rgbaf(d, s, mode, opacity);
+
+  if (use_linear) result = details::from_linear_working(result);
   return color_cast<Color>(result);
 }
 

@@ -200,8 +200,10 @@ auto lab_to_ok = color_cast<oklab_t>(lab_color);  // uses the lowest-cost regist
 
 ### Blending
 
-Current note: the shipped `blend()` implementation currently evaluates through `rgbaf_t` and should not be read as
-proof of a linear-sRGB compositing contract.
+`blend()` composites with straight (un-premultiplied) alpha at the API boundary and
+premultiplied Porter-Duff steps internally (W3C Compositing and Blending Level 1).
+The working space is selectable: `blend_space::srgb` (default, W3C/CSS parity) or
+`blend_space::linear` (linear-light compositing).
 
 ```cpp
 using namespace colorcpp::operations::blend;
@@ -219,7 +221,10 @@ auto overlay = blend(red /* dst */, blue /* src */, blend_mode::overlay);
 // With opacity control
 auto semi_transparent = blend(red /* dst */, blue /* src */, blend_mode::multiply, 0.5f);
 
-// Non-separable blends (hue, saturation, color, luminosity)
+// Linear-light compositing (linearize, composite, re-encode)
+auto linear_light = blend(red /* dst */, blue /* src */, blend_mode::normal, 1.0f, blend_space::linear);
+
+// Non-separable blends (hue, saturation, color, luminosity; always sRGB HSL per W3C)
 auto hue_blend = blend(red /* dst */, blue /* src */, blend_mode::hue);
 ```
 

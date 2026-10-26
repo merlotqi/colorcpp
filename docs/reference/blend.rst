@@ -1,22 +1,34 @@
 Alpha blending and blend modes
 ==============================
 
-Compositing combines a **source** and **destination** color with alpha. The current colorcpp implementation converts
-inputs through ``rgbaf_t`` and applies the blend formulas there. Treat this as the current encoded ``rgbaf_t`` working
-space contract, not as a verified linear-sRGB compositing claim.
+Compositing combines a **source** and a **destination** color with alpha. colorcpp evaluates the
+W3C Porter-Duff general formula with a selectable working space (encoded sRGB or linear sRGB).
 
-Current implementation note
----------------------------
+Compositing contract
+--------------------
 
-* The public implementation currently works in encoded ``rgbaf_t`` space.
-* The documentation therefore describes the module as an encoded working-space implementation, even though a future
-  follow-up may introduce a true linear-sRGB policy.
+* Channels are **straight (un-premultiplied) alpha** at the API boundary.
+* The Porter-Duff steps are computed in **premultiplied form** —
+  ``Cs·αs·(1-αd) + Cd·αd·(1-αs) + B(Cb,Cs)·αs·αd`` — and un-premultiplied again
+  by dividing with the output alpha ``αo = αs + αd·(1-αs)``; this is the W3C
+  Compositing and Blending Level 1 general formula.
+* Results are clamped to ``[0, 1]``.
+* ``blend_space::srgb`` (default) applies the formulas to gamma-encoded sRGB
+  channels — W3C/CSS parity.
+* ``blend_space::linear`` linearizes both inputs first, applies the same
+  formulas to linear-sRGB channels, and re-encodes the result to sRGB gamma
+  ("linear-light" compositing, as in Photoshop's linear-light blending).
+* Non-separable modes (``hue``, ``saturation``, ``color_blend``, ``luminosity``)
+  are defined by W3C on sRGB HSL only and always use the sRGB path; the
+  ``blend_space`` argument does not affect them.
 
 In colorcpp
 ------------
 
 * Header: ``include/colorcpp/operations/blend.hpp``
+* API: ``blend(dst, src, mode = normal, opacity = 1, space = blend_space::srgb)``
 * Optional SIMD fast path: ``include/colorcpp/operations/blend/simd.hpp`` when ``COLORCPP_ENABLE_SIMD=ON``
+  (selected separable modes; operates on the working-space channels, so it applies to both spaces)
 
 Available blend modes:
 
@@ -30,7 +42,6 @@ Available blend modes:
 Notes
 -----
 
-* All blending operations currently use the encoded ``rgbaf_t`` working space described above
 * Non-separable modes use the W3C hue/saturation/luminosity decomposition helpers, not Oklch
 * ``COLORCPP_ENABLE_SIMD=ON`` currently accelerates selected separable modes only; unsupported modes fall back to the scalar path
 * Blend mode behavior follows the W3C compositing model used elsewhere in CSS tooling

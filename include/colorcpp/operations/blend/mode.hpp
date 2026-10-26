@@ -31,4 +31,22 @@ enum class blend_mode {
   luminosity,   // luminosity of src, hue+saturation of dst
 };
 
+/**
+ * @brief Color space in which the blend function and compositing are evaluated.
+ *
+ * - @c srgb: formulas apply to gamma-encoded sRGB channels. This is the
+ *   W3C Compositing and Blending Level 1 behaviour (CSS parity).
+ * - @c linear: inputs are linearized first, formulas apply to linear-sRGB
+ *   channels, and the result is re-encoded to sRGB gamma ("linear light"
+ *   compositing, as in Photoshop's linear-light blending).
+ *
+ * Non-separable modes (@c hue, @c saturation, @c color_blend, @c luminosity)
+ * are defined by W3C on sRGB HSL and always use @c srgb; the argument does
+ * not affect them.
+ */
+enum class blend_space {
+  srgb,
+  linear
+};
+
 }  // namespace colorcpp::operations::blend
