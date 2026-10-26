@@ -537,6 +537,15 @@ TEST(Css, ColorFunctionAdditionalPredefinedSpaces) {
 
   expect_leaf("color(a98-rgb 0.44091 0.49971 0.37408)");
   expect_leaf("color(prophoto-rgb 0.36589 0.41717 0.31333)");
+  expect_leaf("color(rec2020 0.47428 0.52316 0.41425)");
+}
+
+TEST(Css, ColorFunctionRec2020MatchesSpecSameColor) {
+  // CSS Color 4 section 11.1 (#ex-same-color): color(rec2020 0.522 0.557 0.892) is #6c88ea.
+  // Verifies the rec2020 transfer function (gamma 2.4 from BT.1886, not the BT.2020 OETF).
+  auto c = parse_css_color<rgbaf_t>("color(rec2020 0.522 0.557 0.892)");
+  ASSERT_TRUE(c);
+  expect_rgbaf_near(*c, 0.423529f, 0.533333f, 0.917647f, 1.0f, 0.003f);
 }
 
 TEST(Css, ColorFunctionRec2020) {

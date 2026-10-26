@@ -1,12 +1,12 @@
 /**
  * @file rec2020.hpp
- * @brief Rec.2020 (BT.2020) color space (D65 white point, BT.709-style piecewise transfer).
+ * @brief Rec.2020 (BT.2020) color space (D65 white point, gamma 2.4 transfer).
  *
  * ITU-R BT.2020 (Rec.2020) is the UHDTV standard, covering approximately 75% of
  * the CIE 1931 visible gamut. It uses the same D65 white point as sRGB but with
  * significantly wider primaries.
  *
- * Transfer function: BT.709-style piecewise (α=1.0993, β=0.0181).
+ * Transfer function: pure gamma 2.4 (BT.1886), per CSS Color 4 section 10.8.
  *
  * @see https://www.itu.int/rec/R-REC-BT.2020
  */

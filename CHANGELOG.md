@@ -6,6 +6,17 @@ All notable changes to `colorcpp` are documented here.
 
 ### Fixed
 
+- **Oklab/Oklch** (`oklab.hpp`, gamut clipping): the M2 b-axis row and the
+  inverse LMS matrix coefficients did not match the Ottosson/CSS standard
+  (b was scaled by ~0.54x). Oklch chroma/hue, `lerp_oklab`, `delta_e_ok`, and
+  gamut chroma/hue geometry were affected; corrected to the reference
+  constants (0.0259040371 / 0.7827717662 / -0.8086757660 and the matching
+  inverse rows).
+- **Rec.2020 transfer function** (`rec2020.hpp`, CSS `color(rec2020 …)` and
+  relative colors): replaced the BT.2020 broadcast OETF (alpha/beta piecewise)
+  with the pure gamma 2.4 (BT.1886) function defined by CSS Color 4
+  section 10.8 and used by the reference implementation (color.js);
+  encoded values differed from CSS by ~0.05-0.08.
 - **Gamut mapping** (`gamut_clip`, default `css_color4`): linear sRGB values
   from `oklab_to_linrgb` were stored into `rgbaf_t` without sRGB encoding,
   darkening mapped colours (lightness shifted by ~0.12 for strongly
@@ -16,6 +27,14 @@ All notable changes to `colorcpp` are documented here.
   INTERFACE target — consumers no longer inherit the library's warning flags.
   First-party strict warnings moved to an internal `colorcpp_warnings` target;
   `/utf-8` remains on the INTERFACE for MSVC (non-ASCII header comments).
+
+### Added
+
+- **Reference-vector tests**: data-driven harness (`tests/reference/`) that
+  converts every ordered pair of color spaces in CSS Color 4 worked examples
+  (`css_color4_vectors.json`) via `color_cast`, covering sRGB, sRGB-linear,
+  Display P3 (linear), Adobe RGB, ProPhoto RGB, Rec.2020, XYZ D65, Oklab and
+  Oklch, plus the §14.2 chroma-reduction gamut-mapping example.
 
 ### Changed
 

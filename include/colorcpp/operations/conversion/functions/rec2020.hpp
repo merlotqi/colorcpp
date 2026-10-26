@@ -2,13 +2,9 @@
  * @file rec2020.hpp
  * @brief Rec.2020 (BT.2020) conversion functions.
  *
- * Rec.2020 uses BT.709-style piecewise transfer function.
+ * Rec.2020 uses a pure gamma 2.4 transfer function (BT.1886), as defined by
+ * CSS Color 4 section 10.8 — NOT the BT.2020 broadcast OETF (alpha/beta piecewise).
  * White point: D65 (same as sRGB/XYZ hub, no chromatic adaptation needed).
- *
- * Transfer function parameters:
- *   α = 1.09929682680944
- *   β = 0.018053968510807
- *   Linear segment threshold (encoded) = β × 4.5 ≈ 0.081242858
  */
 
 #pragma once
@@ -22,34 +18,33 @@
 namespace colorcpp::operations::conversion::details {
 
 /**
- * @brief Rec.2020 transfer function constants (BT.709-style piecewise).
+ * @brief Rec.2020 transfer function (pure gamma 2.4, BT.1886).
+ *
+ * CSS Color 4 section 10.8 defines the rec2020 transfer function as
+ * "gamma 2.40, from [BT.1886]". Sign-preserving for extended-range values,
+ * matching the CSS reference implementation (color.js).
  */
 namespace rec2020_tf {
 
-constexpr float alpha = 1.09929682680944f;
-constexpr float beta = 0.018053968510807f;
-constexpr float beta_times_4_5 = beta * 4.5f;  // ≈ 0.081242858
-constexpr float exponent = 0.45f;              // 1/2.222...
-constexpr float inv_exponent = 1.0f / 0.45f;   // ≈ 2.222...
+constexpr float exponent = 2.4f;
+constexpr float inv_exponent = 1.0f / 2.4f;
 
 /**
- * @brief Linearize a Rec.2020 encoded channel value.
+ * @brief Linearize a Rec.2020 encoded channel value (sign-preserving).
  */
 constexpr float to_linear(float v) noexcept {
-  if (v < beta_times_4_5)
-    return v / 4.5f;
-  else
-    return std::pow((v + alpha - 1.0f) / alpha, inv_exponent);
+  if (v == 0.0f) return v;  // preserves signed zero; skips pow(0)
+  const float av = std::fabs(v);
+  return std::copysign(std::pow(av, exponent), v);
 }
 
 /**
- * @brief Encode a linear channel value to Rec.2020 gamma.
+ * @brief Encode a linear channel value to Rec.2020 gamma (sign-preserving).
  */
 constexpr float from_linear(float v) noexcept {
-  if (v < beta)
-    return v * 4.5f;
-  else
-    return alpha * std::pow(v, exponent) - (alpha - 1.0f);
+  if (v == 0.0f) return v;  // preserves signed zero; skips pow(0)
+  const float av = std::fabs(v);
+  return std::copysign(std::pow(av, inv_exponent), v);
 }
 
 }  // namespace rec2020_tf

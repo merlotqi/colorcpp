@@ -6,13 +6,16 @@ project(colorcpp
   HOMEPAGE_URL "https://github.com/merlotqi/colorcpp"
   LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(COLORCPP_BUILD_TESTS "Build tests" OFF)
 option(COLORCPP_BUILD_EXAMPLES "Build examples" OFF)
 option(COLORCPP_BUILD_BENCHMARKS "Build microbenchmarks (Google Benchmark via FetchContent)" OFF)
+option(COLORCPP_BUILD_FUZZERS "Build libFuzzer fuzz targets (requires Clang)" OFF)
 option(COLORCPP_BUILD_DOCS "Build API documentation with Doxygen" OFF)
 option(COLORCPP_BUILD_SPHINX "Build Sphinx HTML from docs/ (requires sphinx-build)" OFF)
 option(COLORCPP_INSTALL_HEADERS "Install header files" OFF)
@@ -90,6 +93,13 @@ endif()
 add_subdirectory(tests)
 add_subdirectory(examples)
 add_subdirectory(benchmarks)
+
+if(COLORCPP_BUILD_FUZZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "COLORCPP_BUILD_FUZZERS requires Clang with libFuzzer support")
+  endif()
+  add_subdirectory(fuzz)
+endif()
 
 if(COLORCPP_INSTALL_HEADERS)
   install(DIRECTORY include/

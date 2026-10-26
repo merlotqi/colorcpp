@@ -35,6 +35,19 @@ if(COLORCPP_BUILD_TESTS)
         endif()
     endforeach()
 
+    # Reference-vector tests parse JSON fixtures (nlohmann/json).
+    if(NOT TARGET nlohmann_json)
+        include(FetchContent)
+        FetchContent_Declare(
+            nlohmann_json
+            URL https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.tar.gz
+        )
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif()
+    target_link_libraries(test_reference_vectors PRIVATE nlohmann_json::nlohmann_json)
+    target_compile_definitions(test_reference_vectors PRIVATE
+        COLORCPP_REFERENCE_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/reference/data")
+
     add_custom_target(run_all_tests
         COMMAND ${CMAKE_CTEST_COMMAND} --test-dir ${CMAKE_BINARY_DIR} --output-on-failure
         COMMENT "Running all colorcpp test modules"

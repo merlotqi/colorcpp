@@ -163,7 +163,11 @@ TEST(Rec2020ConversionTest, AlphaPreservedViaLinear) {
 }
 
 TEST(Rec2020ConversionTest, FloatRoundTrip) {
-  rec2020_rgbf_t orig(0.6f, 0.2f, 0.8f);
+  // The color must stay inside the sRGB gamut: channels are clamped on the
+  // way through rgbf_t, so an out-of-gamut input cannot round-trip. With the
+  // CSS Color 4 rec2020 transfer (pure gamma 2.4), (0.6, 0.2, 0.8) has a
+  // negative linear-sRGB green; (0.6, 0.4, 0.8) is comfortably in gamut.
+  rec2020_rgbf_t orig(0.6f, 0.4f, 0.8f);
   auto back = color_cast<rec2020_rgbf_t>(color_cast<rgbf_t>(orig));
   EXPECT_NEAR(back.r(), orig.r(), 1e-4f);
   EXPECT_NEAR(back.g(), orig.g(), 1e-4f);

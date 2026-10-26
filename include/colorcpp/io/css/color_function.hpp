@@ -56,13 +56,8 @@ inline float gamma_decode_prophoto(float v) {
   return std::copysign((av <= (16.0f / 512.0f)) ? (av / 16.0f) : std::pow(av, 1.8f), v);
 }
 
-inline float gamma_decode_rec2020(float v) {
-  static constexpr float alpha = 1.0992968f;
-  static constexpr float beta = 0.0180540f;
-  const float av = std::fabs(v);
-  if (av < beta * 4.5f) return v / 4.5f;
-  return std::copysign(std::pow((av + alpha - 1.0f) / alpha, 1.0f / 0.45f), v);
-}
+// Rec.2020 per CSS Color 4 section 10.8: pure gamma 2.4 (BT.1886).
+inline float gamma_decode_rec2020(float v) { return sign_pow(v, 2.4f); }
 
 inline rgb3f xyz_d50_to_d65(float x, float y, float z) {
   static constexpr float m[9] = {

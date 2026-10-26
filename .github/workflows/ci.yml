@@ -21,9 +21,19 @@ jobs:
           - name: GCC
             cc: gcc
             cxx: g++
+            std: 17
           - name: Clang
             cc: clang
             cxx: clang++
+            std: 17
+          - name: GCC (C++20)
+            cc: gcc
+            cxx: g++
+            std: 20
+          - name: Clang (C++20)
+            cc: clang
+            cxx: clang++
+            std: 20
 
     env:
       CC: ${{ matrix.cc }}
@@ -41,6 +51,7 @@ jobs:
         run: |
           cmake -G Ninja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
             -DCOLORCPP_BUILD_TESTS=ON \
             -DCOLORCPP_BUILD_EXAMPLES=ON
 
@@ -49,6 +60,62 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure --no-tests=error
+
+  sanitizers:
+    name: ASan + UBSan (Clang)
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build clang
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
+  fuzz:
+    name: libFuzzer smoke (Clang)
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build clang
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build-fuzz -S . \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCOLORCPP_BUILD_FUZZERS=ON
+
+      - name: Build
+        run: cmake --build build-fuzz --parallel
+
+      - name: Fuzz (time-boxed smoke run)
+        run: |
+          ./build-fuzz/fuzz/fuzz_parse_css_color -max_total_time=60 -timeout=10
+          ./build-fuzz/fuzz/fuzz_read_cube -max_total_time=60 -timeout=10
 
   build-test-windows:
     name: MSVC + Ninja (Windows)

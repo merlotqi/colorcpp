@@ -30,7 +30,7 @@ constexpr To linear_rgb_to_oklab(const From& src) {
 
   float L = 0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_;
   float A = 1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_;
-  float B = 0.0259040371f * l_ + 0.4072456426f * m_ - 0.4331497194f * s_;
+  float B = 0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_;
 
   return pack_to<To>(from_value<To, 0>(L), from_value<To, 1>(A), from_value<To, 2>(B));
 }
@@ -41,9 +41,9 @@ constexpr To oklab_to_linear_rgb(const From& src) {
   float A = static_cast<float>(src.template get_index<1>());
   float B = static_cast<float>(src.template get_index<2>());
 
-  float l_ = L + 0.3939205158f * A + 0.4003836363f * B;
-  float m_ = L - 0.1048460944f * A - 0.1184695156f * B;
-  float s_ = L - 0.0750179025f * A - 2.3961106171f * B;
+  float l_ = L + 0.3963377774f * A + 0.2158037573f * B;
+  float m_ = L - 0.1055613458f * A - 0.0638541728f * B;
+  float s_ = L - 0.0894841775f * A - 1.2914855480f * B;
 
   float lms_l = l_ * l_ * l_;
   float lms_m = m_ * m_ * m_;
@@ -102,7 +102,7 @@ constexpr To xyz_to_oklab(const From& src) {
 
   float L = 0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_;
   float A = 1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_;
-  float B = 0.0259040371f * l_ + 0.4072456426f * m_ - 0.4331497194f * s_;
+  float B = 0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_;
 
   return pack_to<To>(from_value<To, 0>(L), from_value<To, 1>(A), from_value<To, 2>(B));
 }
@@ -113,9 +113,9 @@ constexpr To oklab_to_xyz(const From& src) {
   float A = static_cast<float>(src.template get_index<1>());
   float B = static_cast<float>(src.template get_index<2>());
 
-  float l_ = L + 0.3939205158f * A + 0.4003836363f * B;
-  float m_ = L - 0.1048460944f * A - 0.1184695156f * B;
-  float s_ = L - 0.0750179025f * A - 2.3961106171f * B;
+  float l_ = L + 0.3963377774f * A + 0.2158037573f * B;
+  float m_ = L - 0.1055613458f * A - 0.0638541728f * B;
+  float s_ = L - 0.0894841775f * A - 1.2914855480f * B;
 
   float lms_l = l_ * l_ * l_;
   float lms_m = m_ * m_ * m_;
@@ -168,7 +168,7 @@ constexpr To cielab_to_oklab(const From& src) {
 
   float OkL = 0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_;
   float OkA = 1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_;
-  float OkB = 0.0259040371f * l_ + 0.4072456426f * m_ - 0.4331497194f * s_;
+  float OkB = 0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_;
 
   return pack_to<To>(from_value<To, 0>(OkL), from_value<To, 1>(OkA), from_value<To, 2>(OkB));
 }
@@ -187,9 +187,9 @@ constexpr To oklab_to_cielab(const From& src) {
   float A = static_cast<float>(src.template get_index<1>());
   float B = static_cast<float>(src.template get_index<2>());
 
-  float l_ = L + 0.3939205158f * A + 0.4003836363f * B;
-  float m_ = L - 0.1048460944f * A - 0.1184695156f * B;
-  float s_ = L - 0.0750179025f * A - 2.3961106171f * B;
+  float l_ = L + 0.3963377774f * A + 0.2158037573f * B;
+  float m_ = L - 0.1055613458f * A - 0.0638541728f * B;
+  float s_ = L - 0.0894841775f * A - 1.2914855480f * B;
 
   float lms_l = l_ * l_ * l_;
   float lms_m = m_ * m_ * m_;

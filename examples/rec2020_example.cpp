@@ -47,12 +47,12 @@ int main() {
   std::cout << "   Via sRGB:   " << via_srgb << "\n\n";
 
   // 4. Transfer function
-  std::cout << "4. BT.709-style piecewise transfer function\n";
+  std::cout << "4. Transfer function (pure gamma 2.4, BT.1886)\n";
   core::rec2020_rgbf_t mid(0.5f, 0.5f, 0.5f);
   auto linear = conversion::color_cast<core::linear_rec2020_rgbf_t>(mid);
   std::cout << "   Rec.2020 (gamma): " << mid << "\n";
   std::cout << "   Linear Rec.2020:   " << linear << "\n";
-  std::cout << "   (alpha=1.0993, beta=0.0181 -- slightly different from sRGB)\n\n";
+  std::cout << "   (pure gamma 2.4 per CSS Color 4 / BT.1886, not the BT.2020 OETF)\n\n";
 
   // 5. CSS parsing
   std::cout << "5. CSS color(rec2020 ...) parsing\n";
