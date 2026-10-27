@@ -21,7 +21,7 @@ struct l_tag {};  // lightness
 struct a_tag {};  // green-red axis (CIELAB)
 struct b_tag {};  // blue-yellow axis (CIELAB)
 struct c_tag {};  // chroma (CIELCH)
-struct h_tag {};  // hue angle (CIELCH)
+using h_tag = traits::hue_tag;  // hue angle (CIELCH, shared ring tag)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = static_cast<T>(Min) / static_cast<T>(Den) ... Max/Den
 // Den=1 keeps values in their natural CIE units rather than normalizing to [0,1].

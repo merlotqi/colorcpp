@@ -5,6 +5,7 @@
 using namespace colorcpp;
 using operations::compare::epsilon_equal;
 using operations::compare::perceptual_equal;
+using operations::compare::relative_equal;
 
 // Exact equality
 static void BM_Compare_Exact(benchmark::State& state) {
@@ -71,10 +72,22 @@ static void BM_Compare_Epsilon_Within(benchmark::State& state) {
   rgba8_t a{128, 64, 192, 255};
   rgba8_t b{129, 65, 193, 255};
   for (auto _ : state) {
-    benchmark::DoNotOptimize(epsilon_equal(a, b));
+    // Explicit eps: the uint8 default (numeric_limits<uint8_t>::epsilon() == 0)
+    // would turn this "within" case into the false branch.
+    benchmark::DoNotOptimize(epsilon_equal(a, b, 1));
   }
 }
 BENCHMARK(BM_Compare_Epsilon_Within);
+
+// Relative equality - within threshold
+static void BM_Compare_Relative_Within(benchmark::State& state) {
+  rgba8_t a{128, 64, 192, 255};
+  rgba8_t b{129, 65, 193, 255};
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(relative_equal(a, b, 1));
+  }
+}
+BENCHMARK(BM_Compare_Relative_Within);
 
 // Epsilon equality - outside threshold
 static void BM_Compare_Epsilon_Outside(benchmark::State& state) {

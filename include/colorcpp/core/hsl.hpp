@@ -12,7 +12,7 @@ namespace colorcpp::core::hsl {
 
 namespace channel {
 
-struct h_tag {};                  // hue
+using h_tag = traits::hue_tag;    // hue (shared ring tag)
 struct s_tag {};                  // saturation
 struct l_tag {};                  // lightness
 using a_tag = traits::alpha_tag;  // alpha

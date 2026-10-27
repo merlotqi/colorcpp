@@ -14,6 +14,8 @@ namespace colorcpp::operations::compare {
  *
  * Compares colors channel-by-channel within a relative tolerance.
  * The tolerance is relative to the larger of the two values being compared.
+ * Hue channels compare on the ring: the circular distance (in degrees) is
+ * tested against @c rel * max(|a|, |b|), so 0 and 360 are the same hue.
  */
 struct relative_policy {
   /**
@@ -28,7 +30,15 @@ struct relative_policy {
   static constexpr bool compare(
       const Color& a, const Color& b,
       typename Color::value_type rel = static_cast<typename Color::value_type>(1e-5)) noexcept {
-    return detail::compare_channels(a, b, [rel](auto va, auto vb) { return detail::channel_relative(va, vb, rel); });
+    using T = typename Color::value_type;
+    return detail::compare_channels(
+        a, b, [rel](T va, T vb) { return detail::channel_relative(va, vb, rel); },
+        [rel](T va, T vb, T d) {
+          const T abs_a = (va > T(0)) ? va : -va;
+          const T abs_b = (vb > T(0)) ? vb : -vb;
+          const T max_val = (abs_a > abs_b) ? abs_a : abs_b;
+          return d <= rel * max_val;
+        });
   }
 };
 

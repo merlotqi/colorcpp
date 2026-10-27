@@ -70,6 +70,15 @@ inline constexpr bool is_rgb_model_v = std::is_base_of_v<rgb_model_tag, Model>;
 struct alpha_tag {};
 
 /**
+ * @brief Shared tag for circular hue channels (degrees on [min, max], 0 == full turn).
+ *
+ * Every hue channel in every cylindrical family uses this tag (family-local @c h_tag names alias
+ * it, same pattern as @ref alpha_tag), so generic code can treat hue as a ring: distance wraps at
+ * one full turn and @ref colorcpp::traits::channel_index_v finds its position per model.
+ */
+struct hue_tag {};
+
+/**
  * @brief Declares one channel: tag, scalar type, and inclusive range as rational Min/Den … Max/Den.
  * @tparam Den Normalization denominator (default 1 — the range is simply Min … Max; use Den > 1 for fractional
  * ranges such as Oklab's [-0.5, 0.5] declared as <-50, 50, 100>). Integral @c T must use @c Den = 1 with @c Min >= 0.

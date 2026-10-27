@@ -7,6 +7,7 @@
 
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/operations/compare/detail/float_utils.hpp>
+#include <tuple>
 #include <type_traits>
 
 namespace colorcpp::operations::compare::detail {
@@ -63,33 +64,76 @@ constexpr bool channel_relative(T a, T b, T rel) noexcept {
 }
 
 /**
+ * @brief Whether a channel type is a circular hue (its tag aliases @ref traits::hue_tag).
+ */
+template <typename Channel>
+inline constexpr bool is_hue_channel_v = std::is_same_v<typename Channel::tag_type, traits::hue_tag>;
+
+/**
+ * @brief Circular distance between two hue values on the ring [0, range].
+ *
+ * Linear for values inside one turn; wraps out-of-range inputs down first, so
+ * 0 and range are distance 0 and 359.9 vs 0 is distance 0.1. Arithmetic only
+ * (no fmod) to stay constexpr in C++17.
+ */
+template <typename T>
+constexpr T circular_diff(T a, T b, T range) noexcept {
+  T d = (a > b) ? (a - b) : (b - a);
+  if (range > T(0)) {
+    while (d > range) d -= range;
+    if (d > range - d) d = range - d;
+  }
+  return d;
+}
+
+/**
+ * @brief Compare one channel of two colors, dispatching on hue vs linear semantics.
+ *
+ * Linear channels are handed to @p linear_comp as the raw value pair. Hue
+ * channels are compared on the ring: both raw values and their circular
+ * distance are handed to @p hue_comp.
+ */
+template <std::size_t Is, typename Color, typename LinearComp, typename HueComp>
+constexpr bool compare_one_channel(const Color& a, const Color& b, LinearComp linear_comp, HueComp hue_comp) noexcept {
+  using channel_t = std::tuple_element_t<Is, typename Color::channels_tuple>;
+  const auto va = a.template get_index<Is>();
+  const auto vb = b.template get_index<Is>();
+  if constexpr (is_hue_channel_v<channel_t>) {
+    using T = typename channel_t::value_type;
+    constexpr T range = channel_t::max - channel_t::min;
+    return hue_comp(va, vb, circular_diff(va, vb, range));
+  } else {
+    return linear_comp(va, vb);
+  }
+}
+
+/**
  * @brief Helper to compare all channels of two colors.
- * @tparam CompareFunc Comparison function type.
+ * @tparam LinearComp Comparison for non-hue channels (two values).
+ * @tparam HueComp Comparison for hue channels (value, value, circular distance).
  * @tparam Color Color type.
  * @tparam Is Index sequence.
  * @param a First color.
  * @param b Second color.
- * @param comp Comparison function.
- * @return True if all channels match according to comparison function.
+ * @param linear_comp Linear-channel predicate.
+ * @param hue_comp Hue-channel predicate.
+ * @return True if all channels match according to the predicates.
  */
-template <typename CompareFunc, typename Color, std::size_t... Is>
-constexpr bool compare_channels_impl(const Color& a, const Color& b, CompareFunc comp,
+template <typename LinearComp, typename HueComp, typename Color, std::size_t... Is>
+constexpr bool compare_channels_impl(const Color& a, const Color& b, LinearComp linear_comp, HueComp hue_comp,
                                      std::index_sequence<Is...>) noexcept {
-  return (comp(a.template get_index<Is>(), b.template get_index<Is>()) && ...);
+  return (compare_one_channel<Is>(a, b, linear_comp, hue_comp) && ...);
 }
 
 /**
- * @brief Compare all channels of two colors.
- * @tparam CompareFunc Comparison function type.
- * @tparam Color Color type.
- * @param a First color.
- * @param b Second color.
- * @param comp Comparison function.
- * @return True if all channels match according to comparison function.
+ * @brief Compare all channels of two colors (linear + hue-aware).
+ * @param linear_comp Predicate for non-hue channels: (value_a, value_b).
+ * @param hue_comp Predicate for hue channels: (value_a, value_b, circular_diff).
+ * @return True if all channels match according to the predicates.
  */
-template <typename CompareFunc, typename Color>
-constexpr bool compare_channels(const Color& a, const Color& b, CompareFunc comp) noexcept {
-  return compare_channels_impl(a, b, comp, std::make_index_sequence<Color::channels>{});
+template <typename LinearComp, typename HueComp, typename Color>
+constexpr bool compare_channels(const Color& a, const Color& b, LinearComp linear_comp, HueComp hue_comp) noexcept {
+  return compare_channels_impl(a, b, linear_comp, hue_comp, std::make_index_sequence<Color::channels>{});
 }
 
 }  // namespace colorcpp::operations::compare::detail

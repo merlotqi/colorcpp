@@ -20,7 +20,7 @@ struct l_tag {};  // lightness
 struct a_tag {};  // green-red axis (Oklab)
 struct b_tag {};  // blue-yellow axis (Oklab)
 struct c_tag {};  // chroma (OkLCH)
-struct h_tag {};  // hue angle (OkLCH)
+using h_tag = traits::hue_tag;  // hue angle (OkLCH, shared ring tag)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = Min/Den … Max/Den
 // a/b/c nominal ranges are deliberately wider than any in-gamut value: CSS has no

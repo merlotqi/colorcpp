@@ -16,7 +16,7 @@ namespace colorcpp::core::hwb {
 
 namespace channel {
 
-struct h_tag {};                  // hue
+using h_tag = traits::hue_tag;    // hue (shared ring tag)
 struct w_tag {};                  // whiteness
 struct b_tag {};                  // blackness
 using a_tag = traits::alpha_tag;  // alpha

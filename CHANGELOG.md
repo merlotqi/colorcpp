@@ -6,6 +6,23 @@ All notable changes to `colorcpp` are documented here.
 
 ### Fixed
 
+- **`epsilon_policy` is a true absolute tolerance**: `float_equal` mixed an
+  absolute floor with a relative term sharing the same `eps`
+  (`diff <= eps * max || diff <= eps`). On scales above the unit interval this
+  silently inflated the tolerance — CIELAB `L*` 50 vs 50.5 passed with
+  `eps = 0.01` (relative term: `0.5 <= 0.505`). The comparison is now pure
+  absolute (`|a - b| <= eps`) in each channel's own units; NaN compares
+  unequal and a negative tolerance never matches (consistent with the integer
+  path).
+- **Hue channels compare on the ring** in `exact_policy`, `epsilon_policy`,
+  and `relative_policy`: `h = 0` and `h = 360` are the same hue, tolerance
+  uses the shortest arc, and a shared `traits::hue_tag` (same pattern as
+  `alpha_tag`) lets generic code recognize hue channels across HSL, HSV, HWB,
+  CIELCh and OkLCh.
+- **Perceptual threshold is inclusive**: `distance == threshold` now compares
+  equal (`<=` instead of `<`); previously two identical colors failed at
+  `threshold = 0`.
+
 - **Constrained generators on integer color types**: `contrast_generator` and
   `luminance_generator` sampled their OkLCH intermediates through
   `random_value`, whose parameters are the color's channel type. On the
@@ -112,6 +129,16 @@ All notable changes to `colorcpp` are documented here.
 
 ### Added
 
+- **Selectable perceptual metrics and explicit alpha handling**:
+  `basic_perceptual_policy<Metric>` with `de2000_metric` (default, exposed as
+  the unchanged name `perceptual_policy`) and `oklab_metric`
+  (`perceptual_oklab_policy` / `perceptual_equal_ok`) — the OkLab path shares
+  the library-wide `oklab_jnd_typical` ≈ 0.02 scale used by gamut mapping.
+  ΔE2000 weights `kL`/`kC`/`kH` pass through, and the new `alpha_mode`
+  (`ignore` default, `exact`) makes alpha participation explicit instead of
+  silently dropped.
+- **`traits::hue_tag`**: shared tag for circular hue channels (family-local
+  `h_tag` names alias it, same pattern as `alpha_tag`).
 - **`contrast_generator::try_next()`**: overload set returning
   `std::optional<Color>` — `std::nullopt` when no candidate meets `min_ratio`
   within `max_attempts`. `next()` keeps its best-effort contract (may return a
