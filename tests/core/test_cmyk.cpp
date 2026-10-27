@@ -55,18 +55,22 @@ TEST(CMYKTest, Uint8BoundaryMax) {
   EXPECT_EQ(cmyk.k(), 100);
 }
 
-TEST(CMYKTest, FloatOutOfRangeThrows) {
-  EXPECT_THROW(cmyk_float_t(-0.1f, 0.0f, 0.0f, 0.0f), std::out_of_range);
-  EXPECT_THROW(cmyk_float_t(0.0f, 1.1f, 0.0f, 0.0f), std::out_of_range);
-  EXPECT_THROW(cmyk_float_t(0.0f, 0.0f, -0.1f, 0.0f), std::out_of_range);
-  EXPECT_THROW(cmyk_float_t(0.0f, 0.0f, 0.0f, 1.1f), std::out_of_range);
+TEST(CMYKTest, FloatNominalChannelRanges) {
+  using namespace cmyk::channel;
+  static_assert(float_cyan::min == 0.0f && float_cyan::max == 1.0f);
+  static_assert(float_magenta::min == 0.0f && float_magenta::max == 1.0f);
+  static_assert(float_yellow::min == 0.0f && float_yellow::max == 1.0f);
+  static_assert(float_key::min == 0.0f && float_key::max == 1.0f);
+  SUCCEED();
 }
 
-TEST(CMYKTest, Uint8OutOfRangeThrows) {
-  EXPECT_THROW(cmyk8_t(101, 0, 0, 0), std::out_of_range);
-  EXPECT_THROW(cmyk8_t(0, 101, 0, 0), std::out_of_range);
-  EXPECT_THROW(cmyk8_t(0, 0, 101, 0), std::out_of_range);
-  EXPECT_THROW(cmyk8_t(0, 0, 0, 101), std::out_of_range);
+TEST(CMYKTest, Uint8NominalChannelRanges) {
+  using namespace cmyk::channel;
+  static_assert(u8_cyan::min == 0 && u8_cyan::max == 100);
+  static_assert(u8_magenta::min == 0 && u8_magenta::max == 100);
+  static_assert(u8_yellow::min == 0 && u8_yellow::max == 100);
+  static_assert(u8_key::min == 0 && u8_key::max == 100);
+  SUCCEED();
 }
 
 // Member and indexed access

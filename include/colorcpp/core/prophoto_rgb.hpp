@@ -32,7 +32,7 @@ namespace channel {
 struct r_tag {};
 struct g_tag {};
 struct b_tag {};
-struct a_tag {};
+using a_tag = traits::alpha_tag;
 
 using f32_red = traits::basic_channel<r_tag, float, 0, 1, 1>;
 using f32_green = traits::basic_channel<g_tag, float, 0, 1, 1>;
@@ -43,10 +43,10 @@ using f32_alpha = traits::basic_channel<a_tag, float, 0, 1, 1>;
 
 namespace model {
 
-struct prophoto_rgb {};
-struct prophoto_rgba {};
-struct linear_prophoto_rgbf {};
-struct linear_prophoto_rgbaf {};
+struct prophoto_rgb : traits::rgb_model_tag {};
+struct prophoto_rgba : traits::rgb_model_tag {};
+struct linear_prophoto_rgbf : traits::rgb_model_tag {};
+struct linear_prophoto_rgbaf : traits::rgb_model_tag {};
 
 }  // namespace model
 
@@ -59,7 +59,6 @@ struct model_traits<core::prophoto_rgb::model::prophoto_rgb> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue>;
   static constexpr std::string_view prefix = "prophoto-rgb";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
@@ -67,8 +66,6 @@ struct model_traits<core::prophoto_rgb::model::prophoto_rgba> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue, core::prophoto_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "prophoto-rgba";
-  static constexpr bool has_alpha = true;
-  static constexpr std::size_t channel_size = 4;
 };
 
 template <>
@@ -76,7 +73,6 @@ struct model_traits<core::prophoto_rgb::model::linear_prophoto_rgbf> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue>;
   static constexpr std::string_view prefix = "linear-prophoto-rgb";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
@@ -84,8 +80,6 @@ struct model_traits<core::prophoto_rgb::model::linear_prophoto_rgbaf> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue, core::prophoto_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-prophoto-rgba";
-  static constexpr bool has_alpha = true;
-  static constexpr std::size_t channel_size = 4;
 };
 
 }  // namespace colorcpp::traits
@@ -103,59 +97,14 @@ struct basic_prophoto_rgb : basic_color<Model> {
   using base::base;
   using base::data;
 
- private:
-  template <typename Tag>
-  constexpr auto& channel() {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
-  template <typename Tag>
-  constexpr const auto& channel() const {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
  public:
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::r_tag>>>
-  constexpr auto& r() {
-    return channel<prophoto_rgb::channel::r_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(prophoto_rgb::channel::r_tag, r)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::r_tag>>>
-  constexpr const auto& r() const {
-    return channel<prophoto_rgb::channel::r_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(prophoto_rgb::channel::g_tag, g)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::g_tag>>>
-  constexpr auto& g() {
-    return channel<prophoto_rgb::channel::g_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(prophoto_rgb::channel::b_tag, b)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::g_tag>>>
-  constexpr const auto& g() const {
-    return channel<prophoto_rgb::channel::g_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::b_tag>>>
-  constexpr auto& b() {
-    return channel<prophoto_rgb::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::b_tag>>>
-  constexpr const auto& b() const {
-    return channel<prophoto_rgb::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::a_tag>>>
-  constexpr auto& a() {
-    return channel<prophoto_rgb::channel::a_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, prophoto_rgb::channel::a_tag>>>
-  constexpr const auto& a() const {
-    return channel<prophoto_rgb::channel::a_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(prophoto_rgb::channel::a_tag, a)
 };
 
 /** @brief ProPhoto RGB with float channels. */
@@ -167,15 +116,8 @@ using linear_prophoto_rgbf_t = basic_prophoto_rgb<prophoto_rgb::model::linear_pr
 /** @brief Linear ProPhoto RGBA with float channels. */
 using linear_prophoto_rgbaf_t = basic_prophoto_rgb<prophoto_rgb::model::linear_prophoto_rgbaf>;
 
+COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_prophoto_rgb)
+
 }  // namespace colorcpp::core
 
-// I/O operators for basic_prophoto_rgb
-template <typename Model>
-std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_prophoto_rgb<Model>& c) {
-  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
-}
-
-template <typename Model>
-std::istream& operator>>(std::istream& is, colorcpp::core::basic_prophoto_rgb<Model>& c) {
-  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
-}
+COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_prophoto_rgb)

@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cmath>
 #include <colorcpp/core/color_base.hpp>
 #include <cstdint>
 #include <iomanip>
@@ -41,19 +43,33 @@ constexpr int map_to_255(T val) {
     if (range <= 0.0) return 0;
     float normalized = (static_cast<float>(val) - static_cast<float>(Channel::min)) / range;
     normalized = std::clamp(normalized, 0.0f, 1.0f);
-    return static_cast<int>(normalized * 255.0);
+    return static_cast<int>(std::round(normalized * 255.0));
   }
 }
 
-template <typename T>
+// Whitespace skip that never sets failbit (std::ws's sentry sets failbit at EOF).
+inline void skip_ws(std::istream& s) {
+  while (s.good() && std::isspace(static_cast<unsigned char>(s.peek()))) s.ignore();
+}
+
+// State-safe peek: istream::peek's sentry sets failbit once eofbit is set.
+inline int peek_char(std::istream& s) { return s.good() ? s.peek() : EOF; }
+
+// Reads one channel value, validated against the channel's [min, max] before
+// conversion so out-of-range text fails cleanly (no wrap, no constructor throw).
+template <typename Channel, typename T>
 bool read_comp(std::istream& is, T& out) {
-  is >> std::ws;
-  if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) {
-    int temp;
+  skip_ws(is);
+  if constexpr (std::is_integral_v<T>) {
+    long long temp;
     if (!(is >> temp)) return false;
+    if (temp < static_cast<long long>(Channel::min) || temp > static_cast<long long>(Channel::max)) return false;
     out = static_cast<T>(temp);
   } else {
-    if (!(is >> out)) return false;
+    double temp;
+    if (!(is >> temp)) return false;
+    if (!(temp >= static_cast<double>(Channel::min) && temp <= static_cast<double>(Channel::max))) return false;
+    out = static_cast<T>(temp);
   }
   return true;
 }
@@ -79,22 +95,24 @@ bool read_color_impl(std::istream& is,
   using Channels = typename Trait::channels_type;
 
   auto skip_sep = [](std::istream& s) {
-    s >> std::ws;
-    if (s.peek() == ',') s.ignore();
-    s >> std::ws;
+    skip_ws(s);
+    if (peek_char(s) == ',') s.ignore();
+    skip_ws(s);
   };
 
   auto has_more = [](std::istream& s) {
-    s >> std::ws;
-    int next = s.peek();
+    skip_ws(s);
+    int next = peek_char(s);
     return std::isdigit(next) || next == '+' || next == '-' || next == '.';
   };
 
   bool success = true;
-  ((success &&
-            (has_more(is)
-                 ? (read_comp(is, temp_data[Is]) ? ((Is < sizeof...(Is) - 1 ? skip_sep(is) : (void)0), true) : false)
-                 : (Is == sizeof...(Is) - 1 ? (temp_data[Is] = std::tuple_element_t<Is, Channels>::max, true) : false))
+  ((success && (has_more(is) ? (read_comp<std::tuple_element_t<Is, Channels>>(is, temp_data[Is])
+                                    ? ((Is < sizeof...(Is) - 1 ? skip_sep(is) : (void)0), true)
+                                    : false)
+                             : (Is == sizeof...(Is) - 1 && traits::model_has_alpha_v<Model>
+                                    ? (temp_data[Is] = std::tuple_element_t<Is, Channels>::max, true)
+                                    : false))
         ? true
         : (success = false)),
    ...);
@@ -127,46 +145,49 @@ inline bool consume_prefix(std::istream& is, std::string_view prefix, bool& has_
 }  // namespace details
 
 /**
- * @brief Text output: @c prefix(ch0, ch1, …) using @ref colorcpp::traits::model_traits::prefix, or @c #RRGGBB… if @c os
- * @c std::hex is set.
+ * @brief Text output: @c prefix(ch0, ch1, …) using @ref colorcpp::traits::model_traits::prefix. If @c os has @c
+ * std::hex set and @p Model is an RGB family (see @ref colorcpp::traits::rgb_model_tag), prints @c \#RRGGBB(AA)
+ * instead (channel bytes rounded to nearest).
  */
 template <typename Model>
 std::ostream& operator<<(std::ostream& os, const core::basic_color<Model>& c) {
   using Trait = traits::model_traits<Model>;
 
-  if (os.flags() & std::ios_base::hex) {
+  if ((os.flags() & std::ios_base::hex) && traits::is_rgb_model_v<Model>) {
     auto old_fill = os.fill();
     os << "#";
-    details::print_color_hex_impl(os, c, std::make_index_sequence<Trait::channel_size>{});
+    details::print_color_hex_impl(os, c, std::make_index_sequence<traits::model_channel_count_v<Model>>{});
     os.fill(old_fill);
     return os;
   }
 
   if constexpr (Trait::prefix != "") os << Trait::prefix << "(";
-  details::print_color_text_impl(os, c, std::make_index_sequence<Trait::channel_size>{});
+  details::print_color_text_impl(os, c, std::make_index_sequence<traits::model_channel_count_v<Model>>{});
   if constexpr (Trait::prefix != "") os << ")";
 
   return os;
 }
 
 /**
- * @brief Parse optional prefix and comma-separated channel values; sets @c failbit on failure.
- * @note Omitted trailing channels may default to max (e.g. alpha) per implementation.
+ * @brief Parse optional prefix and comma-separated channel values; sets @c failbit on failure or when a channel
+ * value falls outside the model's [min, max] range (no exception is thrown).
+ * @note A missing trailing alpha defaults to max (opaque); a missing non-alpha channel sets @c failbit.
  */
 template <typename Model>
 std::istream& operator>>(std::istream& is, core::basic_color<Model>& c) {
   using Trait = traits::model_traits<Model>;
   using T = typename core::basic_color<Model>::value_type;
 
-  std::array<T, Trait::channel_size> temp_data{};
+  std::array<T, traits::model_channel_count_v<Model>> temp_data{};
   bool has_paren = false;
 
   details::consume_prefix(is, Trait::prefix, has_paren);
 
-  if (details::read_color_impl<Model>(is, temp_data, std::make_index_sequence<Trait::channel_size>{})) {
+  if (details::read_color_impl<Model>(is, temp_data,
+                                      std::make_index_sequence<traits::model_channel_count_v<Model>>{})) {
     if (has_paren) {
-      is >> std::ws;
-      if (is.peek() == ')') is.ignore();
+      details::skip_ws(is);
+      if (details::peek_char(is) == ')') is.ignore();
     }
     c = std::apply([](auto... args) { return core::basic_color<Model>(args...); }, temp_data);
   } else {

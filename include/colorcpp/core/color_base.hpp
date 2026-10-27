@@ -5,12 +5,15 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <colorcpp/core/concepts.hpp>
 #include <stdexcept>
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
 
 namespace colorcpp::core {
 
@@ -28,11 +31,16 @@ struct basic_color;
  *
  * @tparam Model Color model tag with @ref colorcpp::traits::model_traits (channels, min/max per channel).
  *
+ * Colors are plain value types: construction, @c set, and the mutable accessors never validate against the
+ * channel's nominal range. Boundary policy lives at the edges — the stream parser rejects out-of-range text
+ * (failbit), and @ref colorcpp::core::clamped / @ref colorcpp::core::make_checked provide opt-in factories.
+ *
  * Channel access:
  * - @c get<Tag>() / @c get_index<I>() for read/write references.
- * - @c set<Tag>(v) validates @c v against the channel range; throws @c std::out_of_range if invalid.
+ * - @c set<Tag>(v) stores @c v (narrowing cast to the channel's value_type).
  *
- * Construction from channel values performs the same range check (throws @c std::out_of_range).
+ * Default construction value-initializes every channel to zero — for alpha models that is transparent black,
+ * e.g. @c rgbaf_t{} has @c a == 0. Construct explicitly when an opaque default is required.
  */
 template <typename Model>
 struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
@@ -40,7 +48,7 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
 
   using channels_tuple = typename trait_model::channels_type;
 
-  static constexpr std::size_t channels = trait_model::channel_size;
+  static constexpr std::size_t channels = traits::model_channel_count_v<Model>;
 
   using first_channel = std::tuple_element_t<0, channels_tuple>;
 
@@ -57,9 +65,7 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   constexpr basic_color() = default;
 
   template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == channels>>
-  constexpr explicit basic_color(Args... args) : data{make_storage(std::make_index_sequence<channels>{}, args...)} {
-    check_range(std::make_index_sequence<channels>{}, args...);
-  }
+  constexpr explicit basic_color(Args... args) : data{make_storage(std::make_index_sequence<channels>{}, args...)} {}
 
   template <typename Tag>
   constexpr auto& get() {
@@ -85,11 +91,6 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
                   "colorcpp: requested channel tag does not exist in this model");
 
     constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    using channel_t = std::tuple_element_t<idx, channels_tuple>;
-
-    if (!(v >= static_cast<T>(channel_t::min) && v <= static_cast<T>(channel_t::max))) {
-      throw std::out_of_range("colorcpp: channel value out of range");
-    }
 
     data[idx] = static_cast<channel_value_t<idx>>(v);
   }
@@ -134,67 +135,108 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
     auto tp = std::make_tuple(args...);
     return storage_type{static_cast<value_type>(static_cast<channel_value_t<Is>>(std::get<Is>(tp)))...};
   }
-
-  // Validates each arg against its channel's [min, max] using the original (uncast) values,
-  // so out-of-range inputs are detected before any narrowing conversion.
-  template <std::size_t... Is, typename... Args>
-  constexpr void check_range(std::index_sequence<Is...>, Args... args) {
-    auto tp = std::make_tuple(args...);
-    bool valid = ((std::get<Is>(tp) >= std::tuple_element_t<Is, channels_tuple>::min &&
-                   std::get<Is>(tp) <= std::tuple_element_t<Is, channels_tuple>::max) &&
-                  ...);
-
-    if (!valid) {
-      throw std::out_of_range("colorcpp: channel value out of range");
-    }
-  }
 };
 
 /** @brief Alias for @ref basic_color. */
 template <typename Model>
 using basic_color_t = basic_color<Model>;
 
-}  // namespace colorcpp::core
+namespace factory_details {
 
-namespace colorcpp {
+/** Clamps one argument into Channel's nominal range (rounding for integral channels). */
+template <typename Channel, typename Arg>
+constexpr typename Channel::value_type clamp_to_channel(Arg v) {
+  const float x = std::clamp(static_cast<float>(v), static_cast<float>(Channel::min), static_cast<float>(Channel::max));
+  if constexpr (std::is_integral_v<typename Channel::value_type>) {
+    return static_cast<typename Channel::value_type>(std::round(x));
+  } else {
+    return static_cast<typename Channel::value_type>(x);
+  }
+}
+
+/** True if v lies within Channel's nominal [min, max] (compared before any narrowing). */
+template <typename Channel, typename Arg>
+constexpr bool in_channel_range(Arg v) {
+  return v >= Channel::min && v <= Channel::max;
+}
+
+template <typename Color, std::size_t... Is, typename... Args>
+constexpr Color clamped_impl(std::index_sequence<Is...>, Args... args) {
+  return Color{clamp_to_channel<std::tuple_element_t<Is, typename Color::channels_tuple>>(args)...};
+}
+
+template <typename Color, std::size_t... Is, typename... Args>
+constexpr Color checked_impl(std::index_sequence<Is...>, Args... args) {
+  const bool valid = (in_channel_range<std::tuple_element_t<Is, typename Color::channels_tuple>>(args) && ...);
+  if (!valid) throw std::out_of_range("colorcpp: channel value out of range");
+  return Color{static_cast<typename Color::value_type>(args)...};
+}
+
+}  // namespace factory_details
+
+/**
+ * @brief Construct @p Color with every channel clamped into its nominal [min, max].
+ *
+ * The opt-in counterpart to value-type construction: use it when an untrusted or
+ * computed value must not leave the model's nominal range. Integral channels round
+ * to nearest (matching @c from_value in the conversion layer).
+ *
+ * @tparam Color Target color type (e.g. @c rgbf_t).
+ * @param args One argument per channel, in channel order.
+ * @return Color with clamped channel values.
+ */
+template <typename Color, typename... Args>
+constexpr Color clamped(Args... args) {
+  static_assert(sizeof...(Args) == Color::channels, "colorcpp: clamped() needs one argument per channel");
+  return factory_details::clamped_impl<Color>(std::make_index_sequence<Color::channels>{}, args...);
+}
+
+/**
+ * @brief Construct @p Color validating every channel against its nominal [min, max].
+ *
+ * Throws @c std::out_of_range on the first out-of-range argument (checked before any
+ * narrowing conversion, so e.g. 300 into a byte channel is rejected rather than
+ * wrapped). The exception-based opt-in boundary for callers that can use exceptions;
+ * @ref clamped is the always-defined alternative.
+ *
+ * @tparam Color Target color type (e.g. @c rgbf_t).
+ * @param args One argument per channel, in channel order.
+ * @return Color with the given channel values.
+ * @throws std::out_of_range if any channel value is outside its nominal range.
+ */
+template <typename Color, typename... Args>
+constexpr Color make_checked(Args... args) {
+  static_assert(sizeof...(Args) == Color::channels, "colorcpp: make_checked() needs one argument per channel");
+  return factory_details::checked_impl<Color>(std::make_index_sequence<Color::channels>{}, args...);
+}
 
 /**
  * @brief Access a channel by tag on any color type that exposes @c template get<Tag>().
  * @tparam Tag Channel tag type (e.g. rgb::channel::r_tag).
+ * @note Forwarding-reference parameter covers lvalue, const, and rvalue colors uniformly
+ * (structured bindings may pass the hidden copy as an rvalue).
  */
 template <typename Tag, typename Color>
-constexpr auto& get(Color& c) {
-  return c.template get<Tag>();
-}
-
-/** @overload */
-template <typename Tag, typename Color>
-constexpr const auto& get(const Color& c) {
+constexpr decltype(auto) get(Color&& c) {
   return c.template get<Tag>();
 }
 
 /**
  * @brief Access channel @p I (0-based) on @ref colorcpp::core::basic_color.
- * @tparam I Channel index less than model_traits<Model>::channel_size.
+ * @tparam I Channel index less than @ref colorcpp::traits::model_channel_count_v for the model.
  */
 template <std::size_t I, typename Color>
-constexpr auto& get(Color& c) {
+constexpr decltype(auto) get(Color&& c) {
   return c.template get_index<I>();
 }
 
-/** @overload */
-template <std::size_t I, typename Color>
-constexpr const auto& get(const Color& c) {
-  return c.template get_index<I>();
-}
-
-}  // namespace colorcpp
+}  // namespace colorcpp::core
 
 namespace std {
 
 template <typename Model>
 struct tuple_size<colorcpp::core::basic_color<Model>>
-    : std::integral_constant<std::size_t, colorcpp::traits::model_traits<Model>::channel_size> {};
+    : std::integral_constant<std::size_t, colorcpp::traits::model_channel_count_v<Model>> {};
 
 // tuple_element<I>::type matches channel I descriptor; storage is std::array<value_type,N>.
 template <std::size_t I, typename Model>
@@ -203,24 +245,73 @@ struct tuple_element<I, colorcpp::core::basic_color<Model>> {
   using type = typename std::tuple_element_t<I, channels>::value_type;
 };
 
-template <std::size_t I, typename Model>
-constexpr auto& get(colorcpp::core::basic_color<Model>& c) {
-  return c.template get_index<I>();
-}
-
-template <std::size_t I, typename Model>
-constexpr const auto& get(const colorcpp::core::basic_color<Model>& c) {
-  return c.template get_index<I>();
-}
-
-template <typename Tag, typename Model>
-constexpr auto& get(colorcpp::core::basic_color<Model>& c) {
-  return c.template get<Tag>();
-}
-
-template <typename Tag, typename Model>
-constexpr const auto& get(const colorcpp::core::basic_color<Model>& c) {
-  return c.template get<Tag>();
-}
-
 }  // namespace std
+
+/**
+ * @brief Enables structured bindings for a color family class (e.g. @c basic_rgba).
+ *
+ * The family's channel count and per-element value type follow from its @ref
+ * colorcpp::traits::model_traits. Invoke once per family at global scope:
+ * @code
+ * COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_rgba)
+ * @endcode
+ * (@c std supplies the cv-qualified @c tuple_size/@c tuple_element variants generically.)
+ */
+#define COLORCPP_ENABLE_STRUCTURED_BINDINGS(Family)                                               \
+  namespace std {                                                                                 \
+  template <typename Model>                                                                       \
+  struct tuple_size<Family<Model>>                                                                \
+      : std::integral_constant<std::size_t, ::colorcpp::traits::model_channel_count_v<Model>> {}; \
+  template <std::size_t I, typename Model>                                                        \
+  struct tuple_element<I, Family<Model>> {                                                        \
+    using channels = typename ::colorcpp::traits::model_traits<Model>::channels_type;             \
+    using type = typename std::tuple_element_t<I, channels>::value_type;                          \
+  };                                                                                              \
+  }
+
+/**
+ * @brief Declares a named accessor pair (mutable + const) for one channel of a family class.
+ *
+ * Expands to @c Name() / @c Name() const overloads guarded by
+ * @ref colorcpp::traits::has_channel_tag_v, forwarding to @ref colorcpp::core::basic_color::get.
+ * A model whose channels lack @p Tag simply does not declare the accessor
+ * (e.g. @c a() on non-alpha models). Invoke inside a family struct whose
+ * template parameter is named @c Model:
+ * @code
+ * COLORCPP_CHANNEL_ACCESSOR(rgb::channel::r_tag, r)
+ * @endcode
+ *
+ * @param Tag Channel tag type as resolved from the @c colorcpp::core namespace (e.g. @c rgb::channel::r_tag).
+ * @param Name Accessor function name to declare.
+ */
+#define COLORCPP_CHANNEL_ACCESSOR(Tag, Name)                                                                \
+  template <typename M = Model, typename = std::enable_if_t<::colorcpp::traits::has_channel_tag_v<M, Tag>>> \
+  constexpr auto& Name() {                                                                                  \
+    return this->template get<Tag>();                                                                       \
+  }                                                                                                         \
+  template <typename M = Model, typename = std::enable_if_t<::colorcpp::traits::has_channel_tag_v<M, Tag>>> \
+  constexpr const auto& Name() const {                                                                      \
+    return this->template get<Tag>();                                                                       \
+  }
+
+/**
+ * @brief Declares stream insertion/extraction for a family class, forwarding to the
+ * format-agnostic operators on the @c basic_color base (see @ref colorcpp::io).
+ *
+ * Invoke once per family at namespace scope inside @c colorcpp::core (the header
+ * must already include @c colorcpp/core/io.hpp):
+ * @code
+ * COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_rgba)
+ * @endcode
+ *
+ * @param Family Family class template, fully qualified (e.g. @c colorcpp::core::basic_rgba).
+ */
+#define COLORCPP_STREAM_OPERATORS(Family)                                                                     \
+  template <typename Model>                                                                                   \
+  std::ostream& operator<<(std::ostream& os, const Family<Model>& c) {                                        \
+    return ::colorcpp::core::io::operator<<(os, static_cast<const ::colorcpp::core::basic_color<Model>&>(c)); \
+  }                                                                                                           \
+  template <typename Model>                                                                                   \
+  std::istream& operator>>(std::istream& is, Family<Model>& c) {                                              \
+    return ::colorcpp::core::io::operator>>(is, static_cast<::colorcpp::core::basic_color<Model>&>(c));       \
+  }

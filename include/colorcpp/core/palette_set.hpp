@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <initializer_list>
 #include <stdexcept>
 #include <vector>
@@ -24,18 +25,19 @@ class palette_set {
   void add(const Color& c) { colors_.push_back(c); }
   const std::vector<Color>& colors() const { return colors_; }
 
-  /** @brief Implicit conversion to std::vector for convenience. */
-  operator std::vector<Color>() const { return colors_; }
+  /** @brief Explicit conversion to std::vector (copies; spelled out to prevent accidental copies). */
+  explicit operator std::vector<Color>() const { return colors_; }
 
-  size_t size() const { return colors_.size(); }
+  std::size_t size() const { return colors_.size(); }
   bool empty() const { return colors_.empty(); }
 
-  Color operator[](size_t index) const {
-    if (colors_.empty()) return Color{};
+  /** @brief Wrap indexing: @p index folds into the set modulo its size; throws on an empty set. */
+  Color operator[](std::size_t index) const {
+    if (colors_.empty()) throw std::out_of_range("colorcpp: palette is empty");
     return colors_[index % colors_.size()];
   }
 
-  Color at(size_t index) const {
+  Color at(std::size_t index) const {
     if (index >= colors_.size()) throw std::out_of_range("colorcpp: palette index out of range");
     return colors_[index];
   }

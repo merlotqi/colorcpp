@@ -49,13 +49,13 @@ TEST(HSLTest, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(hsl.l(), 1.0f);
 }
 
-TEST(HSLTest, OutOfRangeThrows) {
-  EXPECT_THROW(hsl_float_t(-1.0f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsl_float_t(361.0f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsl_float_t(180.0f, -0.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsl_float_t(180.0f, 1.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsl_float_t(180.0f, 0.5f, -0.1f), std::out_of_range);
-  EXPECT_THROW(hsl_float_t(180.0f, 0.5f, 1.1f), std::out_of_range);
+TEST(HSLTest, NominalChannelRanges) {
+  using namespace hsl::channel;
+  static_assert(f32_hue::min == 0.0f && f32_hue::max == 360.0f);
+  static_assert(f32_saturation::min == 0.0f && f32_saturation::max == 1.0f);
+  static_assert(f32_lightness::min == 0.0f && f32_lightness::max == 1.0f);
+  static_assert(f32_alpha::min == 0.0f && f32_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 // Mutable and indexed access

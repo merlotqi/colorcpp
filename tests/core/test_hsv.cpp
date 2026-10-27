@@ -49,13 +49,13 @@ TEST(HSVTest, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(hsv.v(), 1.0f);
 }
 
-TEST(HSVTest, OutOfRangeThrows) {
-  EXPECT_THROW(hsv_float_t(-1.0f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsv_float_t(361.0f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsv_float_t(180.0f, -0.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsv_float_t(180.0f, 1.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(hsv_float_t(180.0f, 0.5f, -0.1f), std::out_of_range);
-  EXPECT_THROW(hsv_float_t(180.0f, 0.5f, 1.1f), std::out_of_range);
+TEST(HSVTest, NominalChannelRanges) {
+  using namespace hsv::channel;
+  static_assert(f32_hue::min == 0.0f && f32_hue::max == 360.0f);
+  static_assert(f32_saturation::min == 0.0f && f32_saturation::max == 1.0f);
+  static_assert(f32_value::min == 0.0f && f32_value::max == 1.0f);
+  static_assert(f32_alpha::min == 0.0f && f32_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 // Member and indexed access

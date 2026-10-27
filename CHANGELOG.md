@@ -6,14 +6,48 @@ All notable changes to `colorcpp` are documented here.
 
 ### Fixed
 
+- **Stream parsing defaults (breaking fix)**: a missing trailing channel
+  defaulted to the channel's max for every model — `parse<cielab_t>("lab(50,
+  10)")` produced `b* = 128`, `rgb8` input `"10 20"` produced `b = 255`. The
+  default fill now applies only to alpha models (`model_has_alpha_v`), where an
+  omitted trailing alpha becomes opaque; a missing non-alpha channel sets
+  `failbit`.
+- **Stream parsing range (breaking fix)**: `operator>>` validates each channel
+  against the model's `[min, max]` at read time and sets `failbit` on
+  out-of-range text instead of throwing `std::out_of_range` from the color
+  constructor (compatible with `-fno-exceptions`). Integral channels no longer
+  wrap: `rgb8` input `"300 0 0"` used to parse as `r = 44`, now it fails.
+- **Stream operators found by ADL (breaking fix)**: the 13 `operator<<` /
+  `operator>>` pairs moved from the global namespace into `colorcpp::core`.
+  Global overloads are invisible to ADL and were hidden as soon as a user
+  namespace declared any `operator<<` of its own; streaming now works from any
+  namespace.
+- **Structured bindings (breaking fix)**: `auto [r, g, b, a] = rgbaf_t{…}` — and
+  every other derived family — now decomposes its channels. Previously only
+  `basic_color<Model>` had the `std::tuple_size` / `std::tuple_element`
+  specializations and bindings fell back to member decomposition of `data`.
+  The new `COLORCPP_ENABLE_STRUCTURED_BINDINGS(Family)` macro (invoked for the
+  13 family classes) derives the count and element types from `model_traits`.
+  The four `std::get` overloads on color types are removed — adding function
+  overloads to `namespace std` is undefined behavior. Use structured bindings
+  or `colorcpp::core::get`.
+- **Hex output**: `std::hex` channel bytes now round to nearest (`0.5 → 128`,
+  matching `from_unit`) instead of truncating, and hex output is enabled only
+  for RGB-family models (Oklab / Lab / XYZ / … print their text form even with
+  `std::hex` set).
+- **Constants layering**: `core/constants.hpp` no longer includes
+  `io/literals.hpp` (a reverse `core → io` dependency). The 143 named colors
+  are built by a core-local `detail::rgb8(0xRRGGBB)` helper with identical
+  values and `rgba8_t` type.
+
 - **Alpha preservation across graph routes (breaking fix)**: `color_cast` now
   restores the source alpha on the result whenever both endpoints have alpha.
   Minimal-cost routes cross 3-channel transit nodes (XYZ / OkLab / CIELAB) that
   cannot carry alpha, so conversions such as `rgbaf → rec2020_rgbaf` previously
   arrived with `a = 1.0`. Conversion functions copy alpha verbatim; the restore
-  at the public `color_cast` boundary is exact for every route. New opt-in
-  `model_traits::has_alpha` marks the 14 alpha models (CMYK's K channel is not
-  alpha).
+  at the public `color_cast` boundary is exact for every route. Alpha models
+  are identified by the shared `traits::alpha_tag` in `channels_type`
+  (CMYK's K channel is not alpha).
 
 - **CSS `lab()` / `lch()` white point (breaking)**: CSS lab()/lch() are
   D50-based (CSS Color 4 §9.1), but the parser returned raw D50 channels in
@@ -82,8 +116,79 @@ All notable changes to `colorcpp` are documented here.
   alpha is ignored; the result is opaque. Accepted by `parse_css_color_rgbaf`,
   `parse_css_color_rgba8`, and typed `parse_css_color<Color>()`.
 
+- **Core traits and structured bindings**: `traits::model_channel_count_v`
+  (channel count derived from `channels_type`), `traits::rgb_model_tag` /
+  `traits::is_rgb_model_v` (RGB-family marker enabling `#RRGGBB` hex output),
+  and `COLORCPP_ENABLE_STRUCTURED_BINDINGS(Family)` for opting a color family
+  class into tuple-like structured bindings.
+- **Shared `traits::alpha_tag`**: the single tag every straight-alpha channel
+  uses (family-local `a_tag` names alias it), so generic code locates alpha by
+  tag — `traits::channel_index_v<Model, alpha_tag>` and
+  `core::get<alpha_tag>(c)` work on any alpha model.
+- **Value factories `clamped()` / `make_checked()`**: opt-in boundary policy for
+  value-type colors. `clamped<rgb8_t>(300, -5, 200.7f)` clamps into each
+  channel's nominal range (rounding to nearest for integral channels);
+  `make_checked<rgb8_t>(300, 0, 0)` validates before any narrowing conversion
+  and throws `std::out_of_range`. `make_checked` is the exception-based opt-in
+  for callers that can use exceptions; `clamped` is always defined.
+- **Family authoring macros**: `COLORCPP_CHANNEL_ACCESSOR(Tag, Name)` declares
+  an enable_if-guarded accessor pair forwarding to `basic_color::get<Tag>`, and
+  `COLORCPP_STREAM_OPERATORS(Family)` declares the stream operators forwarding
+  to the `basic_color` base. All 13 model headers use them (~640 lines of
+  duplicated boilerplate removed); no behavior change.
+
 ### Changed
 
+- **Colors are plain value types (breaking)**: construction and `set<Tag>` no
+  longer validate against nominal channel ranges and never throw; values are
+  stored verbatim (integral channels narrow with a `static_cast` — `rgb8_t(300,
+  0, 0)` stores `r = 44`). Boundary policy lives at the edges: the stream parser
+  pre-validates and sets `failbit` (all-or-nothing, never throws), and
+  `clamped()` / `make_checked()` are the opt-in factories. Nominal ranges
+  (`Channel::min` / `Channel::max`) now drive normalization, stream I/O policy
+  and the factories — not construction or `set`.
+- **OkLab / OkLCH channel ranges relaxed (breaking)**: `oklab::a` and `okb`
+  widen from ±0.5 to ±1, `oklch::c` from [0, 0.4] to [0, 1]. The nominal ranges
+  fed conversion-side clamping, cutting wide-gamut intermediates and any chroma
+  above the relative-syntax 100% references (CSS defines no upper chroma bound).
+  **Linear RGB range relaxation is deliberately deferred**: linear channels are
+  unit-normalized through `to_unit` / `from_unit`, so widening [0, 1] would
+  shift every conversion through them (black would map to linear −1); it is
+  gated on the conversion module's unclamped-intermediate-representation
+  redesign.
+- **`model_traits::channel_size` removed (breaking)**: the channel count is
+  derived from `channels_type` via `traits::model_channel_count_v` —
+  `channels_type` is now the single source of truth. The 35 handwritten copies
+  had no cross-check against the tuple and could silently disagree (out-of-
+  bounds `get_index`, wrong parse width). Custom models delete the member and
+  keep `channels_type` / `prefix` as before.
+- **`colorcpp::get` moved to `colorcpp::core::get` (breaking)**: the free
+  `get<Tag>` / `get<I>` helpers now live in `colorcpp::core` so ADL finds them
+  alongside the stream operators (required for structured bindings). Unqualified
+  `get<…>(c)` call sites are unaffected; explicit `colorcpp::get<…>` resolves
+  through `core.hpp`'s re-export but not when including `color_base.hpp` or a
+  model header directly — use `colorcpp::core::get` there. The free `get`
+  overloads are now forwarding-reference-based (lvalue / const / rvalue).
+- **`traits::default_range` and `traits::channel_traits` removed**: neither was
+  referenced anywhere.
+- **`model_traits::has_alpha` opt-in members removed (breaking)**: alpha is
+  derived from `traits::alpha_tag` presence in `channels_type`
+  (`traits::model_has_alpha_v`), so every alpha model is detected uniformly
+  and a model can no longer disagree with its own channel tuple. The 14 opt-in
+  members are deleted; OkLab's green-red `a` axis and CMYK's K use their own
+  tags and stay non-alpha. `get_src_alpha` and `color_cast`'s alpha restore
+  now look alpha up by tag index instead of assuming "channel 3 of 4+".
+- **`basic_channel` default denominator (breaking)**: the default `Den` changed
+  from `Max` to `1`, so `basic_channel<Tag, T, Min, Max>` now declares the
+  range `[Min, Max]` instead of `[Min/Max, 1]`. Existing call sites were
+  unaffected (`[0, 1]` channels keep their range; non-unit ranges already
+  spelled `Den` explicitly). Integral `T` requires `Den = 1` with `Min >= 0`
+  (a `static_assert` — integral division by a denominator would truncate).
+- **`palette_set` API tightened (breaking)**: `operator[]` on an empty set
+  throws `std::out_of_range` instead of fabricating a `Color{}`; the implicit
+  `operator std::vector` is now `explicit` (it silently copied);
+  `size_t` spelled `std::size_t`. Wrap indexing on non-empty sets is unchanged
+  and remains the documented behavior of `operator[]`.
 - **Conversion graph: shortcut edges removed (breaking)**: all weighted
   shortcut registrations (`route_cost::shortcut_2_hop` / `shortcut_4_hop`) and
   their lower-precision matrix implementations are deleted; every pair routes

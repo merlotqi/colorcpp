@@ -48,14 +48,12 @@ template <>
 struct model_traits<core::lab::model::cielab> {
   using channels_type = std::tuple<core::lab::channel::lab_l, core::lab::channel::lab_a, core::lab::channel::lab_b>;
   static constexpr std::string_view prefix = "lab";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
 struct model_traits<core::lab::model::cielch> {
   using channels_type = std::tuple<core::lab::channel::lab_l, core::lab::channel::lab_c, core::lab::channel::lab_h>;
   static constexpr std::string_view prefix = "lch";
-  static constexpr std::size_t channel_size = 3;
 };
 
 }  // namespace colorcpp::traits
@@ -73,69 +71,21 @@ struct basic_lab : basic_color<Model> {
   using base::base;
   using base::data;
 
- private:
-  template <typename Tag>
-  constexpr auto& channel() {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
-  template <typename Tag>
-  constexpr const auto& channel() const {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
  public:
   // L* — shared by both CIELAB and CIELCH
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::l_tag>>>
-  constexpr auto& l() {
-    return channel<lab::channel::l_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::l_tag>>>
-  constexpr const auto& l() const {
-    return channel<lab::channel::l_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(lab::channel::l_tag, l)
 
   // a* — CIELAB only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::a_tag>>>
-  constexpr auto& a() {
-    return channel<lab::channel::a_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::a_tag>>>
-  constexpr const auto& a() const {
-    return channel<lab::channel::a_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(lab::channel::a_tag, a)
 
   // b* — CIELAB only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::b_tag>>>
-  constexpr auto& b() {
-    return channel<lab::channel::b_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::b_tag>>>
-  constexpr const auto& b() const {
-    return channel<lab::channel::b_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(lab::channel::b_tag, b)
 
   // C* — CIELCH only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::c_tag>>>
-  constexpr auto& c() {
-    return channel<lab::channel::c_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::c_tag>>>
-  constexpr const auto& c() const {
-    return channel<lab::channel::c_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(lab::channel::c_tag, c)
 
   // H — CIELCH only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::h_tag>>>
-  constexpr auto& h() {
-    return channel<lab::channel::h_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, lab::channel::h_tag>>>
-  constexpr const auto& h() const {
-    return channel<lab::channel::h_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(lab::channel::h_tag, h)
 };
 
 /** @brief CIE L*a*b* (D65). */
@@ -143,15 +93,8 @@ using cielab_t = basic_lab<lab::model::cielab>;
 /** @brief CIE L*C*h* cylindrical LAB (D65). */
 using cielch_t = basic_lab<lab::model::cielch>;
 
+COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_lab)
+
 }  // namespace colorcpp::core
 
-// I/O operators for basic_lab
-template <typename Model>
-std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_lab<Model>& c) {
-  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
-}
-
-template <typename Model>
-std::istream& operator>>(std::istream& is, colorcpp::core::basic_lab<Model>& c) {
-  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
-}
+COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_lab)

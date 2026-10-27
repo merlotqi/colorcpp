@@ -323,13 +323,13 @@ TEST(HWBTest, BoundaryValues) {
   EXPECT_FLOAT_EQ(max_color.b(), 1.0f);
 }
 
-TEST(HWBTest, OutOfRangeThrows) {
-  EXPECT_THROW(hwb_float_t(-1.0f, 0.5f, 0.5f), std::out_of_range);    // H < 0
-  EXPECT_THROW(hwb_float_t(361.0f, 0.5f, 0.5f), std::out_of_range);   // H > 360
-  EXPECT_THROW(hwb_float_t(180.0f, -0.1f, 0.5f), std::out_of_range);  // W < 0
-  EXPECT_THROW(hwb_float_t(180.0f, 1.1f, 0.5f), std::out_of_range);   // W > 1
-  EXPECT_THROW(hwb_float_t(180.0f, 0.5f, -0.1f), std::out_of_range);  // B < 0
-  EXPECT_THROW(hwb_float_t(180.0f, 0.5f, 1.1f), std::out_of_range);   // B > 1
+TEST(HWBTest, NominalChannelRanges) {
+  using namespace hwb::channel;
+  static_assert(f32_hue::min == 0.0f && f32_hue::max == 360.0f);
+  static_assert(f32_whiteness::min == 0.0f && f32_whiteness::max == 1.0f);
+  static_assert(f32_blackness::min == 0.0f && f32_blackness::max == 1.0f);
+  static_assert(f32_alpha::min == 0.0f && f32_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 TEST(HWBTest, MemberAccess) {

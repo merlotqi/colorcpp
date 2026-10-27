@@ -4,6 +4,24 @@
 #include <colorcpp/operations/conversion.hpp>
 #include <type_traits>
 
+// Custom model with alpha at index 0 of only 3 channels: alpha lookup must go
+// through the shared tag, never "channel 3 of 4+ channels".
+namespace colorcpp::operations::test {
+struct xa_tag {};
+struct ya_tag {};
+struct model_ax {};
+}  // namespace colorcpp::operations::test
+
+namespace colorcpp::traits {
+template <>
+struct model_traits<operations::test::model_ax> {
+  using channels_type = std::tuple<basic_channel<alpha_tag, float, 0, 1, 1>,
+                                   basic_channel<operations::test::xa_tag, float, 0, 1, 1>,
+                                   basic_channel<operations::test::ya_tag, float, 0, 1, 1>>;
+  static constexpr std::string_view prefix = "ax";
+};
+}  // namespace colorcpp::traits
+
 namespace colorcpp::operations::test {
 
 using namespace core;
@@ -249,6 +267,18 @@ TEST(ConversionAlphaTest, CmykIsNotAnAlphaModel) {
 
   const auto to_cmyk = color_cast<cmyk_float_t>(rgbaf_t{1.0f, 0.0f, 0.0f, 0.5f});
   EXPECT_NEAR(to_cmyk.k(), 0.0f, 1e-4f);
+}
+
+TEST(ConversionAlphaTest, GetSrcAlphaUsesAlphaTagIndex) {
+  // model_ax has 3 channels with alpha at index 0 — the "channel 3 of 4+"
+  // heuristic misses it entirely.
+  const basic_color<model_ax> c{0.25f, 0.5f, 0.75f};
+  EXPECT_FLOAT_EQ(details::get_src_alpha(c), 0.25f);
+}
+
+TEST(ConversionAlphaTest, GetSrcAlphaIgnoresCmykKey) {
+  const cmyk_float_t cmyk{0.1f, 0.2f, 0.3f, 0.5f};
+  EXPECT_FLOAT_EQ(details::get_src_alpha(cmyk), 1.0f);  // channel 3 is K, not alpha
 }
 
 // uint8 ↔ float precision

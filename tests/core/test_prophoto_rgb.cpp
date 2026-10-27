@@ -57,9 +57,13 @@ TEST(ProPhotoRGBTest, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(c.b(), 1.0f);
 }
 
-TEST(ProPhotoRGBTest, OutOfRangeThrows) {
-  EXPECT_THROW(prophoto_rgbf_t(-0.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(prophoto_rgbf_t(1.1f, 0.5f, 0.5f), std::out_of_range);
+TEST(ProPhotoRGBTest, NominalChannelRanges) {
+  using namespace prophoto_rgb::channel;
+  static_assert(f32_red::min == 0.0f && f32_red::max == 1.0f);
+  static_assert(f32_green::min == 0.0f && f32_green::max == 1.0f);
+  static_assert(f32_blue::min == 0.0f && f32_blue::max == 1.0f);
+  static_assert(f32_alpha::min == 0.0f && f32_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 TEST(ProPhotoRGBTest, MutableMemberAccess) {

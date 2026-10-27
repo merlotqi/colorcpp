@@ -8,6 +8,7 @@
 #include <colorcpp/colorcpp.hpp>
 #include <colorcpp/operations/palette/ios.hpp>
 #include <cstddef>
+#include <vector>
 
 namespace colorcpp::operations::test {
 
@@ -56,11 +57,19 @@ TEST(PaletteSetTest, OperatorWraparound) {
 
 TEST(PaletteSetTest, OperatorEmptySet) {
   palette_set<rgb8_t> p;
-  // Should return default color for empty set
-  rgb8_t c = p[0];
-  EXPECT_EQ(c.r(), 0);
-  EXPECT_EQ(c.g(), 0);
-  EXPECT_EQ(c.b(), 0);
+  // Wrap indexing is meaningless on an empty set: accessing must throw, not
+  // fabricate a default color that is not part of any palette.
+  // volatile: stop constant propagation so GCC -Warray-bounds does not false-positive on EXPECT_THROW.
+  volatile std::size_t index = 0;
+  EXPECT_THROW(p[index], std::out_of_range);
+}
+
+TEST(PaletteSetTest, VectorConversionIsExplicit) {
+  const palette_set<rgb8_t> p{rgb8_t{1, 2, 3}};
+  // Implicit conversion is disabled on purpose (it silently copies); spell the cast.
+  const std::vector<rgb8_t> v = static_cast<std::vector<rgb8_t>>(p);
+  EXPECT_EQ(v.size(), 1u);
+  EXPECT_EQ(v[0].r(), 1);
 }
 
 TEST(PaletteSetTest, ConstIteration) {

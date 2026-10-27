@@ -41,7 +41,8 @@ constexpr To color_cast(const From& src) {
   // alpha is restored on the result. Conversion functions never transform
   // alpha, so this is exact for every route.
   if constexpr (!std::is_same_v<From, To> && details::has_alpha_v<From> && details::has_alpha_v<To>) {
-    result.template get_index<3>() = details::from_unit<To, 3>(details::to_unit<From, 3>(src.template get_index<3>()));
+    result.template get_index<details::alpha_index_v<To>>() = details::from_unit<To, details::alpha_index_v<To>>(
+        details::to_unit<From, details::alpha_index_v<From>>(src.template get_index<details::alpha_index_v<From>>()));
   }
   return result;
 }

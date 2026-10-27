@@ -38,13 +38,12 @@ TEST(OKLabTest, BoundaryValues) {
   EXPECT_FLOAT_EQ(extremes.b(), 0.5f);
 }
 
-TEST(OKLabTest, OutOfRangeThrows) {
-  EXPECT_THROW(oklab_t(-0.1f, 0.0f, 0.0f), std::out_of_range);  // L < 0
-  EXPECT_THROW(oklab_t(1.1f, 0.0f, 0.0f), std::out_of_range);   // L > 1
-  EXPECT_THROW(oklab_t(0.5f, -0.6f, 0.0f), std::out_of_range);  // a < -0.5
-  EXPECT_THROW(oklab_t(0.5f, 0.6f, 0.0f), std::out_of_range);   // a > 0.5
-  EXPECT_THROW(oklab_t(0.5f, 0.0f, -0.6f), std::out_of_range);  // b < -0.5
-  EXPECT_THROW(oklab_t(0.5f, 0.0f, 0.6f), std::out_of_range);   // b > 0.5
+TEST(OKLabTest, NominalChannelRanges) {
+  using namespace oklab::channel;
+  static_assert(okl::min == 0.0f && okl::max == 1.0f);
+  static_assert(oka::min == -1.0f && oka::max == 1.0f);
+  static_assert(okb::min == -1.0f && okb::max == 1.0f);
+  SUCCEED();
 }
 
 // OKLCh Construction
@@ -63,13 +62,29 @@ TEST(OKLChTest, ParameterizedConstruction) {
   EXPECT_FLOAT_EQ(lch.h(), 200.0f);
 }
 
-TEST(OKLChTest, OutOfRangeThrows) {
-  EXPECT_THROW(oklch_t(-0.1f, 0.1f, 180.0f), std::out_of_range);  // L < 0
-  EXPECT_THROW(oklch_t(1.1f, 0.1f, 180.0f), std::out_of_range);   // L > 1
-  EXPECT_THROW(oklch_t(0.5f, -0.1f, 180.0f), std::out_of_range);  // C < 0
-  EXPECT_THROW(oklch_t(0.5f, 0.5f, 180.0f), std::out_of_range);   // C > 0.4
-  EXPECT_THROW(oklch_t(0.5f, 0.1f, -1.0f), std::out_of_range);    // H < 0
-  EXPECT_THROW(oklch_t(0.5f, 0.1f, 361.0f), std::out_of_range);   // H > 360
+TEST(OKLChTest, NominalChannelRanges) {
+  using namespace oklab::channel;
+  static_assert(okl::min == 0.0f && okl::max == 1.0f);
+  static_assert(okc::min == 0.0f && okc::max == 1.0f);
+  static_assert(okh::min == 0.0f && okh::max == 360.0f);
+  SUCCEED();
+}
+
+// Range relaxation: the nominal range no longer clamps natural-unit conversion math.
+
+TEST(OKLabRangeRelaxTest, WideChromaSurvivesOklabToOklch) {
+  const oklab_t lab{0.7f, 0.45f, 0.0f};  // a beyond the old +-0.5 nominal
+  const oklch_t lch = color_cast<oklch_t>(lab);
+  EXPECT_FLOAT_EQ(lch.l(), 0.7f);
+  EXPECT_FLOAT_EQ(lch.c(), 0.45f);  // was clamped to 0.4
+  EXPECT_NEAR(std::abs(lch.h()), 0.0f, 1e-3f);
+}
+
+TEST(OKLabRangeRelaxTest, WideChromaSurvivesOklchToOklab) {
+  const oklch_t lch{0.7f, 0.6f, 10.0f};  // C beyond the old 0.4 nominal
+  const oklab_t lab = color_cast<oklab_t>(lch);
+  EXPECT_FLOAT_EQ(lab.l(), 0.7f);
+  EXPECT_NEAR(lab.a(), 0.6f * std::cos(10.0f * 3.14159265f / 180.0f), 1e-5f);
 }
 
 // Member and indexed access
@@ -184,8 +199,8 @@ TEST(OKLabTest, TypeTraits) {
   static_assert(l_ch::max == 1.0f);
 
   using a_ch = std::tuple_element_t<1, oklab_channels>;
-  static_assert(a_ch::min == -0.5f);
-  static_assert(a_ch::max == 0.5f);
+  static_assert(a_ch::min == -1.0f);
+  static_assert(a_ch::max == 1.0f);
 
   using oklch_channels = typename traits::model_traits<oklab::model::oklch>::channels_type;
   static_assert(std::tuple_size_v<oklch_channels> == 3);

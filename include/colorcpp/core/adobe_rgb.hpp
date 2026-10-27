@@ -24,7 +24,7 @@ namespace channel {
 struct r_tag {};
 struct g_tag {};
 struct b_tag {};
-struct a_tag {};
+using a_tag = traits::alpha_tag;
 
 using f32_red = traits::basic_channel<r_tag, float, 0, 1, 1>;
 using f32_green = traits::basic_channel<g_tag, float, 0, 1, 1>;
@@ -35,10 +35,10 @@ using f32_alpha = traits::basic_channel<a_tag, float, 0, 1, 1>;
 
 namespace model {
 
-struct adobe_rgb {};
-struct adobe_rgba {};
-struct linear_adobe_rgbf {};
-struct linear_adobe_rgbaf {};
+struct adobe_rgb : traits::rgb_model_tag {};
+struct adobe_rgba : traits::rgb_model_tag {};
+struct linear_adobe_rgbf : traits::rgb_model_tag {};
+struct linear_adobe_rgbaf : traits::rgb_model_tag {};
 
 }  // namespace model
 
@@ -51,7 +51,6 @@ struct model_traits<core::adobe_rgb::model::adobe_rgb> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue>;
   static constexpr std::string_view prefix = "adobe-rgb";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
@@ -59,8 +58,6 @@ struct model_traits<core::adobe_rgb::model::adobe_rgba> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue, core::adobe_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "adobe-rgba";
-  static constexpr bool has_alpha = true;
-  static constexpr std::size_t channel_size = 4;
 };
 
 template <>
@@ -68,7 +65,6 @@ struct model_traits<core::adobe_rgb::model::linear_adobe_rgbf> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue>;
   static constexpr std::string_view prefix = "linear-adobe-rgb";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
@@ -76,8 +72,6 @@ struct model_traits<core::adobe_rgb::model::linear_adobe_rgbaf> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue, core::adobe_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-adobe-rgba";
-  static constexpr bool has_alpha = true;
-  static constexpr std::size_t channel_size = 4;
 };
 
 }  // namespace colorcpp::traits
@@ -95,59 +89,14 @@ struct basic_adobe_rgb : basic_color<Model> {
   using base::base;
   using base::data;
 
- private:
-  template <typename Tag>
-  constexpr auto& channel() {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
-  template <typename Tag>
-  constexpr const auto& channel() const {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
  public:
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::r_tag>>>
-  constexpr auto& r() {
-    return channel<adobe_rgb::channel::r_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(adobe_rgb::channel::r_tag, r)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::r_tag>>>
-  constexpr const auto& r() const {
-    return channel<adobe_rgb::channel::r_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(adobe_rgb::channel::g_tag, g)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::g_tag>>>
-  constexpr auto& g() {
-    return channel<adobe_rgb::channel::g_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(adobe_rgb::channel::b_tag, b)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::g_tag>>>
-  constexpr const auto& g() const {
-    return channel<adobe_rgb::channel::g_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::b_tag>>>
-  constexpr auto& b() {
-    return channel<adobe_rgb::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::b_tag>>>
-  constexpr const auto& b() const {
-    return channel<adobe_rgb::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::a_tag>>>
-  constexpr auto& a() {
-    return channel<adobe_rgb::channel::a_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, adobe_rgb::channel::a_tag>>>
-  constexpr const auto& a() const {
-    return channel<adobe_rgb::channel::a_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(adobe_rgb::channel::a_tag, a)
 };
 
 /** @brief Adobe RGB with float channels. */
@@ -159,15 +108,8 @@ using linear_adobe_rgbf_t = basic_adobe_rgb<adobe_rgb::model::linear_adobe_rgbf>
 /** @brief Linear Adobe RGBA with float channels. */
 using linear_adobe_rgbaf_t = basic_adobe_rgb<adobe_rgb::model::linear_adobe_rgbaf>;
 
+COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_adobe_rgb)
+
 }  // namespace colorcpp::core
 
-// I/O operators for basic_adobe_rgb
-template <typename Model>
-std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_adobe_rgb<Model>& c) {
-  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
-}
-
-template <typename Model>
-std::istream& operator>>(std::istream& is, colorcpp::core::basic_adobe_rgb<Model>& c) {
-  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
-}
+COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_adobe_rgb)

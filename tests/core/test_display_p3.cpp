@@ -53,13 +53,13 @@ TEST(DisplayP3Test, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(p3.b(), 1.0f);
 }
 
-TEST(DisplayP3Test, OutOfRangeThrows) {
-  EXPECT_THROW(display_p3f_t(-0.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(display_p3f_t(1.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(display_p3f_t(0.5f, -0.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(display_p3f_t(0.5f, 1.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(display_p3f_t(0.5f, 0.5f, -0.1f), std::out_of_range);
-  EXPECT_THROW(display_p3f_t(0.5f, 0.5f, 1.1f), std::out_of_range);
+TEST(DisplayP3Test, NominalChannelRanges) {
+  using namespace display_p3::channel;
+  static_assert(f32_red::min == 0.0f && f32_red::max == 1.0f);
+  static_assert(f32_green::min == 0.0f && f32_green::max == 1.0f);
+  static_assert(f32_blue::min == 0.0f && f32_blue::max == 1.0f);
+  static_assert(f32_alpha::min == 0.0f && f32_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 // Member and indexed access

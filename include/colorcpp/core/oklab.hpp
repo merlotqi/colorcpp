@@ -23,11 +23,14 @@ struct c_tag {};  // chroma (OkLCH)
 struct h_tag {};  // hue angle (OkLCH)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = Min/Den … Max/Den
-using okl = traits::basic_channel<l_tag, float, 0, 1>;          // [0,    1]
-using oka = traits::basic_channel<a_tag, float, -50, 50, 100>;  // [-0.5, 0.5]
-using okb = traits::basic_channel<b_tag, float, -50, 50, 100>;  // [-0.5, 0.5]
-using okc = traits::basic_channel<c_tag, float, 0, 40, 100>;    // [0,   0.4]
-using okh = traits::basic_channel<h_tag, float, 0, 360, 1>;     // [0, 360]
+// a/b/c nominal ranges are deliberately wider than any in-gamut value: CSS has no
+// upper chroma bound (0.4 / ±0.4 are only the relative-syntax 100% references) and
+// wide-gamut intermediates exceed the old ±0.5 / 0.4 limits.
+using okl = traits::basic_channel<l_tag, float, 0, 1>;    // [0,    1]
+using oka = traits::basic_channel<a_tag, float, -1, 1>;   // [-1,   1]
+using okb = traits::basic_channel<b_tag, float, -1, 1>;   // [-1,   1]
+using okc = traits::basic_channel<c_tag, float, 0, 1>;    // [0,    1]
+using okh = traits::basic_channel<h_tag, float, 0, 360>;  // [0, 360]
 
 }  // namespace channel
 
@@ -46,14 +49,12 @@ template <>
 struct model_traits<core::oklab::model::oklab> {
   using channels_type = std::tuple<core::oklab::channel::okl, core::oklab::channel::oka, core::oklab::channel::okb>;
   static constexpr std::string_view prefix = "oklab";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
 struct model_traits<core::oklab::model::oklch> {
   using channels_type = std::tuple<core::oklab::channel::okl, core::oklab::channel::okc, core::oklab::channel::okh>;
   static constexpr std::string_view prefix = "oklch";
-  static constexpr std::size_t channel_size = 3;
 };
 
 }  // namespace colorcpp::traits
@@ -71,69 +72,21 @@ struct basic_oklab : basic_color<Model> {
   using base::base;
   using base::data;
 
- private:
-  template <typename Tag>
-  constexpr auto& channel() {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
-  template <typename Tag>
-  constexpr const auto& channel() const {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
  public:
   // L — shared by both Oklab and OkLCH
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::l_tag>>>
-  constexpr auto& l() {
-    return channel<oklab::channel::l_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::l_tag>>>
-  constexpr const auto& l() const {
-    return channel<oklab::channel::l_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(oklab::channel::l_tag, l)
 
   // a — Oklab only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::a_tag>>>
-  constexpr auto& a() {
-    return channel<oklab::channel::a_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::a_tag>>>
-  constexpr const auto& a() const {
-    return channel<oklab::channel::a_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(oklab::channel::a_tag, a)
 
   // b — Oklab only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::b_tag>>>
-  constexpr auto& b() {
-    return channel<oklab::channel::b_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::b_tag>>>
-  constexpr const auto& b() const {
-    return channel<oklab::channel::b_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(oklab::channel::b_tag, b)
 
   // c — OkLCH only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::c_tag>>>
-  constexpr auto& c() {
-    return channel<oklab::channel::c_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::c_tag>>>
-  constexpr const auto& c() const {
-    return channel<oklab::channel::c_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(oklab::channel::c_tag, c)
 
   // h — OkLCH only
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::h_tag>>>
-  constexpr auto& h() {
-    return channel<oklab::channel::h_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, oklab::channel::h_tag>>>
-  constexpr const auto& h() const {
-    return channel<oklab::channel::h_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(oklab::channel::h_tag, h)
 };
 
 /** @brief Oklab rectangular coordinates. */
@@ -141,15 +94,8 @@ using oklab_t = basic_oklab<oklab::model::oklab>;
 /** @brief OkLCH cylindrical coordinates. */
 using oklch_t = basic_oklab<oklab::model::oklch>;
 
+COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_oklab)
+
 }  // namespace colorcpp::core
 
-// I/O operators for basic_oklab
-template <typename Model>
-std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_oklab<Model>& c) {
-  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
-}
-
-template <typename Model>
-std::istream& operator>>(std::istream& is, colorcpp::core::basic_oklab<Model>& c) {
-  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
-}
+COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_oklab)

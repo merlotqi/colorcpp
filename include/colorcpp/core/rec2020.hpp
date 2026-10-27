@@ -24,7 +24,7 @@ namespace channel {
 struct r_tag {};
 struct g_tag {};
 struct b_tag {};
-struct a_tag {};
+using a_tag = traits::alpha_tag;
 
 using f32_red = traits::basic_channel<r_tag, float, 0, 1, 1>;
 using f32_green = traits::basic_channel<g_tag, float, 0, 1, 1>;
@@ -35,10 +35,10 @@ using f32_alpha = traits::basic_channel<a_tag, float, 0, 1, 1>;
 
 namespace model {
 
-struct rec2020 {};
-struct rec2020a {};
-struct linear_rec2020f {};
-struct linear_rec2020af {};
+struct rec2020 : traits::rgb_model_tag {};
+struct rec2020a : traits::rgb_model_tag {};
+struct linear_rec2020f : traits::rgb_model_tag {};
+struct linear_rec2020af : traits::rgb_model_tag {};
 
 }  // namespace model
 
@@ -51,7 +51,6 @@ struct model_traits<core::rec2020::model::rec2020> {
   using channels_type =
       std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green, core::rec2020::channel::f32_blue>;
   static constexpr std::string_view prefix = "rec2020";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
@@ -59,8 +58,6 @@ struct model_traits<core::rec2020::model::rec2020a> {
   using channels_type = std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green,
                                    core::rec2020::channel::f32_blue, core::rec2020::channel::f32_alpha>;
   static constexpr std::string_view prefix = "rec2020a";
-  static constexpr bool has_alpha = true;
-  static constexpr std::size_t channel_size = 4;
 };
 
 template <>
@@ -68,7 +65,6 @@ struct model_traits<core::rec2020::model::linear_rec2020f> {
   using channels_type =
       std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green, core::rec2020::channel::f32_blue>;
   static constexpr std::string_view prefix = "linear-rec2020";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
@@ -76,8 +72,6 @@ struct model_traits<core::rec2020::model::linear_rec2020af> {
   using channels_type = std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green,
                                    core::rec2020::channel::f32_blue, core::rec2020::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-rec2020a";
-  static constexpr bool has_alpha = true;
-  static constexpr std::size_t channel_size = 4;
 };
 
 }  // namespace colorcpp::traits
@@ -95,59 +89,14 @@ struct basic_rec2020 : basic_color<Model> {
   using base::base;
   using base::data;
 
- private:
-  template <typename Tag>
-  constexpr auto& channel() {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
-  template <typename Tag>
-  constexpr const auto& channel() const {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
  public:
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::r_tag>>>
-  constexpr auto& r() {
-    return channel<rec2020::channel::r_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(rec2020::channel::r_tag, r)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::r_tag>>>
-  constexpr const auto& r() const {
-    return channel<rec2020::channel::r_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(rec2020::channel::g_tag, g)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::g_tag>>>
-  constexpr auto& g() {
-    return channel<rec2020::channel::g_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(rec2020::channel::b_tag, b)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::g_tag>>>
-  constexpr const auto& g() const {
-    return channel<rec2020::channel::g_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::b_tag>>>
-  constexpr auto& b() {
-    return channel<rec2020::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::b_tag>>>
-  constexpr const auto& b() const {
-    return channel<rec2020::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::a_tag>>>
-  constexpr auto& a() {
-    return channel<rec2020::channel::a_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, rec2020::channel::a_tag>>>
-  constexpr const auto& a() const {
-    return channel<rec2020::channel::a_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(rec2020::channel::a_tag, a)
 };
 
 /** @brief Rec.2020 with float channels. */
@@ -159,15 +108,8 @@ using linear_rec2020_rgbf_t = basic_rec2020<rec2020::model::linear_rec2020f>;
 /** @brief Linear Rec.2020A with float channels. */
 using linear_rec2020_rgbaf_t = basic_rec2020<rec2020::model::linear_rec2020af>;
 
+COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_rec2020)
+
 }  // namespace colorcpp::core
 
-// I/O operators for basic_rec2020
-template <typename Model>
-std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_rec2020<Model>& c) {
-  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
-}
-
-template <typename Model>
-std::istream& operator>>(std::istream& is, colorcpp::core::basic_rec2020<Model>& c) {
-  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
-}
+COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_rec2020)

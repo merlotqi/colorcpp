@@ -56,13 +56,14 @@ TEST(AdobeRGBTest, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(c.b(), 1.0f);
 }
 
-TEST(AdobeRGBTest, OutOfRangeThrows) {
-  EXPECT_THROW(adobe_rgbf_t(-0.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(adobe_rgbf_t(1.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(adobe_rgbf_t(0.5f, -0.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(adobe_rgbf_t(0.5f, 1.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(adobe_rgbf_t(0.5f, 0.5f, -0.1f), std::out_of_range);
-  EXPECT_THROW(adobe_rgbf_t(0.5f, 0.5f, 1.1f), std::out_of_range);
+TEST(AdobeRGBTest, NominalChannelRanges) {
+  // Nominal ranges drive normalization and I/O policy; construction does not enforce them.
+  using namespace adobe_rgb::channel;
+  static_assert(f32_red::min == 0.0f && f32_red::max == 1.0f);
+  static_assert(f32_green::min == 0.0f && f32_green::max == 1.0f);
+  static_assert(f32_blue::min == 0.0f && f32_blue::max == 1.0f);
+  static_assert(f32_alpha::min == 0.0f && f32_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 // --- Member and indexed access ---

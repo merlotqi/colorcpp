@@ -41,7 +41,6 @@ template <>
 struct model_traits<core::xyz::model::xyze> {
   using channels_type = std::tuple<core::xyz::channel::xyz_x, core::xyz::channel::xyz_y, core::xyz::channel::xyz_z>;
   static constexpr std::string_view prefix = "xyz";
-  static constexpr std::size_t channel_size = 3;
 };
 
 }  // namespace colorcpp::traits
@@ -59,60 +58,19 @@ struct basic_xyz : basic_color<Model> {
   using base::base;
   using base::data;
 
- private:
-  template <typename Tag>
-  constexpr auto& channel() {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
-  template <typename Tag>
-  constexpr const auto& channel() const {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
  public:
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, xyz::channel::x_tag>>>
-  constexpr auto& x() {
-    return channel<xyz::channel::x_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, xyz::channel::x_tag>>>
-  constexpr const auto& x() const {
-    return channel<xyz::channel::x_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(xyz::channel::x_tag, x)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, xyz::channel::y_tag>>>
-  constexpr auto& y() {
-    return channel<xyz::channel::y_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, xyz::channel::y_tag>>>
-  constexpr const auto& y() const {
-    return channel<xyz::channel::y_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(xyz::channel::y_tag, y)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, xyz::channel::z_tag>>>
-  constexpr auto& z() {
-    return channel<xyz::channel::z_tag>();
-  }
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, xyz::channel::z_tag>>>
-  constexpr const auto& z() const {
-    return channel<xyz::channel::z_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(xyz::channel::z_tag, z)
 };
 
 /** @brief CIE XYZ under D65. */
 using xyz_t = basic_xyz<xyz::model::xyze>;
 
+COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_xyz)
+
 }  // namespace colorcpp::core
 
-// I/O operators for basic_xyz
-template <typename Model>
-std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_xyz<Model>& c) {
-  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
-}
-
-template <typename Model>
-std::istream& operator>>(std::istream& is, colorcpp::core::basic_xyz<Model>& c) {
-  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
-}
+COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_xyz)

@@ -38,13 +38,12 @@ TEST(CIELabTest, BoundaryValues) {
   EXPECT_FLOAT_EQ(extremes.b(), 128.0f);
 }
 
-TEST(CIELabTest, OutOfRangeThrows) {
-  EXPECT_THROW(cielab_t(-1.0f, 0.0f, 0.0f), std::out_of_range);   // L < 0
-  EXPECT_THROW(cielab_t(101.0f, 0.0f, 0.0f), std::out_of_range);  // L > 100
-  EXPECT_THROW(cielab_t(50.0f, -129.0f, 0.0f), std::out_of_range);
-  EXPECT_THROW(cielab_t(50.0f, 129.0f, 0.0f), std::out_of_range);
-  EXPECT_THROW(cielab_t(50.0f, 0.0f, -129.0f), std::out_of_range);
-  EXPECT_THROW(cielab_t(50.0f, 0.0f, 129.0f), std::out_of_range);
+TEST(CIELabTest, NominalChannelRanges) {
+  using namespace lab::channel;
+  static_assert(lab_l::min == 0.0f && lab_l::max == 100.0f);
+  static_assert(lab_a::min == -128.0f && lab_a::max == 128.0f);
+  static_assert(lab_b::min == -128.0f && lab_b::max == 128.0f);
+  SUCCEED();
 }
 
 // CIELCH Construction
@@ -63,13 +62,12 @@ TEST(CIELChTest, ParameterizedConstruction) {
   EXPECT_FLOAT_EQ(lch.h(), 150.0f);
 }
 
-TEST(CIELChTest, OutOfRangeThrows) {
-  EXPECT_THROW(cielch_t(-1.0f, 50.0f, 180.0f), std::out_of_range);   // L < 0
-  EXPECT_THROW(cielch_t(101.0f, 50.0f, 180.0f), std::out_of_range);  // L > 100
-  EXPECT_THROW(cielch_t(50.0f, -1.0f, 180.0f), std::out_of_range);   // C < 0
-  EXPECT_THROW(cielch_t(50.0f, 201.0f, 180.0f), std::out_of_range);  // C > 200
-  EXPECT_THROW(cielch_t(50.0f, 50.0f, -1.0f), std::out_of_range);    // H < 0
-  EXPECT_THROW(cielch_t(50.0f, 50.0f, 361.0f), std::out_of_range);   // H > 360
+TEST(CIELChTest, NominalChannelRanges) {
+  using namespace lab::channel;
+  static_assert(lab_l::min == 0.0f && lab_l::max == 100.0f);
+  static_assert(lab_c::min == 0.0f && lab_c::max == 200.0f);
+  static_assert(lab_h::min == 0.0f && lab_h::max == 360.0f);
+  SUCCEED();
 }
 
 // Member and indexed access

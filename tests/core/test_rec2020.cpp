@@ -58,13 +58,13 @@ TEST(Rec2020Test, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(c.b(), 1.0f);
 }
 
-TEST(Rec2020Test, OutOfRangeThrows) {
-  EXPECT_THROW(rec2020_rgbf_t(-0.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(rec2020_rgbf_t(1.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(rec2020_rgbf_t(0.5f, -0.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(rec2020_rgbf_t(0.5f, 1.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(rec2020_rgbf_t(0.5f, 0.5f, -0.1f), std::out_of_range);
-  EXPECT_THROW(rec2020_rgbf_t(0.5f, 0.5f, 1.1f), std::out_of_range);
+TEST(Rec2020Test, NominalChannelRanges) {
+  using namespace rec2020::channel;
+  static_assert(f32_red::min == 0.0f && f32_red::max == 1.0f);
+  static_assert(f32_green::min == 0.0f && f32_green::max == 1.0f);
+  static_assert(f32_blue::min == 0.0f && f32_blue::max == 1.0f);
+  static_assert(f32_alpha::min == 0.0f && f32_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 // --- Member and indexed access ---

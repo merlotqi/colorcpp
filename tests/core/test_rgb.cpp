@@ -57,18 +57,43 @@ TEST(RGBATest, BoundaryValues) {
   EXPECT_FLOAT_EQ(rgbf_max.b(), 1.0f);
 }
 
-TEST(RGBATest, OutOfRangeThrows) {
-  EXPECT_THROW(rgb8_t(256, 0, 0), std::out_of_range);
-  EXPECT_THROW(rgb8_t(0, 256, 0), std::out_of_range);
-  EXPECT_THROW(rgb8_t(0, 0, 256), std::out_of_range);
-  EXPECT_THROW(rgba8_t(0, 0, 0, 256), std::out_of_range);
+TEST(RGBATest, ValueTypeConstructionStoresVerbatim) {
+  // Colors are plain value types: construction never validates or throws.
+  // Boundary policy lives in the stream parser and the clamped/make_checked factories.
+  const rgbf_t f(1.5f, -0.25f, 0.5f);
+  EXPECT_FLOAT_EQ(f.r(), 1.5f);
+  EXPECT_FLOAT_EQ(f.g(), -0.25f);
+  EXPECT_FLOAT_EQ(f.b(), 0.5f);
 
-  EXPECT_THROW(rgbf_t(1.1f, 0.0f, 0.0f), std::out_of_range);
-  EXPECT_THROW(rgbf_t(0.0f, 1.1f, 0.0f), std::out_of_range);
-  EXPECT_THROW(rgbf_t(0.0f, 0.0f, 1.1f), std::out_of_range);
-  EXPECT_THROW(rgbaf_t(0.0f, 0.0f, 0.0f, 1.1f), std::out_of_range);
+  const rgbaf_t fa(0.1f, 0.2f, 0.3f, 1.5f);
+  EXPECT_FLOAT_EQ(fa.a(), 1.5f);
 
-  EXPECT_THROW(rgbf_t(-0.1f, 0.0f, 0.0f), std::out_of_range);
+  const rgb8_t u8(300, 0, 0);  // narrowing cast, no range check
+  EXPECT_EQ(u8.r(), static_cast<uint8_t>(300));
+
+  const rgba8_t u8a(0, 0, 0, 256);
+  EXPECT_EQ(u8a.a(), static_cast<uint8_t>(256));
+}
+
+TEST(RGBATest, SetStoresWithoutValidation) {
+  rgbf_t f(0.0f, 0.0f, 0.0f);
+  f.set<rgb::channel::r_tag>(2.0f);
+  EXPECT_FLOAT_EQ(f.r(), 2.0f);
+}
+
+TEST(RGBATest, NominalChannelRanges) {
+  // The nominal ranges drive normalization and I/O policy; they are not
+  // enforced at construction.
+  using namespace rgb::channel;
+  static_assert(u8_red::min == 0 && u8_red::max == 255);
+  static_assert(u8_green::min == 0 && u8_green::max == 255);
+  static_assert(u8_blue::min == 0 && u8_blue::max == 255);
+  static_assert(u8_alpha::min == 0 && u8_alpha::max == 255);
+  static_assert(float_red::min == 0.0f && float_red::max == 1.0f);
+  static_assert(float_green::min == 0.0f && float_green::max == 1.0f);
+  static_assert(float_blue::min == 0.0f && float_blue::max == 1.0f);
+  static_assert(float_alpha::min == 0.0f && float_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 TEST(RGBATest, TagAccess) {
@@ -117,35 +142,18 @@ TEST(RGBATest, MemberAccess) {
 TEST(RGBATest, GlobalGetter) {
   rgba8_t rgba(100, 150, 200, 250);
 
-  EXPECT_EQ(colorcpp::get<rgb::channel::r_tag>(rgba), 100);
-  EXPECT_EQ(colorcpp::get<rgb::channel::g_tag>(rgba), 150);
-  EXPECT_EQ(colorcpp::get<rgb::channel::b_tag>(rgba), 200);
-  EXPECT_EQ(colorcpp::get<rgb::channel::a_tag>(rgba), 250);
+  EXPECT_EQ(get<rgb::channel::r_tag>(rgba), 100);
+  EXPECT_EQ(get<rgb::channel::g_tag>(rgba), 150);
+  EXPECT_EQ(get<rgb::channel::b_tag>(rgba), 200);
+  EXPECT_EQ(get<rgb::channel::a_tag>(rgba), 250);
 
-  EXPECT_EQ(colorcpp::get<0>(rgba), 100);
-  EXPECT_EQ(colorcpp::get<1>(rgba), 150);
-  EXPECT_EQ(colorcpp::get<2>(rgba), 200);
-  EXPECT_EQ(colorcpp::get<3>(rgba), 250);
+  EXPECT_EQ(get<0>(rgba), 100);
+  EXPECT_EQ(get<1>(rgba), 150);
+  EXPECT_EQ(get<2>(rgba), 200);
+  EXPECT_EQ(get<3>(rgba), 250);
 
-  colorcpp::get<0>(rgba) = 50;
+  get<0>(rgba) = 50;
   EXPECT_EQ(rgba.r(), 50);
-}
-
-TEST(RGBATest, StdGetter) {
-  rgba8_t rgba(100, 150, 200, 250);
-
-  EXPECT_EQ(std::get<0>(rgba), 100);
-  EXPECT_EQ(std::get<1>(rgba), 150);
-  EXPECT_EQ(std::get<2>(rgba), 200);
-  EXPECT_EQ(std::get<3>(rgba), 250);
-
-  EXPECT_EQ(std::get<rgb::channel::r_tag>(rgba), 100);
-  EXPECT_EQ(std::get<rgb::channel::g_tag>(rgba), 150);
-  EXPECT_EQ(std::get<rgb::channel::b_tag>(rgba), 200);
-  EXPECT_EQ(std::get<rgb::channel::a_tag>(rgba), 250);
-
-  std::get<1>(rgba) = 75;
-  EXPECT_EQ(rgba.g(), 75);
 }
 
 TEST(RGBATest, ConstCorrectness) {
@@ -199,7 +207,7 @@ TEST(RGBATest, CombinationOperations) {
   rgba.r() = 50;
   rgba.get<rgb::channel::g_tag>() = 75;
   rgba.get_index<2>() = 125;
-  colorcpp::get<3>(rgba) = 200;
+  get<3>(rgba) = 200;
 
   EXPECT_EQ(rgba.r(), 50);
   EXPECT_EQ(rgba.g(), 75);

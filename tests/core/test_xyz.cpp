@@ -46,13 +46,12 @@ TEST(XYZTest, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(xyz.z(), 2.0f);
 }
 
-TEST(XYZTest, OutOfRangeThrows) {
-  EXPECT_THROW(xyz_t(-0.1f, 1.0f, 1.0f), std::out_of_range);
-  EXPECT_THROW(xyz_t(2.1f, 1.0f, 1.0f), std::out_of_range);
-  EXPECT_THROW(xyz_t(1.0f, -0.1f, 1.0f), std::out_of_range);
-  EXPECT_THROW(xyz_t(1.0f, 2.1f, 1.0f), std::out_of_range);
-  EXPECT_THROW(xyz_t(1.0f, 1.0f, -0.1f), std::out_of_range);
-  EXPECT_THROW(xyz_t(1.0f, 1.0f, 2.1f), std::out_of_range);
+TEST(XYZTest, NominalChannelRanges) {
+  using namespace xyz::channel;
+  static_assert(xyz_x::min == 0.0f && xyz_x::max == 2.0f);
+  static_assert(xyz_y::min == 0.0f && xyz_y::max == 2.0f);
+  static_assert(xyz_z::min == 0.0f && xyz_z::max == 2.0f);
+  SUCCEED();
 }
 
 // Member and indexed access

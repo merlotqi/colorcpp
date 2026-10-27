@@ -16,10 +16,10 @@ namespace colorcpp::core::hwb {
 
 namespace channel {
 
-struct h_tag {};  // hue
-struct w_tag {};  // whiteness
-struct b_tag {};  // blackness
-struct a_tag {};  // alpha
+struct h_tag {};                  // hue
+struct w_tag {};                  // whiteness
+struct b_tag {};                  // blackness
+using a_tag = traits::alpha_tag;  // alpha
 
 using f32_hue = traits::basic_channel<h_tag, float, 0, 360, 1>;
 using f32_whiteness = traits::basic_channel<w_tag, float, 0, 1>;
@@ -45,7 +45,6 @@ struct model_traits<core::hwb::model::hwb> {
       std::tuple<core::hwb::channel::f32_hue, core::hwb::channel::f32_whiteness, core::hwb::channel::f32_blackness>;
 
   static constexpr std::string_view prefix = "hwb";
-  static constexpr std::size_t channel_size = 3;
 };
 
 template <>
@@ -53,8 +52,6 @@ struct model_traits<core::hwb::model::hwba> {
   using channels_type = std::tuple<core::hwb::channel::f32_hue, core::hwb::channel::f32_whiteness,
                                    core::hwb::channel::f32_blackness, core::hwb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "hwba";
-  static constexpr bool has_alpha = true;
-  static constexpr std::size_t channel_size = 4;
 };
 
 }  // namespace colorcpp::traits
@@ -72,59 +69,14 @@ struct basic_hwb : basic_color<Model> {
   using base::base;
   using base::data;
 
- private:
-  template <typename Tag>
-  constexpr auto& channel() {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
-  template <typename Tag>
-  constexpr const auto& channel() const {
-    constexpr std::size_t idx = traits::channel_index_v<Model, Tag>;
-    return data[idx];
-  }
-
  public:
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::h_tag>>>
-  constexpr auto& h() {
-    return channel<hwb::channel::h_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(hwb::channel::h_tag, h)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::h_tag>>>
-  constexpr const auto& h() const {
-    return channel<hwb::channel::h_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(hwb::channel::w_tag, w)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::w_tag>>>
-  constexpr auto& w() {
-    return channel<hwb::channel::w_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(hwb::channel::b_tag, b)
 
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::w_tag>>>
-  constexpr const auto& w() const {
-    return channel<hwb::channel::w_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::b_tag>>>
-  constexpr auto& b() {
-    return channel<hwb::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::b_tag>>>
-  constexpr const auto& b() const {
-    return channel<hwb::channel::b_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::a_tag>>>
-  constexpr auto& a() {
-    return channel<hwb::channel::a_tag>();
-  }
-
-  template <typename M = Model, typename = std::enable_if_t<traits::has_channel_tag_v<M, hwb::channel::a_tag>>>
-  constexpr const auto& a() const {
-    return channel<hwb::channel::a_tag>();
-  }
+  COLORCPP_CHANNEL_ACCESSOR(hwb::channel::a_tag, a)
 };
 
 /** @brief HWB with float channels. */
@@ -132,15 +84,8 @@ using hwb_float_t = basic_hwb<hwb::model::hwb>;
 /** @brief HWBA with float channels. */
 using hwba_float_t = basic_hwb<hwb::model::hwba>;
 
+COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_hwb)
+
 }  // namespace colorcpp::core
 
-// I/O operators for basic_hwb
-template <typename Model>
-std::ostream& operator<<(std::ostream& os, const colorcpp::core::basic_hwb<Model>& c) {
-  return colorcpp::core::io::operator<<(os, static_cast<const colorcpp::core::basic_color<Model>&>(c));
-}
-
-template <typename Model>
-std::istream& operator>>(std::istream& is, colorcpp::core::basic_hwb<Model>& c) {
-  return colorcpp::core::io::operator>>(is, static_cast<colorcpp::core::basic_color<Model>&>(c));
-}
+COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_hwb)

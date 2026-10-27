@@ -26,14 +26,18 @@ template <typename T>
 using extract_model_t = typename extract_model<T>::type;
 
 /**
- * @brief Whether @p Color's model carries straight alpha as its channel 3.
+ * @brief Whether @p Color's model carries a straight alpha channel.
  *
  * Alpha is a pure ride-along channel: conversion functions copy it verbatim and
- * never apply transfer functions or matrices to it. CMYK channel 3 is K, not
- * alpha, so CMYK models are not alpha models.
+ * never apply transfer functions or matrices to it. Derived from the shared
+ * @ref colorcpp::traits::alpha_tag in the model's channel tuple (CMYK's K is not alpha).
  */
 template <typename Color>
 inline constexpr bool has_alpha_v = traits::model_has_alpha_v<extract_model_t<Color>>;
+
+/** @brief Index of @p Color's straight-alpha channel (only meaningful when @ref has_alpha_v). */
+template <typename Color>
+inline constexpr std::size_t alpha_index_v = traits::channel_index_v<extract_model_t<Color>, traits::alpha_tag>;
 
 // V is deduced from the call argument (e.g. uint8_t for rgb8, float for rgbf).
 // Using a deduced V instead of Color::value_type makes to_unit work correctly
@@ -78,23 +82,18 @@ constexpr typename Color::template channel_value_t<I> from_value(float v) {
 /**
  * @brief Returns the alpha channel as a unit [0,1] value.
  *
- * @warning Only use for types where channel 3 is alpha:
- *   - RGBA, HSLA, HSVA, HWBA, OkLabA, CIELABA, Display P3A, etc.
+ * Safe for every model: alpha is located via the shared @ref colorcpp::traits::alpha_tag at its actual
+ * index (not a hardcoded position). Models without alpha — including CMYK, whose channel 3 is K — return
+ * 1.0.
  *
- * @note Do NOT use for:
- *   - CMYK (channel 3 is K/black, not alpha)
- *   - Any type where channel 3 is not alpha
- *
- * @tparam From Source color type (must have channel 3 as alpha if 4+ channels).
+ * @tparam From Source color type.
  * @param src Source color value.
  * @return Alpha value in [0, 1] range, or 1.0 if no alpha channel.
  */
 template <typename From>
 constexpr float get_src_alpha(const From& src) {
-  if constexpr (From::channels >= 4) {
-    // Note: This assumes channel 3 is alpha.
-    // For CMYK, channel 3 is K (black) - do not use this function!
-    return to_unit<From, 3>(src.template get_index<3>());
+  if constexpr (has_alpha_v<From>) {
+    return to_unit<From, alpha_index_v<From>>(src.template get_index<alpha_index_v<From>>());
   } else {
     return 1.0f;
   }

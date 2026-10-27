@@ -7,7 +7,6 @@
 
 #include <array>
 #include <cstdint>
-#include <limits>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
@@ -51,28 +50,35 @@ constexpr bool all_same_channel_value_type_as() noexcept {
   return (std::is_same_v<typename RefChannel::value_type, typename Channels::value_type> && ...);
 }
 
-/** @brief Default [min,max] for a scalar type when a channel does not override range. */
-template <typename T>
-struct default_range {
-  static constexpr T min = static_cast<T>(0);
+/**
+ * @brief Marker base for RGB-family model tags (rgb, linear_rgb, adobe_rgb, display_p3, prophoto_rgb, rec2020).
+ *
+ * Model tags deriving from this enable RGB-family output behavior such as @c \#RRGGBB hex formatting.
+ */
+struct rgb_model_tag {};
 
-  static constexpr T max = std::is_floating_point_v<T> ? static_cast<T>(1) : std::numeric_limits<T>::max();
-};
+template <typename Model>
+inline constexpr bool is_rgb_model_v = std::is_base_of_v<rgb_model_tag, Model>;
 
-/** @brief Optional per-channel range override (defaults to @ref default_range). */
-template <typename Channel, typename T>
-struct channel_traits {
-  static constexpr T min = default_range<T>::min;
-  static constexpr T max = default_range<T>::max;
-};
+/**
+ * @brief Shared tag for straight-alpha channels.
+ *
+ * Every alpha channel in every family uses this tag (family-local @c a_tag names alias it), so generic code
+ * can locate alpha by tag: @ref colorcpp::traits::channel_index_v finds its position and
+ * @ref colorcpp::core::get reads it on any alpha model.
+ */
+struct alpha_tag {};
 
 /**
  * @brief Declares one channel: tag, scalar type, and inclusive range as rational Min/Den … Max/Den.
- * @tparam Den Normalization denominator (often 1 for “natural” LAB/XYZ units).
+ * @tparam Den Normalization denominator (default 1 — the range is simply Min … Max; use Den > 1 for fractional
+ * ranges such as Oklab's [-0.5, 0.5] declared as <-50, 50, 100>). Integral @c T must use @c Den = 1 with @c Min >= 0.
  */
-template <typename Tag, typename T, int64_t Min, int64_t Max, int64_t Den = Max>
+template <typename Tag, typename T, int64_t Min, int64_t Max, int64_t Den = 1>
 struct basic_channel {
   static_assert(Den != 0, "colorcpp: channel denominator cannot be zero");
+  static_assert(!std::is_integral_v<T> || (Min >= 0 && Den == 1),
+                "colorcpp: integral channels must use Den = 1 with Min >= 0");
 
   using tag_type = Tag;
   using value_type = T;
@@ -85,8 +91,8 @@ struct basic_channel {
 };
 
 /**
- * @brief Primary template; specialize with @c channels_type (tuple of @ref basic_channel), @c channel_size, optional @c
- * prefix for I/O.
+ * @brief Primary template; specialize with @c channels_type (tuple of @ref basic_channel) and optional @c prefix for
+ * I/O. The channel count is derived from @c channels_type.
  */
 template <typename Model>
 struct model_traits {
@@ -97,28 +103,14 @@ template <typename T, typename = void>
 struct is_model_traits : std::false_type {};
 
 template <typename T>
-struct is_model_traits<T, std::void_t<decltype(model_traits<T>::channel_size), typename model_traits<T>::channels_type>>
-    : std::true_type {};
+struct is_model_traits<T, std::void_t<typename model_traits<T>::channels_type>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool is_model_traits_v = is_model_traits<T>::value;
 
-/**
- * @brief Whether @p Model carries straight alpha as its channel 3.
- *
- * Opt-in: a model enables this with @c static @c constexpr @c bool @c has_alpha @c = @c true;
- * in its @ref model_traits specialization. Models without the member are treated as
- * alpha-free — including CMYK, whose channel 3 is K, not alpha.
- */
-template <typename Model, typename = void>
-struct model_has_alpha : std::false_type {};
-
+/** @brief Channel count of @p Model, derived from @ref model_traits::channels_type (the single source of truth). */
 template <typename Model>
-struct model_has_alpha<Model, std::void_t<decltype(model_traits<Model>::has_alpha)>>
-    : std::bool_constant<model_traits<Model>::has_alpha> {};
-
-template <typename Model>
-inline constexpr bool model_has_alpha_v = model_has_alpha<Model>::value;
+inline constexpr std::size_t model_channel_count_v = std::tuple_size_v<typename model_traits<Model>::channels_type>;
 
 /** @brief Whether @p Model's channel tuple includes @p Tag. */
 template <typename Model, typename Tag>
@@ -132,6 +124,23 @@ struct has_channel_tag {
 
 template <typename Model, typename Tag>
 inline constexpr bool has_channel_tag_v = has_channel_tag<Model, Tag>::value;
+
+/**
+ * @brief Whether @p Model carries a straight alpha channel.
+ *
+ * Derived from @ref alpha_tag presence in the model's channel tuple — no opt-in member. Family-local @c a_tag
+ * names alias the shared tag, so every alpha model is detected uniformly; CMYK (K) and OkLab (a axis) use their
+ * own tags and are not alpha models.
+ */
+template <typename Model, typename = void>
+struct model_has_alpha : std::false_type {};
+
+template <typename Model>
+struct model_has_alpha<Model, std::void_t<typename model_traits<Model>::channels_type>>
+    : has_channel_tag<Model, alpha_tag> {};
+
+template <typename Model>
+inline constexpr bool model_has_alpha_v = model_has_alpha<Model>::value;
 
 /** @brief Zero-based index of channel @p Tag in @p Model (compile-time error if missing). */
 template <typename Model, typename Tag>

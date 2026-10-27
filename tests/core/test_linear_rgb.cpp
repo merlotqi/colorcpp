@@ -53,13 +53,13 @@ TEST(LinearRGBTest, BoundaryValuesMax) {
   EXPECT_FLOAT_EQ(rgb.b(), 1.0f);
 }
 
-TEST(LinearRGBTest, OutOfRangeThrows) {
-  EXPECT_THROW(linear_rgbf_t(-0.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(linear_rgbf_t(1.1f, 0.5f, 0.5f), std::out_of_range);
-  EXPECT_THROW(linear_rgbf_t(0.5f, -0.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(linear_rgbf_t(0.5f, 1.1f, 0.5f), std::out_of_range);
-  EXPECT_THROW(linear_rgbf_t(0.5f, 0.5f, -0.1f), std::out_of_range);
-  EXPECT_THROW(linear_rgbf_t(0.5f, 0.5f, 1.1f), std::out_of_range);
+TEST(LinearRGBTest, NominalChannelRanges) {
+  using namespace linear_rgb::channel;
+  static_assert(float_red::min == 0.0f && float_red::max == 1.0f);
+  static_assert(float_green::min == 0.0f && float_green::max == 1.0f);
+  static_assert(float_blue::min == 0.0f && float_blue::max == 1.0f);
+  static_assert(float_alpha::min == 0.0f && float_alpha::max == 1.0f);
+  SUCCEED();
 }
 
 // Member and indexed access
