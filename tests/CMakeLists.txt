@@ -15,7 +15,10 @@ if(COLORCPP_BUILD_TESTS)
     include(GoogleTest)
 
     file(GLOB_RECURSE TEST_MODULES "*.cpp")
-    
+    # compile_fail/ TUs are intentionally ill-formed; they are driven by the
+    # negative-compilation harness below, never compiled into gtest binaries.
+    list(FILTER TEST_MODULES EXCLUDE REGEX "compile_fail")
+
     foreach(TEST_SOURCE ${TEST_MODULES})
         get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
         add_executable(${TEST_NAME} ${TEST_SOURCE})
@@ -33,6 +36,26 @@ if(COLORCPP_BUILD_TESTS)
             target_compile_options(${TEST_NAME} PRIVATE --coverage -fprofile-arcs -ftest-coverage)
             target_link_options(${TEST_NAME} PRIVATE --coverage)
         endif()
+    endforeach()
+
+    # Negative-compilation tests: each compile_fail/fail_*.cpp must FAIL to
+    # compile. The harness configures successfully iff try_compile fails, so
+    # these tests flip to red the moment an ill-formed literal becomes valid.
+    set(COMPILE_FAIL_GENERATOR_ARGS -G ${CMAKE_GENERATOR})
+    if(CMAKE_GENERATOR_PLATFORM)
+        list(APPEND COMPILE_FAIL_GENERATOR_ARGS -A ${CMAKE_GENERATOR_PLATFORM})
+    endif()
+    file(GLOB COMPILE_FAIL_CASES ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/fail_*.cpp)
+    foreach(CASE_SRC ${COMPILE_FAIL_CASES})
+        get_filename_component(CASE_NAME ${CASE_SRC} NAME_WE)
+        add_test(NAME CompileFail.${CASE_NAME}
+            COMMAND ${CMAKE_COMMAND}
+                ${COMPILE_FAIL_GENERATOR_ARGS}
+                -S ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail
+                -B ${CMAKE_CURRENT_BINARY_DIR}/compile_fail/${CASE_NAME}
+                -DSOURCE=${CASE_SRC}
+                -DINC=${PROJECT_SOURCE_DIR}/include
+        )
     endforeach()
 
     # Reference-vector tests parse JSON fixtures (nlohmann/json).

@@ -77,20 +77,20 @@ int main() {
   std::cout << "cmyk hex: " << cmyk << "\n" << std::dec;
 
   // 3. Literals
-  section("Literals");
+  section("Literals & constructors");
 
   auto lit_rgb = 0xFF6347_rgb;           // -> rgba8_t{255,99,71,255}
   auto lit_rgba = 0xFF634780_rgba;       // -> rgba8_t{255,99,71,128}
   auto lit_argb = 0x80FF6347_argb;       // -> rgba8_t{255,99,71,128}  (AARRGGBB)
   auto lit_hex = "#FF6347"_hex;          // -> rgba8_t, full hex string
   auto lit_hex3 = "#F63"_hex;            // shorthand #RGB -> #FF6633
-  auto lit_hsl = 120'050'075_hsl;        // hsl_float_t{120.0f, 0.50f, 0.75f}
-  auto lit_hsla = 120'050'075'100_hsla;  // hsla_float_t{120.0f, 0.50f, 0.75f, 1.0f}
-  auto lit_hsv = 210'080'090_hsv;        // hsv_float_t{210.0f, 0.80f, 0.90f}
-  auto lit_hsva = 210'080'090'075_hsva;  // hsva_float_t{210.0f, 0.80f, 0.90f, 0.75f}
-  auto lit_cmyk = 50'030'000'020_cmyk;   // cmyk8_t{50, 30, 0, 20}
-  auto lit_oklab = 050'050'050_oklab;    // oklab_t{0.50f, 0.0f, 0.0f}
-  auto lit_oklch = 050'100'120_oklch;    // oklch_t{0.50f, 0.40f, 120.0f}
+  auto lit_hsl = hsl_float_t{120.0f, 0.50f, 0.75f};
+  auto lit_hsla = hsla_float_t{120.0f, 0.50f, 0.75f, 1.0f};
+  auto lit_hsv = hsv_float_t{210.0f, 0.80f, 0.90f};
+  auto lit_hsva = hsva_float_t{210.0f, 0.80f, 0.90f, 0.75f};
+  auto lit_cmyk = cmyk8_t{50, 30, 0, 20};
+  auto lit_oklab = oklab_t{0.50f, 0.0f, 0.0f};
+  auto lit_oklch = oklch_t{0.50f, 0.40f, 120.0f};
 
   std::cout << std::hex;
   std::cout << "0xFF6347_rgb:          ";
@@ -109,25 +109,25 @@ int main() {
   print_swatch(std::cout, lit_hex3, 4);
   std::cout << " " << lit_hex3 << "\n";
   std::cout << std::dec;
-  std::cout << "120'050'075_hsl:       ";
+  std::cout << "hsl{120,0.50,0.75}:       ";
   print_swatch(std::cout, lit_hsl, 4);
   std::cout << " " << lit_hsl << "\n";
-  std::cout << "120'050'075'100_hsla:  ";
+  std::cout << "hsla{120,0.50,0.75,1.0}:  ";
   print_swatch(std::cout, lit_hsla, 4);
   std::cout << " " << lit_hsla << "\n";
-  std::cout << "210'080'090_hsv:       ";
+  std::cout << "hsv{210,0.80,0.90}:       ";
   print_swatch(std::cout, lit_hsv, 4);
   std::cout << " " << lit_hsv << "\n";
-  std::cout << "210'080'090'075_hsva:  ";
+  std::cout << "hsva{210,0.80,0.90,0.75}: ";
   print_swatch(std::cout, lit_hsva, 4);
   std::cout << " " << lit_hsva << "\n";
-  std::cout << "50'030'000'020_cmyk:   ";
+  std::cout << "cmyk8{50,30,0,20}:        ";
   print_swatch(std::cout, lit_cmyk, 4);
   std::cout << " " << lit_cmyk << "\n";
-  std::cout << "050'050'050_oklab:      ";
+  std::cout << "oklab{0.50,0,0}:          ";
   print_swatch(std::cout, lit_oklab, 4);
   std::cout << " " << lit_oklab << "\n";
-  std::cout << "050'100'120_oklch:      ";
+  std::cout << "oklch{0.50,0.40,120}:     ";
   print_swatch(std::cout, lit_oklch, 4);
   std::cout << " " << lit_oklch << "\n";
 

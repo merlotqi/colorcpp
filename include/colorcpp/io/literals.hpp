@@ -1,15 +1,12 @@
 /**
  * @file literals.hpp
- * @brief Aggregate header for the supported common-authoring-space color literal operators.
+ * @brief Aggregate header for the supported color literal operators.
  *
- * Includes RGB/RGBA, HSL/HSLA, HSV/HSVA, HWB/HWBA, CMYK, Oklab, and OkLCH literal operators.
+ * Includes the RGB/RGBA/ARGB hex and the #RRGGBB string literal operators.
+ * For non-RGB color spaces use the constructors, e.g.
+ * `hsl_float_t{120.0f, 0.5f, 0.75f}` (see docs/reference/literals.rst).
  */
 
 #pragma once
 
-#include <colorcpp/io/literals/cmyk.hpp>
-#include <colorcpp/io/literals/hsl.hpp>
-#include <colorcpp/io/literals/hsv.hpp>
-#include <colorcpp/io/literals/hwb.hpp>
-#include <colorcpp/io/literals/oklab.hpp>
 #include <colorcpp/io/literals/rgb.hpp>

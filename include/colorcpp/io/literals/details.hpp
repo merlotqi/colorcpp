@@ -24,6 +24,12 @@ constexpr uint32_t char_to_hex(char c) {
   return 0;
 }
 
+// Must precede parse_hex_template: two-phase lookup requires names used inside
+// templates to be visible at the definition point (ADL adds nothing for char).
+constexpr bool is_hex_digit(char c) {
+  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
 /**
  * @brief Result of parsing a hex template literal
  */
@@ -60,48 +66,9 @@ constexpr hex_template_result parse_hex_template() {
   return {res, digits};
 }
 
-/**
- * @brief Result of parsing a decimal template literal
- */
-struct dec_template_result {
-  uint64_t value;
-  size_t digits;
-};
-
-/**
- * @brief Parse and validate template character sequence as decimal
- * @tparam Chars Character pack representing the decimal literal
- * @return {value, digits} — parsed uint64_t and effective digit count
- * @note Supports digit separators (').
- *       Invalid characters trigger a compile-time error via constexpr throw.
- */
-template <char... Chars>
-constexpr dec_template_result parse_dec_template() {
-  constexpr char s[] = {Chars...};
-  uint64_t res = 0;
-  size_t digits = 0;
-  for (char c : s) {
-    if (c >= '0' && c <= '9') {
-      res = res * 10 + static_cast<uint64_t>(c - '0');
-      ++digits;
-    } else if (c == '\'') {
-      continue;
-    } else {
-      throw std::invalid_argument(
-          "colorcpp: invalid character in decimal template literal. "
-          "Only 0-9 and ' separators are allowed.");
-    }
-  }
-  return {res, digits};
-}
-
 constexpr uint8_t hex_expand(char c) {
   const uint8_t v = static_cast<uint8_t>(char_to_hex(c) & 0xFFu);
   return static_cast<uint8_t>((static_cast<unsigned>(v) << 4u) | static_cast<unsigned>(v));
-}
-
-constexpr bool is_hex_digit(char c) {
-  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 constexpr void validate_hex_chars(const char* s, size_t offset, size_t len) {

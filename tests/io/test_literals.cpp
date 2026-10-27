@@ -44,7 +44,8 @@ TEST(RgbLiteralTest, PureBlue) {
   static_assert(c.r() == 0 && c.g() == 0 && c.b() == 255);
 }
 
-TEST(RgbLiteralTest, RuntimeOverflowThrows) { EXPECT_THROW((void)(0x1000000_rgb), std::out_of_range); }
+// Wrong-digit rejection (formerly RuntimeOverflowThrows) is now a compile-time
+// guarantee, pinned by the negative-compilation tests in tests/compile_fail/.
 
 // _rgba
 
@@ -155,206 +156,7 @@ TEST(HexLiteralTest, InvalidHexDigitsThrow) {
   EXPECT_THROW((void)"#F63Z"_hex, std::invalid_argument);
 }
 
-// _hsl
 
-TEST(HslLiteralTest, GreenHsl) {
-  // H=120, S=50%, L=75%  →  stored as (120, 0.50, 0.75)
-  constexpr auto hsl = 120'050'075_hsl;
-  static_assert(hsl.h() == 120.0f);
-  EXPECT_FLOAT_EQ(hsl.s(), 0.50f);
-  EXPECT_FLOAT_EQ(hsl.l(), 0.75f);
-}
-
-TEST(HslLiteralTest, RedHsl) {
-  // H=0, S=100%, L=50%  → fully saturated red
-  constexpr auto hsl = 0'100'050_hsl;
-  static_assert(hsl.h() == 0.0f);
-  EXPECT_FLOAT_EQ(hsl.s(), 1.0f);
-  EXPECT_FLOAT_EQ(hsl.l(), 0.5f);
-}
-
-TEST(HslLiteralTest, BlueHsl) {
-  constexpr auto hsl = 240'100'050_hsl;
-  static_assert(hsl.h() == 240.0f);
-  EXPECT_FLOAT_EQ(hsl.s(), 1.0f);
-  EXPECT_FLOAT_EQ(hsl.l(), 0.5f);
-}
-
-TEST(HslLiteralTest, MaxHue) {
-  constexpr auto hsl = 360'000'050_hsl;
-  static_assert(hsl.h() == 360.0f);
-  EXPECT_FLOAT_EQ(hsl.s(), 0.0f);
-}
-
-TEST(HslLiteralTest, AllZero) {
-  constexpr auto hsl = 0'000'000_hsl;
-  static_assert(hsl.h() == 0.0f);
-  EXPECT_FLOAT_EQ(hsl.s(), 0.0f);
-  EXPECT_FLOAT_EQ(hsl.l(), 0.0f);
-}
-
-// _hsla
-
-TEST(HslaLiteralTest, WithAlpha) {
-  // H=120, S=50%, L=75%, A=100% → (120, 0.5, 0.75, 1.0)
-  constexpr auto hsla = 120'050'075'100_hsla;
-  static_assert(hsla.h() == 120.0f);
-  EXPECT_FLOAT_EQ(hsla.s(), 0.5f);
-  EXPECT_FLOAT_EQ(hsla.l(), 0.75f);
-  EXPECT_FLOAT_EQ(hsla.a(), 1.0f);
-}
-
-TEST(HslaLiteralTest, SemiTransparent) {
-  constexpr auto hsla = 0'100'050'050_hsla;
-  EXPECT_FLOAT_EQ(hsla.a(), 0.5f);
-}
-
-TEST(HslaLiteralTest, FullyTransparent) {
-  constexpr auto hsla = 180'060'040'000_hsla;
-  EXPECT_FLOAT_EQ(hsla.a(), 0.0f);
-}
-
-// _hsv
-
-TEST(HsvLiteralTest, NavyBlue) {
-  // H=210, S=80%, V=90%  → stored as (210, 0.80, 0.90)
-  constexpr auto hsv = 210'080'090_hsv;
-  EXPECT_FLOAT_EQ(hsv.h(), 210.0f);
-  EXPECT_FLOAT_EQ(hsv.s(), 0.80f);
-  EXPECT_FLOAT_EQ(hsv.v(), 0.90f);
-}
-
-TEST(HsvLiteralTest, FullRed) {
-  constexpr auto hsv = 0'100'100_hsv;
-  EXPECT_FLOAT_EQ(hsv.h(), 0.0f);
-  EXPECT_FLOAT_EQ(hsv.s(), 1.0f);
-  EXPECT_FLOAT_EQ(hsv.v(), 1.0f);
-}
-
-TEST(HsvLiteralTest, Black) {
-  constexpr auto hsv = 0'000'000_hsv;
-  EXPECT_FLOAT_EQ(hsv.s(), 0.0f);
-  EXPECT_FLOAT_EQ(hsv.v(), 0.0f);
-}
-
-TEST(HsvLiteralTest, MaxHue) {
-  constexpr auto hsv = 360'050'050_hsv;
-  EXPECT_FLOAT_EQ(hsv.h(), 360.0f);
-}
-
-// _hsva
-
-TEST(HsvaLiteralTest, WithAlpha75) {
-  // H=210, S=80%, V=90%, A=75%  → (210, 0.80, 0.90, 0.75)
-  constexpr auto hsva = 210'080'090'075_hsva;
-  EXPECT_FLOAT_EQ(hsva.h(), 210.0f);
-  EXPECT_FLOAT_EQ(hsva.s(), 0.80f);
-  EXPECT_FLOAT_EQ(hsva.v(), 0.90f);
-  EXPECT_FLOAT_EQ(hsva.a(), 0.75f);
-}
-
-TEST(HsvaLiteralTest, FullyOpaque) {
-  constexpr auto hsva = 0'100'100'100_hsva;
-  EXPECT_FLOAT_EQ(hsva.a(), 1.0f);
-}
-
-TEST(HsvaLiteralTest, FullyTransparent) {
-  constexpr auto hsva = 0'100'100'000_hsva;
-  EXPECT_FLOAT_EQ(hsva.a(), 0.0f);
-}
-
-TEST(OklabLiteralTest, NeutralMidpoint) {
-  constexpr auto lab = 050'050'050_oklab;
-  static_assert(lab.l() == 0.5f);
-  EXPECT_FLOAT_EQ(lab.a(), 0.0f);
-  EXPECT_FLOAT_EQ(lab.b(), 0.0f);
-}
-
-TEST(OklchLiteralTest, MaxChromaMapsToPointFour) {
-  auto lch = 050'100'120_oklch;
-  EXPECT_FLOAT_EQ(lch.l(), 0.5f);
-  EXPECT_FLOAT_EQ(lch.c(), 0.4f);
-  EXPECT_FLOAT_EQ(lch.h(), 120.0f);
-}
-
-// _hwb / _hwba
-
-TEST(HwbLiteralTest, Green) {
-  constexpr auto hwb = 120'050'075_hwb;
-  EXPECT_FLOAT_EQ(hwb.h(), 120.0f);
-  EXPECT_FLOAT_EQ(hwb.w(), 0.5f);
-  EXPECT_FLOAT_EQ(hwb.b(), 0.75f);
-}
-
-TEST(HwbLiteralTest, AllZero) {
-  constexpr auto hwb = 0'000'000_hwb;
-  EXPECT_FLOAT_EQ(hwb.h(), 0.0f);
-  EXPECT_FLOAT_EQ(hwb.w(), 0.0f);
-  EXPECT_FLOAT_EQ(hwb.b(), 0.0f);
-}
-
-TEST(HwbLiteralTest, MaxHue) {
-  constexpr auto hwb = 360'050'050_hwb;
-  EXPECT_FLOAT_EQ(hwb.h(), 360.0f);
-}
-
-TEST(HwbaLiteralTest, WithAlpha) {
-  constexpr auto hwba = 120'050'075'100_hwba;
-  EXPECT_FLOAT_EQ(hwba.h(), 120.0f);
-  EXPECT_FLOAT_EQ(hwba.w(), 0.5f);
-  EXPECT_FLOAT_EQ(hwba.b(), 0.75f);
-  EXPECT_FLOAT_EQ(hwba.a(), 1.0f);
-}
-
-TEST(HwbaLiteralTest, SemiTransparent) {
-  constexpr auto hwba = 120'050'075'050_hwba;
-  EXPECT_FLOAT_EQ(hwba.a(), 0.5f);
-}
-
-TEST(HwbaLiteralTest, FullyTransparent) {
-  constexpr auto hwba = 120'050'075'000_hwba;
-  EXPECT_FLOAT_EQ(hwba.a(), 0.0f);
-}
-
-// _cmyk
-
-TEST(CmykLiteralTest, PrintInk) {
-  // C=50, M=30, Y=0, K=20
-  constexpr auto cmyk = 050'030'000'020_cmyk;
-  static_assert(cmyk.c() == 50);
-  static_assert(cmyk.m() == 30);
-  static_assert(cmyk.y() == 0);
-  static_assert(cmyk.k() == 20);
-}
-
-TEST(CmykLiteralTest, AllZero) {
-  constexpr auto cmyk = 000'000'000'000_cmyk;
-  static_assert(cmyk.c() == 0 && cmyk.m() == 0 && cmyk.y() == 0 && cmyk.k() == 0);
-}
-
-TEST(CmykLiteralTest, Black) {
-  // CMYK black: C=0, M=0, Y=0, K=100
-  constexpr auto cmyk = 000'000'000'100_cmyk;
-  static_assert(cmyk.k() == 100);
-  static_assert(cmyk.c() == 0 && cmyk.m() == 0 && cmyk.y() == 0);
-}
-
-TEST(CmykLiteralTest, CyanPrimary) {
-  // Cyan: C=100, M=0, Y=0, K=0
-  constexpr auto cmyk = 100'000'000'000_cmyk;
-  static_assert(cmyk.c() == 100);
-  static_assert(cmyk.m() == 0 && cmyk.y() == 0 && cmyk.k() == 0);
-}
-
-TEST(CmykLiteralTest, MagentaPrimary) {
-  constexpr auto cmyk = 000'100'000'000_cmyk;
-  static_assert(cmyk.m() == 100);
-}
-
-TEST(CmykLiteralTest, YellowPrimary) {
-  constexpr auto cmyk = 000'000'100'000_cmyk;
-  static_assert(cmyk.y() == 100);
-}
 
 // Constexpr evaluation
 
@@ -363,13 +165,6 @@ TEST(LiteralConstexprTest, AllLiteralsAreConstexpr) {
   static_assert((0xFF0000_rgb).r() == 255);
   static_assert((0xFF000080_rgba).a() == 128);
   static_assert((0x80FF0000_argb).a() == 128);
-  static_assert((120'050'075_hsl).h() == 120.0f);
-  static_assert((0'100'050'100_hsla).a() == 1.0f);
-  static_assert((0'100'100_hsv).v() == 1.0f);
-  static_assert((210'080'090'075_hsva).a() == 0.75f);
-  static_assert((120'050'075_hwb).h() == 120.0f);
-  static_assert((120'050'075'100_hwba).a() == 1.0f);
-  static_assert((000'000'000'100_cmyk).k() == 100);
 }
 
 // _rgb vs _hex consistency

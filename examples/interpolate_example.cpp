@@ -15,8 +15,8 @@ int main() {
   auto blue = 0x0000FF_rgb;
 
   section("lerp_hsl angle fix (10° ↔ 350°)");
-  auto a10 = color_cast<rgba8_t>(10'100'050_hsl);
-  auto a350 = color_cast<rgba8_t>(350'100'050_hsl);
+  auto a10 = color_cast<rgba8_t>(hsl_float_t{10.0f, 1.0f, 0.5f});
+  auto a350 = color_cast<rgba8_t>(hsl_float_t{350.0f, 1.0f, 0.5f});
   auto mid_rgb = lerp(a10, a350, 0.5f);
   auto mid_hsl = lerp_hsl(a10, a350, 0.5f);
   std::cout << "  H=10: ";

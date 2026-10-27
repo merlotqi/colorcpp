@@ -80,6 +80,20 @@ All notable changes to `colorcpp` are documented here.
   INTERFACE target — consumers no longer inherit the library's warning flags.
   First-party strict warnings moved to an internal `colorcpp_warnings` target;
   `/utf-8` remains on the INTERFACE for MSVC (non-ASCII header comments).
+- **Hex literal digit counts (breaking fix)**: `_rgb` / `_rgba` / `_argb` are
+  template-only — the `operator""_*(unsigned long long)` overloads that
+  accepted any digit count are removed, so a wrong count is a compile error
+  instead of a misdecoded color. `0xFF0000_rgba` (6 digits where 8 are
+  required) used to store `{0, 255, 0, 0}` — fully transparent green;
+  `0xFFF_rgb` stored `{0, 15, 255}`; `0x1000000_rgb` threw `std::out_of_range`
+  only at runtime; a decimal spelling such as `16711680_rgb` was read as hex
+  and accepted. The digit-count and 24/32-bit checks now live solely in the
+  template `static_assert`s; the parsing helpers were reordered so
+  `is_hex_digit` is visible at the template definition point (two-phase
+  lookup — previously masked on MSVC without `/permissive-`).
+  Negative-compilation tests in `tests/compile_fail/` pin the behavior
+  (`ctest -R CompileFail`); `RuntimeOverflowThrows` is retired with the ULL
+  overloads.
 
 ### Added
 
@@ -209,6 +223,19 @@ All notable changes to `colorcpp` are documented here.
   resolved through the ambient context and parsed.
 - **README**: documented HWB, Adobe RGB, ProPhoto RGB, Rec.2020, and chromatic
   adaptation; completed the examples and benchmarks lists.
+- **Decimal-packed literal suffixes removed (breaking)**: `_hsl`, `_hsla`,
+  `_hsv`, `_hsva`, `_hwb`, `_hwba`, `_cmyk`, `_oklab`, `_oklch` and their five
+  headers (`io/literals/{hsl,hsv,hwb,cmyk,oklab}.hpp`, plus the internal
+  `parse_dec_template` helper) are deleted. The packed decimal spelling
+  collided with C++ octal lexing — a token starting with `0` (the common
+  zero-padded spellings `050'…`, `000'…`) failed to compile whenever it
+  contained an 8 or a 9, before the operator ever ran — and the `'` groups
+  were display-only (`parse_dec_template` stripped them before counting
+  digits). Use the constructors instead: `hsl_float_t{120.0f, 0.5f, 0.75f}`,
+  `cmyk8_t{50, 30, 0, 20}`, `oklab_t{0.5f, 0.0f, 0.0f}` — with
+  `clamped<T>(…)` / `make_checked<T>(…)` for boundary control (see
+  `docs/reference/literals.rst`). `_rgb` / `_rgba` / `_argb` / `_hex` are
+  unaffected; `io/literals.hpp` now pulls in the RGB header only.
 
 ## [1.0.3] - 2026-07-06
 

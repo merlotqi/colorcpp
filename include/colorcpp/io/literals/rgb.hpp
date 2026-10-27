@@ -59,32 +59,11 @@ constexpr auto operator""_argb() {
                        (parsed.value >> 24) & 0xFF};
 }
 
-/** @brief Runtime numeric literal: RRGGBB hex → rgba8_t (alpha=255). See template @c operator""_rgb for examples. */
-constexpr auto operator""_rgb(unsigned long long val) {
-  if (val > 0xFFFFFF) {
-    throw std::out_of_range("colorcpp: _rgb value exceeds 0xFFFFFF (24-bit limit)");
-  }
-  return core::rgba8_t{static_cast<uint8_t>((val >> 16) & 0xFF), static_cast<uint8_t>((val >> 8) & 0xFF),
-                       static_cast<uint8_t>(val & 0xFF), 255};
-}
-
-/** @brief Runtime numeric literal: RRGGBBAA hex → rgba8_t. */
-constexpr auto operator""_rgba(unsigned long long val) {
-  if (val > 0xFFFFFFFF) {
-    throw std::out_of_range("colorcpp: _rgba value exceeds 0xFFFFFFFF (32-bit limit)");
-  }
-  return core::rgba8_t{static_cast<uint8_t>((val >> 24) & 0xFF), static_cast<uint8_t>((val >> 16) & 0xFF),
-                       static_cast<uint8_t>((val >> 8) & 0xFF), static_cast<uint8_t>(val & 0xFF)};
-}
-
-/** @brief Runtime numeric literal: AARRGGBB hex → rgba8_t. */
-constexpr auto operator""_argb(unsigned long long val) {
-  if (val > 0xFFFFFFFF) {
-    throw std::out_of_range("colorcpp: _argb value exceeds 0xFFFFFFFF (32-bit limit)");
-  }
-  return core::rgba8_t{static_cast<uint8_t>((val >> 16) & 0xFF), static_cast<uint8_t>((val >> 8) & 0xFF),
-                       static_cast<uint8_t>(val & 0xFF), static_cast<uint8_t>((val >> 24) & 0xFF)};
-}
+/* Numeric UDLs are template-only on purpose: the removed
+ * operator""_rgb/rgba/argb(unsigned long long) overloads silently accepted
+ * wrong digit counts (0xFF0000_rgba decoded as transparent green) and put a
+ * runtime throw into a compile-time feature. Digit checking lives in the
+ * static_asserts above; tests/compile_fail/ pins it. */
 
 /**
  * @brief String literal: "#RGB", "#RGBA", "#RRGGBB", "#RRGGBBAA" → rgba8_t

@@ -41,7 +41,7 @@ int main() {
   std::cout << "\n";
 
   section("HSL ↔ CMYK (via RGB)");
-  auto cyan_hsl = 180'100'050_hsl;
+  auto cyan_hsl = hsl_float_t{180.0f, 1.0f, 0.50f};
   auto cyan_cmyk = color_cast<cmyk8_t>(cyan_hsl);
   std::cout << "hsl(180,100,50) → cmyk8: " << cyan_cmyk << "\n";
   auto back_hsl = color_cast<hsl_float_t>(cyan_cmyk);
