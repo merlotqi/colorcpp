@@ -103,6 +103,23 @@ struct is_model_traits<T, std::void_t<decltype(model_traits<T>::channel_size), t
 template <typename T>
 inline constexpr bool is_model_traits_v = is_model_traits<T>::value;
 
+/**
+ * @brief Whether @p Model carries straight alpha as its channel 3.
+ *
+ * Opt-in: a model enables this with @c static @c constexpr @c bool @c has_alpha @c = @c true;
+ * in its @ref model_traits specialization. Models without the member are treated as
+ * alpha-free — including CMYK, whose channel 3 is K, not alpha.
+ */
+template <typename Model, typename = void>
+struct model_has_alpha : std::false_type {};
+
+template <typename Model>
+struct model_has_alpha<Model, std::void_t<decltype(model_traits<Model>::has_alpha)>>
+    : std::bool_constant<model_traits<Model>::has_alpha> {};
+
+template <typename Model>
+inline constexpr bool model_has_alpha_v = model_has_alpha<Model>::value;
+
 /** @brief Whether @p Model's channel tuple includes @p Tag. */
 template <typename Model, typename Tag>
 struct has_channel_tag {

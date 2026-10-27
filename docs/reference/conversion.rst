@@ -96,10 +96,6 @@ For example:
 Those registrations make the documented direct casts available for the directions
 you provide.
 
-If you need compatibility metadata such as hub traits for internal or advanced
-use cases, ``color_traits`` specialization remains available, but it is not
-required for the conservative direct-edge workflow described here.
-
 
 Debugging & Inspection
 ----------------------

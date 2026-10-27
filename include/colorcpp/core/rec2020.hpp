@@ -59,6 +59,7 @@ struct model_traits<core::rec2020::model::rec2020a> {
   using channels_type = std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green,
                                    core::rec2020::channel::f32_blue, core::rec2020::channel::f32_alpha>;
   static constexpr std::string_view prefix = "rec2020a";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -75,6 +76,7 @@ struct model_traits<core::rec2020::model::linear_rec2020af> {
   using channels_type = std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green,
                                    core::rec2020::channel::f32_blue, core::rec2020::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-rec2020a";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

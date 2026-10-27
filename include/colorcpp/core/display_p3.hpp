@@ -57,6 +57,7 @@ struct model_traits<core::display_p3::model::display_p3a> {
   using channels_type = std::tuple<core::display_p3::channel::f32_red, core::display_p3::channel::f32_green,
                                    core::display_p3::channel::f32_blue, core::display_p3::channel::f32_alpha>;
   static constexpr std::string_view prefix = "display_p3a";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -74,6 +75,7 @@ struct model_traits<core::display_p3::model::linear_display_p3af> {
   using channels_type = std::tuple<core::display_p3::channel::f32_red, core::display_p3::channel::f32_green,
                                    core::display_p3::channel::f32_blue, core::display_p3::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear_display_p3af";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

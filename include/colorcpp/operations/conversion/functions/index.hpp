@@ -38,16 +38,6 @@
 
 namespace colorcpp::operations::conversion {
 
-namespace route_cost {
-
-// Shortcut edges stay available, but their costs are set above the
-// equivalent canonical chain so graph routing prefers the canonical path.
-inline constexpr std::size_t canonical = 1;
-inline constexpr std::size_t shortcut_2_hop = 3;
-inline constexpr std::size_t shortcut_4_hop = 5;
-
-}  // namespace route_cost
-
 // 8-bit sRGB ↔ float sRGB (hub alignment for rgb8 / rgba8; wrappers avoid macro comma issues)
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::rgb8_t, core::rgbf_t, details::rgb8_to_rgbf_reg, details::rgbf_to_rgb8_reg)
 
@@ -155,64 +145,6 @@ COLORCPP_REGISTER_CONVERSION(core::rgbaf_t, core::rgbf_t, details::rgbaf_to_rgbf
 
 COLORCPP_REGISTER_CONVERSION(core::rgbf_t, core::rgbaf_t, details::rgbf_to_rgbaf)
 
-// Display P3 ↔ sRGB (direct short link: 1 hop instead of 4 via Linear P3 → XYZ → Linear RGB)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::display_p3f_t, core::rgbf_t,
-                                            details::display_p3_to_srgb<core::rgbf_t>,
-                                            details::srgb_to_display_p3<core::display_p3f_t>,
-                                            route_cost::shortcut_4_hop, route_cost::shortcut_4_hop)
-
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::display_p3af_t, core::rgbaf_t,
-                                            details::display_p3_to_srgb<core::rgbaf_t>,
-                                            details::srgb_to_display_p3<core::display_p3af_t>,
-                                            route_cost::shortcut_2_hop, route_cost::shortcut_2_hop)
-
-// sRGB ↔ CIELAB (direct short link: 1 hop instead of 2 via Linear RGB)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rgbf_t, core::cielab_t, details::srgb_to_lab<core::cielab_t>,
-                                            details::lab_to_srgb<core::rgbf_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rgbaf_t, core::cielab_t, details::srgb_to_lab<core::cielab_t>,
-                                            details::lab_to_srgb<core::rgbaf_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-// CIELAB ↔ OkLab (direct short link: 1 hop instead of 2 via XYZ)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::cielab_t, core::oklab_t, details::cielab_to_oklab<core::oklab_t>,
-                                            details::oklab_to_cielab<core::cielab_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-// HSL ↔ Linear RGB (direct short link: 1 hop instead of 2 via sRGB)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::hsl_float_t, core::linear_rgbf_t,
-                                            details::hsl_to_linear_rgb<core::linear_rgbf_t>,
-                                            details::linear_rgb_to_hsl<core::hsl_float_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::hsla_float_t, core::linear_rgbaf_t,
-                                            details::hsl_to_linear_rgb<core::linear_rgbaf_t>,
-                                            details::linear_rgb_to_hsl<core::hsla_float_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-// HSV ↔ Linear RGB (direct short link: 1 hop instead of 2 via sRGB)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::hsv_float_t, core::linear_rgbf_t,
-                                            details::hsv_to_linear_rgb<core::linear_rgbf_t>,
-                                            details::linear_rgb_to_hsv<core::hsv_float_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::hsva_float_t, core::linear_rgbaf_t,
-                                            details::hsv_to_linear_rgb<core::linear_rgbaf_t>,
-                                            details::linear_rgb_to_hsv<core::hsva_float_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-// HWB ↔ Linear RGB (direct short link: 1 hop instead of 2 via sRGB)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::hwb_float_t, core::linear_rgbf_t,
-                                            details::hwb_to_linear_rgb<core::linear_rgbf_t>,
-                                            details::linear_rgb_to_hwb<core::hwb_float_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::hwba_float_t, core::linear_rgbaf_t,
-                                            details::hwb_to_linear_rgb<core::linear_rgbaf_t>,
-                                            details::linear_rgb_to_hwb<core::hwba_float_t>, route_cost::shortcut_2_hop,
-                                            route_cost::shortcut_2_hop)
-
 // Adobe RGB ↔ Linear Adobe RGB
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::adobe_rgbf_t, core::linear_adobe_rgbf_t,
                                    details::adobe_rgb_to_linear_adobe_rgb<core::linear_adobe_rgbf_t>,
@@ -230,16 +162,6 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_adobe_rgbf_t, core::xyz_t,
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_adobe_rgbaf_t, core::xyz_t,
                                    details::linear_adobe_rgb_to_xyz<core::xyz_t>,
                                    details::xyz_to_linear_adobe_rgb<core::linear_adobe_rgbaf_t>)
-
-// Adobe RGB ↔ sRGB (direct short link: 1 hop instead of 4 via Linear ARGB → XYZ → Linear sRGB)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::adobe_rgbf_t, core::rgbf_t, details::adobe_rgb_to_srgb<core::rgbf_t>,
-                                            details::srgb_to_adobe_rgb<core::adobe_rgbf_t>, route_cost::shortcut_4_hop,
-                                            route_cost::shortcut_4_hop)
-
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::adobe_rgbaf_t, core::rgbaf_t,
-                                            details::adobe_rgb_to_srgb<core::rgbaf_t>,
-                                            details::srgb_to_adobe_rgb<core::adobe_rgbaf_t>, route_cost::shortcut_4_hop,
-                                            route_cost::shortcut_4_hop)
 
 // ProPhoto RGB ↔ Linear ProPhoto RGB
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::prophoto_rgbf_t, core::linear_prophoto_rgbf_t,
@@ -276,15 +198,5 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_rec2020_rgbf_t, core::xyz_t,
 COLORCPP_REGISTER_CONVERSION_BIDIR(core::linear_rec2020_rgbaf_t, core::xyz_t,
                                    details::linear_rec2020_to_xyz<core::xyz_t>,
                                    details::xyz_to_linear_rec2020<core::linear_rec2020_rgbaf_t>)
-
-// Rec.2020 ↔ sRGB (direct short link)
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rec2020_rgbf_t, core::rgbf_t, details::rec2020_to_srgb<core::rgbf_t>,
-                                            details::srgb_to_rec2020<core::rec2020_rgbf_t>, route_cost::shortcut_4_hop,
-                                            route_cost::shortcut_4_hop)
-
-COLORCPP_REGISTER_CONVERSION_BIDIR_WEIGHTED(core::rec2020_rgbaf_t, core::rgbaf_t,
-                                            details::rec2020_to_srgb<core::rgbaf_t>,
-                                            details::srgb_to_rec2020<core::rec2020_rgbaf_t>, route_cost::shortcut_4_hop,
-                                            route_cost::shortcut_4_hop)
 
 }  // namespace colorcpp::operations::conversion

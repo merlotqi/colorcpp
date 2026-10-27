@@ -50,6 +50,7 @@ struct model_traits<core::hsv::model::hsva> {
                                    core::hsv::channel::f32_value, core::hsv::channel::f32_alpha>;
 
   static constexpr std::string_view prefix = "hsva";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

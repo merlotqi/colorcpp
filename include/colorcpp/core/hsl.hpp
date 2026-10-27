@@ -49,6 +49,7 @@ struct model_traits<core::hsl::model::hsla> {
   using channels_type = std::tuple<core::hsl::channel::f32_hue, core::hsl::channel::f32_saturation,
                                    core::hsl::channel::f32_lightness, core::hsl::channel::f32_alpha>;
   static constexpr std::string_view prefix = "hsla";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

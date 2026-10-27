@@ -155,7 +155,7 @@ TEST(Rec2020ConversionTest, WhiteConversion) {
   EXPECT_NEAR(r2020.b(), 1.0f, 5e-4f);
 }
 
-// Alpha through graph routing (XYZ hub discards alpha, same limitation as Display P3A)
+// Alpha is preserved through graph routing (color_cast restores source alpha on the result)
 TEST(Rec2020ConversionTest, AlphaPreservedViaLinear) {
   rec2020_rgbaf_t original(0.5f, 0.3f, 0.7f, 0.6f);
   auto linear = color_cast<linear_rec2020_rgbaf_t>(original);

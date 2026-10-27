@@ -59,6 +59,7 @@ struct model_traits<core::adobe_rgb::model::adobe_rgba> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue, core::adobe_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "adobe-rgba";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -75,6 +76,7 @@ struct model_traits<core::adobe_rgb::model::linear_adobe_rgbaf> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue, core::adobe_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-adobe-rgba";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

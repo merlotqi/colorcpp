@@ -53,6 +53,7 @@ struct model_traits<core::linear_rgb::model::linear_rgbaf> {
   using channels_type = std::tuple<core::linear_rgb::channel::float_red, core::linear_rgb::channel::float_green,
                                    core::linear_rgb::channel::float_blue, core::linear_rgb::channel::float_alpha>;
   static constexpr std::string_view prefix = "linear-rgba";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

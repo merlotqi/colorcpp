@@ -67,6 +67,7 @@ struct model_traits<core::prophoto_rgb::model::prophoto_rgba> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue, core::prophoto_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "prophoto-rgba";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 
@@ -83,6 +84,7 @@ struct model_traits<core::prophoto_rgb::model::linear_prophoto_rgbaf> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue, core::prophoto_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-prophoto-rgba";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

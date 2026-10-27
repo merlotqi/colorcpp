@@ -53,6 +53,7 @@ struct model_traits<core::hwb::model::hwba> {
   using channels_type = std::tuple<core::hwb::channel::f32_hue, core::hwb::channel::f32_whiteness,
                                    core::hwb::channel::f32_blackness, core::hwb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "hwba";
+  static constexpr bool has_alpha = true;
   static constexpr std::size_t channel_size = 4;
 };
 

@@ -6,6 +6,15 @@ All notable changes to `colorcpp` are documented here.
 
 ### Fixed
 
+- **Alpha preservation across graph routes (breaking fix)**: `color_cast` now
+  restores the source alpha on the result whenever both endpoints have alpha.
+  Minimal-cost routes cross 3-channel transit nodes (XYZ / OkLab / CIELAB) that
+  cannot carry alpha, so conversions such as `rgbaf → rec2020_rgbaf` previously
+  arrived with `a = 1.0`. Conversion functions copy alpha verbatim; the restore
+  at the public `color_cast` boundary is exact for every route. New opt-in
+  `model_traits::has_alpha` marks the 14 alpha models (CMYK's K channel is not
+  alpha).
+
 - **CSS `lab()` / `lch()` white point (breaking)**: CSS lab()/lch() are
   D50-based (CSS Color 4 §9.1), but the parser returned raw D50 channels in
   the D65-based `core::cielab_t` / `core::cielch_t`. Absolute parses now
@@ -74,6 +83,19 @@ All notable changes to `colorcpp` are documented here.
   `parse_css_color_rgba8`, and typed `parse_css_color<Color>()`.
 
 ### Changed
+
+- **Conversion graph: shortcut edges removed (breaking)**: all weighted
+  shortcut registrations (`route_cost::shortcut_2_hop` / `shortcut_4_hop`) and
+  their lower-precision matrix implementations are deleted; every pair routes
+  through the canonical Linear → XYZ → Linear chain — the single numeric source
+  of truth. Only `display_p3af ↔ rgbaf` actually changes route (its cost-3
+  shortcut was inconsistent with its non-alpha twin and the only shortcut edge
+  ever picked); results now follow the 16-digit canonical matrices.
+- **Hub routing system removed (breaking)**: `color_traits`,
+  `color_space_registry.hpp`, `conversion/traits.hpp`, and the hub route-cost
+  helpers (`best_route_cost`, `route_cost_via_from_hub`/`route_cost_via_to_hub`,
+  `get_hub_t`) are gone. Routing is exclusively the compile-time registered-edge
+  graph (`graph.hpp` + `registry.hpp`).
 
 - **`color-mix()` rejects non-absolute colors**: `light-dark()` and
   `contrast-color()` are no longer accepted as `color-mix()` items (CSS Color

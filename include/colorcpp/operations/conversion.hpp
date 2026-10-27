@@ -15,7 +15,6 @@
 #pragma once
 
 #include <colorcpp/operations/conversion/cast_impl.hpp>
-#include <colorcpp/operations/conversion/color_space_registry.hpp>
 #include <colorcpp/operations/conversion/debug.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
 #include <colorcpp/operations/conversion/functions/index.hpp>
@@ -36,7 +35,15 @@ namespace colorcpp::operations::conversion {
  */
 template <typename To, typename From>
 constexpr To color_cast(const From& src) {
-  return color_cast_impl<To, From>::convert(src);
+  To result = color_cast_impl<To, From>::convert(src);
+  // Straight alpha rides outside the route: minimal-cost paths cross 3-channel
+  // transit nodes (XYZ / Oklab / CIELAB) that cannot carry it, so the source
+  // alpha is restored on the result. Conversion functions never transform
+  // alpha, so this is exact for every route.
+  if constexpr (!std::is_same_v<From, To> && details::has_alpha_v<From> && details::has_alpha_v<To>) {
+    result.template get_index<3>() = details::from_unit<To, 3>(details::to_unit<From, 3>(src.template get_index<3>()));
+  }
+  return result;
 }
 
 }  // namespace colorcpp::operations::conversion

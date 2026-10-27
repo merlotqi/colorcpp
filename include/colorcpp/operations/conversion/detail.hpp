@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <colorcpp/core/concepts.hpp>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -23,6 +24,16 @@ struct extract_model<Color<Model, Args...>> {
 
 template <typename T>
 using extract_model_t = typename extract_model<T>::type;
+
+/**
+ * @brief Whether @p Color's model carries straight alpha as its channel 3.
+ *
+ * Alpha is a pure ride-along channel: conversion functions copy it verbatim and
+ * never apply transfer functions or matrices to it. CMYK channel 3 is K, not
+ * alpha, so CMYK models are not alpha models.
+ */
+template <typename Color>
+inline constexpr bool has_alpha_v = traits::model_has_alpha_v<extract_model_t<Color>>;
 
 // V is deduced from the call argument (e.g. uint8_t for rgb8, float for rgbf).
 // Using a deduced V instead of Color::value_type makes to_unit work correctly

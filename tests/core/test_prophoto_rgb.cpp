@@ -108,7 +108,7 @@ TEST(ProPhotoRGBConversionTest, FromSRGBViaCanonicalPath) {
   EXPECT_LT(c.b(), 1.0f);
 }
 
-// Alpha through graph routing (XYZ hub discards alpha, same limitation as Display P3A)
+// Alpha is preserved through graph routing (color_cast restores source alpha on the result)
 TEST(ProPhotoRGBConversionTest, AlphaPreservedViaLinear) {
   prophoto_rgbaf_t orig(0.5f, 0.3f, 0.7f, 0.6f);
   auto linear = color_cast<linear_prophoto_rgbaf_t>(orig);
