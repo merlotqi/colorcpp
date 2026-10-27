@@ -56,6 +56,8 @@ Available generators:
   add optional saturation, lightness, value, whiteness, and alpha limits.
 * **Constrained generators**: ``contrast_generator`` and ``random_contrast_color`` perform a bounded, rejection-sampled
   search for candidates that meet a target contrast ratio and otherwise return the last sampled candidate.
+  ``contrast_generator::try_next`` returns ``std::optional`` instead, so callers can distinguish "met the ratio"
+  from "attempt budget exhausted".
   ``luminance_generator`` and ``random_luminance_color`` directly sample OkLCH colors within configured lightness
   bounds, then optionally gamut-map the result while preserving lightness.
 * **Advanced generators**: ``golden_angle_generator`` and ``harmony_generator`` build hue-spaced or harmony-based

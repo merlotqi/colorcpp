@@ -13,6 +13,7 @@
 #pragma once
 
 #include <cmath>
+#include <optional>
 #include <colorcpp/algorithms/accessibility/wcag.hpp>
 #include <colorcpp/algorithms/gamut/preserve.hpp>
 #include <colorcpp/core/oklab.hpp>
@@ -37,7 +38,6 @@ namespace colorcpp::operations::random {
 template <typename Color, typename Engine = std::mt19937>
 class contrast_generator : public basic_random_generator<Color, Engine> {
   using base = basic_random_generator<Color, Engine>;
-  using T = typename base::T;
 
  public:
   /** @brief Generation options. */
@@ -73,6 +73,33 @@ class contrast_generator : public basic_random_generator<Color, Engine> {
   template <typename RefColor>
   Color next(const RefColor& reference) const {
     return generate_constrained(reference);
+  }
+
+  /**
+   * @brief Like next() against white, but reports whether the contrast constraint was met.
+   * @return The generated color if it meets min_ratio within max_attempts, else std::nullopt.
+   */
+  std::optional<Color> try_next() const { return try_next(core::rgbf_t{1.0f, 1.0f, 1.0f}); }
+
+  /**
+   * @brief Like next(reference), but reports whether the contrast constraint was met.
+   *
+   * Use this when the caller must distinguish "met min_ratio" from "attempts exhausted".
+   * next() keeps its best-effort behavior and may return a color below min_ratio.
+   *
+   * @tparam RefColor Reference color type.
+   * @param reference The reference (typically background) color.
+   * @return The generated color if it meets min_ratio within max_attempts, else std::nullopt.
+   */
+  template <typename RefColor>
+  std::optional<Color> try_next(const RefColor& reference) const {
+    for (std::size_t i = 0; i < opts_.max_attempts; ++i) {
+      Color candidate = make_candidate();
+      if (algorithms::accessibility::contrast_ratio(candidate, reference) >= opts_.min_ratio) {
+        return candidate;
+      }
+    }
+    return std::nullopt;
   }
 
   /**
@@ -134,9 +161,10 @@ class contrast_generator : public basic_random_generator<Color, Engine> {
   }
 
   Color make_candidate() const {
-    const float L = this->random_value(opts_.l_min, opts_.l_max);
-    const float C = this->random_value(0.0f, opts_.chroma_max);
-    const float H = this->random_value(0.0f, 360.0f);
+    // Sample in float regardless of Color's channel type (uint8_t bounds would truncate).
+    const float L = this->random_float(opts_.l_min, opts_.l_max);
+    const float C = this->random_float(0.0f, opts_.chroma_max);
+    const float H = this->random_float(0.0f, 360.0f);
 
     const float H_rad = H * kPi / 180.0f;
     const float a = C * std::cos(H_rad);

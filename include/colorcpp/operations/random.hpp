@@ -42,6 +42,7 @@
 #include <colorcpp/operations/random/harmony.hpp>
 #include <colorcpp/operations/random/hsl.hpp>
 #include <colorcpp/operations/random/luminance.hpp>
+#include <colorcpp/operations/random/poisson_disk_sampling.hpp>
 
 /**
  * @namespace colorcpp::operations::random

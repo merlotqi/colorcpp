@@ -35,7 +35,6 @@ namespace colorcpp::operations::random {
 template <typename Color, typename Engine = std::mt19937>
 class luminance_generator : public basic_random_generator<Color, Engine> {
   using base = basic_random_generator<Color, Engine>;
-  using T = typename base::T;
 
  public:
   /** @brief Generation options. */
@@ -88,9 +87,10 @@ class luminance_generator : public basic_random_generator<Color, Engine> {
   }
 
   Color generate_candidate() const {
-    const float L = this->random_value(opts_.l_min, opts_.l_max);
-    const float C = this->random_value(0.0f, opts_.chroma_max);
-    const float H = this->random_value(0.0f, 360.0f);
+    // Sample in float regardless of Color's channel type (uint8_t bounds would truncate).
+    const float L = this->random_float(opts_.l_min, opts_.l_max);
+    const float C = this->random_float(0.0f, opts_.chroma_max);
+    const float H = this->random_float(0.0f, 360.0f);
 
     const float H_rad = H * kPi / 180.0f;
     const float a = C * std::cos(H_rad);

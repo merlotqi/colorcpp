@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <colorcpp/colorcpp.hpp>
+// Not pulled in by colorcpp.hpp / random.hpp; include explicitly.
+#include <colorcpp/operations/random/poisson_disk_sampling.hpp>
 #include <set>
 
 using namespace colorcpp;
@@ -104,4 +106,27 @@ TEST(HarmonyPoisson, FallbackDoesNotAppendViolatingHue) {
   std::size_t before = samples.size();
   (void)hgen.next_poisson(samples, 180.f, 2u);
   EXPECT_EQ(samples.size(), before);
+}
+
+// ============================================================
+// Poisson Disk Sampling Tests
+// ============================================================
+
+TEST(PoissonDisk, DefaultDistanceIsOkLabScale) {
+  // Before the fix, the default was 10 (CIE ΔE scale), which is unreachable
+  // in OkLab (box diagonal is 3), so generate() could only ever return 1 color.
+  poisson_disk_generator<core::oklab_t> gen(42u);
+  EXPECT_FLOAT_EQ(gen.min_distance(), 0.1f);
+}
+
+TEST(PoissonDisk, DefaultGeneratesRequestedCount) {
+  poisson_disk_generator<core::oklab_t> gen(42u);
+  auto colors = gen.generate(8);
+  ASSERT_EQ(colors.size(), 8u);
+  for (std::size_t i = 0; i < colors.size(); ++i) {
+    for (std::size_t j = i + 1; j < colors.size(); ++j) {
+      float d = algorithms::delta_e::delta_e_ok(colors[i], colors[j]);
+      EXPECT_GE(d, 0.1f - 1e-4f) << "Pair (" << i << ", " << j << ") closer than min_distance";
+    }
+  }
 }

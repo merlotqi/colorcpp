@@ -94,6 +94,22 @@ class basic_random_generator {
     return static_cast<T>(dist(rng));
   }
 
+ protected:
+  /**
+   * @brief Sample a real value in [min, max] as float, independent of the color's channel type.
+   *
+   * Constrained generators (contrast, luminance) draw intermediate values in float domains
+   * (OkLab lightness, hue degrees, ...) that do not fit integer channel types. Use this
+   * instead of @ref random_value for those draws, and cast to the target type only via
+   * `conversion::color_cast` at the end.
+   */
+  float random_float(float min, float max) const {
+    std::uniform_real_distribution<float> dist(min, max);
+    return dist(rng);
+  }
+
+ public:
+
   /**
    * @brief Get a reference to the internal engine (const).
    * @return Const reference to the engine.

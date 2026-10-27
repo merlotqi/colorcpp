@@ -6,6 +6,21 @@ All notable changes to `colorcpp` are documented here.
 
 ### Fixed
 
+- **Constrained generators on integer color types**: `contrast_generator` and
+  `luminance_generator` sampled their OkLCH intermediates through
+  `random_value`, whose parameters are the color's channel type. On the
+  `*_rgb8` aliases the float bounds were converted to `uint8_t` before
+  sampling — `360.0f → uint8_t` is undefined behavior (a hard error under
+  `-Werror=overflow`), and even the in-range bounds collapsed candidates to
+  black/white. Candidates are now drawn with a float distribution and cast to
+  the target type only via `color_cast`.
+- **Poisson disk default distance**: `poisson_disk_generator` measured OkLab
+  Euclidean distance (`delta_e_ok`, JND ≈ 0.02) but defaulted `min_distance`
+  to 10 with CIE ΔE commentary — unreachable in OkLab (box diagonal = 3), so
+  `generate(n)` returned at most one color. The default is now
+  `kDefaultMinDistance = 0.1` (OkLab scale: 0.05 subtle … 0.15 very distinct),
+  and the docs no longer reference the CIE ΔE scale.
+
 - **Stream parsing defaults (breaking fix)**: a missing trailing channel
   defaulted to the channel's max for every model — `parse<cielab_t>("lab(50,
   10)")` produced `b* = 128`, `rgb8` input `"10 20"` produced `b = 255`. The
@@ -97,6 +112,11 @@ All notable changes to `colorcpp` are documented here.
 
 ### Added
 
+- **`contrast_generator::try_next()`**: overload set returning
+  `std::optional<Color>` — `std::nullopt` when no candidate meets `min_ratio`
+  within `max_attempts`. `next()` keeps its best-effort contract (may return a
+  color below the ratio); callers that must distinguish success from budget
+  exhaustion use `try_next()`.
 - **Reference-vector tests**: data-driven harness (`tests/reference/`) that
   converts every ordered pair of color spaces in CSS Color 4 worked examples
   (`css_color4_vectors.json`) via `color_cast`, covering sRGB, sRGB-linear,

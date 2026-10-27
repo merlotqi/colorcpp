@@ -39,21 +39,25 @@ class poisson_disk_generator {
   using engine_type = Engine;
   using intermediate_type = core::oklab_t;
 
+  /// Default minimum OkLab ΔE distance (OkLab scale: JND ≈ 0.02, box diagonal = 3).
+  static constexpr float kDefaultMinDistance = 0.1f;
+
   /**
    * @brief Construct generator with seed.
    * @param seed Random engine seed.
-   * @param min_distance Minimum ΔE distance between colors (default: 10).
-   *                     Typical values: 5 - subtle difference, 10 - clearly different, 20 - very distinct.
+   * @param min_distance Minimum OkLab ΔE distance between colors (default: 0.1).
+   *                     OkLab scale (not CIE ΔE): 0.05 - subtle difference,
+   *                     0.1 - clearly different, 0.15 - very distinct.
    */
-  explicit poisson_disk_generator(typename Engine::result_type seed, float min_distance = 10.0f)
+  explicit poisson_disk_generator(typename Engine::result_type seed, float min_distance = kDefaultMinDistance)
       : rng_(seed), min_distance_(min_distance) {}
 
   /**
    * @brief Construct generator with existing engine.
    * @param e Random engine instance.
-   * @param min_distance Minimum ΔE distance between colors.
+   * @param min_distance Minimum OkLab ΔE distance between colors.
    */
-  explicit poisson_disk_generator(Engine&& e, float min_distance = 10.0f)
+  explicit poisson_disk_generator(Engine&& e, float min_distance = kDefaultMinDistance)
       : rng_(std::move(e)), min_distance_(min_distance) {}
 
   /**
@@ -182,13 +186,15 @@ class poisson_disk_generator {
  *
  * @tparam Color Output color type.
  * @param count Number of colors to generate.
- * @param min_distance Minimum perceptual distance between colors.
+ * @param min_distance Minimum OkLab ΔE distance between colors.
  * @param seed Optional random seed.
  * @return Vector of generated colors.
  */
 template <typename Color>
-std::vector<Color> poisson_disk_palette(std::size_t count, float min_distance = 10.0f,
-                                        typename std::mt19937::result_type seed = std::random_device{}()) {
+std::vector<Color> poisson_disk_palette(
+    std::size_t count,
+    float min_distance = poisson_disk_generator<Color>::kDefaultMinDistance,
+    typename std::mt19937::result_type seed = std::random_device{}()) {
   poisson_disk_generator<Color> gen(seed, min_distance);
   return gen.generate(count);
 }
@@ -197,13 +203,14 @@ std::vector<Color> poisson_disk_palette(std::size_t count, float min_distance = 
  * @brief Generate maximum possible distinct colors within distance constraint.
  *
  * @tparam Color Output color type.
- * @param min_distance Minimum perceptual distance between colors.
+ * @param min_distance Minimum OkLab ΔE distance between colors.
  * @param seed Optional random seed.
  * @return Vector of all possible distinct colors.
  */
 template <typename Color>
-std::vector<Color> poisson_disk_max(float min_distance = 10.0f,
-                                    typename std::mt19937::result_type seed = std::random_device{}()) {
+std::vector<Color> poisson_disk_max(
+    float min_distance = poisson_disk_generator<Color>::kDefaultMinDistance,
+    typename std::mt19937::result_type seed = std::random_device{}()) {
   poisson_disk_generator<Color> gen(seed, min_distance);
   return gen.generate_max();
 }

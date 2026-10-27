@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <colorcpp/colorcpp.hpp>
 #include <set>
 
@@ -93,6 +94,24 @@ TEST(LuminanceGenerator, ColorDiversity) {
   EXPECT_TRUE(differ);
 }
 
+TEST(LuminanceGenerator, U8LightnessIsFloatingPoint) {
+  luminance_generator<core::rgb8_t>::options o;
+  o.l_min = 0.4f;
+  o.l_max = 0.6f;
+  o.gamut_map = true;
+  luminance_generator<core::rgb8_t> gen(42u, o);
+
+  // Before the fix, T=uint8_t truncated the float bounds to integers,
+  // so sampled L collapsed to {0, 1} (black or white only).
+  // Tolerance ±0.1 covers gamut-map + 8-bit round-trip shift (see NarrowRange).
+  for (int i = 0; i < 30; ++i) {
+    auto c = gen.next();
+    auto oklab = conversion::color_cast<core::oklab_t>(c);
+    EXPECT_GE(oklab.l(), 0.3f) << "L too low at iteration " << i;
+    EXPECT_LE(oklab.l(), 0.7f) << "L too high at iteration " << i;
+  }
+}
+
 TEST(LuminanceGenerator, ConvenienceFunction) {
   auto c = random_luminance_color<core::rgbf_t>(0.4f, 0.6f, 42u);
   auto oklab = conversion::color_cast<core::oklab_t>(c);
@@ -171,6 +190,26 @@ TEST(ContrastGenerator, TightConstraintDoesNotThrow) {
   (void)c;
 }
 
+TEST(ContrastGenerator, TryNextReturnsValueWhenFeasible) {
+  contrast_rgbf_generator g(42u);
+  auto result = g.try_next(core::rgbf_t{1.0f, 1.0f, 1.0f});
+  ASSERT_TRUE(result.has_value());
+  float ratio = algorithms::accessibility::contrast_ratio(*result, core::rgbf_t{1.0f, 1.0f, 1.0f});
+  EXPECT_GE(ratio, 4.4f);
+}
+
+TEST(ContrastGenerator, TryNextReturnsNulloptOnExhaustion) {
+  // L pinned to 0.5: max achievable contrast vs white is ~4.5:1, so 10:1 is unreachable.
+  contrast_generator<core::rgbf_t>::options o;
+  o.l_min = 0.5f;
+  o.l_max = 0.5f;
+  o.min_ratio = 10.0f;
+  o.max_attempts = 50;
+  contrast_generator<core::rgbf_t> gen(42u, o);
+  auto result = gen.try_next(core::rgbf_t{1.0f, 1.0f, 1.0f});
+  EXPECT_FALSE(result.has_value());
+}
+
 TEST(ContrastGenerator, InvalidOptionsThrow) {
   contrast_generator<core::rgbf_t>::options bad;
   bad.min_ratio = 0.5f;
@@ -190,6 +229,23 @@ TEST(ContrastGenerator, OptionsRoundtrip) {
   EXPECT_FLOAT_EQ(got.l_min, 0.1f);
   EXPECT_FLOAT_EQ(got.l_max, 0.9f);
   EXPECT_FLOAT_EQ(got.chroma_max, 0.3f);
+}
+
+TEST(ContrastGenerator, U8MeetsContrastAndHasChroma) {
+  contrast_rgb8_generator g(42u);
+  const core::rgbf_t white{1.0f, 1.0f, 1.0f};
+
+  // Before the fix, uint8_t bounds collapsed candidates to black/white only:
+  // contrast passed (black vs white = 21:1) but chroma was always 0.
+  float max_chroma = 0.0f;
+  for (int i = 0; i < 30; ++i) {
+    auto c = g.next(white);
+    float ratio = algorithms::accessibility::contrast_ratio(c, white);
+    EXPECT_GE(ratio, 4.4f) << "Ratio too low at iteration " << i;
+    auto oklch = conversion::color_cast<core::oklch_t>(c);
+    max_chroma = std::max(max_chroma, oklch.c());
+  }
+  EXPECT_GT(max_chroma, 0.05f) << "All samples were achromatic (degenerate black/white path)";
 }
 
 TEST(ContrastGenerator, ConvenienceFunction) {
