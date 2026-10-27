@@ -735,6 +735,9 @@ TEST(Css, RelativeColorRejectsMalformed) {
   EXPECT_FALSE(parse_css_color_rgbaf("oklch(from red 1 2 3 4)").has_value());  // extra channel
   EXPECT_FALSE(parse_css_color_rgbaf("oklch(from red w g b)").has_value());    // wrong keywords
   EXPECT_FALSE(parse_css_color_rgbaf("oklab(from red l c h)").has_value());    // c not in oklab
+  // CSS Color 5: non-absolute colors are not permitted as relative sources
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(from light-dark(red, blue) r g b)").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(from contrast-color(white) r g b)").has_value());
 }
 
 // ---------------------------------------------------------------------------
@@ -961,9 +964,13 @@ TEST(Css, ColorMixNestedAndInvalidForms) {
   ASSERT_TRUE(semi_transparent);
   expect_rgbaf_near(*semi_transparent, 0.53846f, 0.46154f, 0.0f, 0.325f, 0.01f);
 
-  auto nested_second = parse_css_color_rgba8("color-mix(in srgb, red, light-dark(blue, green))");
-  ASSERT_TRUE(nested_second);
-  EXPECT_GT(nested_second->b(), 100);
+  // CSS Color 5: non-absolute colors are not permitted inside color-mix().
+  EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red, light-dark(blue, green))").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("color-mix(in srgb, LIGHT-DARK(blue, green), red)").has_value());
+
+  // Relative colors remain legal color-mix items.
+  auto relative_item = parse_css_color_rgbaf("color-mix(in srgb, rgb(from red r g b), blue)");
+  ASSERT_TRUE(relative_item);
 
   auto oklab_mix = parse_css_color_rgbaf("color-mix(in oklab, red, blue)");
   ASSERT_TRUE(oklab_mix);
@@ -1326,11 +1333,8 @@ TEST(Css, ContrastColorAcceptsFullColorArgument) {
   ASSERT_TRUE(mix);
   expect_rgbaf_near(*mix, 0.0f, 0.0f, 0.0f, 1.0f, 0.002f);
 
-  // color-mix() items resolve through the full parser (spec deviation that
-  // mirrors light-dark()): contrast-color() nested there currently parses.
-  auto nested = parse_css_color_rgbaf("color-mix(in srgb, contrast-color(black), black)");
-  ASSERT_TRUE(nested);
-  expect_rgbaf_near(*nested, 0.5f, 0.5f, 0.5f, 1.0f, 0.002f);
+  // CSS Color 5: contrast-color() is non-absolute and not permitted in color-mix().
+  EXPECT_FALSE(parse_css_color_rgbaf("color-mix(in srgb, contrast-color(black), black)").has_value());
 }
 
 TEST(Css, ContrastColorContextAwareArgument) {

@@ -62,6 +62,9 @@ All notable changes to `colorcpp` are documented here.
   `lch(from …)` evaluate in the D50 domain (source channels adapted D65→D50,
   result adapted D50→D65) with percentage scales l: 100, a/b: ±125, c: 150,
   h: 360; typed `cielab_t` / `cielch_t` results available.
+- **CSS relative color syntax for `oklab()` / `oklch()`**: `oklab(from …)` and
+  `oklch(from …)` with percentage scales l: 1.0, a/b: ±0.4, c: 0.4, h: 360;
+  typed `oklab_t` / `oklch_t` results available.
 - **CSS `contrast-color()`** (CSS Color 5 §8): resolves to white or black,
   whichever contrasts more as text on the argument used as a solid background
   (WCAG 2.x relative luminance; equal contrast resolves to white per the
@@ -72,6 +75,11 @@ All notable changes to `colorcpp` are documented here.
 
 ### Changed
 
+- **`color-mix()` rejects non-absolute colors**: `light-dark()` and
+  `contrast-color()` are no longer accepted as `color-mix()` items (CSS Color
+  5 forbids non-absolute colors inside `color-mix()`); nested `color-mix()`
+  and relative colors remain valid items. Previously `light-dark()` items
+  resolved through the ambient context and parsed.
 - **README**: documented HWB, Adobe RGB, ProPhoto RGB, Rec.2020, and chromatic
   adaptation; completed the examples and benchmarks lists.
 

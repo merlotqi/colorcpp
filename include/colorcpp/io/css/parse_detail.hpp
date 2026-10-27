@@ -40,6 +40,10 @@ std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str, const p
 std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str);
 std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str, const parse_css_color_context& context);
 
+// color-mix() item colors: full <color> minus the non-absolute forms
+// (light-dark(), contrast-color()) that CSS Color 5 forbids inside color-mix().
+std::optional<core::rgbaf_t> parse_color_mix_item_rgbaf(std::string_view str, const parse_css_color_context& context);
+
 namespace css_parse_detail {
 
 struct color_mix_item {
@@ -490,7 +494,7 @@ inline std::optional<resolved_color_mix> resolve_color_mix_items(const parsed_co
 
   float total = 0.0f;
   for (const auto& item : parsed.items) {
-    auto color = parse_css_color_rgbaf(item.color, context);
+    auto color = parse_color_mix_item_rgbaf(item.color, context);
     if (!color) return std::nullopt;
     const float weight = item.weight ? std::clamp(*item.weight, 0.0f, 1.0f) : fill_weight;
     resolved.items.push_back(resolved_color_mix_item{*color, weight});

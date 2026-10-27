@@ -131,6 +131,29 @@ inline std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str) 
   return parse_css_color_rgbaf(str, empty_context);
 }
 
+inline std::optional<core::rgbaf_t> parse_color_mix_item_rgbaf(std::string_view str,
+                                                               const parse_css_color_context& context) {
+  // CSS Color 5: non-absolute colors are not permitted inside color-mix().
+  // Relative colors and nested color-mix() items remain legal.
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  {
+    details::Cursor c{str, 0};
+    c.skip_ws();
+    const size_t save = c.i;
+    bool non_absolute_call = c.consume_ci("light-dark");
+    if (!non_absolute_call) {
+      c.i = save;
+      non_absolute_call = c.consume_ci("contrast-color");
+    }
+    if (non_absolute_call) {
+      c.skip_ws();
+      if (c.consume_char('(')) return std::nullopt;
+    }
+  }
+  return parse_css_color_rgbaf(str, context);
+}
+
 inline std::optional<core::rgba8_t> parse_css_color_light_dark_rgba8(std::string_view str,
                                                                      const parse_css_color_context& context) {
   details::trim(str);

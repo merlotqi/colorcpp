@@ -42,7 +42,7 @@ In colorcpp
     * ``oklab()`` / ``oklch()`` - perceptual uniform space
     * ``lab()`` / ``lch()`` - CIE LAB space (D50 per CSS; Bradford-adapted to the D65 core types)
     * ``color(display-p3)`` - Display P3 wide gamut
-    * ``rgb(from ...)`` / ``hsl(from ...)`` / ``hwb(from ...)`` / ``lab(from ...)`` / ``lch(from ...)`` / ``color(from ...)`` - relative colors with full expression support, including:
+    * ``rgb(from ...)`` / ``hsl(from ...)`` / ``hwb(from ...)`` / ``lab(from ...)`` / ``lch(from ...)`` / ``oklab(from ...)`` / ``oklch(from ...)`` / ``color(from ...)`` - relative colors with full expression support, including:
         * Arithmetic operations ``+ - * /``
         * Parenthesized expressions
         * ``calc()`` wrapper syntax
@@ -86,8 +86,8 @@ Notes
 * Parser accepts both legacy comma syntax and modern space-separated syntax
 * ``color-mix()`` follows CSS premultiplied-alpha mixing semantics, including reduced-alpha results when explicit percentages sum below ``100%``
 * Progress-form ``color-mix()`` inputs are normalized into the same list-based evaluator as the item-list form
-* Relative color support covers ``rgb`` / ``hsl`` / ``hwb`` / ``lab`` / ``lch`` / ``color`` ``from`` syntaxes; ``oklab(from ...)`` / ``oklch(from ...)`` are not implemented yet
-* ``contrast-color()`` sources are rejected in relative color syntax (sources resolve through the atomic parser); inside ``color-mix()`` items currently resolve through the full parser, so nesting parses there (same as ``light-dark()``) — this deviates from the spec, which makes both non-absolute
+* Relative color support covers ``rgb`` / ``hsl`` / ``hwb`` / ``lab`` / ``lch`` / ``oklab`` / ``oklch`` / ``color`` ``from`` syntaxes
+* Non-absolute colors (``contrast-color()``, ``light-dark()``) are rejected inside ``color-mix()`` items and relative color syntax sources, per CSS Color 5
 * Formatter produces canonical ``rgb()`` output for sRGB colors
 
 

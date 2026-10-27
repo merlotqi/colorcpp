@@ -882,13 +882,9 @@ inline std::optional<core::rgbaf_t> parse_concrete_css_source_rgbaf(std::string_
   details::trim(source_expression);
   if (source_expression.empty()) return std::nullopt;
 
+  // CSS Color 5: non-absolute colors (light-dark(), contrast-color()) are not
+  // permitted as relative sources; they are not in the atomic parser below.
   details::Cursor c{source_expression, 0};
-  if (auto parsed = css_parse_detail::parse_light_dark_rgbaf(c, context)) {
-    c.skip_ws();
-    if (c.eof()) return parsed;
-  }
-
-  c.i = 0;
   if (auto parsed = css_parse_detail::parse_color_mix_in_srgb_rgbaf(c, context)) {
     c.skip_ws();
     if (c.eof()) return parsed;
