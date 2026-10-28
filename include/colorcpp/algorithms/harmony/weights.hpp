@@ -150,43 +150,34 @@ weighted_assessment_result assess_weighted(const core::palette_set<Color>& palet
     hsl_colors.push_back(color_cast<core::hsla_float_t>(color));
   }
 
-  // Sort colors by hue
-  std::sort(hsl_colors.begin(), hsl_colors.end(), [](const core::hsla_float_t& a, const core::hsla_float_t& b) {
-    return a.template get_index<0>() < b.template get_index<0>();
-  });
-
-  // Compute hue differences
-  std::vector<float> diffs;
-  diffs.reserve(hsl_colors.size());
-
-  for (size_t i = 1; i < hsl_colors.size(); ++i) {
-    diffs.push_back(
-        detail::angle_diff(hsl_colors[i - 1].template get_index<0>(), hsl_colors[i].template get_index<0>()));
+  // Extract hues and use the shared sorted-circular convention so detection
+  // does not depend on insertion order (same as assess()).
+  std::vector<float> hues;
+  hues.reserve(hsl_colors.size());
+  for (const auto& c : hsl_colors) {
+    hues.push_back(c.template get_index<0>());
   }
+  std::vector<float> diffs = circular_hue_diffs(hues);
 
-  // Calculate angle harmonic deviation
-  auto minmax = std::minmax_element(diffs.begin(), diffs.end());
+  // Calculate angle harmonic deviation over the in-circle gaps
+  const std::size_t in_circle = diffs.size() - 1;
+  auto minmax = std::minmax_element(diffs.begin(), diffs.begin() + in_circle);
   float harmonic_deviation = *minmax.second - *minmax.first;
 
   // Detect scheme
-  auto [scheme, ideal_steps] = detect_scheme(hsl_colors.size(), diffs);
+  auto [scheme, ideal_steps] = detect_scheme_from_hues(hues);
   result.scheme = scheme;
 
-  // Calculate angle score
+  // Calculate angle score (ideal_steps covers the in-circle gaps only)
   if (!ideal_steps.empty()) {
     float deviation = 0.0f;
-    for (size_t i = 0; i < diffs.size() && i < ideal_steps.size(); ++i) {
-      float diff = std::abs(diffs[i] - ideal_steps[i]);
-      if (diff > 180.0f) diff = 360.0f - diff;
-      deviation += diff;
+    std::size_t count = 0;
+    for (size_t i = 0; i < in_circle && i < ideal_steps.size(); ++i) {
+      deviation += std::abs(diffs[i] - ideal_steps[i]);
+      ++count;
     }
-    deviation /= static_cast<float>(std::min(diffs.size(), ideal_steps.size()));
-
-    if (scheme != harmony_scheme::custom) {
-      result.angle_score = std::max(0.0f, 100.0f - deviation);
-    } else {
-      result.angle_score = std::max(0.0f, 100.0f - detail::k_base_deviation_penalty - deviation);
-    }
+    deviation /= static_cast<float>(std::max<std::size_t>(1, count));
+    result.angle_score = std::max(0.0f, 100.0f - deviation);
   } else {
     result.angle_score = std::max(0.0f, 100.0f - detail::k_base_deviation_penalty - harmonic_deviation);
   }
@@ -195,11 +186,13 @@ weighted_assessment_result assess_weighted(const core::palette_set<Color>& palet
   result.saturation_score = detail::saturation_uniformity(hsl_colors);
   result.lightness_score = detail::lightness_uniformity(hsl_colors);
 
-  // Compute weighted total
-  float w_sum = weights.total();
+  // Compute weighted total (clamp out-of-range weights first)
+  harmony_weights clamped = weights;
+  clamped.validate();
+  float w_sum = clamped.total();
   if (w_sum > 0.0f) {
-    result.score = (weights.angle_weight * result.angle_score + weights.saturation_weight * result.saturation_score +
-                    weights.lightness_weight * result.lightness_score) /
+    result.score = (clamped.angle_weight * result.angle_score + clamped.saturation_weight * result.saturation_score +
+                    clamped.lightness_weight * result.lightness_score) /
                    w_sum;
   } else {
     result.score = result.angle_score;

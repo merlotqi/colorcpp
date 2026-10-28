@@ -15,9 +15,9 @@ struct model_ax {};
 namespace colorcpp::traits {
 template <>
 struct model_traits<operations::test::model_ax> {
-  using channels_type = std::tuple<basic_channel<alpha_tag, float, 0, 1, 1>,
-                                   basic_channel<operations::test::xa_tag, float, 0, 1, 1>,
-                                   basic_channel<operations::test::ya_tag, float, 0, 1, 1>>;
+  using channels_type =
+      std::tuple<basic_channel<alpha_tag, float, 0, 1, 1>, basic_channel<operations::test::xa_tag, float, 0, 1, 1>,
+                 basic_channel<operations::test::ya_tag, float, 0, 1, 1>>;
   static constexpr std::string_view prefix = "ax";
 };
 }  // namespace colorcpp::traits
@@ -73,6 +73,14 @@ TEST(ConversionTest, SrgbHslRoundTrip) {
   EXPECT_NEAR(back.r(), orig.r(), 1e-4f);
   EXPECT_NEAR(back.g(), orig.g(), 1e-4f);
   EXPECT_NEAR(back.b(), orig.b(), 1e-4f);
+}
+
+TEST(ConversionTest, HslHueZeroSurvivesRgbRoundTrip) {
+  // Hue is circular: 0° and 360° are the same color. Float fuzz at the red
+  // boundary used to map hsl(0°) -> rgb(1, 0, ~3.6e-7) -> hue ~359.99997°,
+  // which broke hue sorting for downstream consumers (e.g. harmony).
+  auto back = color_cast<hsl_float_t>(color_cast<rgbf_t>(hsl_float_t{0.0f, 1.0f, 0.5f}));
+  EXPECT_NEAR(back.h(), 0.0f, 0.01f);
 }
 
 TEST(ConversionTest, SrgbHsvRoundTrip) {

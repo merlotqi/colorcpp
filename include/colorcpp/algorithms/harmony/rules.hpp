@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/harmony/detail/angle_utils.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
@@ -63,7 +64,7 @@ inline harmony_rule rule_for(harmony_scheme scheme, size_t count = 0) {
     return {scheme, count, {180.0f}, {0.0f, 180.0f}};
   }
   if (scheme == harmony_scheme::golden && count == 2) {
-    return {scheme, count, {137.5f}, {0.0f, 137.5f}};
+    return {scheme, count, {detail::k_golden_angle}, {0.0f, detail::k_golden_angle}};
   }
   if (scheme == harmony_scheme::analogous && count == 3) {
     return {scheme, count, {30.0f, 30.0f}, {-30.0f, 0.0f, 30.0f}};
@@ -78,7 +79,10 @@ inline harmony_rule rule_for(harmony_scheme scheme, size_t count = 0) {
     return {scheme, count, {60.0f, 30.0f}, {0.0f, 60.0f, 90.0f}};
   }
   if (scheme == harmony_scheme::golden && count == 3) {
-    return {scheme, count, {137.5f, 137.5f}, {0.0f, 137.5f, 275.0f}};
+    return {scheme,
+            count,
+            {detail::k_golden_angle, detail::k_golden_angle},
+            {0.0f, detail::k_golden_angle, (2.0f * detail::k_golden_angle)}};
   }
   if (scheme == harmony_scheme::tetradic && count == 4) {
     return {scheme, count, {60.0f, 120.0f, 60.0f}, {0.0f, 60.0f, 180.0f, 240.0f}};
@@ -106,9 +110,31 @@ inline harmony_rule rule_for(harmony_scheme scheme, size_t count = 0) {
 }
 
 /**
+ * @brief Compute circular hue differences between adjacent colors.
+ * @param hues Hue values in degrees (order does not matter).
+ * @return Shortest-path differences between hue-sorted neighbors, including
+ *         the wrap-around gap (size == hues.size()).
+ */
+inline std::vector<float> circular_hue_diffs(std::vector<float> hues) {
+  std::sort(hues.begin(), hues.end());
+  std::vector<float> diffs;
+  diffs.reserve(hues.size());
+  for (size_t i = 1; i < hues.size(); ++i) {
+    diffs.push_back(detail::angle_diff(hues[i - 1], hues[i]));
+  }
+  if (hues.size() > 1) {
+    diffs.push_back(detail::angle_diff(hues.back(), hues.front()));
+  }
+  return diffs;
+}
+
+/**
  * @brief Detect harmony scheme based on hue differences.
  * @param count Number of colors.
- * @param diffs Hue differences between adjacent colors.
+ * @param diffs Shortest-path hue differences between adjacent colors. May be
+ *        linear (size == count - 1, in-circle gaps only) or circular
+ *        (size == count, wrap-around gap appended); the wrap entry is only
+ *        consulted by the multi-group (count > 5) path.
  * @return Pair of detected scheme and its ideal steps.
  */
 inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count, const std::vector<float>& diffs) {
@@ -117,60 +143,70 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
   }
 
   if (count == 2) {
-    if (std::abs(diffs[0] - 180.0f) < 15.0f) {
+    if (std::abs(diffs[0] - 180.0f) < detail::k_default_tolerance) {
       return {harmony_scheme::complementary, rule_for(harmony_scheme::complementary, 2).ideal_steps};
     }
-    if (std::abs(diffs[0] - 137.5f) < 15.0f) {
+    if (std::abs(diffs[0] - detail::k_golden_angle) < detail::k_default_tolerance) {
       return {harmony_scheme::golden, rule_for(harmony_scheme::golden, 2).ideal_steps};
     }
     return {harmony_scheme::pair, {}};
   }
 
   if (count == 3) {
-    if (std::abs(diffs[0] - 120.0f) < 15.0f && std::abs(diffs[1] - 120.0f) < 15.0f) {
+    if (std::abs(diffs[0] - 120.0f) < detail::k_default_tolerance &&
+        std::abs(diffs[1] - 120.0f) < detail::k_default_tolerance) {
       return {harmony_scheme::triadic, rule_for(harmony_scheme::triadic, 3).ideal_steps};
     }
-    if (std::abs(diffs[0] - 137.5f) < 15.0f && std::abs(diffs[1] - 137.5f) < 15.0f) {
+    if (std::abs(diffs[0] - detail::k_golden_angle) < detail::k_default_tolerance &&
+        std::abs(diffs[1] - detail::k_golden_angle) < detail::k_default_tolerance) {
       return {harmony_scheme::golden, rule_for(harmony_scheme::golden, 3).ideal_steps};
     }
     if (diffs[0] < 45.0f && diffs[1] < 45.0f) {
       return {harmony_scheme::analogous, rule_for(harmony_scheme::analogous, 3).ideal_steps};
     }
-    if ((std::abs(diffs[0] - 150.0f) < 15.0f && std::abs(diffs[1] - 60.0f) < 15.0f) ||
-        (std::abs(diffs[0] - 60.0f) < 15.0f && std::abs(diffs[1] - 150.0f) < 15.0f)) {
+    if ((std::abs(diffs[0] - 150.0f) < detail::k_default_tolerance &&
+         std::abs(diffs[1] - 60.0f) < detail::k_default_tolerance) ||
+        (std::abs(diffs[0] - 60.0f) < detail::k_default_tolerance &&
+         std::abs(diffs[1] - 150.0f) < detail::k_default_tolerance)) {
       return {harmony_scheme::split_complementary, rule_for(harmony_scheme::split_complementary, 3).ideal_steps};
     }
-    if ((std::abs(diffs[0] - 60.0f) < 15.0f && diffs[1] < 45.0f) ||
-        (diffs[0] < 45.0f && std::abs(diffs[1] - 60.0f) < 15.0f)) {
+    if ((std::abs(diffs[0] - 60.0f) < detail::k_default_tolerance && diffs[1] < 45.0f) ||
+        (diffs[0] < 45.0f && std::abs(diffs[1] - 60.0f) < detail::k_default_tolerance)) {
       return {harmony_scheme::split_analogous, rule_for(harmony_scheme::split_analogous, 3).ideal_steps};
     }
     return {harmony_scheme::triad, {}};
   }
 
   if (count == 4) {
-    if (std::abs(diffs[0] - 90.0f) < 15.0f && std::abs(diffs[1] - 90.0f) < 15.0f &&
-        std::abs(diffs[2] - 90.0f) < 15.0f) {
+    if (std::abs(diffs[0] - 90.0f) < detail::k_default_tolerance &&
+        std::abs(diffs[1] - 90.0f) < detail::k_default_tolerance &&
+        std::abs(diffs[2] - 90.0f) < detail::k_default_tolerance) {
       return {harmony_scheme::square, rule_for(harmony_scheme::square, 4).ideal_steps};
     }
     if (diffs[0] < 35.0f && diffs[1] < 35.0f && diffs[2] < 35.0f) {
       return {harmony_scheme::analogous_wide, rule_for(harmony_scheme::analogous_wide, 4).ideal_steps};
     }
-    if (diffs[0] < 45.0f && std::abs(diffs[1] - 150.0f) < 15.0f && diffs[2] < 45.0f) {
+    if (diffs[0] < 45.0f && std::abs(diffs[1] - 150.0f) < detail::k_default_tolerance && diffs[2] < 45.0f) {
       return {harmony_scheme::compound, rule_for(harmony_scheme::compound, 4).ideal_steps};
     }
-    if (std::abs(diffs[0] - 60.0f) < 15.0f && std::abs(diffs[1] - 120.0f) < 15.0f &&
-        std::abs(diffs[2] - 60.0f) < 15.0f) {
+    if (std::abs(diffs[0] - 60.0f) < detail::k_default_tolerance &&
+        std::abs(diffs[1] - 120.0f) < detail::k_default_tolerance &&
+        std::abs(diffs[2] - 60.0f) < detail::k_default_tolerance) {
       return {harmony_scheme::double_complementary, rule_for(harmony_scheme::double_complementary, 4).ideal_steps};
     }
     return {harmony_scheme::tetrad, {}};
   }
 
   if (count == 5) {
+    // Check the tighter analogous_wide first: canonical wide steps are 15°
+    // and canonical analogous steps 22.5°, so a shared threshold ordering
+    // must test wide against the midpoint (18.75) before the looser
+    // analogous bound, or wide is unreachable.
+    if (diffs[0] < 18.75f && diffs[1] < 18.75f && diffs[2] < 18.75f && diffs[3] < 18.75f) {
+      return {harmony_scheme::analogous_wide, rule_for(harmony_scheme::analogous_wide, 5).ideal_steps};
+    }
     if (diffs[0] < 35.0f && diffs[1] < 35.0f && diffs[2] < 35.0f && diffs[3] < 35.0f) {
       return {harmony_scheme::analogous, rule_for(harmony_scheme::analogous, 5).ideal_steps};
-    }
-    if (diffs[0] < 25.0f && diffs[1] < 25.0f && diffs[2] < 25.0f && diffs[3] < 25.0f) {
-      return {harmony_scheme::analogous_wide, rule_for(harmony_scheme::analogous_wide, 5).ideal_steps};
     }
     return {harmony_scheme::custom, {}};
   }
@@ -182,10 +218,15 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
     // 2. Evaluate each group independently
     // 3. If groups are valid sub-schemes, return a combined description
 
+    // With circular input the last entry closes the loop (last -> first hue);
+    // it is a real gap but not a group boundary, so exclude it from the split
+    // search and from the sub-group diffs. Linear input has no wrap entry.
+    const size_t wrap_idx = (diffs.size() == count) ? count - 1 : diffs.size();
+
     // Find the largest gap as natural split boundary
     size_t split_idx = 0;
     float max_gap = 0.0f;
-    for (size_t i = 0; i < diffs.size(); ++i) {
+    for (size_t i = 0; i < wrap_idx; ++i) {
       if (diffs[i] > max_gap) {
         max_gap = diffs[i];
         split_idx = i;
@@ -200,9 +241,9 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
       size_t group_a_size = split_idx + 1;
       size_t group_b_size = count - split_idx - 1;
 
-      // Build diffs for each group
+      // Build diffs for each group (both exclude the boundary gap and the wrap)
       std::vector<float> diffs_a(diffs.begin(), diffs.begin() + split_idx);
-      std::vector<float> diffs_b(diffs.begin() + split_idx + 1, diffs.end());
+      std::vector<float> diffs_b(diffs.begin() + split_idx + 1, diffs.begin() + wrap_idx);
 
       // Detect scheme for each group
       auto [scheme_a, steps_a] = detect_scheme(group_a_size, diffs_a);
@@ -244,7 +285,7 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
     float avg_diff = std::accumulate(diffs.begin(), diffs.end(), 0.0f) / static_cast<float>(diffs.size());
     bool even_distribution = true;
     for (float d : diffs) {
-      if (detail::angle_diff(d, avg_diff) > 15.0f) {
+      if (detail::angle_diff(d, avg_diff) > detail::k_default_tolerance) {
         even_distribution = false;
         break;
       }
@@ -259,6 +300,18 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
   }
 
   return {harmony_scheme::custom, {}};
+}
+
+/**
+ * @brief Detect the harmony scheme of a set of hues.
+ * @param hues Hue values in degrees; insertion order does not affect the result.
+ * @return Pair of detected scheme and its ideal steps.
+ */
+inline std::pair<harmony_scheme, std::vector<float>> detect_scheme_from_hues(const std::vector<float>& hues) {
+  if (hues.size() < 2) {
+    return {harmony_scheme::single, {}};
+  }
+  return detect_scheme(hues.size(), circular_hue_diffs(hues));
 }
 
 }  // namespace colorcpp::algorithms::harmony

@@ -151,9 +151,9 @@ The function preserves the first color's hue and adjusts subsequent colors to ma
 If the input palette is too small or the resolved target scheme has no correction rule, the original palette is returned alongside a non-corrected status.
 
 When using tolerance threshold mode:
-- Deviations below the tolerance leave the palette unchanged
-- Deviations above the tolerance are corrected fully
-- Returns ``tolerance_exceeded`` status when correction was applied
+- Colors whose needed hue adjustment does not exceed the tolerance are left untouched
+- Colors whose adjustment exceeds the tolerance are corrected fully
+- Returns ``tolerance_exceeded`` status when at least one color was corrected (``applied()`` is true)
 
 Suggestions
 -----------

@@ -48,45 +48,32 @@ assessment_result assess(const core::palette_set<Color>& palette) {
     hues.push_back(hsl.template get_index<0>());
   }
 
-  // Sort hues for easier analysis (copy to avoid modifying original order for scheme detection)
-  std::vector<float> sorted_hues = hues;
-  std::sort(sorted_hues.begin(), sorted_hues.end());
+  // Shortest-path diffs between hue-sorted neighbors (circular: size == count).
+  // Detection and deviation share this convention so the result does not
+  // depend on the palette's insertion order.
+  std::vector<float> diffs = circular_hue_diffs(hues);
 
-  // Calculate hue differences in sorted order using angle_utils
-  std::vector<float> diffs;
-  for (size_t i = 1; i < sorted_hues.size(); ++i) {
-    diffs.push_back(detail::angle_diff(sorted_hues[i - 1], sorted_hues[i]));
-  }
-  // Add wrap-around difference
-  if (sorted_hues.size() > 1) {
-    diffs.push_back(detail::angle_diff(sorted_hues.back(), sorted_hues.front()));
-  }
+  auto [scheme, ideal_angles] = detect_scheme_from_hues(hues);
 
-  // Also calculate differences in original order for scheme detection
-  std::vector<float> original_diffs;
-  for (size_t i = 1; i < hues.size(); ++i) {
-    original_diffs.push_back(detail::angle_diff(hues[i - 1], hues[i]));
-  }
-  // Add wrap-around difference for original order
-  if (hues.size() > 1) {
-    original_diffs.push_back(detail::angle_diff(hues.back(), hues.front()));
-  }
-
-  // Detect harmony scheme and calculate score (use original order for golden angle detection)
-  auto [scheme, ideal_angles] = detect_scheme(palette.size(), original_diffs);
-
-  // Calculate deviation from ideal angles
+  // Calculate deviation from ideal angles.
+  // ideal_angles describes the in-circle gaps (count-1 steps); the wrap-around
+  // diff has no matching ideal step, so it is excluded from both the sum and
+  // the divisor (a 10°-off complementary pair scores 90, not 95).
+  const std::size_t in_circle = diffs.size() - 1;
   float total_deviation = 0.0f;
+  std::size_t deviation_count = 0;
   if (ideal_angles.empty()) {
     // No ideal angles means no recognized harmony scheme
     // Give a moderate score based on color distribution
     total_deviation = detail::k_base_deviation_penalty;  // Base penalty for unrecognized scheme
+    deviation_count = std::max<std::size_t>(1, in_circle);
   } else {
-    for (size_t i = 0; i < original_diffs.size() && i < ideal_angles.size(); ++i) {
-      total_deviation += std::abs(original_diffs[i] - ideal_angles[i]);
+    for (size_t i = 0; i < in_circle && i < ideal_angles.size(); ++i) {
+      total_deviation += std::abs(diffs[i] - ideal_angles[i]);
+      ++deviation_count;
     }
   }
-  float avg_deviation = total_deviation / static_cast<float>(original_diffs.size());
+  float avg_deviation = total_deviation / static_cast<float>(std::max<std::size_t>(1, deviation_count));
 
   // Convert deviation to score (0 deviation = 100 score)
   float score = std::max(0.0f, 100.0f - avg_deviation);

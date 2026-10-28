@@ -37,35 +37,23 @@ struct correction_result {
   harmony_scheme target_scheme = harmony_scheme::custom;
   correction_status status = correction_status::unchanged;
 
-  bool applied() const { return status == correction_status::corrected; }
+  bool applied() const {
+    return status == correction_status::corrected || status == correction_status::tolerance_exceeded;
+  }
 };
 
 namespace detail {
 
 inline std::pair<harmony_scheme, std::vector<float>> detect_palette_scheme(
     const std::vector<core::hsla_float_t>& hsl_colors) {
-  if (hsl_colors.size() < 2) {
-    return {harmony_scheme::single, {}};
-  }
-
   std::vector<float> hues;
   hues.reserve(hsl_colors.size());
   for (const auto& hsl : hsl_colors) {
     hues.push_back(hsl.template get_index<0>());
   }
-
-  std::vector<float> original_diffs;
-  original_diffs.reserve(hues.size() - 1);
-
-  // Detect scheme expects (N-1) sequential differences for N colors
-  // Linear sequence only, no wrap-around closing difference
-  for (size_t i = 1; i < hues.size(); ++i) {
-    float diff = hues[i] - hues[i - 1];
-    if (diff < 0) diff += 360.0f;
-    original_diffs.push_back(diff);
-  }
-
-  return detect_scheme(hsl_colors.size(), original_diffs);
+  // Same sorted-circular convention as assess()/assess_weighted(), so
+  // auto-detection agrees with assessment regardless of insertion order.
+  return detect_scheme_from_hues(hues);
 }
 
 }  // namespace detail
@@ -166,7 +154,9 @@ correction_result<Color> correct(const core::palette_set<Color>& palette,
  * @tparam Color Color type.
  * @param palette The palette to correct.
  * @param target_scheme Target harmony scheme (default: auto-detect).
- * @param tolerance Maximum allowed deviation in degrees before correction is applied.
+ * @param tolerance Maximum allowed hue adjustment in degrees. Colors whose
+ *        needed adjustment does not exceed the tolerance are left untouched;
+ *        if no color exceeds it the palette is returned unchanged.
  * @return Structured correction result with palette and status metadata.
  */
 template <typename Color>
@@ -215,10 +205,11 @@ correction_result<Color> correct(const core::palette_set<Color>& palette, harmon
     return hsl_colors[a].template get_index<0>() < hsl_colors[b].template get_index<0>();
   });
 
-  // Check if any deviation exceeds tolerance
+  // Adjust only the colors whose needed adjustment exceeds the tolerance;
+  // near-aligned colors (|adjustment| <= tolerance) are left untouched, and
+  // if nothing exceeds the tolerance the palette is returned unchanged.
   float base_hue = hsl_colors[indices[0]].template get_index<0>();
   float cumulative_angle = 0.0f;
-  bool changed = false;
   bool tolerance_exceeded = false;
 
   for (size_t i = 1; i < indices.size() && (i - 1) < rule.ideal_steps.size(); ++i) {
@@ -234,15 +225,10 @@ correction_result<Color> correct(const core::palette_set<Color>& palette, harmon
 
     if (std::abs(adjustment) > tolerance) {
       tolerance_exceeded = true;
+      hsl_colors[indices[i]] = core::hsla_float_t{target_hue, hsl_colors[indices[i]].template get_index<1>(),
+                                                  hsl_colors[indices[i]].template get_index<2>(),
+                                                  hsl_colors[indices[i]].template get_index<3>()};
     }
-
-    if (std::abs(adjustment) >= 0.1f) {
-      changed = true;
-    }
-
-    hsl_colors[indices[i]] = core::hsla_float_t{target_hue, hsl_colors[indices[i]].template get_index<1>(),
-                                                hsl_colors[indices[i]].template get_index<2>(),
-                                                hsl_colors[indices[i]].template get_index<3>()};
   }
 
   // Convert back to original color type
@@ -252,11 +238,7 @@ correction_result<Color> correct(const core::palette_set<Color>& palette, harmon
   }
 
   result.palette = corrected_palette;
-  if (tolerance_exceeded) {
-    result.status = correction_status::tolerance_exceeded;
-  } else {
-    result.status = changed ? correction_status::corrected : correction_status::unchanged;
-  }
+  result.status = tolerance_exceeded ? correction_status::tolerance_exceeded : correction_status::unchanged;
   return result;
 }
 

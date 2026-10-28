@@ -75,21 +75,35 @@ std::vector<suggestion> suggest(const core::palette_set<Color>& palette) {
   // suggest improvements based on palette size
   if (rule.ideal_steps.empty() || result.scheme == harmony_scheme::pair || result.scheme == harmony_scheme::triad ||
       result.scheme == harmony_scheme::tetrad || result.scheme == harmony_scheme::custom) {
+    // Fallback target offsets from the lowest hue (generation_offsets are
+    // absolute positions, not deltas); the suggested adjustment is
+    // target - current, normalized to [-180, 180].
+    const auto suggest_fallback = [&](harmony_scheme scheme, const std::string& note) {
+      const auto fallback = rule_for(scheme);
+      const float base_hue = hsl_colors[indices[0]].template get_index<0>();
+      for (size_t i = 1; i < indices.size() && i < fallback.generation_offsets.size(); ++i) {
+        float target_hue = std::fmod(base_hue + fallback.generation_offsets[i], 360.0f);
+        if (target_hue < 0) target_hue += 360.0f;
+        float adjustment = target_hue - hsl_colors[indices[i]].template get_index<0>();
+        if (adjustment > 180.0f) adjustment -= 360.0f;
+        if (adjustment < -180.0f) adjustment += 360.0f;
+        using namespace std::string_literals;
+        std::string action =
+            "Shift hue by "s + (adjustment > 0 ? "+" : "") + std::to_string(static_cast<int>(adjustment)) + "° " + note;
+        suggestions.push_back({indices[i], action, adjustment});
+      }
+    };
+
     if (palette.size() == 2) {
-      const auto fallback = rule_for(harmony_scheme::complementary);
-      suggestions.push_back(
-          {indices[1], "Shift hue by +180° to create complementary pair", fallback.generation_offsets[1]});
+      suggest_fallback(harmony_scheme::complementary, "to create complementary pair");
       return suggestions;
-    } else if (palette.size() == 3) {
-      const auto fallback = rule_for(harmony_scheme::triadic);
-      suggestions.push_back({indices[1], "Shift hue by +120° for triadic harmony", fallback.generation_offsets[1]});
-      suggestions.push_back({indices[2], "Shift hue by +240° for triadic harmony", fallback.generation_offsets[2]});
+    }
+    if (palette.size() == 3) {
+      suggest_fallback(harmony_scheme::triadic, "for triadic harmony");
       return suggestions;
-    } else if (palette.size() == 4) {
-      const auto fallback = rule_for(harmony_scheme::square);
-      suggestions.push_back({indices[1], "Shift hue by +90° for square harmony", fallback.generation_offsets[1]});
-      suggestions.push_back({indices[2], "Shift hue by +180° for square harmony", fallback.generation_offsets[2]});
-      suggestions.push_back({indices[3], "Shift hue by +270° for square harmony", fallback.generation_offsets[3]});
+    }
+    if (palette.size() == 4) {
+      suggest_fallback(harmony_scheme::square, "for square harmony");
       return suggestions;
     }
   }
@@ -106,7 +120,7 @@ std::vector<suggestion> suggest(const core::palette_set<Color>& palette) {
     if (adjustment > 180.0f) adjustment -= 360.0f;
     if (adjustment < -180.0f) adjustment += 360.0f;
 
-    if (std::abs(adjustment) > 5.0f) {  // Only suggest if adjustment is significant
+    if (std::abs(adjustment) > detail::k_small_tolerance) {  // Only suggest if adjustment is significant
       using namespace std::string_literals;
       std::string action =
           "Shift hue by "s + (adjustment > 0 ? "+" : "") + std::to_string(static_cast<int>(adjustment)) + "°";

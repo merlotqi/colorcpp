@@ -14,6 +14,20 @@ using namespace harmony;
 using namespace operations::palette;
 using operations::conversion::color_cast;
 
+namespace {
+
+// Build a palette from exact HSL hues (S=1, L=0.5) so tests control the hue
+// geometry precisely, independent of raw-RGB construction quirks.
+palette_set<rgbaf_t> Hues(std::initializer_list<float> hues) {
+  palette_set<rgbaf_t> p;
+  for (float h : hues) {
+    p.add(color_cast<rgbaf_t>(hsla_float_t{h, 1.0f, 0.5f, 1.0f}));
+  }
+  return p;
+}
+
+}  // namespace
+
 // ============================================================================
 // Harmony assessment tests
 // ============================================================================
@@ -300,6 +314,112 @@ TEST(HarmonyCorrectTest, CorrectToGolden) {
 
   auto second_h = color_cast<hsla_float_t>(corrected.palette.at(1));
   EXPECT_NEAR(second_h.h(), 137.5f, 1.0f);
+}
+
+TEST(HarmonyAssessTest, ComplementaryDeviationNotDilutedByWrap) {
+  // A pair 10° off complementary has average deviation 10° -> score 90.
+  // The wrap-around diff used to inflate the divisor, reporting dev=5, score=95.
+  auto palette = Hues({0.0f, 170.0f});
+  auto result = assess(palette);
+  EXPECT_EQ(result.scheme, harmony_scheme::complementary);
+  EXPECT_NEAR(result.deviation, 10.0f, 0.5f);
+  EXPECT_NEAR(result.score, 90.0f, 0.5f);
+}
+
+TEST(HarmonyAssessTest, DetectionIsInsertionOrderIndependent) {
+  // The same three hues in two insertion orders must detect the same scheme.
+  auto sorted_order = Hues({0.0f, 30.0f, 60.0f});
+  auto shuffled = Hues({0.0f, 60.0f, 30.0f});
+  EXPECT_EQ(assess(sorted_order).scheme, harmony_scheme::analogous);
+  EXPECT_EQ(assess(shuffled).scheme, harmony_scheme::analogous);
+  EXPECT_EQ(assess_weighted(shuffled, harmony_weights::angle_only()).scheme, harmony_scheme::analogous);
+}
+
+TEST(HarmonySuggestTest, FallbackSuggestionReportsTrueHueDelta) {
+  // Red (0°) + yellow (60°): pair, so the fallback targets complementary.
+  // The needed adjustment is target(180°) - current(60°) = +120°, not the
+  // absolute generation offset 180.
+  auto palette = Hues({0.0f, 60.0f});
+  auto suggestions = suggest(palette);
+  ASSERT_FALSE(suggestions.empty());
+  EXPECT_EQ(suggestions[0].color_index, 1);
+  EXPECT_NEAR(suggestions[0].hue_adjustment, 120.0f, 1.0f);
+  EXPECT_NE(suggestions[0].action.find("+120"), std::string::npos);
+}
+
+TEST(HarmonySuggestTest, TriadicFallbackReportsTrueHueDelta) {
+  // {0°, 100°, 200°}: recognized as 'triad' (no named scheme), so the
+  // fallback targets triadic. Needed deltas from base 0°: color 1 -> +20°
+  // (120 - 100), color 2 -> +40° (240 - 200) — not the raw offsets 120/240.
+  auto palette = Hues({0.0f, 100.0f, 200.0f});
+  auto suggestions = suggest(palette);
+  ASSERT_EQ(suggestions.size(), 2u);
+  EXPECT_EQ(suggestions[0].color_index, 1);
+  EXPECT_NEAR(suggestions[0].hue_adjustment, 20.0f, 1.0f);
+  EXPECT_EQ(suggestions[1].color_index, 2);
+  EXPECT_NEAR(suggestions[1].hue_adjustment, 40.0f, 1.0f);
+}
+
+TEST(HarmonyRulesTest, FiveColorAnalogousWideCheckedBeforeAnalogous) {
+  // Canonical wide steps are 15°, canonical analogous steps are 22.5°.
+  // The wide check must run first, otherwise 15° palettes match the
+  // looser analogous threshold (<35) and analogous_wide is unreachable.
+  auto wide = detect_scheme(5, {15.0f, 15.0f, 15.0f, 15.0f});
+  EXPECT_EQ(wide.first, harmony_scheme::analogous_wide);
+
+  auto narrow = detect_scheme(5, {22.5f, 22.5f, 22.5f, 22.5f});
+  EXPECT_EQ(narrow.first, harmony_scheme::analogous);
+}
+
+TEST(HarmonyCorrectTest, ToleranceLeavesNearAlignedPaletteUnchanged) {
+  // Hues 10° and 185°: complementary target is 190°, so the only needed
+  // adjustment is +5°. With tolerance 30 the palette must stay untouched
+  // (the old code assigned target hues regardless of tolerance).
+  auto palette = Hues({10.0f, 185.0f});
+  auto corrected = correct(palette, harmony_scheme::complementary, 30.0f);
+  EXPECT_EQ(corrected.status, correction_status::unchanged);
+  EXPECT_FALSE(corrected.applied());
+  auto hsl = color_cast<hsla_float_t>(corrected.palette.at(1));
+  EXPECT_NEAR(hsl.h(), 185.0f, 1.0f);
+}
+
+TEST(HarmonyCorrectTest, ToleranceExceededAdjustsOnlyOffendingColors) {
+  // Same palette, tight tolerance: the +5° adjustment exceeds tolerance 2,
+  // so that color is corrected and the status reports tolerance_exceeded.
+  auto palette = Hues({10.0f, 185.0f});
+  auto corrected = correct(palette, harmony_scheme::complementary, 2.0f);
+  EXPECT_EQ(corrected.status, correction_status::tolerance_exceeded);
+  EXPECT_TRUE(corrected.applied());
+  auto hsl = color_cast<hsla_float_t>(corrected.palette.at(1));
+  EXPECT_NEAR(hsl.h(), 190.0f, 1.0f);
+}
+
+TEST(HarmonyWeightedTest, OutOfRangeWeightsAreClampedBeforeScoring) {
+  // harmony_weights::validate() clamps to [0, 1] but was never called;
+  // out-of-range weights must score the same as their clamped values.
+  // Component scores must differ (varied S/L and slightly off-triadic
+  // hues), otherwise any weighting yields the same average.
+  palette_set<rgbaf_t> palette;
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{0.0f, 1.0f, 0.5f, 1.0f}));
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{130.0f, 0.3f, 0.9f, 1.0f}));
+  palette.add(color_cast<rgbaf_t>(hsla_float_t{250.0f, 0.8f, 0.2f, 1.0f}));
+  auto raw = assess_weighted(palette, harmony_weights{2.0f, -1.0f, 0.5f});
+  auto clamped = assess_weighted(palette, harmony_weights{1.0f, 0.0f, 0.5f});
+  EXPECT_FLOAT_EQ(raw.score, clamped.score);
+}
+
+TEST(HarmonyCorrectTest, AutoDetectMatchesAssessOnReorderedPalette) {
+  // Descending analogous palette: assess() must agree with correct()'s
+  // auto-detection (both use shortest-path diffs on sorted hues).
+  auto palette = Hues({60.0f, 30.0f, 0.0f});
+  auto result = assess(palette);
+  EXPECT_EQ(result.scheme, harmony_scheme::analogous);
+
+  auto corrected = correct(palette);
+  EXPECT_EQ(corrected.detected_scheme, harmony_scheme::analogous);
+  EXPECT_EQ(corrected.target_scheme, harmony_scheme::analogous);
+  // 0/30/60 is already a perfect analogous set — nothing to move
+  EXPECT_EQ(corrected.status, correction_status::unchanged);
 }
 
 }  // namespace colorcpp::algorithms::test

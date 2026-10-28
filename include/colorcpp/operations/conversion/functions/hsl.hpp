@@ -103,6 +103,10 @@ constexpr To rgb_to_hsl(const From& src) {
     else
       h = (r - g) / d + 4.0f;
     h /= 6.0f;
+    // Hue is circular: float fuzz at the red boundary (e.g. hsl->rgb->hsl of 0°,
+    // where hue2rgb's 2/3 boundary yields b ~ 3.6e-7 and flips the g<b branch)
+    // can land just below 1. Snap back to 0 so 0° and 360° are identical.
+    if (h >= 1.0f - 1e-5f) h = 0.0f;
   }
 
   if constexpr (To::channels >= 4)
