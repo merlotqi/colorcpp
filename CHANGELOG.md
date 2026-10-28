@@ -22,6 +22,21 @@ All notable changes to `colorcpp` are documented here.
 - **Perceptual threshold is inclusive**: `distance == threshold` now compares
   equal (`<=` instead of `<`); previously two identical colors failed at
   `threshold = 0`.
+- **Achromatic colors ignore hue** in the channel policies: when both sides'
+  chroma channel (shared `traits::chroma_tag` — HSL/HSV `S`, CIELCH/OkLCH `C`)
+  is exactly zero, the hue comparison short-circuits to equal — a gray at
+  `h = 0` and the same gray at `h = 180` are the same color. One-sided pairs
+  still compare chroma. Models without a chroma channel (HWB, RGB) keep plain
+  ring semantics; HWB's achromatic range (`W + B >= 1`) is not gated.
+- **`relative_policy` can express real ratios**: the tolerance parameters are
+  now `float` (were `Color::value_type`), so on integer channels `0.02f` is a
+  real 2% instead of truncating to `uint8_t` 0 — integer relative degenerated
+  to exact equality for every ratio below 100%. A new `abs_floor` parameter
+  covers the near-zero case (`0` vs `1e-4` at `rel = 1e-3`: the relative bound
+  is `1e-7`), giving the standard isclose-style `max(rel * scale, abs_floor)`
+  bound. A negative `rel` or `abs_floor` never matches, including for identical
+  values, consistent with `epsilon_policy` (the old `a == b` early return
+  matched even at negative tolerance).
 
 - **Constrained generators on integer color types**: `contrast_generator` and
   `luminance_generator` sampled their OkLCH intermediates through
@@ -139,6 +154,28 @@ All notable changes to `colorcpp` are documented here.
   silently dropped.
 - **`traits::hue_tag`**: shared tag for circular hue channels (family-local
   `h_tag` names alias it, same pattern as `alpha_tag`).
+- **`traits::chroma_tag`**: shared tag for saturation/chroma channels
+  (family-local `s_tag`/`c_tag` names alias it; CMYK's cyan keeps its own
+  tag), letting generic code find "how colorful is this color?" — zero
+  chroma means the stored hue is meaningless.
+- **Perceptual distance API**: `perceptual_distance` /
+  `perceptual_distance_de2000` (weights pass through) and
+  `perceptual_distance_ok` return the raw ΔE value for ranking, bucketing,
+  and closest-color searches that previously had to re-derive it.
+- **`std::hash` and `operator<` for colors**: colors work as
+  `std::unordered_map` keys (channel-wise combine; `a == b` implies equal
+  hashes; ±0.0 agree) and `std::map` keys (lexicographic channel order,
+  strict weak ordering). The new `COLORCPP_ENABLE_HASH(Family)` macro is
+  invoked for the 13 family classes next to
+  `COLORCPP_ENABLE_STRUCTURED_BINDINGS` — a partial specialization on the
+  `basic_color` base alone does not match derived family types. NaN channel
+  values have unspecified ordering and cannot be re-found by key lookup; do
+  not use NaN-containing colors as keys.
+- **Channel policies reject non-colors at the boundary**: `compare_channels`
+  guards entry with a `static_assert` (`is_channel_color_v`) so
+  `compare::equal(42, 42)` fails with one clear message instead of a cascade
+  of deep template errors (locked by the `fail_equal_non_color` compile-fail
+  test).
 - **`contrast_generator::try_next()`**: overload set returning
   `std::optional<Color>` — `std::nullopt` when no candidate meets `min_ratio`
   within `max_attempts`. `next()` keeps its best-effort contract (may return a
@@ -199,6 +236,13 @@ All notable changes to `colorcpp` are documented here.
   duplicated boilerplate removed); no behavior change.
 
 ### Changed
+
+- **`compare.hpp` include surface**: `compare/equal.hpp` now pulls only the
+  default exact policy — the generic `equal<Policy>` dispatch is
+  policy-agnostic, so a light TU includes the individual policy headers and
+  never sees the conversion/ΔE graph. The aggregate
+  `<colorcpp/operations/compare.hpp>` still includes every policy (unchanged
+  behavior for aggregate users).
 
 - **Colors are plain value types (breaking)**: construction and `set<Tag>` no
   longer validate against nominal channel ranges and never throw; values are

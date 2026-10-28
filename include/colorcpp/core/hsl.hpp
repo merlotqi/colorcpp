@@ -12,8 +12,8 @@ namespace colorcpp::core::hsl {
 
 namespace channel {
 
-using h_tag = traits::hue_tag;    // hue (shared ring tag)
-struct s_tag {};                  // saturation
+using h_tag = traits::hue_tag;      // hue (shared ring tag)
+using s_tag = traits::chroma_tag;   // saturation (shared chroma tag)
 struct l_tag {};                  // lightness
 using a_tag = traits::alpha_tag;  // alpha
 
@@ -85,3 +85,4 @@ COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_hsl)
 }  // namespace colorcpp::core
 
 COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_hsl)
+COLORCPP_ENABLE_HASH(colorcpp::core::basic_hsl)

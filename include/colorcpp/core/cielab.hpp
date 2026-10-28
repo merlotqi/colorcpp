@@ -20,7 +20,7 @@ namespace channel {
 struct l_tag {};  // lightness
 struct a_tag {};  // green-red axis (CIELAB)
 struct b_tag {};  // blue-yellow axis (CIELAB)
-struct c_tag {};  // chroma (CIELCH)
+using c_tag = traits::chroma_tag;  // chroma (CIELCH, shared chroma tag)
 using h_tag = traits::hue_tag;  // hue angle (CIELCH, shared ring tag)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = static_cast<T>(Min) / static_cast<T>(Den) ... Max/Den
@@ -98,3 +98,4 @@ COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_lab)
 }  // namespace colorcpp::core
 
 COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_lab)
+COLORCPP_ENABLE_HASH(colorcpp::core::basic_lab)

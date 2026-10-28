@@ -5,10 +5,12 @@
 
 #pragma once
 
-#include <colorcpp/operations/compare/epsilon.hpp>
+// Deliberately light: only the default policy (exact) is pulled in. Other
+// policies are reachable through the generic equal<Policy> dispatch but live
+// in their own headers — include <colorcpp/operations/compare.hpp> (aggregate)
+// or the specific policy header. This keeps the conversion/ΔE graph out of
+// translation units that only need exact or epsilon comparison.
 #include <colorcpp/operations/compare/exact.hpp>
-#include <colorcpp/operations/compare/perceptual.hpp>
-#include <colorcpp/operations/compare/relative.hpp>
 #include <utility>
 
 namespace colorcpp::operations::compare {

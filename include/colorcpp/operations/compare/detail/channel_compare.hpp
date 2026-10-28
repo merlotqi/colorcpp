@@ -44,22 +44,31 @@ constexpr bool channel_epsilon(T a, T b, T eps) noexcept {
 }
 
 /**
- * @brief Compare two values within relative tolerance.
+ * @brief Compare two values within relative tolerance with an absolute floor.
+ *
+ * The tolerance is a real ratio (@c double), not @p T: on integer channels a
+ * value_type tolerance would truncate every ratio below 100% to zero.
+ *
  * @tparam T Value type.
  * @param a First value.
  * @param b Second value.
- * @param rel Relative tolerance.
- * @return True if values are within relative tolerance.
+ * @param rel Relative tolerance (as fraction of the larger value).
+ * @param abs_floor Absolute tolerance that dominates when larger (default 0: pure relative).
+ * @return True if values are within the combined tolerance.
  */
 template <typename T>
-constexpr bool channel_relative(T a, T b, T rel) noexcept {
+constexpr bool channel_relative(T a, T b, double rel, double abs_floor = 0.0) noexcept {
   if constexpr (std::is_floating_point_v<T>) {
-    return float_relative(a, b, rel);
+    return float_relative(a, b, static_cast<T>(rel), static_cast<T>(abs_floor));
   } else {
-    // For integer types, convert to float for relative comparison
+    // Negative rel or floor never matches, including for identical values.
+    if (rel < 0.0 || abs_floor < 0.0) return false;
+    // Integer channels: do the arithmetic in double so sub-100% ratios survive.
     const double diff = static_cast<double>(a > b ? a - b : b - a);
     const double max_val = static_cast<double>(a > b ? a : b);
-    return diff <= rel * max_val;
+    const double rel_bound = rel * max_val;
+    const double tol = (rel_bound > abs_floor) ? rel_bound : abs_floor;
+    return diff <= tol;
   }
 }
 
@@ -87,11 +96,37 @@ constexpr T circular_diff(T a, T b, T range) noexcept {
 }
 
 /**
+ * @brief Whether the color carries a shared chroma channel (HSL/HSV S, CIELCH/OkLCH C).
+ */
+template <typename Color>
+inline constexpr bool has_chroma_channel_v =
+    traits::details::has_channel_tag_impl<typename Color::channels_tuple, traits::chroma_tag>::value;
+
+/**
+ * @brief Achromatic iff the chroma channel is exactly zero.
+ *
+ * At zero chroma the stored hue is meaningless (a gray at h = 0 is the same
+ * gray at h = 180), so policies may skip the hue comparison for pairs where
+ * both sides are achromatic. Models without a chroma channel (HWB, RGB) are
+ * never achromatic here and keep plain hue-ring semantics.
+ */
+template <typename Color>
+constexpr bool is_achromatic(const Color& c) noexcept {
+  if constexpr (has_chroma_channel_v<Color>) {
+    return c.template get<traits::chroma_tag>() == typename Color::value_type(0);
+  } else {
+    return false;
+  }
+}
+
+/**
  * @brief Compare one channel of two colors, dispatching on hue vs linear semantics.
  *
  * Linear channels are handed to @p linear_comp as the raw value pair. Hue
  * channels are compared on the ring: both raw values and their circular
- * distance are handed to @p hue_comp.
+ * distance are handed to @p hue_comp. When both colors are achromatic
+ * (@ref is_achromatic), the hue pair short-circuits to true — the stored hue
+ * carries no information without chroma.
  */
 template <std::size_t Is, typename Color, typename LinearComp, typename HueComp>
 constexpr bool compare_one_channel(const Color& a, const Color& b, LinearComp linear_comp, HueComp hue_comp) noexcept {
@@ -99,6 +134,9 @@ constexpr bool compare_one_channel(const Color& a, const Color& b, LinearComp li
   const auto va = a.template get_index<Is>();
   const auto vb = b.template get_index<Is>();
   if constexpr (is_hue_channel_v<channel_t>) {
+    if constexpr (has_chroma_channel_v<Color>) {
+      if (is_achromatic(a) && is_achromatic(b)) return true;
+    }
     using T = typename channel_t::value_type;
     constexpr T range = channel_t::max - channel_t::min;
     return hue_comp(va, vb, circular_diff(va, vb, range));
@@ -126,6 +164,20 @@ constexpr bool compare_channels_impl(const Color& a, const Color& b, LinearComp 
 }
 
 /**
+ * @brief True if @p Color exposes the channel-color interface used here
+ *        (@c channels_tuple, channel count, indexed access).
+ *
+ * Guards policy entry points so non-color arguments fail with one clear
+ * static_assert instead of a cascade of deep template errors.
+ */
+template <typename Color, typename = void>
+inline constexpr bool is_channel_color_v = false;
+
+template <typename Color>
+inline constexpr bool is_channel_color_v<Color, std::void_t<typename Color::channels_tuple, decltype(Color::channels)>>
+    = true;
+
+/**
  * @brief Compare all channels of two colors (linear + hue-aware).
  * @param linear_comp Predicate for non-hue channels: (value_a, value_b).
  * @param hue_comp Predicate for hue channels: (value_a, value_b, circular_diff).
@@ -133,6 +185,8 @@ constexpr bool compare_channels_impl(const Color& a, const Color& b, LinearComp 
  */
 template <typename LinearComp, typename HueComp, typename Color>
 constexpr bool compare_channels(const Color& a, const Color& b, LinearComp linear_comp, HueComp hue_comp) noexcept {
+  static_assert(is_channel_color_v<Color>,
+                "colorcpp: channel comparison requires a color type (e.g. core::rgb8_t)");
   return compare_channels_impl(a, b, linear_comp, hue_comp, std::make_index_sequence<Color::channels>{});
 }
 

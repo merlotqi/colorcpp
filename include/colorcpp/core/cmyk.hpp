@@ -91,3 +91,4 @@ COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_cmyk)
 }  // namespace colorcpp::core
 
 COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_cmyk)
+COLORCPP_ENABLE_HASH(colorcpp::core::basic_cmyk)

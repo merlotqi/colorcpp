@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <colorcpp/core/concepts.hpp>
+#include <functional>
 #include <stdexcept>
 #include <tuple>
 #include <type_traits>
@@ -123,11 +124,33 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
    */
   constexpr bool operator!=(const basic_color& other) const noexcept { return !(*this == other); }
 
+  /**
+   * @brief Lexicographic ordering on channel values (strict weak ordering).
+   *
+   * Enables @c std::map and sorting. The first differing channel (channel
+   * order) decides. NaN-containing channels have unspecified ordering — the
+   * usual IEEE caveat; do not use such colors as ordered-map keys.
+   */
+  constexpr bool operator<(const basic_color& other) const noexcept { return less_one<0>(other); }
+
  private:
   // Helper for exact equality comparison
   template <std::size_t... Is>
   constexpr bool equal_impl(const basic_color& other, std::index_sequence<Is...>) const noexcept {
     return ((get_index<Is>() == other.get_index<Is>()) && ...);
+  }
+
+  // Lexicographic less: at each index either the channel decides, or equality
+  // defers to the next index; no channels left to differ means "not less".
+  template <std::size_t I>
+  constexpr bool less_one(const basic_color& other) const noexcept {
+    if constexpr (I >= channels) {
+      return false;
+    } else if (get_index<I>() != other.get_index<I>()) {
+      return get_index<I>() < other.get_index<I>();
+    } else {
+      return less_one<I + 1>(other);
+    }
   }
 
   template <std::size_t... Is, typename... Args>
@@ -247,6 +270,41 @@ struct tuple_element<I, colorcpp::core::basic_color<Model>> {
 
 }  // namespace std
 
+namespace colorcpp::core::detail {
+
+/** @brief Channel-wise hash: equal colors produce equal hashes (std::hash contract). */
+template <typename Model, std::size_t... Is>
+std::size_t hash_channels(const basic_color<Model>& c, std::index_sequence<Is...>) noexcept {
+  // All channels share one scalar type (std::array storage requirement).
+  using T = typename basic_color<Model>::value_type;
+  std::size_t seed = 0;
+  // boost-style combine; channel order is part of the contract.
+  ((seed ^= std::hash<T>{}(static_cast<T>(c.template get_index<Is>())) + 0x9e3779b9 + (seed << 6) + (seed >> 2)),
+   ...);
+  return seed;
+}
+
+}  // namespace colorcpp::core::detail
+
+namespace std {
+
+/**
+ * @brief std::hash for @ref colorcpp::core::basic_color — enables @c std::unordered_map.
+ *
+ * Combines the per-channel std::hash values in channel order. Float channels
+ * inherit the standard-library contract (+0.0 and -0.0 hash equally). NaN
+ * channel values hash like other values but never compare equal, so NaN colors
+ * cannot be found again by key lookup — do not use them as hash-map keys.
+ */
+template <typename Model>
+struct hash<colorcpp::core::basic_color<Model>> {
+  std::size_t operator()(const colorcpp::core::basic_color<Model>& c) const noexcept {
+    return colorcpp::core::detail::hash_channels(c, std::make_index_sequence<colorcpp::traits::model_channel_count_v<Model>>{});
+  }
+};
+
+}  // namespace std
+
 /**
  * @brief Enables structured bindings for a color family class (e.g. @c basic_rgba).
  *
@@ -267,6 +325,29 @@ struct tuple_element<I, colorcpp::core::basic_color<Model>> {
     using channels = typename ::colorcpp::traits::model_traits<Model>::channels_type;             \
     using type = typename std::tuple_element_t<I, channels>::value_type;                          \
   };                                                                                              \
+  }
+
+/**
+ * @brief Declares @c std::hash for a color family class (e.g. @c basic_rgba), enabling
+ *        @c std::unordered_map with color keys.
+ *
+ * A partial specialization on the family template — the base-class specialization on
+ * @ref basic_color does not match derived family types. Channel-wise combine, equal to
+ * the @c basic_color version (equal colors hash equally). Invoke once per family at
+ * global scope, next to its @c COLORCPP_ENABLE_STRUCTURED_BINDINGS:
+ * @code
+ * COLORCPP_ENABLE_HASH(colorcpp::core::basic_rgba)
+ * @endcode
+ */
+#define COLORCPP_ENABLE_HASH(Family)                                                                \
+  namespace std {                                                                                   \
+  template <typename Model>                                                                         \
+  struct hash<Family<Model>> {                                                                      \
+    std::size_t operator()(const Family<Model>& c) const noexcept {                                 \
+      return ::colorcpp::core::detail::hash_channels(                                               \
+          c, std::make_index_sequence<::colorcpp::traits::model_channel_count_v<Model>>{});         \
+    }                                                                                               \
+  };                                                                                                \
   }
 
 /**

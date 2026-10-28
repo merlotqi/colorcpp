@@ -113,3 +113,4 @@ COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_rec2020)
 }  // namespace colorcpp::core
 
 COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_rec2020)
+COLORCPP_ENABLE_HASH(colorcpp::core::basic_rec2020)

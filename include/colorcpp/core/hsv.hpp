@@ -12,9 +12,9 @@ namespace colorcpp::core::hsv {
 
 namespace channel {
 
-using h_tag = traits::hue_tag;    // hue (shared ring tag)
-struct s_tag {};                  // saturation
-struct v_tag {};                  // value
+using h_tag = traits::hue_tag;      // hue (shared ring tag)
+using s_tag = traits::chroma_tag;   // saturation (shared chroma tag)
+struct v_tag {};                    // value
 using a_tag = traits::alpha_tag;  // alpha
 
 using f32_hue = traits::basic_channel<h_tag, float, 0, 360, 1>;
@@ -86,3 +86,4 @@ COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_hsv)
 }  // namespace colorcpp::core
 
 COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_hsv)
+COLORCPP_ENABLE_HASH(colorcpp::core::basic_hsv)

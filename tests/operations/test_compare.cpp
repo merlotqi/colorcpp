@@ -6,6 +6,9 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+#include <functional>
+#include <map>
+#include <unordered_map>
 
 namespace colorcpp::operations::test {
 
@@ -28,6 +31,58 @@ TEST(OperatorCompareTest, DifferentColorsAreNotEqual) {
   rgb8_t b{128, 64, 33};
   EXPECT_FALSE(a == b);
   EXPECT_TRUE(a != b);
+}
+
+// ============================================================================
+// Ordering and hashing (std::map / std::unordered_map usability)
+// ============================================================================
+
+TEST(ColorOrderingTest, LexicographicLess) {
+  // Strict weak ordering, channel order: first differing channel decides.
+  rgb8_t a{1, 2, 3};
+  rgb8_t b{1, 2, 4};
+  rgb8_t c{1, 3, 0};
+  EXPECT_TRUE(a < b);
+  EXPECT_FALSE(b < a);
+  EXPECT_TRUE(a < c);
+  EXPECT_FALSE(a < a);
+}
+
+TEST(ColorOrderingTest, OrderedMapFindWorks) {
+  std::map<rgb8_t, int> m;
+  m[rgb8_t{1, 2, 3}] = 1;
+  m[rgb8_t{2, 0, 0}] = 2;
+  ASSERT_NE(m.find(rgb8_t{1, 2, 3}), m.end());
+  EXPECT_EQ(m.find(rgb8_t{1, 2, 3})->second, 1);
+  ASSERT_NE(m.find(rgb8_t{2, 0, 0}), m.end());
+  EXPECT_EQ(m.find(rgb8_t{2, 0, 0})->second, 2);
+  EXPECT_EQ(m.find(rgb8_t{1, 2, 4}), m.end());
+}
+
+TEST(ColorHashTest, EqualColorsHaveEqualHash) {
+  // std::unordered_map contract: a == b implies hash(a) == hash(b).
+  rgb8_t a{128, 64, 32};
+  rgb8_t b{128, 64, 32};
+  EXPECT_EQ(std::hash<rgb8_t>{}(a), std::hash<rgb8_t>{}(b));
+  rgbf_t x{0.5f, 0.3f, 0.7f};
+  rgbf_t y{0.5f, 0.3f, 0.7f};
+  EXPECT_EQ(std::hash<rgbf_t>{}(x), std::hash<rgbf_t>{}(y));
+}
+
+TEST(ColorHashTest, PositiveNegativeZeroHashMatch) {
+  // +0.0 == -0.0 channel-wise, so their hashes must agree too.
+  rgbf_t pos{0.0f, 0.3f, 0.7f};
+  rgbf_t neg{-0.0f, 0.3f, 0.7f};
+  EXPECT_TRUE(pos == neg);
+  EXPECT_EQ(std::hash<rgbf_t>{}(pos), std::hash<rgbf_t>{}(neg));
+}
+
+TEST(ColorHashTest, UnorderedMapFindWorks) {
+  std::unordered_map<rgb8_t, int> m;
+  m[rgb8_t{10, 20, 30}] = 42;
+  auto it = m.find(rgb8_t{10, 20, 30});
+  ASSERT_NE(it, m.end());
+  EXPECT_EQ(it->second, 42);
 }
 
 // ============================================================================
@@ -130,6 +185,39 @@ TEST(RelativeCompareTest, OutsideRelative) {
 // ============================================================================
 // Perceptual comparison tests
 // ============================================================================
+
+TEST(RelativeCompareTest, IntegerSubPercentTolerance) {
+  // Before the fix the tolerance parameter was Color::value_type:
+  // 0.02f truncated to uint8_t was 0, so integer relative could not express
+  // any ratio below 100% and degenerated to exact equality.
+  rgb8_t a{100, 50, 200};
+  rgb8_t b{101, 50, 200};
+  EXPECT_TRUE(relative_equal(a, b, 0.02f));
+  EXPECT_FALSE(relative_equal(a, b, 0.001f));
+}
+
+TEST(RelativeCompareTest, NearZeroUsesAbsFloor) {
+  // Pure relative fails near zero: rel * max(|a|,|b|) = 1e-7 cannot cover 1e-4.
+  // The absolute floor (isclose-style) does.
+  rgbf_t a{0.0f, 0.5f, 0.5f};
+  rgbf_t b{1e-4f, 0.5f, 0.5f};
+  EXPECT_TRUE(relative_equal(a, b, 1e-3f, 1e-3f));
+  EXPECT_FALSE(relative_equal(a, b, 1e-3f));
+}
+
+TEST(RelativeCompareTest, NegativeRelativeNeverMatches) {
+  // Before the fix the `a == b` early return made identical floats "equal"
+  // even with a negative tolerance (the integer path rejects that).
+  rgbf_t a{0.5f, 0.3f, 0.7f};
+  EXPECT_FALSE(relative_equal(a, a, -0.1f));
+}
+
+TEST(RelativeCompareTest, DefaultRgb8StaysEffectiveExact) {
+  // Default rel is tiny; for integer channels that still means "equal or not".
+  rgb8_t a{100, 50, 200};
+  rgb8_t b{101, 50, 200};
+  EXPECT_FALSE(relative_equal(a, b));
+}
 
 TEST(PerceptualCompareTest, IdenticalColors) {
   rgb8_t a{128, 64, 32};
@@ -239,6 +327,21 @@ TEST(PerceptualCompareTest, WeightsPassthrough) {
   EXPECT_FALSE(perceptual_equal(a, b, heavy_kl * 0.5f, alpha_mode::ignore, 10.0f, 1.0f, 1.0f));
 }
 
+TEST(PerceptualCompareTest, DistanceApiMatchesDeltaE) {
+  rgb8_t a{128, 64, 32};
+  rgb8_t b{130, 65, 33};
+  EXPECT_NEAR(perceptual_distance(a, b), algorithms::delta_e::delta_e_2000(a, b), 1e-6f);
+  EXPECT_NEAR(perceptual_distance_de2000(a, b), algorithms::delta_e::delta_e_2000(a, b), 1e-6f);
+  EXPECT_NEAR(perceptual_distance_ok(a, b), algorithms::delta_e::delta_e_ok(a, b), 1e-6f);
+}
+
+TEST(PerceptualCompareTest, DistanceApiWeightsPassthrough) {
+  rgb8_t a{128, 64, 32};
+  rgb8_t b{130, 65, 33};
+  EXPECT_NEAR(perceptual_distance_de2000(a, b, 10.0f, 1.0f, 1.0f),
+              algorithms::delta_e::delta_e_2000(a, b, 10.0f, 1.0f, 1.0f), 1e-6f);
+}
+
 TEST(CompareCrossTypeTest, Rgb8VsRgbaf) {
   rgb8_t a{128, 64, 32};
   rgbaf_t b{128.0f / 255.0f, 64.0f / 255.0f, 32.0f / 255.0f, 1.0f};
@@ -288,6 +391,40 @@ TEST(EpsilonCompareTest, HueShortestArcRejectsWideGap) {
 TEST(RelativeCompareTest, HueWraparoundEqual) {
   hsl_float_t a{0.0f, 0.8f, 0.5f};
   hsl_float_t b{360.0f, 0.8f, 0.5f};
+  EXPECT_TRUE(relative_equal(a, b, 1e-3f));
+}
+
+TEST(ExactCompareTest, AchromaticHueIsIgnored) {
+  // Saturation/chroma is zero on both sides: the stored hue is meaningless,
+  // so a gray at h = 0 and the same gray at h = 180 must compare equal.
+  hsl_float_t a{0.0f, 0.0f, 0.5f};
+  hsl_float_t b{180.0f, 0.0f, 0.5f};
+  EXPECT_TRUE(exact_equal(a, b));
+  EXPECT_TRUE(equal(a, b));
+}
+
+TEST(ExactCompareTest, AchromaticHueIsIgnoredOklch) {
+  oklch_t a{0.7f, 0.0f, 0.0f};
+  oklch_t b{0.7f, 0.0f, 200.0f};
+  EXPECT_TRUE(exact_equal(a, b));
+}
+
+TEST(ExactCompareTest, OneAchromaticStillDiffersOnChroma) {
+  // Hue is only skipped when BOTH sides are achromatic; here saturation differs.
+  hsl_float_t gray{0.0f, 0.0f, 0.5f};
+  hsl_float_t tinted{0.0f, 0.5f, 0.5f};
+  EXPECT_FALSE(exact_equal(gray, tinted));
+}
+
+TEST(EpsilonCompareTest, AchromaticHueIsIgnored) {
+  hsl_float_t a{0.0f, 0.0f, 0.5f};
+  hsl_float_t b{180.0f, 0.0f, 0.5f};
+  EXPECT_TRUE(epsilon_equal(a, b, 0.01f));
+}
+
+TEST(RelativeCompareTest, AchromaticHueIsIgnored) {
+  hsl_float_t a{0.0f, 0.0f, 0.5f};
+  hsl_float_t b{180.0f, 0.0f, 0.5f};
   EXPECT_TRUE(relative_equal(a, b, 1e-3f));
 }
 

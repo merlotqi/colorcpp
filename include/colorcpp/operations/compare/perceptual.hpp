@@ -146,4 +146,43 @@ bool perceptual_equal_ok(const ColorA& a, const ColorB& b,
   return perceptual_oklab_policy::compare(a, b, threshold, am);
 }
 
+/**
+ * @brief Perceptual distance (CIEDE2000) between two colors.
+ *
+ * The value behind the boolean: thresholds, bucketing, and closest-color
+ * searches can rank candidates directly instead of re-deriving ΔE.
+ *
+ * @param a First color.
+ * @param b Second color.
+ * @param kL Lightness weight.
+ * @param kC Chroma weight.
+ * @param kH Hue weight.
+ * @return ΔE2000 distance (no threshold, no alpha gate).
+ */
+template <typename ColorA, typename ColorB>
+float perceptual_distance_de2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f,
+                                 float kH = 1.0f) {
+  return de2000_metric::distance(a, b, kL, kC, kH);
+}
+
+/**
+ * @brief Perceptual distance (CIEDE2000) between two colors (alias of @ref perceptual_distance_de2000).
+ */
+template <typename ColorA, typename ColorB>
+float perceptual_distance(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f,
+                          float kH = 1.0f) {
+  return perceptual_distance_de2000(a, b, kL, kC, kH);
+}
+
+/**
+ * @brief Perceptual distance (OkLab Euclidean) between two colors.
+ * @param a First color.
+ * @param b Second color.
+ * @return ΔE_OK distance on the JND ≈ 0.02 scale.
+ */
+template <typename ColorA, typename ColorB>
+float perceptual_distance_ok(const ColorA& a, const ColorB& b) {
+  return oklab_metric::distance(a, b, 1.0f, 1.0f, 1.0f);
+}
+
 }  // namespace colorcpp::operations::compare

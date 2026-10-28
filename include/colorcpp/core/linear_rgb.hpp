@@ -89,3 +89,4 @@ COLORCPP_STREAM_OPERATORS(colorcpp::core::basic_linear_rgba)
 }  // namespace colorcpp::core
 
 COLORCPP_ENABLE_STRUCTURED_BINDINGS(colorcpp::core::basic_linear_rgba)
+COLORCPP_ENABLE_HASH(colorcpp::core::basic_linear_rgba)

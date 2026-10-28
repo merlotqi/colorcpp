@@ -79,6 +79,16 @@ struct alpha_tag {};
 struct hue_tag {};
 
 /**
+ * @brief Shared tag for saturation/chroma channels (the amount of color at a hue).
+ *
+ * Every saturation (HSL/HSV S) and chroma (CIELCH/OkLCH C) channel uses this tag (family-local
+ * @c s_tag / @c c_tag names alias it, same pattern as @ref alpha_tag and @ref hue_tag), so generic
+ * code can find "how colorful is this color?" by tag: a chroma channel of zero means the color is
+ * achromatic and its hue is meaningless. CMYK's cyan channel keeps its own tag.
+ */
+struct chroma_tag {};
+
+/**
  * @brief Declares one channel: tag, scalar type, and inclusive range as rational Min/Den … Max/Den.
  * @tparam Den Normalization denominator (default 1 — the range is simply Min … Max; use Den > 1 for fractional
  * ranges such as Oklab's [-0.5, 0.5] declared as <-50, 50, 100>). Integral @c T must use @c Den = 1 with @c Min >= 0.
