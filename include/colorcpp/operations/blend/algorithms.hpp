@@ -34,12 +34,17 @@ struct algorithms {
   // hard_light = overlay with roles swapped (src controls the threshold)
   static constexpr float hard_light(float a, float b) { return overlay(b, a); }
 
+  // W3C branch order: the backdrop edge (Cb == 0 / Cb == 1) is checked
+  // before the source edge, so ColorDodge(black, white) = 0 and
+  // ColorBurn(white, black) = 1, matching CSS.
   static constexpr float color_dodge(float a, float b) {
+    if (a <= 0.0f) return 0.0f;
     if (b >= 1.0f) return 1.0f;
     return std::min(1.0f, a / (1.0f - b));
   }
 
   static constexpr float color_burn(float a, float b) {
+    if (a >= 1.0f) return 1.0f;
     if (b <= 0.0f) return 0.0f;
     return 1.0f - std::min(1.0f, (1.0f - a) / b);
   }

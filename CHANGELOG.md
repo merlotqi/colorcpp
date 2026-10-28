@@ -171,6 +171,18 @@ All notable changes to `colorcpp` are documented here.
   to the result type and alpha attaches through the result's own
   `alpha_tag` channel (`details::lerp_result`); RGB result types still clamp
   through the normal conversion path.
+- **Non-separable blend modes use the W3C Lum coefficients**
+  (`blend/non_separable.hpp`): `lum()` used the unrounded Rec.601 weights
+  0.299/0.587/0.114 instead of the Compositing-1 values 0.3/0.59/0.11, so
+  `hue`/`saturation`/`color_blend`/`luminosity` deviated from CSS by up to
+  0.037 per channel (worst on `color_blend`). The SetLum/SetSat/ClipColor
+  formulas themselves were already exact.
+- **`color_dodge` / `color_burn` follow the W3C branch order**
+  (`blend/algorithms.hpp`): the spec checks the backdrop edge (`Cb == 0` /
+  `Cb == 1`) before the source edge; colorcpp checked `Cs == 1` / `Cs == 0`
+  first, so `color_dodge(black, white)` returned 1 (spec: 0) and
+  `color_burn(white, black)` returned 0 (spec: 1) — opposite results on pure
+  black/white channels.
 
 ### Added
 

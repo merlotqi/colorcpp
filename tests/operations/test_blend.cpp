@@ -155,22 +155,123 @@ TEST(BlendTest, HalfOpacityBlend) {
   EXPECT_NEAR(result.r(), 0.5f, 1e-3f);
 }
 
-// Non-separable modes
+// Overlay / hard-light
 
-TEST(BlendTest, HueModeDoesNotCrash) {
-  auto result = do_blend(0.5f, 0.2f, 0.8f, 1.0f, 0.8f, 0.4f, 0.1f, 1.0f, blend_mode::hue);
-  EXPECT_GE(result.r(), 0.0f);
-  EXPECT_LE(result.r(), 1.0f);
-  EXPECT_GE(result.g(), 0.0f);
-  EXPECT_LE(result.g(), 1.0f);
-  EXPECT_GE(result.b(), 0.0f);
-  EXPECT_LE(result.b(), 1.0f);
+TEST(BlendTest, OverlayLowBackdropBranch) {
+  // overlay(Cb=0.4, Cs=0.7) = 2 * Cb * Cs = 0.56
+  auto result = do_blend(0.4f, 0.4f, 0.4f, 1.0f, 0.7f, 0.7f, 0.7f, 1.0f, blend_mode::overlay);
+  EXPECT_NEAR(result.r(), 0.56f, 1e-5f);
 }
 
-TEST(BlendTest, LuminosityModeDoesNotCrash) {
-  auto result = do_blend(0.3f, 0.6f, 0.9f, 1.0f, 0.1f, 0.5f, 0.7f, 1.0f, blend_mode::luminosity);
-  EXPECT_GE(result.r(), 0.0f);
-  EXPECT_LE(result.r(), 1.0f);
+TEST(BlendTest, OverlayHighBackdropBranch) {
+  // overlay(Cb=0.7, Cs=0.8) = 1 - 2*(1-Cb)*(1-Cs) = 0.88
+  auto result = do_blend(0.7f, 0.7f, 0.7f, 1.0f, 0.8f, 0.8f, 0.8f, 1.0f, blend_mode::overlay);
+  EXPECT_NEAR(result.r(), 0.88f, 1e-5f);
+}
+
+TEST(BlendTest, HardLightThresholdOnSource) {
+  // hard_light(Cb=0.6, Cs=0.3) = 2*Cb*Cs = 0.36 (Cs <= 0.5)
+  auto lo = do_blend(0.6f, 0.6f, 0.6f, 1.0f, 0.3f, 0.3f, 0.3f, 1.0f, blend_mode::hard_light);
+  EXPECT_NEAR(lo.r(), 0.36f, 1e-5f);
+  // hard_light(Cb=0.6, Cs=0.8) = 1 - 2*(1-Cb)*(1-Cs) = 0.84 (Cs > 0.5)
+  auto hi = do_blend(0.6f, 0.6f, 0.6f, 1.0f, 0.8f, 0.8f, 0.8f, 1.0f, blend_mode::hard_light);
+  EXPECT_NEAR(hi.r(), 0.84f, 1e-5f);
+}
+
+// Soft light (W3C formula, all three branches)
+
+TEST(BlendTest, SoftLightFormulaBranches) {
+  // Cs <= 0.5: Cb - (1-2Cs)*Cb*(1-Cb)
+  auto s1 = do_blend(0.4f, 0.4f, 0.4f, 1.0f, 0.3f, 0.3f, 0.3f, 1.0f, blend_mode::soft_light);
+  EXPECT_NEAR(s1.r(), 0.304f, 1e-5f);
+  // Cs > 0.5, Cb <= 0.25: D(Cb) = ((16Cb-12)Cb+4)Cb
+  auto s2 = do_blend(0.2f, 0.2f, 0.2f, 1.0f, 0.8f, 0.8f, 0.8f, 1.0f, blend_mode::soft_light);
+  EXPECT_NEAR(s2.r(), 0.3488f, 1e-5f);
+  // Cs > 0.5, Cb > 0.25: D(Cb) = sqrt(Cb)
+  auto s3 = do_blend(0.6f, 0.6f, 0.6f, 1.0f, 0.8f, 0.8f, 0.8f, 1.0f, blend_mode::soft_light);
+  EXPECT_NEAR(s3.r(), 0.704758f, 1e-5f);
+}
+
+// Color dodge / burn (W3C branch order: backdrop edge checked first)
+
+TEST(BlendTest, ColorDodgeFormula) {
+  // color_dodge(Cb=0.5, Cs=0.25) = min(1, 0.5/0.75) = 2/3
+  auto mid = do_blend(0.5f, 0.5f, 0.5f, 1.0f, 0.25f, 0.25f, 0.25f, 1.0f, blend_mode::color_dodge);
+  EXPECT_NEAR(mid.r(), 0.6666667f, 1e-5f);
+  // Cs == 1 (Cb > 0) saturates to 1
+  auto sat1 = do_blend(0.2f, 0.2f, 0.2f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, blend_mode::color_dodge);
+  EXPECT_NEAR(sat1.r(), 1.0f, 1e-5f);
+}
+
+TEST(BlendTest, ColorDodgeBlackBackdropIsBlack) {
+  // W3C checks Cb == 0 before Cs == 1: ColorDodge(black, white) = 0, not 1.
+  auto result = do_blend(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, blend_mode::color_dodge);
+  EXPECT_NEAR(result.r(), 0.0f, 1e-6f);
+}
+
+TEST(BlendTest, ColorBurnFormula) {
+  // color_burn(Cb=0.5, Cs=0.25) = 1 - min(1, 0.5/0.25) = 0
+  auto dark = do_blend(0.5f, 0.5f, 0.5f, 1.0f, 0.25f, 0.25f, 0.25f, 1.0f, blend_mode::color_burn);
+  EXPECT_NEAR(dark.r(), 0.0f, 1e-6f);
+  // color_burn(Cb=0.8, Cs=0.6) = 1 - min(1, 0.2/0.6) = 2/3
+  auto mid = do_blend(0.8f, 0.8f, 0.8f, 1.0f, 0.6f, 0.6f, 0.6f, 1.0f, blend_mode::color_burn);
+  EXPECT_NEAR(mid.r(), 0.6666667f, 1e-5f);
+}
+
+TEST(BlendTest, ColorBurnWhiteBackdropIsWhite) {
+  // W3C checks Cb == 1 before Cs == 0: ColorBurn(white, black) = 1, not 0.
+  auto result = do_blend(1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, blend_mode::color_burn);
+  EXPECT_NEAR(result.r(), 1.0f, 1e-6f);
+}
+
+// Divide (non-W3C extension: dst / src, src <= 0 -> 1)
+
+TEST(BlendTest, DivideFormula) {
+  // divide(0.6, 0.4) = min(1, 1.5) = 1
+  auto clamped = do_blend(0.6f, 0.6f, 0.6f, 1.0f, 0.4f, 0.4f, 0.4f, 1.0f, blend_mode::divide);
+  EXPECT_NEAR(clamped.r(), 1.0f, 1e-6f);
+  // divide(0.3, 0.6) = 0.5
+  auto mid = do_blend(0.3f, 0.3f, 0.3f, 1.0f, 0.6f, 0.6f, 0.6f, 1.0f, blend_mode::divide);
+  EXPECT_NEAR(mid.r(), 0.5f, 1e-5f);
+  // src == 0 -> 1 (documented convention)
+  auto zero = do_blend(0.4f, 0.4f, 0.4f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, blend_mode::divide);
+  EXPECT_NEAR(zero.r(), 1.0f, 1e-6f);
+}
+
+// Non-separable modes
+//
+// Expected values are the W3C Compositing-1 algorithm evaluated in double
+// precision with the spec coefficients Lum = 0.3*R + 0.59*G + 0.11*B, for
+// dst = (0.8, 0.2, 0.6) and src = (0.3, 0.9, 0.1), both opaque (the result
+// is then exactly the blend function B(dst, src)).
+
+TEST(BlendTest, HueModeAppliesW3CReference) {
+  auto result = do_blend(0.8f, 0.2f, 0.6f, 1.0f, 0.3f, 0.9f, 0.1f, 1.0f, blend_mode::hue);
+  EXPECT_NEAR(result.r(), 0.175f, 1e-5f);
+  EXPECT_NEAR(result.g(), 0.625f, 1e-5f);
+  EXPECT_NEAR(result.b(), 0.025f, 1e-5f);
+}
+
+TEST(BlendTest, SaturationModeAppliesW3CReference) {
+  auto result = do_blend(0.8f, 0.2f, 0.6f, 1.0f, 0.3f, 0.9f, 0.1f, 1.0f, blend_mode::saturation);
+  EXPECT_NEAR(result.r(), 0.925333f, 1e-5f);
+  EXPECT_NEAR(result.g(), 0.125333f, 1e-5f);
+  EXPECT_NEAR(result.b(), 0.658667f, 1e-5f);
+}
+
+TEST(BlendTest, ColorBlendModeAppliesW3CReference) {
+  auto result = do_blend(0.8f, 0.2f, 0.6f, 1.0f, 0.3f, 0.9f, 0.1f, 1.0f, blend_mode::color_blend);
+  EXPECT_NEAR(result.r(), 0.159398f, 1e-5f);
+  EXPECT_NEAR(result.g(), 0.637594f, 1e-5f);
+  EXPECT_NEAR(result.b(), 0.0f, 1e-5f);
+}
+
+TEST(BlendTest, LuminosityModeAppliesW3CReference) {
+  // Also exercises ClipColor's x > 1 branch (shifted red overshoots 1.0).
+  auto result = do_blend(0.8f, 0.2f, 0.6f, 1.0f, 0.3f, 0.9f, 0.1f, 1.0f, blend_mode::luminosity);
+  EXPECT_NEAR(result.r(), 1.0f, 1e-5f);
+  EXPECT_NEAR(result.g(), 0.412766f, 1e-5f);
+  EXPECT_NEAR(result.b(), 0.804255f, 1e-5f);
 }
 
 // type generality

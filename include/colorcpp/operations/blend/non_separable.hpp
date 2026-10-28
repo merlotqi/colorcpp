@@ -13,7 +13,9 @@ struct rgb3 {
   float r, g, b;
 };
 
-inline float lum(rgb3 c) { return 0.299f * c.r + 0.587f * c.g + 0.114f * c.b; }
+// W3C Compositing-1 Lum(): the spec coefficients are the rounded Rec.601
+// values (0.3/0.59/0.11), not 0.299/0.587/0.114 — CSS parity depends on it.
+inline float lum(rgb3 c) { return 0.3f * c.r + 0.59f * c.g + 0.11f * c.b; }
 
 inline float sat(rgb3 c) { return std::max({c.r, c.g, c.b}) - std::min({c.r, c.g, c.b}); }
 
