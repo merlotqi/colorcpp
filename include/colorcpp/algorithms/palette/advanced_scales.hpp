@@ -214,38 +214,31 @@ core::palette_set<Color> spline_scale(
       auto c2 = color_cast<core::oklab_t>(control_points[i2]);
       auto c3 = color_cast<core::oklab_t>(control_points[i3]);
 
-      // Apply parameterization
-      float t_L = operations::interpolate::details::cr_parameterize(
-          c0.template get_index<0>(), c1.template get_index<0>(), c2.template get_index<0>(),
-          c3.template get_index<0>(), t, mode);
-      float t_A = operations::interpolate::details::cr_parameterize(
-          c0.template get_index<1>(), c1.template get_index<1>(), c2.template get_index<1>(),
-          c3.template get_index<1>(), t, mode);
-      float t_B = operations::interpolate::details::cr_parameterize(
-          c0.template get_index<2>(), c1.template get_index<2>(), c2.template get_index<2>(),
-          c3.template get_index<2>(), t, mode);
+      // Joint knots (uniform / centripetal / chordal) and non-uniform Catmull-Rom
+      float knots[4];
+      operations::interpolate::details::cr_knots(operations::interpolate::details::cr_distance(c0, c1),
+                                                 operations::interpolate::details::cr_distance(c1, c2),
+                                                 operations::interpolate::details::cr_distance(c2, c3), mode, knots);
 
       core::oklab_t mid{std::clamp(operations::interpolate::details::catmull_rom(
-                                       c0.template get_index<0>(), c1.template get_index<0>(),
-                                       c2.template get_index<0>(), c3.template get_index<0>(), t_L),
+                                       knots, c0.template get_index<0>(), c1.template get_index<0>(),
+                                       c2.template get_index<0>(), c3.template get_index<0>(), t),
                                    0.0f, 1.0f),
                         std::clamp(operations::interpolate::details::catmull_rom(
-                                       c0.template get_index<1>(), c1.template get_index<1>(),
-                                       c2.template get_index<1>(), c3.template get_index<1>(), t_A),
+                                       knots, c0.template get_index<1>(), c1.template get_index<1>(),
+                                       c2.template get_index<1>(), c3.template get_index<1>(), t),
                                    -0.5f, 0.5f),
                         std::clamp(operations::interpolate::details::catmull_rom(
-                                       c0.template get_index<2>(), c1.template get_index<2>(),
-                                       c2.template get_index<2>(), c3.template get_index<2>(), t_B),
+                                       knots, c0.template get_index<2>(), c1.template get_index<2>(),
+                                       c2.template get_index<2>(), c3.template get_index<2>(), t),
                                    -0.5f, 0.5f)};
 
-      // Interpolate alpha
-      auto r1 = color_cast<core::rgbaf_t>(control_points[i1]);
-      auto r2 = color_cast<core::rgbaf_t>(control_points[i2]);
-      auto out = color_cast<core::rgbaf_t>(mid);
-      out.template get_index<3>() =
-          operations::interpolate::details::lerp_f(r1.template get_index<3>(), r2.template get_index<3>(), t);
-
-      p.add(color_cast<Color>(out));
+      // Interpolate alpha between the segment endpoints; keep the OkLab mid
+      // out of the RGB round-trip so wide-space targets are not gamut-clamped.
+      p.add(operations::interpolate::details::lerp_result<Color>(
+          mid, operations::interpolate::details::lerp_f(operations::interpolate::details::src_alpha(control_points[i1]),
+                                                        operations::interpolate::details::src_alpha(control_points[i2]),
+                                                        t)));
     }
   }
 

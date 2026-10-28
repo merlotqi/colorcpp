@@ -10,6 +10,7 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
+#include <colorcpp/operations/interpolate/lerp.hpp>
 
 namespace colorcpp::operations::interpolate {
 
@@ -72,14 +73,8 @@ Color lerp_monotonic_spline(const Color& p0, const Color& p1, const Color& p2, c
                     details::monotonic_spline(c0.template get_index<2>(), c1.template get_index<2>(),
                                               c2.template get_index<2>(), c3.template get_index<2>(), t)};
 
-  auto r0 = color_cast<core::rgbaf_t>(p0);
-  auto r1 = color_cast<core::rgbaf_t>(p1);
-  auto r2 = color_cast<core::rgbaf_t>(p2);
-  auto r3 = color_cast<core::rgbaf_t>(p3);
-  auto out = color_cast<core::rgbaf_t>(mid);
-  out.template get_index<3>() = details::monotonic_spline(r0.template get_index<3>(), r1.template get_index<3>(),
-                                                          r2.template get_index<3>(), r3.template get_index<3>(), t);
-  return color_cast<Color>(out);
+  return details::lerp_result<Color>(mid, details::monotonic_spline(details::src_alpha(p0), details::src_alpha(p1),
+                                                                    details::src_alpha(p2), details::src_alpha(p3), t));
 }
 
 /** @brief Backward-compatible alias for @ref lerp_monotonic_spline. */

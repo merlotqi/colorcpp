@@ -141,6 +141,36 @@ All notable changes to `colorcpp` are documented here.
   Negative-compilation tests in `tests/compile_fail/` pin the behavior
   (`ctest -R CompileFail`); `RuntimeOverflowThrows` is retired with the ULL
   overloads.
+- **`chroma_mode::preserve_safe` actually preserves** (`interpolate/gamut.hpp`):
+  `max_chroma_for` tested the gamut predicate through `color_cast<rgbaf_t>`,
+  whose channel clamping made it true for every chroma — the binary search
+  always returned its upper bound (~0.4, e.g. 5× the true value near white), so
+  `preserve_safe` was a no-op alias of `preserve` and out-of-gamut midpoints
+  were silently clamped at the end. The predicate now uses the unclamped
+  `algorithms::gamut::details::oklab_to_linrgb` + `linrgb_in_gamut` tools
+  (20-iteration search, ~4e-7 chroma precision).
+- **Non-uniform Catmull-Rom modes pass through their control points**
+  (`interpolate/catmull_rom.hpp`): `cr_mode::centripetal` / `chordal` remapped
+  `t` into the uniform basis (`g(0) = -d01/d12 ≠ 0`), so the curve at `t = 0`
+  was evaluated *before* `p1` (grey-ramp evidence: 0.17 instead of 0.39; chordal
+  saturated to 1.0 for half the segment) — the documented pass-through held only
+  for `uniform`. Both modes now build joint knots from the OkLab-space distances
+  between control points and evaluate a true non-uniform Catmull-Rom (Hermite
+  form with knot-weighted tangents; reduces to the classic curve for equally
+  spaced knots). `lerp_path()` (default `catmull_mode = centripetal`) and
+  `algorithms::palette::spline_scale` inherit the fix; the internal
+  `details::cr_parameterize` remap is replaced by `details::cr_knots` +
+  `details::catmull_rom(knots, …)`.
+- **Wide-space interpolation targets keep out-of-gamut midpoints**
+  (`lerp_oklab` / `lerp_oklch` / `lerp_lab` / `lerp_lch`, `lerp_hue_locked`,
+  `lerp_chroma_preserving`, and the Catmull-Rom / Hermite / monotonic splines):
+  alpha was lerped via an `rgbaf_t` round-trip that clamped the working-space
+  midpoint to sRGB before casting it to the result type — requesting
+  `Color = oklab_t` lost ~0.9% of in-gamut input pairs (worst ΔE_ok 0.03 > JND)
+  despite the wide type existing to hold such values. The mid now casts directly
+  to the result type and alpha attaches through the result's own
+  `alpha_tag` channel (`details::lerp_result`); RGB result types still clamp
+  through the normal conversion path.
 
 ### Added
 

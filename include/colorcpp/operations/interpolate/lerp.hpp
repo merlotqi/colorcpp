@@ -27,6 +27,30 @@ inline float lerp_angle_deg(float a, float b, float t) {
   return std::fmod(a + delta * t + 360.0f, 360.0f);
 }
 
+// Unit-space alpha of a source color (1.0 when the model carries no alpha).
+template <typename Color>
+inline float src_alpha(const Color& c) {
+  return ::colorcpp::operations::conversion::details::get_src_alpha(c);
+}
+
+/**
+ * @brief Assemble an interpolation result: working-space midpoint + unit-space alpha.
+ *
+ * Casts the mid straight to Color so an out-of-gamut wide-space midpoint
+ * (e.g. lerp_oklab with Color = oklab_t) is never clamped through sRGB;
+ * RGB destinations still clamp via the normal conversion path. Alpha is
+ * written into Color's own alpha channel when the model has one.
+ */
+template <typename Color, typename Mid>
+inline Color lerp_result(const Mid& mid, float alpha) {
+  Color out = ::colorcpp::operations::conversion::color_cast<Color>(mid);
+  if constexpr (::colorcpp::operations::conversion::details::has_alpha_v<Color>) {
+    constexpr std::size_t ai = ::colorcpp::operations::conversion::details::alpha_index_v<Color>;
+    out.template get_index<ai>() = ::colorcpp::operations::conversion::details::from_unit<Color, ai>(alpha);
+  }
+  return out;
+}
+
 }  // namespace details
 
 /**
@@ -83,7 +107,7 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-/** @brief OkLab interpolation (perceptually uniform); alpha lerped in RGBA. */
+/** @brief OkLab interpolation (perceptually uniform); alpha lerped from endpoints. */
 template <typename Color>
 Color lerp_oklab(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -96,14 +120,10 @@ Color lerp_oklab(const Color& a, const Color& b, float t) {
                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                     details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t)};
 
-  auto ra = color_cast<core::rgbaf_t>(a);
-  auto rb = color_cast<core::rgbaf_t>(b);
-  auto out = color_cast<core::rgbaf_t>(mid);
-  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
-  return color_cast<Color>(out);
+  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }
 
-/** @brief OkLCH interpolation: shortest-arc hue; L, C linear; alpha via RGBA. */
+/** @brief OkLCH interpolation: shortest-arc hue; L, C linear; alpha from endpoints. */
 template <typename Color>
 Color lerp_oklch(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -116,14 +136,10 @@ Color lerp_oklch(const Color& a, const Color& b, float t) {
                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                     details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
 
-  auto ra = color_cast<core::rgbaf_t>(a);
-  auto rb = color_cast<core::rgbaf_t>(b);
-  auto out = color_cast<core::rgbaf_t>(mid);
-  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
-  return color_cast<Color>(out);
+  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }
 
-/** @brief CIELAB interpolation; alpha via RGBA. */
+/** @brief CIELAB interpolation; alpha from endpoints. */
 template <typename Color>
 Color lerp_lab(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -136,14 +152,10 @@ Color lerp_lab(const Color& a, const Color& b, float t) {
                      details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                      details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t)};
 
-  auto ra = color_cast<core::rgbaf_t>(a);
-  auto rb = color_cast<core::rgbaf_t>(b);
-  auto out = color_cast<core::rgbaf_t>(mid);
-  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
-  return color_cast<Color>(out);
+  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }
 
-/** @brief CIELCH interpolation: shortest-arc hue; L*, C* linear; alpha via RGBA. */
+/** @brief CIELCH interpolation: shortest-arc hue; L*, C* linear; alpha from endpoints. */
 template <typename Color>
 Color lerp_lch(const Color& a, const Color& b, float t) {
   using namespace conversion;
@@ -156,11 +168,7 @@ Color lerp_lch(const Color& a, const Color& b, float t) {
                      details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                      details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
 
-  auto ra = color_cast<core::rgbaf_t>(a);
-  auto rb = color_cast<core::rgbaf_t>(b);
-  auto out = color_cast<core::rgbaf_t>(mid);
-  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
-  return color_cast<Color>(out);
+  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }
 
 }  // namespace colorcpp::operations::interpolate

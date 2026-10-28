@@ -9,6 +9,7 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
+#include <colorcpp/operations/interpolate/lerp.hpp>
 
 namespace colorcpp::operations::interpolate {
 
@@ -53,16 +54,10 @@ Color lerp_cubic_hermite(const Color& p0, const Color& p1, const Color& p2, cons
                     details::cubic_hermite(c0.template get_index<2>(), c1.template get_index<2>(),
                                            c2.template get_index<2>(), c3.template get_index<2>(), t, tension)};
 
-  // Alpha interpolation
-  auto r0 = color_cast<core::rgbaf_t>(p0);
-  auto r1 = color_cast<core::rgbaf_t>(p1);
-  auto r2 = color_cast<core::rgbaf_t>(p2);
-  auto r3 = color_cast<core::rgbaf_t>(p3);
-  auto out = color_cast<core::rgbaf_t>(mid);
-  out.template get_index<3>() =
-      details::cubic_hermite(r0.template get_index<3>(), r1.template get_index<3>(), r2.template get_index<3>(),
-                             r3.template get_index<3>(), t, tension);
-  return color_cast<Color>(out);
+  // Alpha interpolation with the same Hermite basis
+  return details::lerp_result<Color>(
+      mid, details::cubic_hermite(details::src_alpha(p0), details::src_alpha(p1), details::src_alpha(p2),
+                                  details::src_alpha(p3), t, tension));
 }
 
 }  // namespace colorcpp::operations::interpolate

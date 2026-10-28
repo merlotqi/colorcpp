@@ -46,22 +46,29 @@ Alpha handling
 ^^^^^^^^^^^^^^
 
 Alpha behavior is helper-dependent: ``lerp()`` / ``lerp_hsl()`` / ``lerp_hsv()`` interpolate alpha in the same
-working-space pass, several perceptual and cylindrical helpers route alpha through RGBA-style handling, cubic and path
-helpers interpolate or spline alpha as part of their own contracts, and ``lerp_alpha_mode()`` exposes explicit alpha
-strategies.
+working-space pass, the perceptual and cylindrical helpers take alpha from the endpoints in unit space and attach it
+to the result type's own alpha channel, cubic and path helpers spline alpha as part of their own contracts, and
+``lerp_alpha_mode()`` exposes explicit alpha strategies.
 
 gamut strategy
 ^^^^^^^^^^^^^^
 
 General interpolation helpers do not guarantee automatic display-gamut preservation. ``lerp_chroma_preserving()`` is
-the notable exception: its default ``chroma_mode::preserve_safe`` clamps chroma against the sRGB gamut boundary.
+the notable exception: its default ``chroma_mode::preserve_safe`` clamps chroma against the measured sRGB gamut
+boundary (binary search over unclamped linear RGB).
+
+When the deduced result type is a wide-space color (``oklab_t``, ``oklch_t``, ``cielab_t``, ``cielch_t``), the
+working-space midpoint is kept exactly in that space — an out-of-sRGB midpoint is **not** clamped. RGB result types
+still clamp through the normal conversion path.
 
 
 Notes
 -----
 
 * Most advanced interpolators operate internally in **OkLab** and then convert back to the requested color type.
-* ``lerp_catmull_rom()`` passes exactly through ``p1`` and ``p2`` for each segment.
+* ``lerp_catmull_rom()`` passes exactly through ``p1`` and ``p2`` for each segment in every ``cr_mode``; the
+  centripetal and chordal modes build joint knots from the OkLab-space distances between control points
+  (non-uniform Catmull-Rom). ``lerp_path()``'s default ``catmull_mode`` is ``cr_mode::centripetal``.
 * ``lerp_monotonic_spline()`` is designed for smooth transitions that avoid per-segment overshoot.
 * ``lerp_path()`` repeats the endpoints as anchors for the first and last segment, which keeps boundary behavior stable.
 * All interpolators work across supported color spaces through automatic conversion.

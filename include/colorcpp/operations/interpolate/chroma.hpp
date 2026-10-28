@@ -67,11 +67,7 @@ Color lerp_chroma_preserving(const Color& a, const Color& b, float t, chroma_mod
 
   core::oklch_t mid{L, C, H};
 
-  auto ra = color_cast<core::rgbaf_t>(a);
-  auto rb = color_cast<core::rgbaf_t>(b);
-  auto out = color_cast<core::rgbaf_t>(mid);
-  out.template get_index<3>() = details::lerp_f(ra.template get_index<3>(), rb.template get_index<3>(), t);
-  return color_cast<Color>(out);
+  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }
 
 }  // namespace colorcpp::operations::interpolate

@@ -1,6 +1,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <colorcpp/colorcpp.hpp>
 
 namespace colorcpp::operations::test {
@@ -424,6 +425,79 @@ TEST(LerpCatmullRomTest, HueWrapBehavior) {
   EXPECT_TRUE(b > r || r > g);  // At least not gray
 }
 
+//
+// Non-uniform Catmull-Rom modes (centripetal / chordal). Every mode must pass
+// through p1 at t=0 and p2 at t=1 — the old t-remap fed the uniform basis a
+// parameter outside the segment (t=0 evaluated the curve before p1).
+//
+
+TEST(LerpCatmullRomTest, CentripetalPassesThroughEndpoints) {
+  core::rgbf_t p0(0.04f, 0.04f, 0.04f);
+  core::rgbf_t p1(0.39f, 0.39f, 0.39f);
+  core::rgbf_t p2(0.78f, 0.78f, 0.78f);
+  core::rgbf_t p3(0.98f, 0.98f, 0.98f);
+
+  auto at0 = lerp_catmull_rom(p0, p1, p2, p3, 0.0f, cr_mode::centripetal);
+  auto at1 = lerp_catmull_rom(p0, p1, p2, p3, 1.0f, cr_mode::centripetal);
+  expect_rgb_near(at0, 0.39f, 0.39f, 0.39f);
+  expect_rgb_near(at1, 0.78f, 0.78f, 0.78f);
+}
+
+TEST(LerpCatmullRomTest, ChordalPassesThroughEndpoints) {
+  core::rgbf_t p0(0.04f, 0.04f, 0.04f);
+  core::rgbf_t p1(0.39f, 0.39f, 0.39f);
+  core::rgbf_t p2(0.78f, 0.78f, 0.78f);
+  core::rgbf_t p3(0.98f, 0.98f, 0.98f);
+
+  auto at0 = lerp_catmull_rom(p0, p1, p2, p3, 0.0f, cr_mode::chordal);
+  auto at1 = lerp_catmull_rom(p0, p1, p2, p3, 1.0f, cr_mode::chordal);
+  expect_rgb_near(at0, 0.39f, 0.39f, 0.39f);
+  expect_rgb_near(at1, 0.78f, 0.78f, 0.78f);
+}
+
+TEST(LerpCatmullRomTest, ChordalMidpointStaysNearSegment) {
+  core::rgbf_t p0(0.04f, 0.04f, 0.04f);
+  core::rgbf_t p1(0.39f, 0.39f, 0.39f);
+  core::rgbf_t p2(0.78f, 0.78f, 0.78f);
+  core::rgbf_t p3(0.98f, 0.98f, 0.98f);
+
+  auto mid = lerp_catmull_rom(p0, p1, p2, p3, 0.5f, cr_mode::chordal);
+  // t=0.5 must land near the middle of the [p1, p2] segment, not pinned at a
+  // clamped extreme by an extrapolated parameter.
+  EXPECT_GT(mid.r(), 0.30f);
+  EXPECT_LT(mid.r(), 0.85f);
+}
+
+TEST(LerpCatmullRomTest, EqualOkLabSpacingsCentripetalMatchesUniform) {
+  // Greys with exactly equal OkLab L steps: joint knot spacing is uniform, so
+  // centripetal must reduce to the uniform curve at every t.
+  auto grey = [](float L) { return color_cast<core::rgbf_t>(core::oklab_t(L, 0.0f, 0.0f)); };
+  core::rgbf_t p0 = grey(0.2f);
+  core::rgbf_t p1 = grey(0.4f);
+  core::rgbf_t p2 = grey(0.6f);
+  core::rgbf_t p3 = grey(0.8f);
+
+  auto uni = lerp_catmull_rom(p0, p1, p2, p3, 0.37f, cr_mode::uniform);
+  auto centri = lerp_catmull_rom(p0, p1, p2, p3, 0.37f, cr_mode::centripetal);
+  expect_rgb_near(centri, uni.r(), uni.g(), uni.b());
+}
+
+TEST(LerpPathTest, CatmullRomPassesThroughControlPoints) {
+  // lerp_path's default catmull_mode is centripetal; landing exactly on a
+  // control point must return that control point, in every mode.
+  std::vector<core::rgbf_t> colors = {
+      core::rgbf_t(1.0f, 0.0f, 0.0f),
+      core::rgbf_t(0.0f, 1.0f, 0.0f),
+      core::rgbf_t(0.0f, 0.0f, 1.0f),
+      core::rgbf_t(1.0f, 0.0f, 1.0f),
+  };
+
+  auto at13 = lerp_path(colors, 1.0f / 3.0f, path_algorithm::catmull_rom);
+  auto at23 = lerp_path(colors, 2.0f / 3.0f, path_algorithm::catmull_rom);
+  expect_rgb_near(at13, 0.0f, 1.0f, 0.0f);
+  expect_rgb_near(at23, 0.0f, 0.0f, 1.0f);
+}
+
 // lerp_cubic_hermite (Cubic Hermite interpolation)
 
 TEST(LerpCubicHermiteTest, TZeroReturnsP1) {
@@ -631,6 +705,163 @@ TEST(LerpChromaPreservingTest, TOneReturnsSecond) {
   EXPECT_NEAR(result.r(), b.r(), 5e-3f);
   EXPECT_NEAR(result.g(), b.g(), 5e-3f);
   EXPECT_NEAR(result.b(), b.b(), 5e-3f);
+}
+
+// interpolate::details::max_chroma_for (gamut boundary used by chroma_mode::preserve_safe)
+//
+// Ground truth from an unclamped linear-RGB binary search (oklab_to_linrgb):
+//   max_chroma_for(0.5,   0)   = 0.2028
+//   max_chroma_for(0.7,  29)   = 0.1913
+//   max_chroma_for(0.95, 150)  = 0.0833
+
+TEST(MaxChromaForTest, MatchesGroundTruthAtRedHue) {
+  EXPECT_NEAR(interpolate::details::max_chroma_for(0.5f, 0.0f), 0.2028f, 0.01f);
+}
+
+TEST(MaxChromaForTest, MatchesGroundTruthAtOrangeHue) {
+  EXPECT_NEAR(interpolate::details::max_chroma_for(0.7f, 29.0f), 0.1913f, 0.01f);
+}
+
+TEST(MaxChromaForTest, MatchesGroundTruthNearWhite) {
+  EXPECT_NEAR(interpolate::details::max_chroma_for(0.95f, 150.0f), 0.0833f, 0.01f);
+}
+
+TEST(MaxChromaForTest, NeverExceedsSrgbCeiling) {
+  // sRGB's global maximum OkLCH chroma is ~0.316; the search upper bound (0.4)
+  // must never be reported as "in gamut".
+  EXPECT_LT(interpolate::details::max_chroma_for(0.7f, 145.0f), 0.32f);
+}
+
+TEST(LerpChromaPreservingTest, PreserveSafeMidpointDiffersFromPreserve) {
+  // red -> blue: both endpoints have chroma above the mid-lightness gamut
+  // boundary, so preserve pins a channel at the limit while preserve_safe
+  // must reduce chroma — the two modes cannot produce the same midpoint.
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  auto safe = lerp_chroma_preserving(red, blue, 0.5f, chroma_mode::preserve_safe);
+  auto pres = lerp_chroma_preserving(red, blue, 0.5f, chroma_mode::preserve);
+  float max_diff =
+      std::max({std::fabs(safe.r() - pres.r()), std::fabs(safe.g() - pres.g()), std::fabs(safe.b() - pres.b())});
+  EXPECT_GT(max_diff, 0.01f);
+}
+
+TEST(LerpChromaPreservingTest, PreserveSafeMidpointChromaStaysBelowBoundary) {
+  core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  auto safe = lerp_chroma_preserving(red, blue, 0.5f, chroma_mode::preserve_safe);
+  auto safe_lch = color_cast<core::oklch_t>(safe);
+  // Chroma must sit at/below the gamut boundary for the midpoint's own L/H,
+  // and strictly below what preserve would have kept (max endpoint chroma).
+  float boundary = interpolate::details::max_chroma_for(safe_lch.l(), safe_lch.h());
+  float endpoint_chroma = std::max(color_cast<core::oklch_t>(red).c(), color_cast<core::oklch_t>(blue).c());
+  EXPECT_LE(safe_lch.c(), boundary + 1e-3f);
+  EXPECT_LT(safe_lch.c(), endpoint_chroma - 1e-3f);  // strictly reduced vs preserve
+}
+
+//
+// Wide-space targets (Color deduced as oklab_t / oklch_t / cielab_t) must keep
+// the interpolated midpoint in the working space. Routing the mid through
+// rgbaf clamps out-of-gamut values to sRGB and silently loses them on the way
+// back. green -> blue and yellow -> red have out-of-sRGB midpoints.
+//
+
+TEST(WideSpaceTargetTest, LerpOklabKeepsAnalyticMidpoint) {
+  auto ga = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 1.0f, 0.0f));
+  auto ba = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  core::oklab_t expected{(ga.l() + ba.l()) * 0.5f, (ga.a() + ba.a()) * 0.5f, (ga.b() + ba.b()) * 0.5f};
+
+  auto got = lerp_oklab(ga, ba, 0.5f);  // Color deduced as oklab_t
+  EXPECT_NEAR(got.l(), expected.l(), 1e-4f);
+  EXPECT_NEAR(got.a(), expected.a(), 1e-4f);
+  EXPECT_NEAR(got.b(), expected.b(), 1e-4f);
+}
+
+TEST(WideSpaceTargetTest, LerpOklchKeepsAnalyticMidpoint) {
+  auto gl = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 1.0f, 0.0f));
+  auto bl = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  float delta = std::fmod(bl.h() - gl.h() + 540.0f, 360.0f) - 180.0f;
+  core::oklch_t expected{(gl.l() + bl.l()) * 0.5f, (gl.c() + bl.c()) * 0.5f,
+                         std::fmod(gl.h() + delta * 0.5f + 360.0f, 360.0f)};
+
+  auto got = lerp_oklch(gl, bl, 0.5f);  // Color deduced as oklch_t
+  EXPECT_NEAR(got.l(), expected.l(), 1e-4f);
+  EXPECT_NEAR(got.c(), expected.c(), 1e-4f);
+  EXPECT_NEAR(got.h(), expected.h(), 1e-3f);
+}
+
+TEST(WideSpaceTargetTest, LerpLabKeepsAnalyticMidpoint) {
+  auto ya = color_cast<core::cielab_t>(core::rgbf_t(1.0f, 1.0f, 0.0f));
+  auto ra = color_cast<core::cielab_t>(core::rgbf_t(1.0f, 0.0f, 0.0f));
+  core::cielab_t expected{(ya.l() + ra.l()) * 0.5f, (ya.a() + ra.a()) * 0.5f, (ya.b() + ra.b()) * 0.5f};
+
+  auto got = lerp_lab(ya, ra, 0.5f);  // Color deduced as cielab_t
+  EXPECT_NEAR(got.l(), expected.l(), 1e-3f);
+  EXPECT_NEAR(got.a(), expected.a(), 1e-3f);
+  EXPECT_NEAR(got.b(), expected.b(), 1e-3f);
+}
+
+TEST(WideSpaceTargetTest, CatmullRomKeepsOutOfRangeMidpoint) {
+  // p0 = p1 and p2 = p3: Catmull-Rom reduces to the smoothstep midpoint, whose
+  // OkLab value lies outside sRGB for the green/blue pair.
+  auto g = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 1.0f, 0.0f));
+  auto b = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  auto got = lerp_catmull_rom(g, g, b, b, 0.5f);
+  EXPECT_NEAR(got.l(), (g.l() + b.l()) * 0.5f, 1e-3f);
+  EXPECT_NEAR(got.a(), (g.a() + b.a()) * 0.5f, 1e-3f);
+  EXPECT_NEAR(got.b(), (g.b() + b.b()) * 0.5f, 1e-3f);
+}
+
+TEST(WideSpaceTargetTest, CubicHermiteKeepsOutOfRangeMidpoint) {
+  auto g = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 1.0f, 0.0f));
+  auto b = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  auto got = lerp_cubic_hermite(g, g, b, b, 0.5f);
+  EXPECT_NEAR(got.l(), (g.l() + b.l()) * 0.5f, 1e-3f);
+  EXPECT_NEAR(got.a(), (g.a() + b.a()) * 0.5f, 1e-3f);
+  EXPECT_NEAR(got.b(), (g.b() + b.b()) * 0.5f, 1e-3f);
+}
+
+TEST(WideSpaceTargetTest, MonotonicSplineKeepsOutOfRangeMidpoint) {
+  auto g = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 1.0f, 0.0f));
+  auto b = color_cast<core::oklab_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  auto got = lerp_monotonic_spline(g, g, b, b, 0.5f);
+  EXPECT_NEAR(got.l(), (g.l() + b.l()) * 0.5f, 1e-3f);
+  EXPECT_NEAR(got.a(), (g.a() + b.a()) * 0.5f, 1e-3f);
+  EXPECT_NEAR(got.b(), (g.b() + b.b()) * 0.5f, 1e-3f);
+}
+
+TEST(WideSpaceTargetTest, HueLockedKeepsAnalyticMidpoint) {
+  auto gl = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 1.0f, 0.0f));
+  auto bl = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  auto got = lerp_hue_locked(gl, bl, 0.5f, true);
+  EXPECT_NEAR(got.l(), (gl.l() + bl.l()) * 0.5f, 1e-4f);
+  EXPECT_NEAR(got.c(), (gl.c() + bl.c()) * 0.5f, 1e-4f);
+  EXPECT_NEAR(got.h(), gl.h(), 1e-3f);  // hue locked to start
+}
+
+TEST(WideSpaceTargetTest, ChromaPreserveKeepsWideChroma) {
+  auto gl = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 1.0f, 0.0f));
+  auto bl = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  auto got = lerp_chroma_preserving(gl, bl, 0.5f, chroma_mode::preserve);
+  EXPECT_NEAR(got.c(), std::max(gl.c(), bl.c()), 1e-4f);  // wide chroma kept, no sRGB clamp
+  EXPECT_NEAR(got.l(), (gl.l() + bl.l()) * 0.5f, 1e-4f);
+}
+
+TEST(WideSpaceTargetTest, RgbTargetStillClampsOutOfGamutMid) {
+  // Regression guard: RGB destinations keep clamping through conversion.
+  auto got = lerp_oklab(core::rgbf_t(0.0f, 1.0f, 0.0f), core::rgbf_t(0.0f, 0.0f, 1.0f), 0.5f);
+  EXPECT_GE(got.r(), 0.0f);
+  EXPECT_LE(got.r(), 1.0f);
+  EXPECT_GE(got.g(), 0.0f);
+  EXPECT_LE(got.g(), 1.0f);
+  EXPECT_GE(got.b(), 0.0f);
+  EXPECT_LE(got.b(), 1.0f);
+}
+
+TEST(WideSpaceTargetTest, RgbaTargetLerpsAlpha) {
+  core::rgbaf_t a(0.0f, 1.0f, 0.0f, 0.2f);
+  core::rgbaf_t b(0.0f, 0.0f, 1.0f, 0.8f);
+  auto got = lerp_oklab(a, b, 0.5f);
+  EXPECT_NEAR(got.a(), 0.5f, 1e-3f);
 }
 
 // lerp_alpha_mode (Alpha-independent interpolation)
