@@ -131,7 +131,7 @@ class linear_gradient {
       Color c = operations::interpolate::lerp(sample(u), other.sample(u), t);
       blended_stops.emplace_back(u, c);
     }
-    return linear_gradient<Color>(stops_type(blended_stops), easing_);
+    return linear_gradient<Color>(stops_type(blended_stops), easing::linear<position_type>);
   }
 
   /**
@@ -161,7 +161,7 @@ class linear_gradient {
       }
       concat_stops.emplace_back(u, c);
     }
-    return linear_gradient<Color>(stops_type(concat_stops), easing_);
+    return linear_gradient<Color>(stops_type(concat_stops), easing::linear<position_type>);
   }
 
   /**
@@ -218,7 +218,7 @@ class linear_gradient {
       // Return a gradient with a single stop at 0.5
       typename stops_type::container_type quantized_stops;
       quantized_stops.emplace_back(0.5f, sample(0.5f));
-      return linear_gradient<Color>(stops_type(quantized_stops), easing_);
+      return linear_gradient<Color>(stops_type(quantized_stops), easing::linear<position_type>);
     }
 
     typename stops_type::container_type quantized_stops;
@@ -229,7 +229,7 @@ class linear_gradient {
       quantized_stops.emplace_back(pos, sample(pos));
     }
 
-    return linear_gradient<Color>(stops_type(quantized_stops), easing_);
+    return linear_gradient<Color>(stops_type(quantized_stops), easing::linear<position_type>);
   }
 
  private:

@@ -110,6 +110,11 @@ class sequence_gradient {
     if (count == 0) {
       return {};
     }
+    if (count == 1) {
+      // i/(count-1) would be 0/0 = NaN; every other gradient class returns
+      // the midpoint for a single-entry palette.
+      return {sample(0.5f)};
+    }
 
     std::vector<color_type> palette;
     palette.reserve(count);

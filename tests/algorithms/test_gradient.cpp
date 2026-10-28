@@ -1,8 +1,44 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <colorcpp/colorcpp.hpp>
+#include <limits>
 
 using namespace colorcpp;
+
+namespace {
+
+// blend/concat/quantize bake already-eased samples into new stop lists, so the
+// resulting gradient must sample with linear easing. A second easing pass
+// distorts everything between the baked stops (probe: blend(g,g,0) != g).
+template <typename G>
+void ExpectNoDoubleEasing(const G& g, const G& h, const char* label) {
+  SCOPED_TRACE(label);
+
+  // blend(g, h, 0) is documented as "this gradient" — identity must survive.
+  const auto id = g.blend(h, 0.0f);
+  for (float t : {0.123f, 0.5f, 0.877f}) {
+    EXPECT_NEAR(id.sample(t).r(), g.sample(t).r(), 6e-3f);
+    EXPECT_NEAR(id.sample(t).b(), g.sample(t).b(), 6e-3f);
+  }
+
+  // concat first half must reproduce the source (with its easing) at 2*u.
+  const auto cat = g.concat(h);
+  EXPECT_NEAR(cat.sample(0.23f).r(), g.sample(0.46f).r(), 0.01f);
+
+  // quantize: between baked stops the result must move linearly between the
+  // baked colors — no second easing pass on top of the baked samples.
+  const auto q = g.quantize(3);
+  const float local = 0.1f;  // sample(0.55) sits 10% between stops at 0.5 and 1.0
+  const float linear_r = q.stops()[1].color.r() + local * (q.stops()[2].color.r() - q.stops()[1].color.r());
+  EXPECT_NEAR(q.sample(0.55f).r(), linear_r, 1e-3f);
+}
+
+gradient::color_stops<rgbf_t> RedToBlueStops() {
+  return {{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}};
+}
+
+}  // namespace
 
 TEST(GradientTest, ColorStopBasic) {
   gradient::color_stop<rgbf_t> stop(0.5f, rgbf_t{1.0f, 0.0f, 0.0f});
@@ -483,6 +519,71 @@ TEST(GradientTest, SequenceInterpolatesAcrossGaps) {
   EXPECT_NEAR(mid_gap.b(), 0.5f, 0.001f);
 }
 
+TEST(GradientTest, SequencePaletteOfOneReturnsMidpoint) {
+  auto g = gradient::linear(RedToBlueStops());
+  std::vector<gradient::sequence_segment<gradient::linear_gradient<rgbf_t>>> segments = {{g, 0.0f, 1.0f}};
+  auto seq = gradient::sequence(std::move(segments));
+
+  auto p1 = seq.palette(1);
+  ASSERT_EQ(p1.size(), 1u);
+  // Every other gradient class returns sample(0.5) for count == 1. Sequence must
+  // agree: without a guard, i/(count-1) is 0/0 = NaN and the loop falls through
+  // to back().sample(1.0f) — the terminal blue, not the midpoint.
+  EXPECT_NEAR(p1[0].r(), 0.5f, 1e-3f);
+  EXPECT_NEAR(p1[0].g(), 0.0f, 1e-3f);
+  EXPECT_NEAR(p1[0].b(), 0.5f, 1e-3f);
+}
+
+TEST(GradientTest, GradientCtorRejectsNonFiniteColorInAnyChannel) {
+  using namespace colorcpp::algorithms;
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const float inf = std::numeric_limits<float>::infinity();
+
+  // get_index<I> requires a compile-time index, so dispatch per channel.
+  auto expect_reject = [](auto channel_tag, float bad, const char* label) {
+    SCOPED_TRACE(label);
+    constexpr std::size_t ch = decltype(channel_tag)::value;
+    rgbf_t c{0.5f, 0.5f, 0.5f};
+    c.get_index<ch>() = bad;
+    gradient::color_stops<rgbf_t> s = {{0.0f, c}, {1.0f, rgbf_t{1.0f, 1.0f, 1.0f}}};
+    EXPECT_THROW((void)gradient::linear(s), std::invalid_argument);
+  };
+
+  for (float bad : {nan, inf, -inf}) {
+    expect_reject(std::integral_constant<std::size_t, 0>{}, bad, "channel 0 (r)");
+    expect_reject(std::integral_constant<std::size_t, 1>{}, bad, "channel 1 (g)");
+    expect_reject(std::integral_constant<std::size_t, 2>{}, bad, "channel 2 (b)");
+  }
+}
+
+TEST(GradientTest, ColorStopsSortIsStableForEqualPositions) {
+  // std::sort is unstable: with enough equal-position elements (above the
+  // introsort small-range cutoff) their relative order is unspecified. Equal
+  // positions carry distinct colors, so insertion order must be preserved.
+  gradient::color_stops<rgbf_t> stops{{0.5f, rgbf_t{0.0f, 0.0f, 0.0f}}};
+  constexpr int n = 24;  // above libstdc++'s ~16-element insertion-sort cutoff
+  for (int i = 1; i < n; ++i) {
+    stops.add(0.5f, rgbf_t{static_cast<float>(i), 0.0f, 0.0f});
+  }
+  ASSERT_EQ(stops.size(), static_cast<std::size_t>(n));
+  for (int i = 0; i < n; ++i) {
+    EXPECT_FLOAT_EQ(stops[static_cast<std::size_t>(i)].color.r(), static_cast<float>(i))
+        << "equal-position stop " << i << " lost its insertion order";
+  }
+}
+
+TEST(GradientTest, CubicBezierClampsControlPointXToUnitInterval) {
+  using namespace colorcpp::algorithms;
+  // W3C css-easing-1: x1/x2 outside [0, 1] are invalid and must be clamped at
+  // parse time; y1/y2 may exceed. Out-of-range x makes x(t) non-monotonic and
+  // the root find ambiguous.
+  const auto clamped = gradient::easing::cubic_bezier<float>(1.0f, 0.5f, 0.0f, 0.5f);
+  const auto raw = gradient::easing::cubic_bezier<float>(1.5f, 0.5f, -0.5f, 0.5f);
+  for (float t : {0.0f, 0.1f, 0.25f, 0.5f, 0.75f, 0.9f, 1.0f}) {
+    EXPECT_NEAR(raw(t), clamped(t), 1e-5f) << "at t=" << t;
+  }
+}
+
 TEST(GradientTest, SteppedGradientQuantizesSamplePositions) {
   auto base = gradient::linear<rgbf_t>({{0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}});
   auto stepped_grad = gradient::stepped(base, 3);
@@ -590,4 +691,34 @@ TEST(GradientTest, AngularSampleAtUsesCssOrientation) {
   EXPECT_NEAR(west.r(), 1.0f, 0.001f);
   EXPECT_NEAR(west.g(), 1.0f, 0.001f);
   EXPECT_NEAR(west.b(), 0.0f, 0.001f);
+}
+
+TEST(GradientTest, BlendConcatQuantizeDoNotReapplyEasing) {
+  using gradient::easing::ease_in;
+
+  {
+    auto g = gradient::linear(RedToBlueStops(), ease_in<float>);
+    auto h = gradient::linear(RedToBlueStops(), ease_in<float>);
+    ExpectNoDoubleEasing(g, h, "linear");
+  }
+  {
+    auto g = gradient::radial(RedToBlueStops(), ease_in<float>);
+    auto h = gradient::radial(RedToBlueStops(), ease_in<float>);
+    ExpectNoDoubleEasing(g, h, "radial");
+  }
+  {
+    auto g = gradient::angular(RedToBlueStops(), ease_in<float>);
+    auto h = gradient::angular(RedToBlueStops(), ease_in<float>);
+    ExpectNoDoubleEasing(g, h, "angular");
+  }
+  {
+    auto g = gradient::box(RedToBlueStops(), ease_in<float>);
+    auto h = gradient::box(RedToBlueStops(), ease_in<float>);
+    ExpectNoDoubleEasing(g, h, "box");
+  }
+  {
+    auto g = gradient::diamond(RedToBlueStops(), ease_in<float>);
+    auto h = gradient::diamond(RedToBlueStops(), ease_in<float>);
+    ExpectNoDoubleEasing(g, h, "diamond");
+  }
 }

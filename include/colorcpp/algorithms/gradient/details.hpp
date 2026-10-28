@@ -10,7 +10,7 @@
 #include <colorcpp/algorithms/gradient/easing.hpp>
 #include <colorcpp/algorithms/gradient/stops.hpp>
 #include <stdexcept>
-#include <vector>
+#include <utility>
 
 namespace colorcpp::algorithms::gradient::details {
 
@@ -142,37 +142,19 @@ Color sample_gradient(
 }
 
 /**
- * @brief Generate a palette of colors from a gradient.
+ * @brief Check that every channel of a color is finite (not NaN or Inf).
  * @tparam Color Color type.
- * @tparam Interpolator Interpolator function type.
- * @param stops The color stops.
- * @param count Number of colors to generate.
- * @param interpolator Function to interpolate between two colors.
- * @param easing Easing function to apply.
- * @return Vector of colors.
+ * @param c Color to check.
+ * @return True if all channels are finite.
  */
-template <typename Color, typename Interpolator>
-std::vector<Color> generate_palette(
-    const color_stops<Color>& stops, std::size_t count, Interpolator&& interpolator,
-    easing::easing_function<gradient_position_t<Color>> easing = easing::linear<gradient_position_t<Color>>) {
-  if (count == 0) {
-    return {};
-  }
+template <typename Color, std::size_t... Is>
+bool is_finite_color_impl(const Color& c, std::index_sequence<Is...>) {
+  return (is_finite(c.template get_index<Is>()) && ...);
+}
 
-  if (count == 1) {
-    return {sample_gradient(stops, static_cast<gradient_position_t<Color>>(0.5),
-                            std::forward<Interpolator>(interpolator), easing)};
-  }
-
-  std::vector<Color> palette;
-  palette.reserve(count);
-
-  for (std::size_t i = 0; i < count; ++i) {
-    auto t = static_cast<gradient_position_t<Color>>(i) / static_cast<gradient_position_t<Color>>(count - 1);
-    palette.push_back(sample_gradient(stops, t, std::forward<Interpolator>(interpolator), easing));
-  }
-
-  return palette;
+template <typename Color>
+bool is_finite_color(const Color& c) {
+  return is_finite_color_impl(c, std::make_index_sequence<Color::channels>{});
 }
 
 /**
@@ -187,15 +169,14 @@ bool validate_stops(const color_stops<Color>& stops) {
     throw std::invalid_argument("colorcpp: gradient must have at least one stop");
   }
 
-  // Check that positions are in [0, 1]
   for (const auto& stop : stops) {
+    // Position is validated by the color_stop constructor, but a non-const
+    // operator[] reference can mutate it afterwards — re-check here.
     if (stop.position < 0.0f || stop.position > 1.0f) {
       throw std::out_of_range("colorcpp: stop position must be in [0, 1]");
     }
 
-    // Check that color values are finite (not NaN or Inf)
-    // We check the first channel value as a representative
-    if (!is_finite(stop.color.template get_index<0>())) {
+    if (!is_finite_color(stop.color)) {
       throw std::invalid_argument("colorcpp: stop color contains non-finite values (NaN or Inf)");
     }
   }

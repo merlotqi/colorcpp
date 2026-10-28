@@ -198,8 +198,10 @@ class color_stops {
   container_type stops_;
 
   void sort() {
-    std::sort(stops_.begin(), stops_.end(),
-              [](const stop_type& a, const stop_type& b) { return a.position < b.position; });
+    // Stable: equal-position stops must keep insertion order (they carry
+    // distinct colors, so std::sort's unspecified equal-key order is a bug).
+    std::stable_sort(stops_.begin(), stops_.end(),
+                     [](const stop_type& a, const stop_type& b) { return a.position < b.position; });
   }
 };
 

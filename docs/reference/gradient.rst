@@ -15,16 +15,18 @@ Available gradient types:
 * **Linear gradient** - standard straight line interpolation
 * **Radial gradient** - circular gradient with center and radius
 * **Angular gradient** - conical gradient rotating around center point
+* **Box gradient** - square gradient using Chebyshev distance from center
+* **Diamond gradient** - diamond gradient using Manhattan distance from center
 * **Gradient sequence** - multi-point gradient chain
+* **Stepped gradient** - quantized wrapper that buckets sample positions into discrete levels
+* **Presets** - built-in named gradients (viridis, magma, plasma, inferno, cividis, rainbow, spectral, ocean, forest, sunset, night)
 
 Features:
 
 * Custom stop positions with color values
-* Built-in easing functions (linear, ease-in, ease-out, ease-in-out, smoothstep)
+* Built-in easing functions: linear, smooth_step, smoother_step, cubic-bézier, plus ease-in/out/in-out families (sine, cubic, quad, expo, circ)
 * Support for all color spaces
-* Hue interpolation handling (shorter/longer path)
 * Stop position normalization
-* Gamut clamping options
 
 
 Notes

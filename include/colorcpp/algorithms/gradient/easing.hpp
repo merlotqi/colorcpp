@@ -324,6 +324,12 @@ easing_function<T> cubic_bezier(T x1, T y1, T x2, T y2) {
   const T three = static_cast<T>(3);
   const T epsilon = static_cast<T>(1e-6);  // 1e-6 gives sub-pixel accuracy for 16-bit values
 
+  // W3C css-easing-1: x1/x2 outside [0, 1] are invalid — clamp at construction
+  // (y1/y2 may exceed the unit interval). Unclamped x makes x(t) non-monotonic
+  // and the root find ambiguous.
+  x1 = std::clamp(x1, zero, one);
+  x2 = std::clamp(x2, zero, one);
+
   // Precalculate polynomial coefficients for cubic curve
   // x(t) = ax*t³ + bx*t² + cx*t
   // y(t) = ay*t³ + by*t² + cy*t
