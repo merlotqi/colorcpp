@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+#include <limits>
 
 namespace colorcpp::algorithms::vision::test {
 
@@ -39,24 +40,39 @@ TEST(ProtanopiaTest, BlackStaysBlack) {
   EXPECT_EQ(result.b(), 0);
 }
 
-TEST(ProtanopiaTest, WhiteChanges) {
+TEST(ProtanopiaTest, WhiteStaysWhite) {
   rgb8_t white{255, 255, 255};
   auto result = simulate_protanopia(white);
-  // White will change due to protanopia simulation (L-cone absence)
-  // The algorithm may map some colors outside valid range, clamping to 0
-  // Just verify it doesn't crash and produces some output
-  EXPECT_GE(result.r(), 0);
-  EXPECT_GE(result.g(), 0);
-  EXPECT_GE(result.b(), 0);
+  // Dichromacy simulation preserves the neutral axis: white stays white.
+  EXPECT_NEAR(result.r(), 255, 2);
+  EXPECT_NEAR(result.g(), 255, 2);
+  EXPECT_NEAR(result.b(), 255, 2);
+}
+
+TEST(ProtanopiaTest, GrayStaysGray) {
+  const rgbaf_t gray(0.5f, 0.5f, 0.5f, 1.0f);
+  auto result = simulate_protanopia(gray);
+  EXPECT_NEAR(result.r(), 0.5f, 0.005f);
+  EXPECT_NEAR(result.g(), 0.5f, 0.005f);
+  EXPECT_NEAR(result.b(), 0.5f, 0.005f);
+}
+
+// Reference value: Viénot/Brettel LMS simulation with Smith-Pokorny basis.
+// Pure red protanopia appears as a dark ochre, matching published simulations.
+TEST(ProtanopiaTest, RedBecomesDarkOchre) {
+  rgb8_t red{255, 0, 0};
+  auto result = simulate_protanopia(red);
+  EXPECT_NEAR(result.r(), 94, 3);
+  EXPECT_NEAR(result.g(), 94, 3);
+  EXPECT_NEAR(result.b(), 13, 3);
 }
 
 TEST(ProtanopiaTest, GreenShifts) {
   rgb8_t green{0, 255, 0};
   auto result = simulate_protanopia(green);
-  // Green shifts for protanopia (L-cone absence)
-  // Algorithm maps green to approximately g=150
-  EXPECT_GT(result.g(), 100);
-  EXPECT_LT(result.g(), 200);
+  // Reference: green becomes a bright yellow under protanopia.
+  EXPECT_NEAR(result.g(), 242, 3);
+  EXPECT_NEAR(result.r(), 242, 3);
 }
 
 // ============================================================================
@@ -86,23 +102,43 @@ TEST(DeuteranopiaTest, BlackStaysBlack) {
   EXPECT_EQ(result.b(), 0);
 }
 
-TEST(DeuteranopiaTest, RedPreserved) {
+TEST(DeuteranopiaTest, GrayStaysGray) {
+  const rgbaf_t gray(0.5f, 0.5f, 0.5f, 1.0f);
+  auto result = simulate_deuteranopia(gray);
+  EXPECT_NEAR(result.r(), 0.5f, 0.005f);
+  EXPECT_NEAR(result.g(), 0.5f, 0.005f);
+  EXPECT_NEAR(result.b(), 0.5f, 0.005f);
+}
+
+// Reference value: Viénot/Brettel LMS simulation with Smith-Pokorny basis.
+// Pure red becomes a dark brownish yellow for deuteranopia.
+TEST(DeuteranopiaTest, RedBecomesDarkYellow) {
   rgb8_t red{255, 0, 0};
   auto result = simulate_deuteranopia(red);
-  // Red should be relatively preserved for deuteranopia
-  EXPECT_GT(result.r(), 200);
+  EXPECT_NEAR(result.r(), 147, 3);
+  EXPECT_NEAR(result.g(), 147, 3);
+  EXPECT_NEAR(result.b(), 0, 3);
 }
 
 // ============================================================================
 // Tritanopia tests
 // ============================================================================
 
-TEST(TritanopiaTest, BlueShifts) {
+TEST(TritanopiaTest, BlueBecomesTeal) {
   rgb8_t blue{0, 0, 255};
   auto result = simulate_tritanopia(blue);
-  // Pure blue should shift for tritanopia (S-cone absence)
-  // Blue may appear more reddish or greenish
-  EXPECT_LT(result.b(), 255);
+  // Reference value: pure blue becomes a teal/cyan under tritanopia.
+  EXPECT_NEAR(result.r(), 0, 3);
+  EXPECT_NEAR(result.g(), 105, 3);
+  EXPECT_NEAR(result.b(), 105, 3);
+}
+
+TEST(TritanopiaTest, GrayStaysGray) {
+  const rgbaf_t gray(0.5f, 0.5f, 0.5f, 1.0f);
+  auto result = simulate_tritanopia(gray);
+  EXPECT_NEAR(result.r(), 0.5f, 0.005f);
+  EXPECT_NEAR(result.g(), 0.5f, 0.005f);
+  EXPECT_NEAR(result.b(), 0.5f, 0.005f);
 }
 
 TEST(TritanopiaTest, PreservesAlpha) {
@@ -122,9 +158,36 @@ TEST(TritanopiaTest, BlackStaysBlack) {
 TEST(TritanopiaTest, YellowPreserved) {
   rgb8_t yellow{255, 255, 0};
   auto result = simulate_tritanopia(yellow);
-  // Yellow should be relatively preserved for tritanopia
+  // Reference: yellow stays bright (slightly pinkish) for tritanopia.
   EXPECT_GT(result.r(), 200);
   EXPECT_GT(result.g(), 200);
+}
+
+// ============================================================================
+// Accessibility helpers
+// ============================================================================
+
+TEST(HelpersTest, ProtanConfusedPairIsNotAccessible) {
+  rgb8_t red{255, 0, 0};
+  // Bronze shares red's (M, S) cone response in the Smith-Pokorny basis while
+  // differing in L, so a protanope cannot distinguish the two.
+  rgb8_t bronze{145, 85, 11};
+  EXPECT_FALSE(is_accessible_for_protanopia(red, bronze));
+}
+
+TEST(HelpersTest, IdenticalColorsAreNotAccessible) {
+  rgb8_t c{120, 60, 200};
+  EXPECT_FALSE(is_accessible_for_all_cvd(c, c));
+}
+
+TEST(HelpersTest, BlackAndWhiteAreAccessible) {
+  EXPECT_TRUE(is_accessible_for_all_cvd(rgb8_t{0, 0, 0}, rgb8_t{255, 255, 255}));
+}
+
+TEST(HelpersTest, AchromatopsiaEqualLuminanceIsNotAccessible) {
+  rgb8_t red{255, 0, 0};           // Rec.709 luminance gamma-encodes to ~127
+  rgb8_t mid_gray{127, 127, 127};  // same achromatic level
+  EXPECT_FALSE(is_accessible_for_achromatopsia(red, mid_gray));
 }
 
 // ============================================================================
@@ -235,6 +298,73 @@ TEST(MachadoTest, PreservesAlpha) {
   rgba8_t c{255, 0, 0, 100};
   auto out = simulate_tritan_machado(c, 0.5f);
   EXPECT_EQ(out.a(), 100);
+}
+
+// Reference values from the official Machado et al. (2009) supplementary
+// severity-100 matrices:
+//   protanomaly  row0 = { 0.152286,  1.052583, -0.204868}
+//   deuteranomaly row0 = { 0.367322,  0.860646, -0.227968}
+// Pure red linear (1,0,0) selects the first matrix column; results are
+// gamma-encoded via sRGB. Verified against colour-science and colorspacious.
+TEST(MachadoTest, ProtanRedMatchesPublishedMatrix) {
+  const rgbaf_t red(1.0f, 0.0f, 0.0f, 1.0f);
+  auto p = simulate_protan_machado(red, 1.0f);
+  EXPECT_NEAR(p.r(), 0.4266f, 0.005f);
+  EXPECT_NEAR(p.g(), 0.3727f, 0.005f);
+  EXPECT_NEAR(p.b(), 0.0f, 0.005f);
+}
+
+TEST(MachadoTest, DeutanRedMatchesPublishedMatrix) {
+  const rgbaf_t red(1.0f, 0.0f, 0.0f, 1.0f);
+  auto d = simulate_deutan_machado(red, 1.0f);
+  EXPECT_NEAR(d.r(), 0.6401f, 0.005f);
+  EXPECT_NEAR(d.g(), 0.5658f, 0.005f);
+  EXPECT_NEAR(d.b(), 0.0f, 0.005f);
+}
+
+// Every published Machado matrix preserves the neutral axis (each row sums
+// to 1), so grays must map to gray at any severity.
+TEST(MachadoTest, GrayPreservedAtFullSeverity) {
+  const rgbaf_t gray(0.5f, 0.5f, 0.5f, 1.0f);
+  for (float s : {0.0f, 0.37f, 1.0f}) {
+    for (const auto& out :
+         {simulate_protan_machado(gray, s), simulate_deutan_machado(gray, s), simulate_tritan_machado(gray, s)}) {
+      EXPECT_NEAR(out.r(), 0.5f, 0.005f);
+      EXPECT_NEAR(out.g(), 0.5f, 0.005f);
+      EXPECT_NEAR(out.b(), 0.5f, 0.005f);
+    }
+  }
+}
+
+// The published Machado model provides precomputed matrices at 10% severity
+// steps; intermediate severities interpolate between adjacent tables. At
+// severity 0.5 the official protanomaly matrix row0 = {0.458064, 0.679578,
+// -0.137642}, which differs from the naive (1-s)·I + s·M blend.
+TEST(MachadoTest, SeverityHalfUsesPublishedMatrices) {
+  const rgbaf_t red(1.0f, 0.0f, 0.0f, 1.0f);
+  auto p = simulate_protan_machado(red, 0.5f);
+  EXPECT_NEAR(p.r(), 0.7070f, 0.01f);
+  EXPECT_NEAR(p.g(), 0.3368f, 0.01f);
+  EXPECT_NEAR(p.b(), 0.0f, 0.01f);
+}
+
+// Severity 0.55 sits between the published 50% and 60% protanomaly tables;
+// expected value is the midpoint interpolation of the two red columns,
+// gamma-encoded. Guards against snapping to the nearest grid point.
+TEST(MachadoTest, SeverityMidStepInterpolatesTables) {
+  const rgbaf_t red(1.0f, 0.0f, 0.0f, 1.0f);
+  auto p = simulate_protan_machado(red, 0.55f);
+  EXPECT_NEAR(p.r(), 0.6813f, 0.01f);
+  EXPECT_NEAR(p.g(), 0.3435f, 0.01f);
+  EXPECT_NEAR(p.b(), 0.0f, 0.01f);
+}
+
+TEST(MachadoTest, NaNSeverityReturnsUnchanged) {
+  const rgb8_t c{12, 34, 56};
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  EXPECT_EQ(simulate_protan_machado(c, nan), c);
+  EXPECT_EQ(simulate_deutan_machado(c, nan), c);
+  EXPECT_EQ(simulate_tritan_machado(c, nan), c);
 }
 
 }  // namespace colorcpp::algorithms::vision::test

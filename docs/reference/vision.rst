@@ -22,6 +22,9 @@ Available simulations:
     * ``simulate_deutan_machado()``
     * ``simulate_tritan_machado()``
     * Supports anomalous trichromacy to full dichromacy continuum
+    * Uses the published precomputed matrices at 10% severity steps; intermediate
+      severities interpolate between adjacent tables (matching reference
+      implementations such as colour-science and colorspacious)
 
   * **Utility functions**:
     * ``is_accessible_for_protanopia()``
@@ -34,9 +37,12 @@ Available simulations:
 Notes
 -----
 
-* Brettel / Viénot model operates in LMS cone response space
-* Machado model uses optimized RGB matrices for GPU-friendly implementation
-* Severity 0.0 = normal vision, 1.0 = full dichromacy
+* Brettel / Viénot model operates in LMS cone response space (Smith–Pokorny
+  cone fundamentals; the published simulation coefficients are only valid in
+  this basis and preserve the neutral axis)
+* Machado model uses precomputed RGB matrices for GPU-friendly implementation
+* Severity 0.0 = normal vision, 1.0 = full dichromacy; non-positive and
+  non-finite severities leave the color unchanged
 * Machado remains scalar by default; the current SIMD path is experimental and requires
   ``COLORCPP_ENABLE_SIMD=ON`` plus ``COLORCPP_ENABLE_EXPERIMENTAL_VISION_MACHADO_SIMD=ON``
 * Simulations are design aids, not medical accurate representation of individual vision

@@ -49,17 +49,21 @@ TEST(MachadoSimdTest, PublicApiMatchesScalarReferenceAcrossDeficiencies) {
   constexpr rgbaf_t kSample{0.37f, 0.64f, 0.18f, 0.45f};
   constexpr float kSeverity = 0.6f;
 
+  // Public API interpolates the published severity table first, then applies
+  // the blended matrix at full weight.
   const auto protan = simulate_protan_machado(kSample, kSeverity);
-  const auto protan_expected = details::simulate_machado_rgbaf_scalar(kSample, kSeverity, machado_detail::kProtanopia);
+  const auto protan_expected = details::simulate_machado_rgbaf_scalar(
+      kSample, 1.0f, machado_detail::severity_matrix(machado_detail::kProtanopiaSeverity, kSeverity));
   expect_rgba_near(protan, protan_expected, 1e-6f);
 
   const auto deutan = simulate_deutan_machado(kSample, kSeverity);
-  const auto deutan_expected =
-      details::simulate_machado_rgbaf_scalar(kSample, kSeverity, machado_detail::kDeuteranopia);
+  const auto deutan_expected = details::simulate_machado_rgbaf_scalar(
+      kSample, 1.0f, machado_detail::severity_matrix(machado_detail::kDeuteranopiaSeverity, kSeverity));
   expect_rgba_near(deutan, deutan_expected, 1e-6f);
 
   const auto tritan = simulate_tritan_machado(kSample, kSeverity);
-  const auto tritan_expected = details::simulate_machado_rgbaf_scalar(kSample, kSeverity, machado_detail::kTritanopia);
+  const auto tritan_expected = details::simulate_machado_rgbaf_scalar(
+      kSample, 1.0f, machado_detail::severity_matrix(machado_detail::kTritanopiaSeverity, kSeverity));
   expect_rgba_near(tritan, tritan_expected, 1e-6f);
 }
 
