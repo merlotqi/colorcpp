@@ -2,7 +2,6 @@
 #include <iostream>
 
 using namespace colorcpp;
-using namespace colorcpp::algorithms::palette;
 using namespace colorcpp::operations::palette;
 using namespace colorcpp::operations::conversion;
 using namespace colorcpp::io::ansi;

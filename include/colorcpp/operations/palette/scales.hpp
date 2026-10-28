@@ -8,7 +8,7 @@
 #include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/interpolate.hpp>
 
-namespace colorcpp::algorithms::palette {
+namespace colorcpp::operations::palette {
 
 /**
  * @brief Generate @p count colors from @p start to @p end via RGB linear interpolation.
@@ -67,4 +67,4 @@ core::palette_set<Color> perceptual_scale(const Color& start, const Color& end, 
   return p;
 }
 
-}  // namespace colorcpp::algorithms::palette
+}  // namespace colorcpp::operations::palette

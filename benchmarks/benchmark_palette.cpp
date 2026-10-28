@@ -3,15 +3,15 @@
 #include <colorcpp/colorcpp.hpp>
 
 using namespace colorcpp;
-using algorithms::palette::easing_scale;
-using algorithms::palette::easing_type;
-using algorithms::palette::lerp_method;
-using algorithms::palette::linear_scale;
-using algorithms::palette::multi_scale;
-using algorithms::palette::perceptual_scale;
-using algorithms::palette::rainbow;
-using algorithms::palette::spline_scale;
-using algorithms::palette::visual_scale;
+using colorcpp::operations::palette::easing_scale;
+using colorcpp::operations::palette::easing_type;
+using colorcpp::operations::palette::lerp_method;
+using colorcpp::operations::palette::linear_scale;
+using colorcpp::operations::palette::multi_scale;
+using colorcpp::operations::palette::perceptual_scale;
+using colorcpp::operations::palette::rainbow;
+using colorcpp::operations::palette::spline_scale;
+using colorcpp::operations::palette::visual_scale;
 namespace palette_schemes = operations::palette::schemes;
 
 // Complementary palette

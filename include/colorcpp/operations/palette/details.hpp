@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-namespace colorcpp::algorithms::palette::details {
+namespace colorcpp::operations::palette::details {
 
 /**
  * @brief Rotate hue by specified degrees.
@@ -45,4 +45,4 @@ constexpr HSLColor modify_hue(const HSLColor& src, float new_h) {
   }
 }
 
-}  // namespace colorcpp::algorithms::palette::details
+}  // namespace colorcpp::operations::palette::details

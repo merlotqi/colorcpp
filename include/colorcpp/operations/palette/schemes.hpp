@@ -7,10 +7,11 @@
 
 #include <algorithm>
 #include <colorcpp/algorithms/harmony/rules.hpp>
-#include <colorcpp/algorithms/palette/details.hpp>
-#include <colorcpp/algorithms/palette/scales.hpp>
 #include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
+#include <colorcpp/operations/palette/details.hpp>
+#include <colorcpp/operations/palette/scales.hpp>
+#include <stdexcept>
 
 namespace colorcpp::operations::palette::schemes {
 
@@ -38,8 +39,8 @@ core::palette_set<Color> from_offsets(const Color& base, const std::vector<float
   auto hsl = color_cast<core::hsla_float_t>(base);
   core::palette_set<Color> result;
   for (float offset : offsets) {
-    float target_hue = algorithms::palette::details::rotate_hue(hsl.template get_index<0>(), offset);
-    result.add(color_cast<Color>(algorithms::palette::details::modify_hue(hsl, target_hue)));
+    float target_hue = details::rotate_hue(hsl.template get_index<0>(), offset);
+    result.add(color_cast<Color>(details::modify_hue(hsl, target_hue)));
   }
   return result;
 }
@@ -52,6 +53,9 @@ core::palette_set<Color> from_offsets(const Color& base, const std::vector<float
 template <typename Color>
 core::palette_set<Color> make(const Color& base, algorithms::harmony::harmony_scheme scheme, size_t count = 0) {
   const auto rule = algorithms::harmony::rule_for(scheme, count);
+  if (rule.empty()) {
+    throw std::invalid_argument("colorcpp: no palette rule for the given scheme/count combination");
+  }
   return detail::from_offsets(base, rule.generation_offsets);
 }
 
@@ -128,7 +132,7 @@ core::palette_set<Color> monochromatic(const Color& base, size_t count = default
   core::hsla_float_t high{h.template get_index<0>(), h.template get_index<1>(), max_lightness,
                           h.template get_index<3>()};
 
-  return algorithms::palette::visual_scale(color_cast<Color>(low), color_cast<Color>(high), count);
+  return visual_scale(color_cast<Color>(low), color_cast<Color>(high), count);
 }
 
 }  // namespace colorcpp::operations::palette::schemes

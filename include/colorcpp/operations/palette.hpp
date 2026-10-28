@@ -4,24 +4,24 @@
  *
  * This header includes all palette sub-modules:
  * - core/palette_set.hpp: Ordered list of colors with wrap indexing
- * - algorithms/palette/scales.hpp: Gradient scale generators (linear, visual, perceptual)
- * - algorithms/palette/advanced_scales.hpp: Advanced gradient generators with easing functions, spline curves, and
+ * - operations/palette/scales.hpp: Gradient scale generators (linear, visual, perceptual)
+ * - operations/palette/advanced_scales.hpp: Advanced gradient generators with easing functions, spline curves, and
  * multi-color transitions
  * - operations/palette/schemes.hpp: Formal harmony scheme generators built on algorithms::harmony rules
- * - algorithms/palette/rainbow.hpp: Rainbow palette generator
- * - algorithms/palette/families.hpp: Warm, cool, and neutral palette families
+ * - operations/palette/rainbow.hpp: Rainbow palette generator
+ * - operations/palette/families.hpp: Warm, cool, and neutral palette families
  * - operations/palette/material.hpp: Heuristic Material-style palette helpers
  * - operations/palette/theme.hpp: Semantic theme derivation from a seed color
  */
 
 #pragma once
 
-#include <colorcpp/algorithms/palette/advanced_scales.hpp>
-#include <colorcpp/algorithms/palette/families.hpp>
-#include <colorcpp/algorithms/palette/rainbow.hpp>
-#include <colorcpp/algorithms/palette/scales.hpp>
 #include <colorcpp/core/palette_set.hpp>
+#include <colorcpp/operations/palette/advanced_scales.hpp>
+#include <colorcpp/operations/palette/families.hpp>
 #include <colorcpp/operations/palette/material.hpp>
+#include <colorcpp/operations/palette/rainbow.hpp>
+#include <colorcpp/operations/palette/scales.hpp>
 #include <colorcpp/operations/palette/schemes.hpp>
 #include <colorcpp/operations/palette/theme.hpp>
 

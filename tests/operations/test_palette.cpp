@@ -5,15 +5,16 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <colorcpp/colorcpp.hpp>
 #include <colorcpp/operations/palette/ios.hpp>
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 
 namespace colorcpp::operations::test {
 
 using namespace core;
-using namespace algorithms::palette;
 using namespace operations::palette;
 
 // ============================================================================
@@ -437,6 +438,82 @@ TEST(AdvancedScalesTest, EmptyInputs) {
 
   auto p3 = multi_scale(empty, 5);
   EXPECT_TRUE(p3.empty());
+}
+
+// ============================================================================
+// Boundary-condition regression guards
+// ============================================================================
+
+TEST(AdvancedScalesTest, MultiScaleCountSmallerThanSegmentsTerminates) {
+  // count < colors.size()-1 used to make the last segment's sample count
+  // underflow (0 - 1 -> SIZE_MAX), hanging the process.
+  std::vector<rgb8_t> colors{rgb8_t(255, 0, 0), rgb8_t(255, 255, 0), rgb8_t(0, 255, 0), rgb8_t(0, 0, 255)};
+  auto p = multi_scale(colors, 2);
+  EXPECT_EQ(p.size(), 2u);
+  for (const auto& c : p) {
+    EXPECT_TRUE(std::isfinite(static_cast<float>(c.r())));
+  }
+}
+
+TEST(AdvancedScalesTest, SplineScaleCountSmallerThanSegmentsTerminates) {
+  std::vector<rgb8_t> colors{rgb8_t(255, 0, 0), rgb8_t(255, 255, 0), rgb8_t(0, 255, 0), rgb8_t(0, 0, 255)};
+  auto p = spline_scale(colors, 2);
+  EXPECT_EQ(p.size(), 2u);
+}
+
+TEST(AdvancedScalesTest, SplineScaleCountOneIsFirstControlPoint) {
+  // The 2-point linear fallback computed t = 0/(1-1) = NaN; >=3 points hung.
+  std::vector<rgb8_t> two{rgb8_t(255, 0, 0), rgb8_t(0, 0, 255)};
+  auto p1 = spline_scale(two, 1);
+  ASSERT_EQ(p1.size(), 1u);
+  EXPECT_EQ(p1.at(0).r(), 255);
+
+  std::vector<rgb8_t> four{rgb8_t(255, 0, 0), rgb8_t(255, 255, 0), rgb8_t(0, 255, 0), rgb8_t(0, 0, 255)};
+  auto p2 = spline_scale(four, 1);
+  ASSERT_EQ(p2.size(), 1u);
+  EXPECT_EQ(p2.at(0).r(), 255);
+}
+
+TEST(AdvancedScalesTest, ApplyEasingElasticStaysInUnitInterval) {
+  // Elastic overshoots t>1 (~1.35), but every lerp clamps t to [0, 1], so the
+  // overshoot silently collapsed onto the end color. apply_easing must honor
+  // its [0, 1] contract itself.
+  for (int i = 0; i <= 20; ++i) {
+    float t = static_cast<float>(i) / 20.0f;
+    float e = details::apply_easing(t, easing_type::elastic);
+    EXPECT_GE(e, 0.0f);
+    EXPECT_LE(e, 1.0f);
+  }
+}
+
+TEST(FamilyScaleTest, NeutralPreservesBaseAlpha) {
+  // warm()/cool() keep the base alpha; neutral() used to hardcode 1.0.
+  rgbaf_t base(1.0f, 0.5f, 0.2f, 0.42f);
+  auto n = neutral(base);
+  ASSERT_FALSE(n.empty());
+  EXPECT_NEAR(n[0].a(), 0.42f, 1e-3f);
+  EXPECT_NEAR(n[n.size() - 1].a(), 0.42f, 1e-3f);
+}
+
+TEST(MaterialTest, DesignSystemAcceptsFloatColor) {
+  // material_design<Color> is a template but assigns palette_set<Color> into
+  // palette_set<rgba8_t> members; any non-rgba8 Color must still work.
+  rgbaf_t base(0.2f, 0.4f, 0.8f, 1.0f);
+  auto palette = material_design(base, 3);
+  EXPECT_EQ(palette.primary.size(), 3u);
+  EXPECT_EQ(palette.secondary.size(), 3u);
+  EXPECT_EQ(palette.error.size(), 3u);
+}
+
+TEST(HarmonyTest, SchemesMakeThrowsOnMismatchedCount) {
+  // make() with a count that has no canonical rule used to return an empty
+  // palette with no diagnostics.
+  EXPECT_THROW(schemes::make(rgb8_t(255, 0, 0), algorithms::harmony::harmony_scheme::complementary, 5),
+               std::invalid_argument);
+  EXPECT_THROW(schemes::make(rgb8_t(255, 0, 0), algorithms::harmony::harmony_scheme::custom), std::invalid_argument);
+  // Valid calls still succeed.
+  EXPECT_NO_THROW(schemes::make(rgb8_t(255, 0, 0), algorithms::harmony::harmony_scheme::complementary));
+  EXPECT_EQ(schemes::complementary(rgb8_t(255, 0, 0)).size(), 2u);
 }
 
 // ============================================================================

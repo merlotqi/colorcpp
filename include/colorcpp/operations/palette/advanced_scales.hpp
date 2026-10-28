@@ -12,7 +12,7 @@
 #include <colorcpp/operations/interpolate.hpp>
 #include <vector>
 
-namespace colorcpp::algorithms::palette {
+namespace colorcpp::operations::palette {
 
 /**
  * @brief Interpolation methods enum for convenience.
@@ -53,63 +53,80 @@ namespace details {
 inline float apply_easing(float t, easing_type easing) {
   t = std::clamp(t, 0.0f, 1.0f);
 
+  float eased = t;
   switch (easing) {
     case easing_type::linear:
-      return t;
+      break;
 
     case easing_type::ease_in:
-      return t * t;
+      eased = t * t;
+      break;
 
     case easing_type::ease_out:
-      return 1.0f - (1.0f - t) * (1.0f - t);
+      eased = 1.0f - (1.0f - t) * (1.0f - t);
+      break;
 
     case easing_type::ease_in_out:
-      return t < 0.5f ? 2.0f * t * t : 1.0f - 2.0f * (1.0f - t) * (1.0f - t);
+      eased = t < 0.5f ? 2.0f * t * t : 1.0f - 2.0f * (1.0f - t) * (1.0f - t);
+      break;
 
     case easing_type::cubic_in:
-      return t * t * t;
+      eased = t * t * t;
+      break;
 
     case easing_type::cubic_out:
-      return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+      eased = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+      break;
 
     case easing_type::cubic_in_out:
-      return t < 0.5f ? 4.0f * t * t * t : 1.0f - 4.0f * (1.0f - t) * (1.0f - t) * (1.0f - t);
+      eased = t < 0.5f ? 4.0f * t * t * t : 1.0f - 4.0f * (1.0f - t) * (1.0f - t) * (1.0f - t);
+      break;
 
     case easing_type::quartic_in:
-      return t * t * t * t;
+      eased = t * t * t * t;
+      break;
 
     case easing_type::quartic_out:
-      return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t) * (1.0f - t);
+      eased = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t) * (1.0f - t);
+      break;
 
     case easing_type::quartic_in_out:
-      return t < 0.5f ? 8.0f * t * t * t * t : 1.0f - 8.0f * (1.0f - t) * (1.0f - t) * (1.0f - t) * (1.0f - t);
+      eased = t < 0.5f ? 8.0f * t * t * t * t : 1.0f - 8.0f * (1.0f - t) * (1.0f - t) * (1.0f - t) * (1.0f - t);
+      break;
 
     case easing_type::elastic: {
-      if (t == 0.0f || t == 1.0f) return t;
-      constexpr float two_pi = 6.283185307179586476925286766559f;
+      if (t == 0.0f || t == 1.0f) break;
+      constexpr float tui = 6.283185307179586476925286766559f;
       float p = 0.3f;
       float s = p / 4.0f;
-      return std::pow(2.0f, -10.0f * t) * std::sin((t - s) * two_pi / p) + 1.0f;
+      eased = std::pow(2.0f, -10.0f * t) * std::sin((t - s) * tui / p) + 1.0f;
+      break;
     }
 
     case easing_type::bounce: {
       if (t < 1.0f / 2.75f) {
-        return 7.5625f * t * t;
+        eased = 7.5625f * t * t;
       } else if (t < 2.0f / 2.75f) {
         t -= 1.5f / 2.75f;
-        return 7.5625f * t * t + 0.75f;
+        eased = 7.5625f * t * t + 0.75f;
       } else if (t < 2.5f / 2.75f) {
         t -= 2.25f / 2.75f;
-        return 7.5625f * t * t + 0.9375f;
+        eased = 7.5625f * t * t + 0.9375f;
       } else {
         t -= 2.625f / 2.75f;
-        return 7.5625f * t * t + 0.984375f;
+        eased = 7.5625f * t * t + 0.984375f;
       }
+      break;
     }
 
     default:
-      return t;
+      break;
   }
+
+  // Contract: [0, 1] -> [0, 1]. The analytic elastic form overshoots to
+  // ~1.35; downstream lerps clamp t anyway, so clamp here to make the
+  // endpoint saturation explicit instead of silently delegating.
+  return std::clamp(eased, 0.0f, 1.0f);
 }
 
 }  // namespace details
@@ -170,6 +187,10 @@ core::palette_set<Color> spline_scale(
   core::palette_set<Color> p;
 
   if (control_points.empty() || count == 0) return p;
+  if (count == 1) {
+    p.add(control_points[0]);
+    return p;
+  }
   if (control_points.size() == 1) {
     for (size_t i = 0; i < count; ++i) {
       p.add(control_points[0]);
@@ -190,6 +211,20 @@ core::palette_set<Color> spline_scale(
   size_t num_segments = control_points.size() - 1;
   size_t samples_per_segment = count / num_segments;
   size_t remainder = count % num_segments;
+
+  // With fewer samples than segments the per-segment split would give the
+  // last segment zero samples (seg_samples - 1 underflows). Sample the whole
+  // polyline evenly instead; Catmull-Rom is not meaningful at that density.
+  if (count < num_segments) {
+    for (size_t i = 0; i < count; ++i) {
+      float g = static_cast<float>(i) / (count - 1);
+      float pos = g * static_cast<float>(num_segments);
+      size_t seg = std::min(static_cast<size_t>(pos), num_segments - 1);
+      float local = pos - static_cast<float>(seg);
+      p.add(operations::interpolate::lerp_oklab(control_points[seg], control_points[seg + 1], local));
+    }
+    return p;
+  }
 
   for (size_t seg = 0; seg < num_segments; ++seg) {
     size_t seg_samples = samples_per_segment + (seg < remainder ? 1 : 0);
@@ -277,6 +312,36 @@ core::palette_set<Color> multi_scale(const std::vector<Color>& colors, size_t co
   size_t samples_per_segment = count / num_segments;
   size_t remainder = count % num_segments;
 
+  // With fewer samples than segments the per-segment split would give the
+  // last segment zero samples (seg_samples - 1 underflows). Sample the whole
+  // polyline evenly instead.
+  if (count < num_segments) {
+    const auto append_sample = [&](size_t seg, float local) {
+      switch (method) {
+        case lerp_method::rgb:
+          p.add(operations::interpolate::lerp(colors[seg], colors[seg + 1], local));
+          break;
+        case lerp_method::hsl:
+          p.add(operations::interpolate::lerp_hsl(colors[seg], colors[seg + 1], local));
+          break;
+        case lerp_method::hsv:
+          p.add(operations::interpolate::lerp_hsv(colors[seg], colors[seg + 1], local));
+          break;
+        case lerp_method::oklab:
+        default:
+          p.add(operations::interpolate::lerp_oklab(colors[seg], colors[seg + 1], local));
+          break;
+      }
+    };
+    for (size_t i = 0; i < count; ++i) {
+      float g = static_cast<float>(i) / (count - 1);
+      float pos = g * static_cast<float>(num_segments);
+      size_t seg = std::min(static_cast<size_t>(pos), num_segments - 1);
+      append_sample(seg, pos - static_cast<float>(seg));
+    }
+    return p;
+  }
+
   for (size_t seg = 0; seg < num_segments; ++seg) {
     size_t seg_samples = samples_per_segment + (seg < remainder ? 1 : 0);
     // For the last segment, don't add the endpoint (we'll add it at the end)
@@ -310,4 +375,4 @@ core::palette_set<Color> multi_scale(const std::vector<Color>& colors, size_t co
   return p;
 }
 
-}  // namespace colorcpp::algorithms::palette
+}  // namespace colorcpp::operations::palette

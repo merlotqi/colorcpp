@@ -8,7 +8,7 @@
 #include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
-namespace colorcpp::algorithms::palette {
+namespace colorcpp::operations::palette {
 
 /**
  * @brief Generate a rainbow palette with evenly distributed hues.
@@ -55,4 +55,4 @@ core::palette_set<Color> rainbow_custom(size_t count, float saturation, float li
   return p;
 }
 
-}  // namespace colorcpp::algorithms::palette
+}  // namespace colorcpp::operations::palette

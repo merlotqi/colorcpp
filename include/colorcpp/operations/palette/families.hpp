@@ -5,11 +5,11 @@
 
 #pragma once
 
-#include <colorcpp/algorithms/palette/scales.hpp>
 #include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
+#include <colorcpp/operations/palette/scales.hpp>
 
-namespace colorcpp::algorithms::palette {
+namespace colorcpp::operations::palette {
 
 /**
  * @brief Generate a warm palette family (reds, oranges, yellows).
@@ -51,10 +51,12 @@ core::palette_set<Color> neutral(const Color& base, size_t count = 5) {
   using namespace operations::conversion;
   auto hsl = color_cast<core::hsla_float_t>(base);
 
-  core::hsla_float_t neutral_start{hsl.template get_index<0>(), 0.1f, 0.2f, 1.0f};
-  core::hsla_float_t neutral_end{hsl.template get_index<0>(), 0.1f, 0.9f, 1.0f};
+  // Preserve the base alpha like warm()/cool() do.
+  const float alpha = hsl.template get_index<3>();
+  core::hsla_float_t neutral_start{hsl.template get_index<0>(), 0.1f, 0.2f, alpha};
+  core::hsla_float_t neutral_end{hsl.template get_index<0>(), 0.1f, 0.9f, alpha};
 
   return visual_scale(color_cast<Color>(neutral_start), color_cast<Color>(neutral_end), count);
 }
 
-}  // namespace colorcpp::algorithms::palette
+}  // namespace colorcpp::operations::palette
