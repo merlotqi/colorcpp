@@ -30,6 +30,7 @@ Notes
 * **WCAG relative luminance** uses **Rec. 709** coefficients on **linear sRGB** obtained via ``color_cast`` (IEC 61966-2-1 linearization).
 * **APCA display Y** in this library uses a **single 2.4 gamma** on normalized 8-bit channels and **W3 G-4g-style** weights for RGB→Y, matching the common **SAPC / apca-w3** presentation—not the same numeric pipeline as ``relative_luminance``.
 * **Lc** is **signed** and **order-dependent** (text vs background). Published APCA thresholds and lookup tables evolve with W3C Silver / community drafts; this is **not legal advice** for compliance.
+* **Alpha is ignored**: both APIs measure the **specified color**, not the composited rendering. A semi-transparent text color is evaluated as if opaque — composite it against its actual background first (for example with ``blend::blend``) and pass the result here.
 
 References
 ----------

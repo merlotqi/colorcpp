@@ -25,8 +25,8 @@ namespace colorcpp::algorithms::delta_e {
  *
  * @param a First color (reference).
  * @param b Second color.
- * @param l Lightness weight (default: 2.0 for acceptability).
- * @param c Chroma weight (default: 1.0).
+ * @param l Lightness weight (default: 2.0 for acceptability). Non-positive values fall back to 1.0.
+ * @param c Chroma weight (default: 1.0). Non-positive values fall back to 1.0.
  * @return ΔE_CMC value.
  */
 template <typename ColorA, typename ColorB>
@@ -93,9 +93,12 @@ float delta_e_cmc(const ColorA& a, const ColorB& b, float l = 2.0f, float c = 1.
   // Step 9: Compute SH (hue weighting function)
   const double SH = SC * (F * T + 1.0 - F);
 
-  // Step 10: Final CMC formula
-  const double term_L = dL / (static_cast<double>(l) * SL);
-  const double term_C = dC / (static_cast<double>(c) * SC);
+  // Step 10: Final CMC formula — non-positive weights fall back to 1.0 (din99 policy)
+  const double safe_l = l > 0.0f ? static_cast<double>(l) : 1.0;
+  const double safe_c = c > 0.0f ? static_cast<double>(c) : 1.0;
+
+  const double term_L = dL / (safe_l * SL);
+  const double term_C = dC / (safe_c * SC);
   const double term_H = dH / SH;
 
   return static_cast<float>(std::sqrt(term_L * term_L + term_C * term_C + term_H * term_H));

@@ -169,4 +169,60 @@ TEST(AccessibilityTest, TextColorIsBlackOrWhite) {
   EXPECT_TRUE(black_or_white_l);
 }
 
+// Known-value anchors
+//
+// These pin the WCAG coefficients and transfer function to externally
+// verifiable numbers, so a coefficient regression (e.g. swapping in APCA's
+// 0.2126729 weights or a pure 2.4 gamma) cannot pass unnoticed.
+
+TEST(AccessibilityTest, RelativeLuminanceMatchesWcagCoefficients) {
+  // Pure primaries pin the WCAG 2 spec weights exactly (rounded Rec. 709):
+  // Y(red) = 0.2126, Y(green) = 0.7152, Y(blue) = 0.0722. Grey pairs cannot
+  // see coefficient swaps — every weight set sums to 1 — so anchor each
+  // coefficient through a saturated channel instead.
+  EXPECT_NEAR(relative_luminance(constants::red), 0.2126f, 1e-5f);
+  EXPECT_NEAR(relative_luminance(constants::lime), 0.7152f, 1e-5f);
+  EXPECT_NEAR(relative_luminance(constants::blue), 0.0722f, 1e-5f);
+}
+
+TEST(AccessibilityTest, ContrastAnchor767676OnWhite) {
+  // The canonical WCAG test pair: #767676 on white is ~4.54:1 — the first
+  // grey above the AA-normal threshold of 4.5.
+  auto fg = core::rgba8_t(0x76, 0x76, 0x76, 0xFF);
+  EXPECT_NEAR(contrast_ratio(fg, constants::white), 4.54222f, 1e-3f);
+}
+
+TEST(AccessibilityTest, RelativeLuminanceAtTransferKnee) {
+  // 0.04045 is the IEC 61966-2-1 piecewise knee; below it, linear scaling
+  // by 1/12.92. Y = 0.2126 * 0.04045 / 12.92 = 0.00066561. A pure 2.4
+  // exponent would give 0.0000306 here — three orders off.
+  core::rgbf_t knee(0.04045f, 0.0f, 0.0f);
+  EXPECT_NEAR(relative_luminance(knee), 0.00066561f, 1e-6f);
+}
+
+TEST(AccessibilityTest, AaaLargeTextThresholdIsFourPointFive) {
+  // #767676 on white ≈ 4.54: between the AAA-large threshold (4.5) and the
+  // AAA-normal threshold (7.0) — it must distinguish the two paths.
+  auto fg = core::rgba8_t(0x76, 0x76, 0x76, 0xFF);
+  EXPECT_TRUE(is_wcag_compliant(fg, constants::white, wcag_level::aaa, text_size::large));
+  EXPECT_FALSE(is_wcag_compliant(fg, constants::white, wcag_level::aaa, text_size::normal));
+}
+
+// APCA guards and quantization
+
+TEST(AccessibilityTest, ApcaOutOfRangeLuminanceReturnsZero) {
+  // Reference-implementation guard: Y outside [0, 1.1] and non-finite
+  // inputs must not flow into the pow() pipeline.
+  EXPECT_EQ(apca_contrast(2.0f, 0.5f), 0.0f);
+  EXPECT_EQ(apca_contrast(0.5f, -0.1f), 0.0f);
+  EXPECT_EQ(apca_contrast(std::nanf(""), 0.5f), 0.0f);
+}
+
+TEST(AccessibilityTest, ApcaLuminanceQuantizesToUint8) {
+  // apca_luminance is display-referred: float colors are rounded to 8-bit
+  // channels (0.5 * 255 = 127.5 -> 128) before the Y pipeline, matching the
+  // APCA reference definition on display values.
+  EXPECT_NEAR(apca_luminance(core::rgbf_t(0.5f, 0.5f, 0.5f)), apca_luminance_srgb_uint8(128, 128, 128), 1e-6f);
+}
+
 }  // namespace colorcpp::algorithms::test

@@ -16,9 +16,9 @@ namespace colorcpp::algorithms::delta_e {
  * @brief CIE 1994 ΔE; asymmetric in @p a / @p b (reference = @p a).
  * @param a Reference color.
  * @param b Comparison color.
- * @param kL Lightness weight (default: 1.0).
- * @param kC Chroma weight (default: 1.0).
- * @param kH Hue weight (default: 1.0).
+ * @param kL Lightness weight (default: 1.0). Non-positive values fall back to 1.0.
+ * @param kC Chroma weight (default: 1.0). Non-positive values fall back to 1.0.
+ * @param kH Hue weight (default: 1.0). Non-positive values fall back to 1.0.
  * @param K1 Graphic arts: 0.045; textiles: 0.048.
  * @param K2 Graphic arts: 0.015; textiles: 0.014.
  * @return ΔE94 value.
@@ -50,9 +50,14 @@ float delta_e_94(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1
   const float SC = 1.0f + K1 * C1;
   const float SH = 1.0f + K2 * C1;
 
-  const float tL = dL / (kL * SL);
-  const float tC = dC / (kC * SC);
-  const float tH = std::sqrt(dH_sq) / (kH * SH);
+  // Non-positive parametric weights fall back to 1.0 (din99 policy)
+  const float safe_kL = kL > 0.0f ? kL : 1.0f;
+  const float safe_kC = kC > 0.0f ? kC : 1.0f;
+  const float safe_kH = kH > 0.0f ? kH : 1.0f;
+
+  const float tL = dL / (safe_kL * SL);
+  const float tC = dC / (safe_kC * SC);
+  const float tH = std::sqrt(dH_sq) / (safe_kH * SH);
   return std::sqrt(tL * tL + tC * tC + tH * tH);
 }
 

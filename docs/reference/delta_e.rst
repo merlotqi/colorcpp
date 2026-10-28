@@ -58,8 +58,13 @@ Notes
 -----
 
 * ΔE94 and CMC l:c are asymmetric: the reference color is the first parameter
+* Parametric weights (``kL``/``kC``/``kH``, CMC ``l``/``c``, DIN99 ``k_L``/``k_E``)
+  are positive scaling factors; non-positive values fall back to 1.0 instead of
+  dividing by zero
 * ΔE2000 uses double precision internally for accuracy near neutral axis
-* ΔE_OK values are approximately 2.5x smaller scale than ΔE2000
+* ΔE_OK values are far smaller in scale than ΔE2000 — the JND anchors are 0.02 vs 1.0
+  (~50x), and the gap widens with the size of the difference (typically 50–100x and up).
+  Never reuse ΔE2000 thresholds for ΔE_OK; use ``oklab_jnd_typical`` instead
 * ``delta_e_ok()`` has an optional experimental SIMD-backed path for Oklab inputs when ``COLORCPP_ENABLE_SIMD=ON`` on supported targets
 * All metrics work automatically across all input color spaces
 

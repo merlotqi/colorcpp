@@ -83,6 +83,60 @@ TEST(DeltaE94Test, IsNonNegative) {
   EXPECT_GE(delta_e_94(a, b), 0.0f);
 }
 
+TEST(DeltaE94Test, MatchesPublishedReferenceSamples) {
+  // Published reference pairs (colour-science test suite, verified against an
+  // independent double-precision implementation of the CIE94 formula). These
+  // pin the K1/K2 weighting constants and the graphic-arts vs textiles split —
+  // property tests alone cannot see a coefficient swap. Graphic-arts samples
+  // call with defaults so the default K1/K2 values themselves are anchored.
+  struct Sample {
+    core::cielab_t reference;
+    core::cielab_t comparison;
+    bool textiles;
+    float expected;
+  };
+
+  const Sample samples[] = {
+      // graphic arts (default kL=1, K1=0.045, K2=0.015)
+      {core::cielab_t(48.99183622f, -0.10561667f, 400.65619925f),
+       core::cielab_t(50.65907324f, -0.11671910f, 402.82235718f), false, 1.6711191305f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 426.67945353f, 72.39590835f), false,
+       83.7792255009f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 74.05216981f, 276.45318193f), false,
+       10.0539319546f},
+      // textiles (kL=2, K1=0.048, K2=0.014)
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 426.67945353f, 72.39590835f), true,
+       88.3355530575f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 74.05216981f, 276.45318193f), true,
+       10.6126578900f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 8.32281957f, -73.58297716f), true,
+       60.3686872611f},
+  };
+
+  int sample_index = 0;
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(testing::Message() << "CIE94 sample #" << sample_index);
+    const float actual = sample.textiles
+                             ? delta_e_94(sample.reference, sample.comparison, 2.0f, 1.0f, 1.0f, 0.048f, 0.014f)
+                             : delta_e_94(sample.reference, sample.comparison);
+    EXPECT_NEAR(actual, sample.expected, 1e-3f);
+    ++sample_index;
+  }
+}
+
+TEST(DeltaE94Test, NonPositiveWeightsFallBackToUnity) {
+  // Zero or negative weights must not divide by zero — they fall back to 1.0,
+  // matching delta_e_din99's established policy.
+  const core::cielab_t reference(50.0f, 20.0f, 10.0f);
+  const core::cielab_t comparison(55.0f, 15.0f, 25.0f);
+  const float expected = delta_e_94(reference, comparison);
+
+  EXPECT_NEAR(delta_e_94(reference, comparison, 0.0f, 1.0f, 1.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_94(reference, comparison, 1.0f, 0.0f, 1.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_94(reference, comparison, 1.0f, 1.0f, 0.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_94(reference, comparison, -1.0f, -2.0f, -3.0f), expected, 1e-5f);
+}
+
 // CIEDE2000
 
 TEST(DeltaE2000Test, SameColorIsZero) {
@@ -118,7 +172,10 @@ TEST(DeltaE2000Test, MatchesPublishedSharmaSamples) {
     float expected;
   };
 
-  // First six published Sharma/Wu/Dalal CIEDE2000 supplementary cases used in the audit/plan.
+  // Full published Sharma/Wu/Dalal CIEDE2000 supplementary dataset (34 pairs).
+  // Includes the hue-discontinuity family (samples 9–16) where |Δh'| sits at or
+  // near 180°, zero-chroma pairs, and the hue-wrap pairs — all of which pin
+  // branch choices the first six samples cannot see.
   const Sample samples[] = {
       {core::cielab_t(50.0000f, 2.6772f, -79.7751f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 2.0425f},
       {core::cielab_t(50.0000f, 3.1571f, -77.2803f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 2.8615f},
@@ -126,6 +183,35 @@ TEST(DeltaE2000Test, MatchesPublishedSharmaSamples) {
       {core::cielab_t(50.0000f, -1.3802f, -84.2814f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 1.0000f},
       {core::cielab_t(50.0000f, -1.1848f, -84.8006f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 1.0000f},
       {core::cielab_t(50.0000f, -0.9009f, -85.5211f), core::cielab_t(50.0000f, 0.0000f, -82.7485f), 1.0000f},
+      {core::cielab_t(50.0000f, 0.0000f, 0.0000f), core::cielab_t(50.0000f, -1.0000f, 2.0000f), 2.3669f},
+      {core::cielab_t(50.0000f, -1.0000f, 2.0000f), core::cielab_t(50.0000f, 0.0000f, 0.0000f), 2.3669f},
+      {core::cielab_t(50.0000f, 2.4900f, -0.0010f), core::cielab_t(50.0000f, -2.4900f, 0.0009f), 7.1792f},
+      {core::cielab_t(50.0000f, 2.4900f, -0.0010f), core::cielab_t(50.0000f, -2.4900f, 0.0010f), 7.1792f},
+      {core::cielab_t(50.0000f, 2.4900f, -0.0010f), core::cielab_t(50.0000f, -2.4900f, 0.0011f), 7.2195f},
+      {core::cielab_t(50.0000f, 2.4900f, -0.0010f), core::cielab_t(50.0000f, -2.4900f, 0.0012f), 7.2195f},
+      {core::cielab_t(50.0000f, -0.0010f, 2.4900f), core::cielab_t(50.0000f, 0.0009f, -2.4900f), 4.8045f},
+      {core::cielab_t(50.0000f, -0.0010f, 2.4900f), core::cielab_t(50.0000f, 0.0010f, -2.4900f), 4.8045f},
+      {core::cielab_t(50.0000f, -0.0010f, 2.4900f), core::cielab_t(50.0000f, 0.0011f, -2.4900f), 4.7461f},
+      {core::cielab_t(50.0000f, -0.0010f, 2.4900f), core::cielab_t(50.0000f, 0.0012f, -2.4900f), 4.7461f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(50.0000f, 0.0000f, -2.5000f), 4.3065f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(73.0000f, 25.0000f, -18.0000f), 27.1492f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(61.0000f, -5.0000f, 29.0000f), 22.8977f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(56.0000f, -27.0000f, -3.0000f), 31.9030f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(58.0000f, 24.0000f, 15.0000f), 19.4535f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(50.0000f, 3.1736f, 0.5854f), 1.0000f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(50.0000f, 3.2972f, 0.0000f), 1.0000f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(50.0000f, 1.8634f, 0.5757f), 1.0000f},
+      {core::cielab_t(50.0000f, 2.5000f, 0.0000f), core::cielab_t(50.0000f, 3.2592f, 0.3350f), 1.0000f},
+      {core::cielab_t(60.2574f, -34.0099f, 36.2677f), core::cielab_t(60.4626f, -34.1751f, 39.4387f), 1.2644f},
+      {core::cielab_t(63.0109f, -31.0961f, -5.8663f), core::cielab_t(62.8187f, -29.7946f, -4.0864f), 1.2630f},
+      {core::cielab_t(61.2901f, 3.7196f, -5.3901f), core::cielab_t(61.4292f, 2.2480f, -4.9620f), 1.8731f},
+      {core::cielab_t(35.0831f, -44.1164f, 3.7933f), core::cielab_t(35.0232f, -40.0716f, 1.5901f), 1.8645f},
+      {core::cielab_t(22.7233f, 20.0904f, -46.6940f), core::cielab_t(23.0331f, 14.9730f, -42.5619f), 2.0373f},
+      {core::cielab_t(36.4612f, 47.8580f, 18.3852f), core::cielab_t(36.2715f, 50.5065f, 21.2231f), 1.4146f},
+      {core::cielab_t(90.8027f, -2.0831f, 1.4410f), core::cielab_t(91.1528f, -1.6435f, 0.0447f), 1.4441f},
+      {core::cielab_t(90.9257f, -0.5406f, -0.9208f), core::cielab_t(88.6381f, -0.8985f, -0.7239f), 1.5381f},
+      {core::cielab_t(6.7747f, -0.2908f, -2.4247f), core::cielab_t(5.8714f, -0.0985f, -2.2286f), 0.6377f},
+      {core::cielab_t(2.0776f, 0.0795f, -1.1350f), core::cielab_t(0.9033f, -0.0636f, -0.5514f), 0.9082f},
   };
 
   int sample_index = 0;
@@ -135,6 +221,19 @@ TEST(DeltaE2000Test, MatchesPublishedSharmaSamples) {
     EXPECT_NEAR(delta_e_2000(sample.comparison, sample.reference), sample.expected, 1e-3f);
     ++sample_index;
   }
+}
+
+TEST(DeltaE2000Test, NonPositiveWeightsFallBackToUnity) {
+  // Zero or negative weights must not divide by zero — they fall back to 1.0,
+  // matching delta_e_din99's established policy.
+  const core::cielab_t reference(50.0f, 20.0f, 10.0f);
+  const core::cielab_t comparison(55.0f, 15.0f, 25.0f);
+  const float expected = delta_e_2000(reference, comparison);
+
+  EXPECT_NEAR(delta_e_2000(reference, comparison, 0.0f, 1.0f, 1.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_2000(reference, comparison, 1.0f, 0.0f, 1.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_2000(reference, comparison, 1.0f, 1.0f, 0.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_2000(reference, comparison, -1.0f, -2.0f, -3.0f), expected, 1e-5f);
 }
 
 TEST(DeltaE2000Test, PerceivedOrdering) {
@@ -243,6 +342,76 @@ TEST(DeltaECMCTest, DifferentColorsAreFalse) {
   core::rgb8_t black(0, 0, 0);
   core::rgb8_t white(255, 255, 255);
   EXPECT_FALSE(is_visually_same_cmc(black, white));
+}
+
+TEST(DeltaECMCTest, MatchesPublishedReferenceSamples) {
+  // Published reference pairs (colour-science test suite, verified against an
+  // independent double-precision implementation of the CMC formula). These pin
+  // the SL/SC/SH weighting constants and the h1 T-branch split.
+  struct Sample {
+    core::cielab_t reference;
+    core::cielab_t comparison;
+    float l;
+    float expected;
+  };
+
+  const Sample samples[] = {
+      {core::cielab_t(48.99183622f, -0.10561667f, 400.65619925f),
+       core::cielab_t(50.65907324f, -0.11671910f, 402.82235718f), 2.0f, 0.8996999757f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 426.67945353f, 72.39590835f), 2.0f,
+       172.70477129f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 74.05216981f, 276.45318193f), 2.0f,
+       20.59732717f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 426.67945353f, 72.39590835f), 1.0f,
+       172.70477129f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 74.05216981f, 276.45318193f), 1.0f,
+       20.59732717f},
+      {core::cielab_t(100.0f, 21.57210357f, 272.22819350f), core::cielab_t(100.0f, 8.32281957f, -73.58297716f), 1.0f,
+       121.71841479f},
+  };
+
+  int sample_index = 0;
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(testing::Message() << "CMC sample #" << sample_index);
+    EXPECT_NEAR(delta_e_cmc(sample.reference, sample.comparison, sample.l, 1.0f), sample.expected, 1e-3f);
+    ++sample_index;
+  }
+}
+
+TEST(DeltaECMCTest, MatchesEquationDerivedEdgeSamples) {
+  // Equation-derived pairs (published CMC formula, independent double-precision
+  // implementation) covering the branches the published sample set misses:
+  // SL's L1<16 constant and SH's h1∈[164,345] T-branch. Called with defaults so
+  // the default l=2 is anchored at the same time.
+  struct Sample {
+    const char* label;
+    core::cielab_t reference;
+    core::cielab_t comparison;
+    float expected;
+  };
+
+  const Sample samples[] = {
+      {"dark_reference_SL_constant", core::cielab_t(10.0f, 5.0f, 2.0f), core::cielab_t(12.0f, 4.0f, 3.0f),
+       2.7231480874f},
+      {"blue_hue_T_branch", core::cielab_t(50.0f, -30.0f, -10.0f), core::cielab_t(50.0f, -28.0f, -8.0f), 1.4754735625f},
+  };
+
+  for (const auto& sample : samples) {
+    SCOPED_TRACE(sample.label);
+    EXPECT_NEAR(delta_e_cmc(sample.reference, sample.comparison), sample.expected, 1e-3f);
+  }
+}
+
+TEST(DeltaECMCTest, NonPositiveWeightsFallBackToUnity) {
+  // Zero or negative weights must not divide by zero — they fall back to 1.0,
+  // matching delta_e_din99's established policy.
+  const core::cielab_t reference(50.0f, 20.0f, 10.0f);
+  const core::cielab_t comparison(55.0f, 15.0f, 25.0f);
+  const float expected = delta_e_cmc(reference, comparison, 1.0f, 1.0f);
+
+  EXPECT_NEAR(delta_e_cmc(reference, comparison, 0.0f, 1.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_cmc(reference, comparison, 1.0f, 0.0f), expected, 1e-5f);
+  EXPECT_NEAR(delta_e_cmc(reference, comparison, -1.0f, -2.0f), expected, 1e-5f);
 }
 
 // DIN99

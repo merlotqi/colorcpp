@@ -15,9 +15,9 @@ namespace colorcpp::algorithms::delta_e {
  * @brief CIEDE2000 (ISO 11664-6 / CIE 142-2001).
  * @param a First color.
  * @param b Second color.
- * @param kL Lightness weight (default: 1.0).
- * @param kC Chroma weight (default: 1.0).
- * @param kH Hue weight (default: 1.0).
+ * @param kL Lightness weight (default: 1.0). Non-positive values fall back to 1.0.
+ * @param kC Chroma weight (default: 1.0). Non-positive values fall back to 1.0.
+ * @param kH Hue weight (default: 1.0). Non-positive values fall back to 1.0.
  * @return ΔE2000 value.
  * @note Rule-of-thumb: <1 imperceptible, 1–2 close inspection, 2–10 obvious, >50 very different.
  */
@@ -73,10 +73,17 @@ float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC =
   const double dLp = L2 - L1;
   const double dCp = C2p - C1p;
 
+  // |Δh'| == 180 is a genuine tie (Sharma: keep the unwrapped difference), but
+  // atan2 rounding plus the ±360 normalization of h' leaves the difference a few
+  // ulps past 180 for antipodal hues, which would silently pick the wrapped
+  // branch. Tolerate that noise; real near-tie samples in the published dataset
+  // sit ~1e-3 degrees away from the boundary.
+  constexpr double kHueTieTol = 1e-9;
+
   double dhp = 0.0;
   if (C1p * C2p != 0.0) {
     double diff = h2p - h1p;
-    if (std::abs(diff) <= 180.0)
+    if (std::abs(diff) <= 180.0 + kHueTieTol)
       dhp = diff;
     else if (diff > 180.0)
       dhp = diff - 360.0;
@@ -93,7 +100,7 @@ float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC =
   double hp_avg;
   if (C1p * C2p == 0.0) {
     hp_avg = h1p + h2p;
-  } else if (std::abs(h1p - h2p) <= 180.0) {
+  } else if (std::abs(h1p - h2p) <= 180.0 + kHueTieTol) {
     hp_avg = (h1p + h2p) * 0.5;
   } else if (h1p + h2p < 360.0) {
     hp_avg = (h1p + h2p + 360.0) * 0.5;
@@ -117,10 +124,14 @@ float delta_e_2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC =
   const double d_theta = 30.0 * std::exp(-((hp_avg - 275.0) / 25.0) * ((hp_avg - 275.0) / 25.0));
   const double RT = -std::sin(deg2rad_d(2.0 * d_theta)) * RC;
 
-  // Final
-  const double term_L = dLp / (static_cast<double>(kL) * SL);
-  const double term_C = dCp / (static_cast<double>(kC) * SC);
-  const double term_H = dHp / (static_cast<double>(kH) * SH);
+  // Final — non-positive parametric weights fall back to 1.0 (din99 policy)
+  const double safe_kL = kL > 0.0f ? static_cast<double>(kL) : 1.0;
+  const double safe_kC = kC > 0.0f ? static_cast<double>(kC) : 1.0;
+  const double safe_kH = kH > 0.0f ? static_cast<double>(kH) : 1.0;
+
+  const double term_L = dLp / (safe_kL * SL);
+  const double term_C = dCp / (safe_kC * SC);
+  const double term_H = dHp / (safe_kH * SH);
   return static_cast<float>(std::sqrt(term_L * term_L + term_C * term_C + term_H * term_H + RT * term_C * term_H));
 }
 
