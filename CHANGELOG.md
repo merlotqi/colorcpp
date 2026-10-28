@@ -4,6 +4,10 @@ All notable changes to `colorcpp` are documented here.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-10-28
+
+Patch release focused on W3C/CSS parity for the interpolate and blend modules, comparison-policy enhancements, and color-type hashing/ordering.
+
 ### Fixed
 
 - **`epsilon_policy` is a true absolute tolerance**: `float_equal` mixed an
