@@ -119,6 +119,31 @@ TEST(PoissonDisk, DefaultDistanceIsOkLabScale) {
   EXPECT_FLOAT_EQ(gen.min_distance(), 0.1f);
 }
 
+TEST(PoissonDisk, RepeatedCallsAdvanceEngine) {
+  // generate() used to build its sampler from a copy of the engine and never
+  // write the state back, so every call replayed the identical palette.
+  poisson_disk_generator<core::oklab_t> gen(42u);
+  auto first = gen.generate(8);
+  auto second = gen.generate(8);
+  ASSERT_EQ(first.size(), 8u);
+  ASSERT_EQ(second.size(), 8u);
+  bool any_diff = false;
+  for (std::size_t i = 0; i < first.size(); ++i) {
+    if (first[i] != second[i]) any_diff = true;
+  }
+  EXPECT_TRUE(any_diff) << "consecutive generate() calls returned identical palettes";
+}
+
+TEST(PoissonDisk, NonPositiveMinDistanceClampsAndTerminates) {
+  // min_distance <= 0 makes every candidate valid, so generate_max() never
+  // saw a failure and looped forever. The constructor must clamp to a
+  // positive default instead.
+  poisson_disk_generator<core::oklab_t> gen(42u, 0.f);
+  EXPECT_GT(gen.min_distance(), 0.f);
+  gen.set_min_distance(-1.f);
+  EXPECT_GT(gen.min_distance(), 0.f);
+}
+
 TEST(PoissonDisk, DefaultGeneratesRequestedCount) {
   poisson_disk_generator<core::oklab_t> gen(42u);
   auto colors = gen.generate(8);

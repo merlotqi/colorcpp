@@ -48,17 +48,21 @@ class poisson_disk_generator {
    * @param min_distance Minimum OkLab ΔE distance between colors (default: 0.1).
    *                     OkLab scale (not CIE ΔE): 0.05 - subtle difference,
    *                     0.1 - clearly different, 0.15 - very distinct.
+   *                     Non-positive values fall back to the default: a
+   *                     non-positive minimum accepts every candidate, which
+   *                     would make @ref generate_max loop forever.
    */
   explicit poisson_disk_generator(typename Engine::result_type seed, float min_distance = kDefaultMinDistance)
-      : rng_(seed), min_distance_(min_distance) {}
+      : rng_(seed), min_distance_(sanitize_min_distance(min_distance)) {}
 
   /**
    * @brief Construct generator with existing engine.
    * @param e Random engine instance.
    * @param min_distance Minimum OkLab ΔE distance between colors.
+   *                     Non-positive values fall back to the default (see above).
    */
   explicit poisson_disk_generator(Engine&& e, float min_distance = kDefaultMinDistance)
-      : rng_(std::move(e)), min_distance_(min_distance) {}
+      : rng_(std::move(e)), min_distance_(sanitize_min_distance(min_distance)) {}
 
   /**
    * @brief Generate a palette with specified number of colors.
@@ -73,6 +77,8 @@ class poisson_disk_generator {
     std::vector<intermediate_type> samples;
     samples.reserve(count);
 
+    // The sampler keeps its own engine copy; write the advanced state back so
+    // consecutive generate() calls produce different palettes.
     basic_random_generator<intermediate_type, Engine> gen(rng_);
 
     for (std::size_t i = 0; i < count; ++i) {
@@ -94,6 +100,8 @@ class poisson_disk_generator {
       }
     }
 
+    rng_ = gen.engine();
+
     // Convert back to target color space
     std::vector<Color> result;
     result.reserve(samples.size());
@@ -113,6 +121,8 @@ class poisson_disk_generator {
   std::vector<Color> generate_max(std::size_t max_attempts = 1000) {
     std::vector<intermediate_type> samples;
 
+    // The sampler keeps its own engine copy; write the advanced state back so
+    // consecutive calls produce different palettes.
     basic_random_generator<intermediate_type, Engine> gen(rng_);
 
     std::size_t consecutive_failures = 0;
@@ -127,6 +137,8 @@ class poisson_disk_generator {
         consecutive_failures++;
       }
     }
+
+    rng_ = gen.engine();
 
     // Convert back to target color space
     std::vector<Color> result;
@@ -147,9 +159,10 @@ class poisson_disk_generator {
 
   /**
    * @brief Set new minimum distance.
-   * @param distance New minimum ΔE distance.
+   * @param distance New minimum ΔE distance. Non-positive values fall back to
+   *                 the default (see the constructor).
    */
-  void set_min_distance(float distance) noexcept { min_distance_ = distance; }
+  void set_min_distance(float distance) noexcept { min_distance_ = sanitize_min_distance(distance); }
 
   /**
    * @brief Access internal random engine.
@@ -164,6 +177,14 @@ class poisson_disk_generator {
   const Engine& engine() const noexcept { return rng_; }
 
  private:
+  /**
+   * @brief Non-positive minima are unusable (every candidate would pass and
+   *        @ref generate_max would never terminate); fall back to the default.
+   */
+  static constexpr float sanitize_min_distance(float distance) noexcept {
+    return distance > 0.0f ? distance : kDefaultMinDistance;
+  }
+
   /**
    * @brief Check if candidate is at least min_distance away from all existing samples.
    */
