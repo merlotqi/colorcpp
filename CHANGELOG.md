@@ -4,6 +4,59 @@ All notable changes to `colorcpp` are documented here.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-10-29
+
+Patch release focused on perceptual colour spaces for HDR / wide gamut,
+colour-temperature metrology, modern colour-difference metrics, and a public
+extension API for the conversion graph.
+
+### Added
+
+- **Core colour spaces**: `xyy_t` (CIE xyY), `luv_t` (CIELUV D65) and
+  `jzazbz_t` (Jzazbz, Safdar et al. 2017 — HDR / wide gamut) with
+  bidirectional conversions to XYZ and full conversion-graph participation.
+- **Chromatic adaptation** (`chromatic_adaptation.hpp`): von Kries, Bradford,
+  CAT02, CAT16, CMCCAT2000 and XYZ-scaling cone responses against the
+  standard CIE white points (D50 / D55 / D65 / A / C).
+- **Colour-temperature metrology** (`color_temperature/`): Ohno (2013)
+  CCT + signed-Duv estimation and its inverse, Robertson (1968) isothermal
+  lines, McCamy (1992) closed form, Planckian-locus tables built from the
+  embedded 5 nm CIE 1931 2° CMFs, mired helpers, and CIE 1960 (u, v)
+  chromaticity utilities. Tanner Helland's kelvin→sRGB approximation is
+  unchanged but now lives in `color_temperature/kelvin_rgb.hpp`;
+  `color_temperature.hpp` is an umbrella over the split headers.
+- **Colour difference**: `delta_e_itp` (ITU-R BT.2124, with `ictcp_t` PQ
+  encoding helpers), `delta_e_hyab` and `delta_e_hych` (Abasi et al. 2020;
+  HyCH built on CIE 2000 intermediates, textile preset `kL = 2`), and
+  `delta_e_jz` (Jzazbz Euclidean).
+- **Conversion-graph extension**: `COLORCPP_REGISTER_CONVERSION` /
+  `_WEIGHTED` / `_BIDIR` macros plus `graph::node_list` extension let
+  user-defined colour types join the automatic conversion graph, with
+  compile-time path verification (see `tests/operations/test_conversion_extension.cpp`).
+- **Vision**: colour-vision-deficiency simulations take a 0–1 severity
+  parameter interpolating between nominal and full deficiency.
+- **Gradient**: additional gradient types, wider easing support, and stable
+  colour-stop sorting.
+- `color_type_name` debug specializations for `xyy`, `luv`, `jzazbz`, the
+  rec2020 family and linear Display P3, so conversion-path debugging no
+  longer prints `<unknown>` for these spaces.
+
+### Changed
+
+- Non-positive parametric weights in the colour-difference metrics
+  (`kL`/`kC`/`kH` for ΔE94 / ΔE2000 / HyCH, `l`/`c` for CMC,
+  `k_L`/`k_E` for DIN99) fall back to 1.0 instead of corrupting the metric.
+- `delta_e_2000` and `delta_e_hych` share a single ISO 11664-6 intermediate
+  implementation (`cie2000_intermediates.hpp`).
+- Palette operations moved into the `operations` namespace; harmony hue-arc
+  assessment is order-independent.
+
+### Testing
+
+- Full suite: 1294 tests green, including new coverage for temperature
+  metrology, ΔE_ITP / HyAB / HyCH / Jz, chromatic adaptation, the three new
+  core spaces, custom conversion nodes, and debug type names.
+
 ## [1.0.4] - 2026-10-28
 
 Patch release focused on W3C/CSS parity for the interpolate and blend modules, comparison-policy enhancements, and color-type hashing/ordering.
