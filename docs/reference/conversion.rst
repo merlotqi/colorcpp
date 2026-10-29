@@ -68,33 +68,53 @@ and will be considered for shortest path calculation.
 Extending The System
 --------------------
 
-The stable public contract documented here focuses on built-in graph routing plus
-registered direct conversion edges.
+Custom color types can join the conversion graph through two stable hooks:
 
-For downstream extensions, the supported workflow documented here is to register
-direct conversions involving the custom types you control. That direct-edge path
-is the stable public extension contract today.
+1. **Direct registered edges** — make ``color_cast`` work between your type and
+   any type it is registered with.
+2. **Graph node registration** — add your type as a full graph node so
+   multi-hop shortest-path routing works automatically in both directions.
 
-Downstream multi-hop graph participation for external node types is not yet a
-streamlined stable public contract. More advanced graph-node extension hooks
-exist internally, but they are outside the conservative API surface documented
-on this page.
+Registration macros open the conversion namespace themselves and may be used at
+global scope:
 
-For example:
+  * ``COLORCPP_REGISTER_CONVERSION(From, To, function)``
+  * ``COLORCPP_REGISTER_CONVERSION_WEIGHTED(From, To, function, cost)``
 
-1. Register the outward direct conversion you want to support
-2. Register the reverse direct conversion too if callers need that direction
+Include order matters: the node set must be configured **before** any header
+that runs concrete conversions at namespace scope (for example
+``operations/palette/theme.hpp`` or the ``io/css`` headers) is included —
+otherwise the graph is locked to the built-in nodes. The conversion
+infrastructure header alone never locks it:
 
 .. code-block:: cpp
 
-    // Register outward conversion edge
-    COLORCPP_REGISTER_CONVERSION(my_custom_color_t, xyz_t, my_custom_to_xyz);
+    // 1. Graph infrastructure only — safe to configure afterwards
+    #include <colorcpp/operations/conversion.hpp>
 
-    // Register reverse edge too if callers need the opposite direction
-    COLORCPP_REGISTER_CONVERSION(xyz_t, my_custom_color_t, xyz_to_my_custom);
+    struct my_uv { float u, v; };
 
-Those registrations make the documented direct casts available for the directions
-you provide.
+    my_uv rgbf_to_my_uv(const colorcpp::core::rgbf_t& c);
+    colorcpp::core::xyz_t my_uv_to_xyz(const my_uv& c);
+
+    // 2. Add the type as a graph node (multi-hop participation)
+    template <>
+    struct colorcpp::operations::conversion::graph::additional_color_nodes<> {
+      using type = colorcpp::operations::conversion::graph::node_list<my_uv>;
+    };
+
+    // 3. Register the conversion edges (weighted edges steer route choice)
+    COLORCPP_REGISTER_CONVERSION(colorcpp::core::rgbf_t, my_uv, rgbf_to_my_uv);
+    COLORCPP_REGISTER_CONVERSION(my_uv, colorcpp::core::rgbf_t, my_uv_to_rgbf);
+    COLORCPP_REGISTER_CONVERSION_WEIGHTED(my_uv, colorcpp::core::xyz_t, my_uv_to_xyz, 4);
+
+    // 4. Rest of the library — routes now include my_uv automatically
+    #include <colorcpp/colorcpp.hpp>
+
+With the node registered, ``color_cast<xyz_t>(my_uv)`` routes through the
+weighted graph (here preferring the cheaper ``my_uv → rgbf → linear rgb → xyz``
+chain over the cost-4 direct edge), and casts in the reverse direction work
+with no extra registration.
 
 
 Debugging & Inspection

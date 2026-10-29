@@ -171,14 +171,28 @@ using concat_node_lists_t = typename concat_node_lists<Lists...>::type;
  *
  * Specialize this trait in your own code to add custom color types to the
  * global conversion graph. They will automatically be discovered and used
- * for shortest path routing.
+ * for shortest path routing together with edges registered via
+ * @c COLORCPP_REGISTER_CONVERSION.
  *
  * @code
+ * // 1. Graph infrastructure only — does not instantiate the node set:
+ * #include <colorcpp/operations/conversion.hpp>
+ * // 2. Extend the node set and register edges:
  * template <>
- * struct colorcpp::operations::conversion::graph::additional_color_nodes {
- *   using type = node_list<my_custom_color_t, my_other_color_t>;
+ * struct colorcpp::operations::conversion::graph::additional_color_nodes<> {
+ *   using type = colorcpp::operations::conversion::graph::node_list<my_custom_color_t>;
  * };
+ * COLORCPP_REGISTER_CONVERSION(my_custom_color_t, colorcpp::core::xyz_t, my_to_xyz);
+ * // 3. Safe to include the rest of the library:
+ * #include <colorcpp/colorcpp.hpp>
  * @endcode
+ *
+ * The specialization must appear before the first graph use (e.g. the first
+ * @c color_cast) in the translation unit; specializing after instantiation
+ * is ill-formed. Headers that run concrete @c color_cast calls at namespace
+ * scope (e.g. @c operations/palette/theme.hpp, @c io/css headers) instantiate the
+ * node set on mere include, so they must come after the specialization —
+ * the conversion infrastructure alone never locks the node list in.
  */
 template <typename Tag = void>
 struct additional_color_nodes {
@@ -206,8 +220,26 @@ using builtin_color_nodes =
  * This is the complete node list used for all default graph routing.
  * It automatically includes both built-in nodes and any nodes added
  * via the additional_color_nodes extension point.
+ *
+ * Lazy alias template: the node list (and therefore the user extension hook)
+ * is only resolved when first used, never merely by including this header.
  */
-using global_color_nodes = concat_node_lists_t<builtin_color_nodes, typename additional_color_nodes<>::type>;
+template <typename Tag = void>
+using global_color_nodes_t = concat_node_lists_t<builtin_color_nodes, typename additional_color_nodes<Tag>::type>;
+
+// Dependent indirection to the global node/edge set. Non-dependent uses of
+// global_color_nodes_t<> (e.g. in variable-template initializers or class
+// template definitions) can be substituted eagerly by some compilers, which
+// would instantiate the additional_color_nodes hook on mere include. Routing
+// everything through a type computed from a call-site parameter defers the
+// hook until first real use.
+template <typename DependOn, typename Tag = void>
+struct nodes_for {
+  using type = global_color_nodes_t<Tag>;
+};
+
+template <typename DependOn, typename Tag = void>
+using nodes_for_t = typename nodes_for<DependOn, Tag>::type;
 
 /**
  * @brief Collect all direct registered edges among a known node set.
@@ -230,8 +262,15 @@ struct collect_edges<node_list<Nodes...>> {
   using type = typename concat_edge_lists<typename collect_from_edges<Nodes, node_list<Nodes...>>::type...>::type;
 };
 
-using global_edges = typename collect_edges<global_color_nodes>::type;
+// Note: no default template argument here — some compilers eagerly substitute
+// default arguments of alias templates at definition time, which would
+// instantiate the additional_color_nodes extension hook on mere include.
+template <typename Nodes>
+using global_edges_t = typename collect_edges<Nodes>::type;
 using builtin_edges = typename collect_edges<builtin_color_nodes>::type;
+
+template <typename DependOn>
+using edges_for_t = global_edges_t<nodes_for_t<DependOn>>;
 
 template <typename Nodes, typename Edges>
 struct adjacency_matrix;
@@ -349,18 +388,25 @@ struct shortest_path_for_nodes {
  * @tparam Target Target color type
  * @tparam MaxNodes Safety bound on the known node count
  */
-template <typename Edges, typename Source, typename Target, std::size_t MaxNodes = 64>
-struct shortest_path : shortest_path_for_nodes<global_color_nodes, Edges, Source, Target, MaxNodes> {};
+// The node set is a defaulted template parameter (not written directly in the
+// base clause) so the base class stays fully dependent: some compilers would
+// otherwise substitute the non-dependent global_color_nodes_t<> at template
+// definition time — including in default template arguments — locking the
+// additional_color_nodes hook on mere include. The default is therefore
+// computed from Source to stay dependent until first use.
+template <typename Edges, typename Source, typename Target, std::size_t MaxNodes = 64,
+          typename Nodes = nodes_for_t<Source>>
+struct shortest_path : shortest_path_for_nodes<Nodes, Edges, Source, Target, MaxNodes> {};
 
 template <typename From, typename To>
 inline constexpr bool endpoints_in_global_graph_v =
-    contains_node_v<global_color_nodes, From> && contains_node_v<global_color_nodes, To>;
+    contains_node_v<nodes_for_t<From>, From> && contains_node_v<nodes_for_t<To>, To>;
 
 /**
  * @brief Get the minimal graph cost between two color types.
  *
  * Identity and direct registered edges are always treated as graph-reachable,
- * even when the types are not part of @ref global_color_nodes. Multi-hop graph
+ * even when the types are not part of @ref global_color_nodes_t. Multi-hop graph
  * routing requires both endpoints to be present in the global node set.
  *
  * Hub routing is intentionally excluded here so callers can choose it as an
@@ -371,7 +417,7 @@ constexpr std::size_t minimal_conversion_cost() {
   if constexpr (std::is_same_v<From, To>) {
     return 0;
   } else if constexpr (endpoints_in_global_graph_v<From, To>) {
-    return shortest_path<global_edges, From, To>::cost();
+    return shortest_path<edges_for_t<From>, From, To>::cost();
   } else if constexpr (has_registered_conversion_v<From, To>) {
     return registered_conversion_cost_v<From, To>;
   } else {
@@ -404,7 +450,7 @@ struct next_hop_impl<From, To, true, false> {
 
 template <typename From, typename To>
 struct next_hop_impl<From, To, true, true> {
-  using type = node_at_t<global_color_nodes, shortest_path<global_edges, From, To>::first_step_index()>;
+  using type = node_at_t<nodes_for_t<From>, shortest_path<edges_for_t<From>, From, To>::first_step_index()>;
 };
 
 /**

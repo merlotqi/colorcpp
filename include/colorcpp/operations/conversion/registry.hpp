@@ -54,6 +54,11 @@ constexpr To apply_registered_conversion(const From& src) {
 /**
  * @brief Macro to register a conversion function.
  *
+ * Usable at any namespace scope, including user code at global scope; the
+ * macro opens the conversion namespace itself. Register before the first
+ * @c color_cast (or other graph use) of the involved types in the
+ * translation unit.
+ *
  * Usage:
  *   COLORCPP_REGISTER_CONVERSION(source_type, dest_type, conversion_function)
  *
@@ -61,13 +66,15 @@ constexpr To apply_registered_conversion(const From& src) {
  *   COLORCPP_REGISTER_CONVERSION(hsl_float_t, rgbf_t, details::hsl_to_rgb<rgbf_t>)
  */
 #define COLORCPP_REGISTER_CONVERSION_WEIGHTED(From, To, Func, Cost) \
+  namespace colorcpp::operations::conversion {                      \
   template <>                                                       \
   struct conversion_registry<From, To> {                            \
     static constexpr bool is_registered = true;                     \
     using convert_fn = To (*)(const From&);                         \
     static constexpr convert_fn convert = &Func;                    \
     static constexpr std::size_t cost = Cost;                       \
-  };
+  };                                                                \
+  }
 
 /**
  * @brief Macro to register a conversion function with default cost 1.

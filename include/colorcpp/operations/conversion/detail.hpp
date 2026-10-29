@@ -31,9 +31,16 @@ using extract_model_t = typename extract_model<T>::type;
  * Alpha is a pure ride-along channel: conversion functions copy it verbatim and
  * never apply transfer functions or matrices to it. Derived from the shared
  * @ref colorcpp::traits::alpha_tag in the model's channel tuple (CMYK's K is not alpha).
+ *
+ * Types that are not @c basic_color specializations (e.g. user graph nodes)
+ * are not alpha models: the trait is false for them instead of a hard error.
  */
+template <typename Color, typename = void>
+inline constexpr bool has_alpha_v = false;
+
 template <typename Color>
-inline constexpr bool has_alpha_v = traits::model_has_alpha_v<extract_model_t<Color>>;
+inline constexpr bool has_alpha_v<Color, std::void_t<extract_model_t<Color>>> =
+    traits::model_has_alpha_v<extract_model_t<Color>>;
 
 /** @brief Index of @p Color's straight-alpha channel (only meaningful when @ref has_alpha_v). */
 template <typename Color>
