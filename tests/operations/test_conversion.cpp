@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/operations/conversion.hpp>
+#include <limits>
 #include <type_traits>
 
 // Custom model with alpha at index 0 of only 3 channels: alpha lookup must go
@@ -35,6 +36,18 @@ TEST(ConversionTest, IdentityCast) {
   EXPECT_FLOAT_EQ(copy.r(), c.r());
   EXPECT_FLOAT_EQ(copy.g(), c.g());
   EXPECT_FLOAT_EQ(copy.b(), c.b());
+}
+
+// Abnormal values
+
+TEST(ConversionTest, NaNSourceConvertsToZeroForIntegralTarget) {
+  // std::clamp passes NaN through; casting NaN to uint8_t is UB. The
+  // conversion layer must define the mapping (NaN → 0) instead.
+  const rgbf_t src{std::numeric_limits<float>::quiet_NaN(), 0.5f, 1.0f};
+  const auto c = color_cast<rgb8_t>(src);
+  EXPECT_EQ(c.r(), 0);
+  EXPECT_EQ(c.g(), 128);
+  EXPECT_EQ(c.b(), 255);
 }
 
 // sRGB ↔ Linear sRGB

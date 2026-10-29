@@ -168,8 +168,12 @@ namespace factory_details {
 /** Clamps one argument into Channel's nominal range (rounding for integral channels). */
 template <typename Channel, typename Arg>
 constexpr typename Channel::value_type clamp_to_channel(Arg v) {
-  const float x = std::clamp(static_cast<float>(v), static_cast<float>(Channel::min), static_cast<float>(Channel::max));
+  float x = std::clamp(static_cast<float>(v), static_cast<float>(Channel::min), static_cast<float>(Channel::max));
   if constexpr (std::is_integral_v<typename Channel::value_type>) {
+    // std::clamp passes NaN through; casting NaN to an integral channel is UB.
+    // Map it to the channel minimum. `x != x` is the NaN check (std::isnan is
+    // not constexpr in C++17).
+    if (x != x) x = static_cast<float>(Channel::min);
     return static_cast<typename Channel::value_type>(std::round(x));
   } else {
     return static_cast<typename Channel::value_type>(x);

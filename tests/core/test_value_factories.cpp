@@ -7,6 +7,7 @@
 
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <limits>
 #include <stdexcept>
 
 namespace colorcpp::core::test {
@@ -32,6 +33,15 @@ TEST(ValueFactoryTest, ClampedOnFamilyTypes) {
   EXPECT_FLOAT_EQ(h.h(), 360.0f);
   EXPECT_FLOAT_EQ(h.s(), 0.5f);
   EXPECT_FLOAT_EQ(h.l(), 1.0f);
+}
+
+TEST(ValueFactoryTest, ClampedNaNBecomesZero) {
+  // clamp passes NaN through; casting NaN to uint8_t is UB. clamped() must
+  // define the mapping (NaN → 0) instead.
+  const rgb8_t c = clamped<rgb8_t>(std::numeric_limits<float>::quiet_NaN(), 128.0f, 200.7f);
+  EXPECT_EQ(c.r(), 0);
+  EXPECT_EQ(c.g(), 128);
+  EXPECT_EQ(c.b(), 201);
 }
 
 TEST(ValueFactoryTest, MakeCheckedAcceptsInNominalRange) {
