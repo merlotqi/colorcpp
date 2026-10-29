@@ -1149,6 +1149,17 @@ TEST(Css, ToCssColorStringRoundTrip) {
   expect_rgba(*back, 255, 99, 71, 255);
 }
 
+TEST(Css, ToCssColorStringRgbafRoundTrip) {
+  // rgb() numeric channels are 0-255 in CSS; serializing unit floats as bare
+  // numbers made "rgb(1.0 0 0)" parse back as r = 1/255.
+  const rgbaf_t src{1.0f, 0.4f, 0.2f, 0.5f};
+  auto s = to_css_color_string(src);
+  auto back = parse_css_color<rgbaf_t>(s);
+  ASSERT_TRUE(back);
+  expect_rgbaf_near(*back, 1.0f, 0.4f, 0.2f, 0.5f, 0.002f);
+}
+
+
 struct CssTableCase {
   std::string input;
   uint8_t r, g, b, a;
