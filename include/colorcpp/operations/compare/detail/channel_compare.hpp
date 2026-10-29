@@ -84,12 +84,21 @@ inline constexpr bool is_hue_channel_v = std::is_same_v<typename Channel::tag_ty
  * Linear for values inside one turn; wraps out-of-range inputs down first, so
  * 0 and range are distance 0 and 359.9 vs 0 is distance 0.1. Arithmetic only
  * (no fmod) to stay constexpr in C++17.
+ *
+ * The wrap loop is bounded (separations up to 4096 turns stay exact).
+ * Beyond that — or for a non-finite separation, where the old unbounded
+ * subtraction never terminated (inf - range is still inf) — the distance
+ * collapses to the longest arc (range/2) so hue comparisons report
+ * "not equal" instead of spinning forever.
  */
 template <typename T>
 constexpr T circular_diff(T a, T b, T range) noexcept {
   T d = (a > b) ? (a - b) : (b - a);
   if (range > T(0)) {
-    while (d > range) d -= range;
+    if (d > range) {
+      for (int i = 0; i < 4096 && d > range; ++i) d -= range;
+      if (d > range) d = range / T(2);  // non-finite or absurd separation
+    }
     if (d > range - d) d = range - d;
   }
   return d;

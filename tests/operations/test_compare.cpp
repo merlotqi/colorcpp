@@ -7,6 +7,7 @@
 
 #include <colorcpp/colorcpp.hpp>
 #include <functional>
+#include <limits>
 #include <map>
 #include <unordered_map>
 
@@ -426,6 +427,29 @@ TEST(RelativeCompareTest, AchromaticHueIsIgnored) {
   hsl_float_t a{0.0f, 0.0f, 0.5f};
   hsl_float_t b{180.0f, 0.0f, 0.5f};
   EXPECT_TRUE(relative_equal(a, b, 1e-3f));
+}
+
+TEST(EpsilonCompareTest, InfiniteHueTerminatesAndIsNotEqual) {
+  // circular_diff used to wrap via `while (d > range) d -= range;`, which
+  // never terminates for d = inf (inf - range is still inf).
+  hsl_float_t a{std::numeric_limits<float>::infinity(), 0.8f, 0.5f};
+  hsl_float_t b{0.0f, 0.8f, 0.5f};
+  EXPECT_FALSE(epsilon_equal(a, b, 1.0f));
+}
+
+TEST(EpsilonCompareTest, HugeHueTerminatesAndIsNotEqual) {
+  // A hue thousands of turns out is meaningless input; the reduction must
+  // not take ~forever, and the colors must not compare equal.
+  hsl_float_t a{1e38f, 0.8f, 0.5f};
+  hsl_float_t b{0.0f, 0.8f, 0.5f};
+  EXPECT_FALSE(epsilon_equal(a, b, 1.0f));
+}
+
+TEST(EpsilonCompareTest, MultiTurnHueStillWrapsExactly) {
+  // Regression guard: in-range magnitudes keep the exact subtraction wrap.
+  hsl_float_t a{725.5f, 0.8f, 0.5f};
+  hsl_float_t b{5.5f, 0.8f, 0.5f};
+  EXPECT_TRUE(epsilon_equal(a, b, 1e-3f));
 }
 
 TEST(ConstexprCompareTest, ExactConstexpr) {
