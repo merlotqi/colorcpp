@@ -75,8 +75,7 @@ inline cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table) {
   const float l = std::hypot(u_next - u_prev, v_next - v_prev);
   const float x = (d_prev * d_prev - d_next * d_next + l * l) / (2.0f * l);
   const float t_tri = t_prev + (t_next - t_prev) * (x / l);
-  const float u_vertex = u_prev + (u_cur - u_prev) * (x / l);
-  const float v_vertex = v_prev + (v_cur - v_prev) * (x / l);
+  const float v_vertex = v_prev + (v_next - v_prev) * (x / l);
   const float sign = (v < v_vertex) ? -1.0f : 1.0f;
   const float d_uv_tri = std::sqrt(std::max(d_prev * d_prev - x * x, 0.0f)) * sign;
 

@@ -60,14 +60,14 @@ inline constexpr float M_ICTCP_TO_LMS_P[9] = {1.0f, 0.0086090370f, 0.1110296250f
 // PQ inverse-EOTF (absolute luminance -> code value). Black maps to exactly
 // 0 (raw formula yields c1^m2 ≈ 7.3e-7 at Y = 0, which would leak into the
 // IC_T_C P chroma channels through the matrix).
-inline constexpr float itp_pq_encode(float y) {
+inline float itp_pq_encode(float y) {
   if (y <= 0.0f) return 0.0f;
   y = std::pow(y / ITP_PEAK, ITP_M1);
   return std::pow((ITP_C1 + ITP_C2 * y) / (1.0f + ITP_C3 * y), ITP_M2);
 }
 
 // PQ EOTF (code value -> absolute luminance).
-inline constexpr float itp_pq_decode(float p) {
+inline float itp_pq_decode(float p) {
   p = std::pow(std::max(p, 0.0f), 1.0f / ITP_M2);
   float num = std::max(p - ITP_C1, 0.0f);
   float den = ITP_C2 - ITP_C3 * p;

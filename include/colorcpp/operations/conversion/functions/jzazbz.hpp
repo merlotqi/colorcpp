@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/xyz.hpp>
@@ -41,13 +42,13 @@ inline constexpr float M2_inv[9] = {1.0f,         0.13860504f, 0.05804732f,  1.0
                                     -0.05804732f, 1.0f,        -0.09601924f, -0.81189190f};
 
 // PQ inverse-EOTF (linear luminance -> code value); negative input clamps to 0.
-inline constexpr float pq_encode(float y) {
+inline float pq_encode(float y) {
   y = std::pow(std::max(y / peak, 0.0f), m1);
   return std::pow((c1 + c2 * y) / (1.0f + c3 * y), m2);
 }
 
 // PQ EOTF (code value -> linear luminance).
-inline constexpr float pq_decode(float p) {
+inline float pq_decode(float p) {
   p = std::pow(std::max(p, 0.0f), 1.0f / m2);
   float num = std::max(p - c1, 0.0f);
   float den = c2 - c3 * p;
