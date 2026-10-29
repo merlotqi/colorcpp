@@ -377,3 +377,37 @@ TEST(Cube, NonNumericLutSizeReturnsMonostate) {
   std::istringstream ss(cube_data);
   EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
 }
+
+// ===== .cube Overflow / Hostile Input Tests =====
+
+TEST(Lut3d, OversizedSizeIsNeverValid) {
+  // size = 2^22: size³ wraps to 0 (mod 2^64), which wrongly matches empty data.
+  lut3d lut;
+  lut.size = 4194304u;
+  EXPECT_FALSE(lut.valid());
+}
+
+TEST(Lut1d, SizeAboveMaxIsNeverValid) {
+  // Fully populated table above the supported maximum must still be invalid.
+  lut1d lut;
+  lut.size = 65537u;  // kMaxLut1dSize is 65536
+  lut.r.resize(65537u);
+  lut.g.resize(65537u);
+  lut.b.resize(65537u);
+  EXPECT_FALSE(lut.valid());
+}
+
+TEST(Cube, Oversized3dSizeReturnsMonostate) {
+  // 2^22 makes size³ wrap to 0; empty data then wrongly passed valid(),
+  // after which apply() reads out of bounds.
+  const char* cube_data = "LUT_3D_SIZE 4194304\n";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+TEST(Cube, Oversized1dSizeReturnsMonostate) {
+  // Must be rejected at header parse time, before any huge reserve().
+  const char* cube_data = "LUT_1D_SIZE 2000000000\n";
+  std::istringstream ss(cube_data);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}

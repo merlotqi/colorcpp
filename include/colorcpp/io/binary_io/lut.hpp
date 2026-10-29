@@ -18,6 +18,25 @@
 namespace colorcpp::io::binary_io {
 
 /**
+ * @brief Maximum supported grid dimension for lut3d.
+ *
+ * Bounds the cube so that size³ cannot overflow std::size_t (even on
+ * 32-bit platforms, where the theoretical limit is 1625) and keeps
+ * absurd .cube headers from allocating gigabytes. Real-world LUTs
+ * are at most 65–128; 512 leaves generous headroom.
+ */
+inline constexpr std::size_t kMaxLut3dSize = 512;
+
+/**
+ * @brief Maximum supported table length for lut1d.
+ *
+ * Bounds response-curve tables; 65536 matches the longest tables used
+ * in grading pipelines and keeps absurd .cube headers from reserving
+ * gigabytes before validation.
+ */
+inline constexpr std::size_t kMaxLut1dSize = 65536;
+
+/**
  * @brief 1D color lookup table — independent per-channel mapping.
  *
  * Each channel (R, G, B) has its own lookup table of @c size entries,
@@ -45,8 +64,10 @@ struct lut1d {
   /** @brief Blue channel lookup values. */
   std::vector<float> b;
 
-  /** @brief Check if the LUT is valid (size > 0 and data populated). */
-  bool valid() const { return size > 0 && r.size() == size && g.size() == size && b.size() == size; }
+  /** @brief Check if the LUT is valid (size > 0, within bounds, and data populated). */
+  bool valid() const {
+    return size > 0 && size <= kMaxLut1dSize && r.size() == size && g.size() == size && b.size() == size;
+  }
 };
 
 /**
@@ -73,8 +94,14 @@ struct lut3d {
   /** @brief Flat array of NxNxN RGB triplets. */
   std::vector<std::array<float, 3>> data;
 
-  /** @brief Check if the LUT is valid. */
-  bool valid() const { return size > 0 && data.size() == size * size * size; }
+  /**
+   * @brief Check if the LUT is valid.
+   *
+   * The size bound is checked before the size³ comparison so that an
+   * oversized grid can never wrap the multiplication and falsely match
+   * a short data array (which would make at() read out of bounds).
+   */
+  bool valid() const { return size > 0 && size <= kMaxLut3dSize && data.size() == size * size * size; }
 
   /** @brief Access a grid point by (r, g, b) indices. */
   const std::array<float, 3>& at(std::size_t ri, std::size_t gi, std::size_t bi) const {
