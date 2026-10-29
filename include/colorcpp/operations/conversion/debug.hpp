@@ -14,9 +14,13 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
+#include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
+#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion/graph.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
@@ -142,6 +146,51 @@ struct color_type_name<core::display_p3f_t> {
 template <>
 struct color_type_name<core::display_p3af_t> {
   static constexpr std::string_view value = "display_p3a";
+};
+
+template <>
+struct color_type_name<core::linear_display_p3f_t> {
+  static constexpr std::string_view value = "linear_display_p3";
+};
+
+template <>
+struct color_type_name<core::linear_display_p3af_t> {
+  static constexpr std::string_view value = "linear_display_p3a";
+};
+
+template <>
+struct color_type_name<core::rec2020_rgbf_t> {
+  static constexpr std::string_view value = "rec2020";
+};
+
+template <>
+struct color_type_name<core::rec2020_rgbaf_t> {
+  static constexpr std::string_view value = "rec2020a";
+};
+
+template <>
+struct color_type_name<core::linear_rec2020_rgbf_t> {
+  static constexpr std::string_view value = "linear_rec2020";
+};
+
+template <>
+struct color_type_name<core::linear_rec2020_rgbaf_t> {
+  static constexpr std::string_view value = "linear_rec2020a";
+};
+
+template <>
+struct color_type_name<core::xyy_t> {
+  static constexpr std::string_view value = "xyy";
+};
+
+template <>
+struct color_type_name<core::luv_t> {
+  static constexpr std::string_view value = "luv";
+};
+
+template <>
+struct color_type_name<core::jzazbz_t> {
+  static constexpr std::string_view value = "jzazbz";
 };
 
 /**
