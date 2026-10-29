@@ -1,6 +1,7 @@
 /**
  * @file delta_e.hpp
- * @brief Color difference metrics: CIELAB D65 (ΔE76 / ΔE94 / ΔE2000), CMC l:c, DIN99, and Oklab Euclidean (ΔE_OK).
+ * @brief Color difference metrics: CIELAB D65 (ΔE76 / ΔE94 / ΔE2000 / HyAB / HyCH), CMC l:c, DIN99,
+ *        Oklab Euclidean (ΔE_OK), Jzazbz Euclidean (ΔE_Jz), and ΔE_ITP (BT.2124).
  *
  * This is an aggregate header that includes all delta_e components.
  * Individual components can be included separately for faster compilation.
@@ -22,7 +23,9 @@
 #include <colorcpp/algorithms/delta_e/din99.hpp>
 #include <colorcpp/algorithms/delta_e/helpers.hpp>
 #include <colorcpp/algorithms/delta_e/hyab.hpp>
+#include <colorcpp/algorithms/delta_e/hych.hpp>
 #include <colorcpp/algorithms/delta_e/itp.hpp>
+#include <colorcpp/algorithms/delta_e/jzazbz.hpp>
 #include <colorcpp/algorithms/delta_e/oklab.hpp>
 
 namespace colorcpp::algorithms::delta_e {
