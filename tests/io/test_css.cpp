@@ -1428,4 +1428,41 @@ TEST(Css, LabFunctionDefaultsToOpaqueWithoutAlpha) {
 }
 
 
+// Channel-expression parsing recurses through calc() and parenthesized
+// groups; without a depth limit, ~20000 levels of nesting overflow the stack
+// (segfault). The parser must fail cleanly (nullopt) instead.
+TEST(Css, DeepCalcNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s = "rgb(from red ";
+  for (int i = 0; i < 20000; ++i) s += "calc(";
+  s += "1";
+  for (int i = 0; i < 20000; ++i) s += ")";
+  s += " g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepParenNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s = "rgb(from red ";
+  for (int i = 0; i < 20000; ++i) s += "(";
+  s += "1";
+  for (int i = 0; i < 20000; ++i) s += ")";
+  s += " g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+// A flat 1+1+1+... chain parses iteratively but builds a left-deep AST;
+// evaluate_expression then recurses once per operator and overflows.
+TEST(Css, LongAdditiveChainFailsCleanlyInsteadOfCrashing) {
+  std::string s = "rgb(from red calc(1";
+  for (int i = 0; i < 50000; ++i) s += "+1";
+  s += ") g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, ModerateNestingStillParses) {
+  // Depth well under the limit must keep working.
+  std::string s = "rgb(from red calc(calc(calc(1 + 2))) g b)";
+  auto c = parse_css_color_rgba8(s);
+  ASSERT_TRUE(c);
+}
+
 }  // namespace colorcpp::io::test

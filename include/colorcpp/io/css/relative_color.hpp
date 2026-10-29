@@ -348,6 +348,12 @@ class channel_expression_parser {
   }
 
   std::shared_ptr<channel_expression> parse_unary() {
+    // Every operand passes through here — including one per calc()/paren
+    // nesting level and one per +/- operator — so a single budget bounds both
+    // parser recursion depth and the AST depth the recursive evaluator walks.
+    // Without it, ~20000 nesting levels or a ~50000-term additive chain
+    // overflow the stack. 1024 is far above any real-world CSS expression.
+    if (budget_-- <= 0) return nullptr;
     skip_ws();
     if (consume_char('+')) return parse_unary();
     if (consume_char('-')) {
@@ -461,6 +467,8 @@ class channel_expression_parser {
   std::string_view text_;
   size_t pos_ = 0;
   bool channel_list_mode_ = false;
+  // Shared operand/nesting budget; see parse_unary.
+  int budget_ = 1024;
 };
 
 inline bool consume_required_ws(channel_expression_parser& parser) {
