@@ -109,7 +109,6 @@ class basic_random_generator {
   }
 
  public:
-
   /**
    * @brief Get a reference to the internal engine (const).
    * @return Const reference to the engine.

@@ -191,10 +191,9 @@ class poisson_disk_generator {
  * @return Vector of generated colors.
  */
 template <typename Color>
-std::vector<Color> poisson_disk_palette(
-    std::size_t count,
-    float min_distance = poisson_disk_generator<Color>::kDefaultMinDistance,
-    typename std::mt19937::result_type seed = std::random_device{}()) {
+std::vector<Color> poisson_disk_palette(std::size_t count,
+                                        float min_distance = poisson_disk_generator<Color>::kDefaultMinDistance,
+                                        typename std::mt19937::result_type seed = std::random_device{}()) {
   poisson_disk_generator<Color> gen(seed, min_distance);
   return gen.generate(count);
 }
@@ -208,9 +207,8 @@ std::vector<Color> poisson_disk_palette(
  * @return Vector of all possible distinct colors.
  */
 template <typename Color>
-std::vector<Color> poisson_disk_max(
-    float min_distance = poisson_disk_generator<Color>::kDefaultMinDistance,
-    typename std::mt19937::result_type seed = std::random_device{}()) {
+std::vector<Color> poisson_disk_max(float min_distance = poisson_disk_generator<Color>::kDefaultMinDistance,
+                                    typename std::mt19937::result_type seed = std::random_device{}()) {
   poisson_disk_generator<Color> gen(seed, min_distance);
   return gen.generate_max();
 }

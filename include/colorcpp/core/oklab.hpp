@@ -10,17 +10,16 @@
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/io.hpp>
 #include <tuple>
-#include <type_traits>
 
 namespace colorcpp::core::oklab {
 
 namespace channel {
 
-struct l_tag {};  // lightness
-struct a_tag {};  // green-red axis (Oklab)
-struct b_tag {};  // blue-yellow axis (Oklab)
+struct l_tag {};                   // lightness
+struct a_tag {};                   // green-red axis (Oklab)
+struct b_tag {};                   // blue-yellow axis (Oklab)
 using c_tag = traits::chroma_tag;  // chroma (OkLCH, shared chroma tag)
-using h_tag = traits::hue_tag;  // hue angle (OkLCH, shared ring tag)
+using h_tag = traits::hue_tag;     // hue angle (OkLCH, shared ring tag)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = Min/Den … Max/Den
 // a/b/c nominal ranges are deliberately wider than any in-gamut value: CSS has no

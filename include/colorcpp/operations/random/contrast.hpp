@@ -13,13 +13,13 @@
 #pragma once
 
 #include <cmath>
-#include <optional>
 #include <colorcpp/algorithms/accessibility/wcag.hpp>
 #include <colorcpp/algorithms/gamut/preserve.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/random/basic.hpp>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 

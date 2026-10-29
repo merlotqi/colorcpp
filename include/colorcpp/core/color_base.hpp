@@ -15,7 +15,6 @@
 #include <type_traits>
 #include <utility>
 
-
 namespace colorcpp::core {
 
 /**
@@ -279,8 +278,7 @@ std::size_t hash_channels(const basic_color<Model>& c, std::index_sequence<Is...
   using T = typename basic_color<Model>::value_type;
   std::size_t seed = 0;
   // boost-style combine; channel order is part of the contract.
-  ((seed ^= std::hash<T>{}(static_cast<T>(c.template get_index<Is>())) + 0x9e3779b9 + (seed << 6) + (seed >> 2)),
-   ...);
+  ((seed ^= std::hash<T>{}(static_cast<T>(c.template get_index<Is>())) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), ...);
   return seed;
 }
 
@@ -299,7 +297,8 @@ namespace std {
 template <typename Model>
 struct hash<colorcpp::core::basic_color<Model>> {
   std::size_t operator()(const colorcpp::core::basic_color<Model>& c) const noexcept {
-    return colorcpp::core::detail::hash_channels(c, std::make_index_sequence<colorcpp::traits::model_channel_count_v<Model>>{});
+    return colorcpp::core::detail::hash_channels(
+        c, std::make_index_sequence<colorcpp::traits::model_channel_count_v<Model>>{});
   }
 };
 
@@ -339,15 +338,15 @@ struct hash<colorcpp::core::basic_color<Model>> {
  * COLORCPP_ENABLE_HASH(colorcpp::core::basic_rgba)
  * @endcode
  */
-#define COLORCPP_ENABLE_HASH(Family)                                                                \
-  namespace std {                                                                                   \
-  template <typename Model>                                                                         \
-  struct hash<Family<Model>> {                                                                      \
-    std::size_t operator()(const Family<Model>& c) const noexcept {                                 \
-      return ::colorcpp::core::detail::hash_channels(                                               \
-          c, std::make_index_sequence<::colorcpp::traits::model_channel_count_v<Model>>{});         \
-    }                                                                                               \
-  };                                                                                                \
+#define COLORCPP_ENABLE_HASH(Family)                                                        \
+  namespace std {                                                                           \
+  template <typename Model>                                                                 \
+  struct hash<Family<Model>> {                                                              \
+    std::size_t operator()(const Family<Model>& c) const noexcept {                         \
+      return ::colorcpp::core::detail::hash_channels(                                       \
+          c, std::make_index_sequence<::colorcpp::traits::model_channel_count_v<Model>>{}); \
+    }                                                                                       \
+  };                                                                                        \
   }
 
 /**

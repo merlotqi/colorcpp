@@ -27,8 +27,7 @@ struct exact_policy {
   static constexpr bool compare(const Color& a, const Color& b) noexcept {
     using T = typename Color::value_type;
     // Hue channels arrive as their circular distance: 0 and max are one hue.
-    return detail::compare_channels(a, b, detail::channel_exact<T>,
-                                    [](T /*va*/, T /*vb*/, T d) { return d == T(0); });
+    return detail::compare_channels(a, b, detail::channel_exact<T>, [](T /*va*/, T /*vb*/, T d) { return d == T(0); });
   }
 };
 

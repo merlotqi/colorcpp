@@ -30,6 +30,12 @@ Aggregated includes: ``include/colorcpp/core/core.hpp``.
      - ``xyz.hpp``
    * - CIELAB / CIELCH
      - ``cielab.hpp`` (cylindrical form defined alongside LAB)
+   * - CIE Luv
+     - ``luv.hpp``
+   * - CIE xyY
+     - ``xyy.hpp``
+   * - Jzazbz
+     - ``jzazbz.hpp``
    * - OkLab / OkLCH
      - ``oklab.hpp``
    * - Named constants
@@ -78,6 +84,24 @@ Color space properties
      - L* a* b*
      - L: [0,100] a*,b*: [-128, 127]
      - Industry standard colorimetry
+   * - CIE Luv
+     - Perceptual
+     - D65
+     - L* u* v*
+     - L: [0,100] u*,v*: [-128, 128]
+     - Additive mixing, displays, soft-proofing
+   * - CIE xyY
+     - Chromaticity
+     - D65
+     - x y Y
+     - x,y: [0,1] Y: [0,2]
+     - Chromaticity diagrams, CCT work, colorimetry
+   * - Jzazbz
+     - Perceptual (PQ-based)
+     - D65
+     - Jz az bz
+     - Jz: [0,1] az,bz: [-1,1]
+     - HDR, large dynamic range uniformity
    * - XYZ
      - Tristimulus
      - D65
@@ -100,5 +124,6 @@ References (specs and overviews)
 
 * `IEC 61966-2-1:1999 — Multimedia systems — Colour measurement and management — Part 2-1: Default RGB colour space sRGB <https://webstore.iec.ch/en/publication/6169>`__
 * `Recommendation ITU-R BT.709 — Image parameter values for high-definition television <https://www.itu.int/rec/R-REC-BT.709>`__
-* `CIE 015:2018 — Colorimetry, 4th Edition <https://www.cie.co.at/publications/cie-0152018-colorimetry-4th-edition>`__ (XYZ, LAB context)
+* `CIE 015:2018 — Colorimetry, 4th Edition <https://www.cie.co.at/publications/cie-0152018-colorimetry-4th-edition>`__ (XYZ, LAB, Luv, xyY context)
 * `OkLab — Björn Ottosson (2020) <https://bottosson.github.io/posts/oklab/>`__
+* `Safdar et al. (2017). Perceptually uniform color space for image signals of higher dynamic range and wider gamut <https://doi.org/10.1364/OE.25.016325>`__ (Jzazbz)

@@ -10,7 +10,6 @@
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/io.hpp>
 #include <tuple>
-#include <type_traits>
 
 namespace colorcpp::core::xyz {
 

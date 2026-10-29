@@ -33,21 +33,18 @@ struct relative_policy {
    * @return True if all channels are within the combined tolerance.
    */
   template <typename Color>
-  static constexpr bool compare(const Color& a, const Color& b, float rel = 1e-5f,
-                                float abs_floor = 0.0f) noexcept {
+  static constexpr bool compare(const Color& a, const Color& b, float rel = 1e-5f, float abs_floor = 0.0f) noexcept {
     using T = typename Color::value_type;
     // Negative tolerance (either half) never matches any channel, hue included.
     if (rel < 0.0f || abs_floor < 0.0f) return false;
     return detail::compare_channels(
-        a, b,
-        [rel, abs_floor](T va, T vb) { return detail::channel_relative(va, vb, rel, abs_floor); },
+        a, b, [rel, abs_floor](T va, T vb) { return detail::channel_relative(va, vb, rel, abs_floor); },
         [rel, abs_floor](T va, T vb, T d) {
           const T abs_a = (va > T(0)) ? va : -va;
           const T abs_b = (vb > T(0)) ? vb : -vb;
           const T max_val = (abs_a > abs_b) ? abs_a : abs_b;
           const double rel_bound = static_cast<double>(rel) * static_cast<double>(max_val);
-          const double tol = (rel_bound > static_cast<double>(abs_floor)) ? rel_bound
-                                                                          : static_cast<double>(abs_floor);
+          const double tol = (rel_bound > static_cast<double>(abs_floor)) ? rel_bound : static_cast<double>(abs_floor);
           return static_cast<double>(d) <= tol;
         });
   }
@@ -63,8 +60,7 @@ struct relative_policy {
  * @return True if all channels are within the combined tolerance.
  */
 template <typename Color>
-constexpr bool relative_equal(const Color& a, const Color& b, float rel = 1e-5f,
-                              float abs_floor = 0.0f) noexcept {
+constexpr bool relative_equal(const Color& a, const Color& b, float rel = 1e-5f, float abs_floor = 0.0f) noexcept {
   return relative_policy::compare(a, b, rel, abs_floor);
 }
 

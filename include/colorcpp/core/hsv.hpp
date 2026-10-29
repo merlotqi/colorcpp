@@ -12,10 +12,10 @@ namespace colorcpp::core::hsv {
 
 namespace channel {
 
-using h_tag = traits::hue_tag;      // hue (shared ring tag)
-using s_tag = traits::chroma_tag;   // saturation (shared chroma tag)
-struct v_tag {};                    // value
-using a_tag = traits::alpha_tag;  // alpha
+using h_tag = traits::hue_tag;     // hue (shared ring tag)
+using s_tag = traits::chroma_tag;  // saturation (shared chroma tag)
+struct v_tag {};                   // value
+using a_tag = traits::alpha_tag;   // alpha
 
 using f32_hue = traits::basic_channel<h_tag, float, 0, 360, 1>;
 using f32_saturation = traits::basic_channel<s_tag, float, 0, 1>;  // [0, 1] — not percentage

@@ -119,8 +119,7 @@ using perceptual_oklab_policy = basic_perceptual_policy<oklab_metric>;
  */
 template <typename ColorA, typename ColorB>
 bool perceptual_equal_de2000(const ColorA& a, const ColorB& b, float threshold = de2000_metric::default_threshold,
-                             alpha_mode am = alpha_mode::ignore, float kL = 1.0f, float kC = 1.0f,
-                             float kH = 1.0f) {
+                             alpha_mode am = alpha_mode::ignore, float kL = 1.0f, float kC = 1.0f, float kH = 1.0f) {
   return perceptual_policy::compare(a, b, threshold, am, kL, kC, kH);
 }
 
@@ -140,8 +139,7 @@ bool perceptual_equal(const ColorA& a, const ColorB& b, float threshold = de2000
  * @return True if ΔE_OK <= threshold and alpha passes the mode gate.
  */
 template <typename ColorA, typename ColorB>
-bool perceptual_equal_ok(const ColorA& a, const ColorB& b,
-                         float threshold = oklab_metric::default_threshold,
+bool perceptual_equal_ok(const ColorA& a, const ColorB& b, float threshold = oklab_metric::default_threshold,
                          alpha_mode am = alpha_mode::ignore) {
   return perceptual_oklab_policy::compare(a, b, threshold, am);
 }
@@ -160,8 +158,7 @@ bool perceptual_equal_ok(const ColorA& a, const ColorB& b,
  * @return ΔE2000 distance (no threshold, no alpha gate).
  */
 template <typename ColorA, typename ColorB>
-float perceptual_distance_de2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f,
-                                 float kH = 1.0f) {
+float perceptual_distance_de2000(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f, float kH = 1.0f) {
   return de2000_metric::distance(a, b, kL, kC, kH);
 }
 
@@ -169,8 +166,7 @@ float perceptual_distance_de2000(const ColorA& a, const ColorB& b, float kL = 1.
  * @brief Perceptual distance (CIEDE2000) between two colors (alias of @ref perceptual_distance_de2000).
  */
 template <typename ColorA, typename ColorB>
-float perceptual_distance(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f,
-                          float kH = 1.0f) {
+float perceptual_distance(const ColorA& a, const ColorB& b, float kL = 1.0f, float kC = 1.0f, float kH = 1.0f) {
   return perceptual_distance_de2000(a, b, kL, kC, kH);
 }
 

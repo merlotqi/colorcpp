@@ -17,7 +17,6 @@
 #include <colorcpp/core/rgb.hpp>
 #include <cstdint>
 
-
 /**
  * @brief Named @ref colorcpp::core::rgba8_t constants (full opacity) for common and W3C color names.
  */

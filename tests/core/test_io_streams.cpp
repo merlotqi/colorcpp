@@ -8,7 +8,6 @@
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/rgb.hpp>
-#include <iomanip>
 #include <sstream>
 
 namespace colorcpp::core::test {

@@ -21,6 +21,8 @@
 #include <colorcpp/algorithms/delta_e/de94.hpp>
 #include <colorcpp/algorithms/delta_e/din99.hpp>
 #include <colorcpp/algorithms/delta_e/helpers.hpp>
+#include <colorcpp/algorithms/delta_e/hyab.hpp>
+#include <colorcpp/algorithms/delta_e/itp.hpp>
 #include <colorcpp/algorithms/delta_e/oklab.hpp>
 
 namespace colorcpp::algorithms::delta_e {

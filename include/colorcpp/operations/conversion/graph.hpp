@@ -16,10 +16,13 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
+#include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion/functions/index.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
@@ -212,7 +215,7 @@ using builtin_color_nodes =
               core::linear_display_p3af_t, core::adobe_rgbf_t, core::adobe_rgbaf_t, core::linear_adobe_rgbf_t,
               core::linear_adobe_rgbaf_t, core::prophoto_rgbf_t, core::prophoto_rgbaf_t, core::linear_prophoto_rgbf_t,
               core::linear_prophoto_rgbaf_t, core::rec2020_rgbf_t, core::rec2020_rgbaf_t, core::linear_rec2020_rgbf_t,
-              core::linear_rec2020_rgbaf_t>;
+              core::linear_rec2020_rgbaf_t, core::xyy_t, core::luv_t, core::jzazbz_t>;
 
 /**
  * @brief Global color graph node set including user extensions.

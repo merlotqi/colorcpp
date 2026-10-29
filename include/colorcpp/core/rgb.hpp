@@ -13,7 +13,6 @@
 #include <colorcpp/core/io.hpp>
 #include <cstdint>
 #include <tuple>
-#include <type_traits>
 
 namespace colorcpp::core::rgb {
 

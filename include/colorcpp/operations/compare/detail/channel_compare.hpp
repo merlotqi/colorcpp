@@ -174,8 +174,8 @@ template <typename Color, typename = void>
 inline constexpr bool is_channel_color_v = false;
 
 template <typename Color>
-inline constexpr bool is_channel_color_v<Color, std::void_t<typename Color::channels_tuple, decltype(Color::channels)>>
-    = true;
+inline constexpr bool
+    is_channel_color_v<Color, std::void_t<typename Color::channels_tuple, decltype(Color::channels)>> = true;
 
 /**
  * @brief Compare all channels of two colors (linear + hue-aware).
@@ -185,8 +185,7 @@ inline constexpr bool is_channel_color_v<Color, std::void_t<typename Color::chan
  */
 template <typename LinearComp, typename HueComp, typename Color>
 constexpr bool compare_channels(const Color& a, const Color& b, LinearComp linear_comp, HueComp hue_comp) noexcept {
-  static_assert(is_channel_color_v<Color>,
-                "colorcpp: channel comparison requires a color type (e.g. core::rgb8_t)");
+  static_assert(is_channel_color_v<Color>, "colorcpp: channel comparison requires a color type (e.g. core::rgb8_t)");
   return compare_channels_impl(a, b, linear_comp, hue_comp, std::make_index_sequence<Color::channels>{});
 }
 

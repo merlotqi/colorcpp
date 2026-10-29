@@ -11,17 +11,16 @@
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/io.hpp>
 #include <tuple>
-#include <type_traits>
 
 namespace colorcpp::core::lab {
 
 namespace channel {
 
-struct l_tag {};  // lightness
-struct a_tag {};  // green-red axis (CIELAB)
-struct b_tag {};  // blue-yellow axis (CIELAB)
+struct l_tag {};                   // lightness
+struct a_tag {};                   // green-red axis (CIELAB)
+struct b_tag {};                   // blue-yellow axis (CIELAB)
 using c_tag = traits::chroma_tag;  // chroma (CIELCH, shared chroma tag)
-using h_tag = traits::hue_tag;  // hue angle (CIELCH, shared ring tag)
+using h_tag = traits::hue_tag;     // hue angle (CIELCH, shared ring tag)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = static_cast<T>(Min) / static_cast<T>(Den) ... Max/Den
 // Den=1 keeps values in their natural CIE units rather than normalizing to [0,1].

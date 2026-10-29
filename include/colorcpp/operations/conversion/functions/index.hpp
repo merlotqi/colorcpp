@@ -13,13 +13,16 @@
 #include <colorcpp/operations/conversion/functions/hsl.hpp>
 #include <colorcpp/operations/conversion/functions/hsv.hpp>
 #include <colorcpp/operations/conversion/functions/hwb.hpp>
+#include <colorcpp/operations/conversion/functions/jzazbz.hpp>
 #include <colorcpp/operations/conversion/functions/lab.hpp>
 #include <colorcpp/operations/conversion/functions/linear_rgb.hpp>
+#include <colorcpp/operations/conversion/functions/luv.hpp>
 #include <colorcpp/operations/conversion/functions/oklab.hpp>
 #include <colorcpp/operations/conversion/functions/prophoto_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/rec2020.hpp>
 #include <colorcpp/operations/conversion/functions/rgbf_oklab_reg.hpp>
 #include <colorcpp/operations/conversion/functions/srgb8_cast.hpp>
+#include <colorcpp/operations/conversion/functions/xyy.hpp>
 #include <colorcpp/operations/conversion/functions/xyz.hpp>
 
 // Register conversions
@@ -29,9 +32,12 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
+#include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 
@@ -147,6 +153,21 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::cielab_t, colorcpp::core::cie
 COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::xyz_t, colorcpp::core::cielab_t,
                                    colorcpp::operations::conversion::details::xyz_to_lab<colorcpp::core::cielab_t>,
                                    colorcpp::operations::conversion::details::lab_to_xyz<colorcpp::core::xyz_t>)
+
+// XYZ ↔ CIE xyY
+COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::xyz_t, colorcpp::core::xyy_t,
+                                   colorcpp::operations::conversion::details::xyz_to_xyy<colorcpp::core::xyy_t>,
+                                   colorcpp::operations::conversion::details::xyy_to_xyz<colorcpp::core::xyz_t>)
+
+// XYZ ↔ CIE L*u*v*
+COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::xyz_t, colorcpp::core::luv_t,
+                                   colorcpp::operations::conversion::details::xyz_to_luv<colorcpp::core::luv_t>,
+                                   colorcpp::operations::conversion::details::luv_to_xyz<colorcpp::core::xyz_t>)
+
+// XYZ ↔ Jzazbz
+COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::xyz_t, colorcpp::core::jzazbz_t,
+                                   colorcpp::operations::conversion::details::xyz_to_jzazbz<colorcpp::core::jzazbz_t>,
+                                   colorcpp::operations::conversion::details::jzazbz_to_xyz<colorcpp::core::xyz_t>)
 
 // XYZ ↔ OkLab
 COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::xyz_t, colorcpp::core::oklab_t,

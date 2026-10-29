@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include <colorcpp/operations/compare/equal.hpp>
 #include <colorcpp/operations/compare/epsilon.hpp>
+#include <colorcpp/operations/compare/equal.hpp>
 #include <colorcpp/operations/compare/perceptual.hpp>
 #include <colorcpp/operations/compare/relative.hpp>
 

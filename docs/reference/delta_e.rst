@@ -26,7 +26,15 @@ Available metrics:
         - Supports ``k_L`` lightness scaling and inverse ``k_E`` overall scaling
         - Checked against equation-derived reference pairs from the published DIN99 transform
 
-  * **Modern Perceptual Metric**:
+  * **HDR / Modern Metrics**:
+    * ``delta_e_itp()`` - ΔE_ITP in IC_T_C P (ITU-R BT.2124)
+        - 720·√(ΔI² + (ΔCt/2)² + ΔCp²); a value of 1 ≈ JND under critical viewing
+        - Operates on ``ictcp_t`` values; use ``xyz_to_ictcp()`` / ``ictcp_to_xyz()``
+          (XYZ D65 → Linear BT.2020 → LMS' → PQ → IC_T_C P) for other colour types
+        - Designed for HDR (PQ, up to 10000 cd/m²) and wide gamut content
+    * ``delta_e_hyab()`` - Hybrid absolute-Bernard metric in CIELAB (Abasi et al. 2020)
+        - |ΔL*| + √(Δa*² + Δb*²): absolute lightness term plus planar chroma distance
+        - Avoids the hue-collapse artefact of Euclidean ΔE76 for large lightness differences
     * ``delta_e_ok()`` - Oklab Euclidean distance
     * Fast, uniform, and well-behaved across the entire color space
     * Recommended for most new applications
@@ -75,4 +83,6 @@ References
 * `CIE 15:2018 Colorimetry <https://cie.co.at/publications/cie-0152018-colorimetry-4th-edition>`__
 * `ISO 11664-6:2022 CIEDE2000 Formula <https://www.iso.org/standard/78907.html>`__
 * Sharma, G. et al. (2005) The CIEDE2000 color-difference formula
+* `ITU-R BT.2124 — Objective difference metric for HDR/WCG content <https://www.itu.int/rec/R-REC-BT.2124>`__
 * `Oklab Perceptual Color Space <https://bottosson.github.io/posts/oklab/>`__
+* Abasi, S., Akyüz, M. S., & Lenz, R. (2020). Accuracy of Color Difference Formulae in Complex Scenes. Journal of Imaging.

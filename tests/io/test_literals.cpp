@@ -156,8 +156,6 @@ TEST(HexLiteralTest, InvalidHexDigitsThrow) {
   EXPECT_THROW((void)"#F63Z"_hex, std::invalid_argument);
 }
 
-
-
 // Constexpr evaluation
 
 TEST(LiteralConstexprTest, AllLiteralsAreConstexpr) {
