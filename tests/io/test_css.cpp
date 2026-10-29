@@ -1388,4 +1388,44 @@ TEST(Css, ContrastColorRejectsMalformed) {
   }
 }
 
+// lab()/lch()/oklab()/oklch() used to parse "/ alpha" and then discard it, so
+// every rgba8/rgbaf conversion came back fully opaque. The slash alpha must
+// survive the cast into the alpha-carrying targets.
+TEST(Css, LabFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("lab(50% 40 59.5 / 0.5)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 128);
+}
+
+TEST(Css, LchFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("lch(50% 40 270 / 50%)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 128);
+}
+
+TEST(Css, OklabFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("oklab(0.5 0.1 -0.2 / 25%)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 64);
+}
+
+TEST(Css, OklchFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("oklch(0.6 0.1 30 / 0)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 0);
+}
+
+TEST(Css, OklchFunctionAlphaSurvivesRgbafCast) {
+  auto c = parse_css_color<rgbaf_t>("oklch(0.6 0.1 30 / 0.25)");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(c->a(), 0.25f, 0.002f);
+}
+
+TEST(Css, LabFunctionDefaultsToOpaqueWithoutAlpha) {
+  auto c = parse_css_color_rgba8("lab(50% 40 59.5)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 255);
+}
+
+
 }  // namespace colorcpp::io::test

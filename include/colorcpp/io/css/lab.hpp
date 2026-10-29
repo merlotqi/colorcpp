@@ -102,8 +102,13 @@ inline core::cielab_t lab_d65_to_d50(const core::cielab_t& lab) {
  * a: -125 to 125 (green-red axis)
  * b: -125 to 125 (blue-yellow axis)
  * Optional alpha with /
+ *
+ * @param alpha_out Optional sink for the parsed alpha in [0,1]; written only on
+ *        success. @c cielab_t has no alpha channel, so callers that cast to an
+ *        alpha-carrying type must read it here. Left untouched when the caller
+ *        passes @c nullptr (the default).
  */
-inline std::optional<core::cielab_t> parse_lab_function(details::Cursor& c) {
+inline std::optional<core::cielab_t> parse_lab_function(details::Cursor& c, float* alpha_out = nullptr) {
   if (!c.consume_ci("lab")) return std::nullopt;
   c.skip_ws();
   if (!c.consume_char('(')) return std::nullopt;
@@ -154,12 +159,13 @@ inline std::optional<core::cielab_t> parse_lab_function(details::Cursor& c) {
 
     d.skip_ws();
 
-    // Parse optional alpha (cielab_t doesn't have alpha channel, so we parse but ignore it)
+    // Parse optional alpha; cielab_t has no alpha channel, so hand it to the
+    // caller through alpha_out (CSS default is opaque when "/" is omitted).
+    float alpha = 1.0f;
     if (d.consume_char('/')) {
       auto av = d.parse_alpha_value();
       if (!av) return std::nullopt;
-      // Alpha is parsed but not used since cielab_t doesn't have an alpha channel
-      (void)av;
+      alpha = std::clamp(static_cast<float>(*av), 0.0f, 1.0f);
     }
 
     d.skip_ws();
@@ -168,6 +174,7 @@ inline std::optional<core::cielab_t> parse_lab_function(details::Cursor& c) {
     if (!d.eof()) return std::nullopt;
 
     c.i = d.i;
+    if (alpha_out) *alpha_out = alpha;
     return css_lab_detail::lab_d50_to_d65(L, A, B);
   };
 
