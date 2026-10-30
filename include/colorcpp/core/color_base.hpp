@@ -34,6 +34,8 @@ struct basic_color;
  * Colors are plain value types: construction, @c set, and the mutable accessors never validate against the
  * channel's nominal range. Boundary policy lives at the edges — the stream parser rejects out-of-range text
  * (failbit), and @ref colorcpp::core::clamped / @ref colorcpp::core::make_checked provide opt-in factories.
+ * The one defined exception (issue #66): a non-finite float argument (NaN / ±inf) stored into an integral
+ * channel maps to the channel minimum, because the float→integral cast of those values is undefined behavior.
  *
  * Channel access:
  * - @c get<Tag>() / @c get_index<I>() for read/write references.
@@ -155,7 +157,26 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   template <std::size_t... Is, typename... Args>
   constexpr static storage_type make_storage(std::index_sequence<Is...>, Args... args) {
     auto tp = std::make_tuple(args...);
-    return storage_type{static_cast<value_type>(static_cast<channel_value_t<Is>>(std::get<Is>(tp)))...};
+    return storage_type{static_cast<value_type>(make_storage_one<Is>(std::get<Is>(tp)))...};
+  }
+
+  // Integral channels: a NaN/±inf float argument would make the narrowing
+  // cast undefined behavior (issue #66). Non-finite values map to the
+  // channel minimum — the same policy as from_unit / from_value / clamped.
+  // Finite values are stored as-is: construction never range-validates.
+  // (`f != f` catches NaN; `f - f != 0` catches ±inf. Both are constexpr
+  // in C++17 — std::isnan / std::isfinite are not.)
+  template <std::size_t I, typename Arg>
+  constexpr static channel_value_t<I> make_storage_one(Arg v) {
+    if constexpr (std::is_floating_point_v<Arg> && std::is_integral_v<channel_value_t<I>>) {
+      float f = static_cast<float>(v);
+      if (f != f || f - f != 0.0f) {
+        f = static_cast<float>(std::tuple_element_t<I, channels_tuple>::min);
+      }
+      return static_cast<channel_value_t<I>>(f);
+    } else {
+      return static_cast<channel_value_t<I>>(v);
+    }
   }
 };
 

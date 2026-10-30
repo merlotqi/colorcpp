@@ -50,6 +50,90 @@ TEST(ConversionTest, NaNSourceConvertsToZeroForIntegralTarget) {
   EXPECT_EQ(c.b(), 255);
 }
 
+// --- Issue #66: the hue sector cast static_cast<int>(h * 6) in HSV/HWB was
+//     reachable with NaN / ±inf hue (UB) and with negative hue (wrong
+//     sector). Non-finite hue maps to 0; finite hue wraps onto the ring. ---
+
+TEST(ConversionTest, HsvNaNHueConvertsToRed) {
+  // NaN hue has no sector: the documented policy is hue → 0 (red at s=v=1).
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const auto c = color_cast<rgbf_t>(hsva_float_t{nan, 1.0f, 1.0f, 1.0f});
+  EXPECT_FLOAT_EQ(c.r(), 1.0f);
+  EXPECT_FLOAT_EQ(c.g(), 0.0f);
+  EXPECT_FLOAT_EQ(c.b(), 0.0f);
+}
+
+TEST(ConversionTest, HsvInfHueConvertsToRed) {
+  const float inf = std::numeric_limits<float>::infinity();
+  const auto pos = color_cast<rgbf_t>(hsva_float_t{inf, 1.0f, 1.0f, 1.0f});
+  EXPECT_FLOAT_EQ(pos.r(), 1.0f);
+  EXPECT_FLOAT_EQ(pos.g(), 0.0f);
+  EXPECT_FLOAT_EQ(pos.b(), 0.0f);
+  const auto neg = color_cast<rgbf_t>(hsva_float_t{-inf, 1.0f, 1.0f, 1.0f});
+  EXPECT_FLOAT_EQ(neg.r(), 1.0f);
+  EXPECT_FLOAT_EQ(neg.g(), 0.0f);
+  EXPECT_FLOAT_EQ(neg.b(), 0.0f);
+}
+
+TEST(ConversionTest, HsvNegativeHueWrapsOntoRing) {
+  // -30° ≡ 330°: sector 5, f = 0.5 → rgb(1, 0, 0.5). Pre-fix, i % 6 was
+  // negative for negative hues and matched no switch case.
+  const auto wrapped = color_cast<rgbf_t>(hsva_float_t{-30.0f, 1.0f, 1.0f, 1.0f});
+  const auto reference = color_cast<rgbf_t>(hsva_float_t{330.0f, 1.0f, 1.0f, 1.0f});
+  EXPECT_FLOAT_EQ(wrapped.r(), reference.r());
+  EXPECT_FLOAT_EQ(wrapped.g(), reference.g());
+  EXPECT_FLOAT_EQ(wrapped.b(), reference.b());
+  EXPECT_FLOAT_EQ(wrapped.r(), 1.0f);
+  EXPECT_FLOAT_EQ(wrapped.g(), 0.0f);
+  EXPECT_FLOAT_EQ(wrapped.b(), 0.5f);
+}
+
+TEST(ConversionTest, HwbNaNHueConvertsToRed) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const auto c = color_cast<rgbf_t>(hwba_float_t{nan, 0.0f, 0.0f, 1.0f});
+  EXPECT_FLOAT_EQ(c.r(), 1.0f);
+  EXPECT_FLOAT_EQ(c.g(), 0.0f);
+  EXPECT_FLOAT_EQ(c.b(), 0.0f);
+}
+
+TEST(ConversionTest, HwbInfHueConvertsToRed) {
+  const float inf = std::numeric_limits<float>::infinity();
+  const auto pos = color_cast<rgbf_t>(hwba_float_t{inf, 0.0f, 0.0f, 1.0f});
+  EXPECT_FLOAT_EQ(pos.r(), 1.0f);
+  EXPECT_FLOAT_EQ(pos.g(), 0.0f);
+  EXPECT_FLOAT_EQ(pos.b(), 0.0f);
+  const auto neg = color_cast<rgbf_t>(hwba_float_t{-inf, 0.0f, 0.0f, 1.0f});
+  EXPECT_FLOAT_EQ(neg.r(), 1.0f);
+  EXPECT_FLOAT_EQ(neg.g(), 0.0f);
+  EXPECT_FLOAT_EQ(neg.b(), 0.0f);
+}
+
+TEST(ConversionTest, HwbNegativeHueWrapsOntoRing) {
+  const auto wrapped = color_cast<rgbf_t>(hwba_float_t{-30.0f, 0.0f, 0.0f, 1.0f});
+  const auto reference = color_cast<rgbf_t>(hwba_float_t{330.0f, 0.0f, 0.0f, 1.0f});
+  EXPECT_FLOAT_EQ(wrapped.r(), reference.r());
+  EXPECT_FLOAT_EQ(wrapped.g(), reference.g());
+  EXPECT_FLOAT_EQ(wrapped.b(), reference.b());
+}
+
+TEST(ConversionTest, Rgb8DirectConstructionMapsNonFiniteToChannelMin) {
+  // Documented policy for direct construction of integral color types
+  // (issue #66): NaN and ±inf map to the channel minimum — the same rule as
+  // from_unit / from_value — so the float→uint8_t cast is never UB. (On x86
+  // the UB cast happens to yield 0 too; this test pins the *defined* policy
+  // and is sanitizer-clean.)
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const float inf = std::numeric_limits<float>::infinity();
+  const rgb8_t a{nan, 1.0f, 2.0f};
+  EXPECT_EQ(a.r(), 0);
+  EXPECT_EQ(a.g(), 1);
+  EXPECT_EQ(a.b(), 2);
+  const rgb8_t b{inf, 1.0f, 2.0f};
+  EXPECT_EQ(b.r(), 0);
+  const rgb8_t c{-inf, 1.0f, 2.0f};
+  EXPECT_EQ(c.r(), 0);
+}
+
 // sRGB ↔ Linear sRGB
 
 TEST(ConversionTest, LinearizeBlackAndWhite) {
