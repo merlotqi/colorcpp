@@ -320,15 +320,18 @@ Color gamut_clip_perceptual(const Color& c) {
       max_C = mid_C;
     } else {
       // ΔE ≈ JND - return clipped version
-      return color_cast<Color>(core::rgbaf_t{r_c, g_c, b_c, alpha});
+      // r_c/g_c/b_c are *linear* sRGB — wrap in linear_rgbaf_t so downstream
+      // casts apply the sRGB transfer function instead of double-decoding.
+      return color_cast<Color>(core::linear_rgbaf_t{r_c, g_c, b_c, alpha});
     }
   }
 
   // Final candidate - clip it
   float r, g, bl;
   details::oklab_to_linrgb(L, min_C * cos_h, min_C * sin_h, r, g, bl);
+  // Linear sRGB again: build with linear_rgbaf_t (see above).
   return color_cast<Color>(
-      core::rgbaf_t{std::clamp(r, 0.0f, 1.0f), std::clamp(g, 0.0f, 1.0f), std::clamp(bl, 0.0f, 1.0f), alpha});
+      core::linear_rgbaf_t{std::clamp(r, 0.0f, 1.0f), std::clamp(g, 0.0f, 1.0f), std::clamp(bl, 0.0f, 1.0f), alpha});
 }
 
 /**

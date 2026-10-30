@@ -376,6 +376,23 @@ TEST(PreserveModeTest, PreserveAlpha) {
   EXPECT_FLOAT_EQ(gamut_clip_preserve_saturation(oog).a(), 0.5f);
 }
 
+// --- Issue #58: perceptual mode stored *linear* sRGB in rgbaf_t (gamma-
+//     encoded), so results were far too dark. CSS Color 4 reference vector. ---
+
+TEST(PreserveModeTest, PerceptualMatchesCssReference) {
+  // color.js / CSS Color 4 gamut mapping for oklch(0.7 0.3 30):
+  // rgb(1, 0.3451, 0.2646). Storing the linear value (0.0976) in rgbaf_t
+  // used to read back as encoded 0.0976 instead of 0.3451.
+  const float C = 0.3f;
+  constexpr float kRad = 30.0f * 3.14159265f / 180.0f;
+  const core::oklab_t input(0.7f, C * std::cos(kRad), C * std::sin(kRad));
+
+  const auto result = color_cast<core::rgbaf_t>(gamut_clip_perceptual(input));
+  EXPECT_NEAR(result.r(), 1.0f, 2e-3f);
+  EXPECT_NEAR(result.g(), 0.3451f, 2e-3f);
+  EXPECT_NEAR(result.b(), 0.2646f, 2e-3f);
+}
+
 // --- ProPhoto RGB gamut ---
 
 TEST(MultiColorspaceGamutTest, ProPhotoInGamut) {
