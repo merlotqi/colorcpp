@@ -2,6 +2,9 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/core/cielab.hpp>
+#include <colorcpp/core/display_p3.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
+#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
@@ -32,17 +35,17 @@ TEST(CIELabTest, BoundaryValues) {
   cielab_t white(100.0f, 0.0f, 0.0f);
   EXPECT_FLOAT_EQ(white.l(), 100.0f);
 
-  // a and b range: [-128, 128]
-  cielab_t extremes(50.0f, -128.0f, 128.0f);
-  EXPECT_FLOAT_EQ(extremes.a(), -128.0f);
-  EXPECT_FLOAT_EQ(extremes.b(), 128.0f);
+  // a and b nominal range: [-400, 400]
+  cielab_t extremes(50.0f, -400.0f, 400.0f);
+  EXPECT_FLOAT_EQ(extremes.a(), -400.0f);
+  EXPECT_FLOAT_EQ(extremes.b(), 400.0f);
 }
 
 TEST(CIELabTest, NominalChannelRanges) {
   using namespace lab::channel;
   static_assert(lab_l::min == 0.0f && lab_l::max == 100.0f);
-  static_assert(lab_a::min == -128.0f && lab_a::max == 128.0f);
-  static_assert(lab_b::min == -128.0f && lab_b::max == 128.0f);
+  static_assert(lab_a::min == -400.0f && lab_a::max == 400.0f);
+  static_assert(lab_b::min == -400.0f && lab_b::max == 400.0f);
   SUCCEED();
 }
 
@@ -65,7 +68,7 @@ TEST(CIELChTest, ParameterizedConstruction) {
 TEST(CIELChTest, NominalChannelRanges) {
   using namespace lab::channel;
   static_assert(lab_l::min == 0.0f && lab_l::max == 100.0f);
-  static_assert(lab_c::min == 0.0f && lab_c::max == 200.0f);
+  static_assert(lab_c::min == 0.0f && lab_c::max == 400.0f);
   static_assert(lab_h::min == 0.0f && lab_h::max == 360.0f);
   SUCCEED();
 }
@@ -213,15 +216,15 @@ TEST(CIELabTest, TypeTraits) {
   static_assert(l_ch::max == 100.0f);
 
   using a_ch = std::tuple_element_t<1, cielab_channels>;
-  static_assert(a_ch::min == -128.0f);
-  static_assert(a_ch::max == 128.0f);
+  static_assert(a_ch::min == -400.0f);
+  static_assert(a_ch::max == 400.0f);
 
   using cielch_channels = typename traits::model_traits<lab::model::cielch>::channels_type;
   static_assert(std::tuple_size_v<cielch_channels> == 3);
 
   using c_ch = std::tuple_element_t<1, cielch_channels>;
   static_assert(c_ch::min == 0.0f);
-  static_assert(c_ch::max == 200.0f);
+  static_assert(c_ch::max == 400.0f);
 }
 
 TEST(CIELabTest, CopyConstructors) {
@@ -273,15 +276,15 @@ TEST(CIELabTest, EqualityComparison) {
 }
 
 TEST(CIELabTest, ConstexprBoundaryValues) {
-  constexpr cielab_t min_color(0.0f, -128.0f, -128.0f);
+  constexpr cielab_t min_color(0.0f, -400.0f, -400.0f);
   static_assert(min_color.l() == 0.0f);
-  static_assert(min_color.a() == -128.0f);
-  static_assert(min_color.b() == -128.0f);
+  static_assert(min_color.a() == -400.0f);
+  static_assert(min_color.b() == -400.0f);
 
-  constexpr cielab_t max_color(100.0f, 128.0f, 128.0f);
+  constexpr cielab_t max_color(100.0f, 400.0f, 400.0f);
   static_assert(max_color.l() == 100.0f);
-  static_assert(max_color.a() == 128.0f);
-  static_assert(max_color.b() == 128.0f);
+  static_assert(max_color.a() == 400.0f);
+  static_assert(max_color.b() == 400.0f);
 }
 
 TEST(CIELChTest, CopyConstructors) {
@@ -338,9 +341,9 @@ TEST(CIELChTest, ConstexprBoundaryValues) {
   static_assert(min_color.c() == 0.0f);
   static_assert(min_color.h() == 0.0f);
 
-  constexpr cielch_t max_color(100.0f, 200.0f, 360.0f);
+  constexpr cielch_t max_color(100.0f, 400.0f, 360.0f);
   static_assert(max_color.l() == 100.0f);
-  static_assert(max_color.c() == 200.0f);
+  static_assert(max_color.c() == 400.0f);
   static_assert(max_color.h() == 360.0f);
 }
 
@@ -351,6 +354,41 @@ TEST(CIELChTest, HueAngleWrapping) {
 
   EXPECT_NEAR(color1.h(), 0.0f, 1e-6f);
   EXPECT_NEAR(color2.h(), 360.0f, 1e-6f);
+}
+
+// --- Issue #56: a*/b* were limited to ±128, clipping wide-gamut colors
+//     (ProPhoto green a* = -201.4) and breaking round-trips. ---
+
+TEST(CIELabTest, ProPhotoGreenValues) {
+  const auto lab = color_cast<cielab_t>(prophoto_rgbf_t(0.0f, 1.0f, 0.0f));
+  EXPECT_NEAR(lab.l(), 87.73f, 0.05f);
+  EXPECT_NEAR(lab.a(), -201.42f, 0.1f);
+  EXPECT_NEAR(lab.b(), 169.74f, 0.1f);
+}
+
+TEST(CIELabTest, WideGamutPrimariesRoundTrip) {
+  const auto check = [](const auto& rgb, const char* name) {
+    using RGB = std::decay_t<decltype(rgb)>;
+    const auto back = color_cast<RGB>(color_cast<cielab_t>(rgb));
+    EXPECT_NEAR(back.r(), rgb.r(), 2e-3f) << name;
+    EXPECT_NEAR(back.g(), rgb.g(), 2e-3f) << name;
+    EXPECT_NEAR(back.b(), rgb.b(), 2e-3f) << name;
+  };
+  check(rgbf_t(1.0f, 0.0f, 0.0f), "srgb red");
+  check(display_p3f_t(0.0f, 1.0f, 0.0f), "p3 green");
+  check(rec2020_rgbf_t(0.0f, 1.0f, 0.0f), "rec2020 green");    // a* ≈ -172
+  check(prophoto_rgbf_t(0.0f, 1.0f, 0.0f), "prophoto green");  // a* ≈ -201
+  check(prophoto_rgbf_t(0.0f, 0.0f, 1.0f), "prophoto blue");   // b* ≈ -150
+}
+
+TEST(CIELChTest, WideGamutChromaRoundTrip) {
+  // ProPhoto green chroma ≈ 263 exceeded the old C ≤ 200 limit.
+  const auto lch = color_cast<cielch_t>(prophoto_rgbf_t(0.0f, 1.0f, 0.0f));
+  EXPECT_NEAR(lch.c(), 263.35f, 0.2f);
+  const auto back = color_cast<prophoto_rgbf_t>(lch);
+  EXPECT_NEAR(back.r(), 0.0f, 2e-3f);
+  EXPECT_NEAR(back.g(), 1.0f, 2e-3f);
+  EXPECT_NEAR(back.b(), 0.0f, 2e-3f);
 }
 
 }  // namespace colorcpp::core::test

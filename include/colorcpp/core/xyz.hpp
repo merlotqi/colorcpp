@@ -2,7 +2,10 @@
  * @file xyz.hpp
  * @brief CIE XYZ (1931), D65 white. Hub space for LAB and OkLab conversions.
  *
- * Channels X, Y, Z use nominal range [0, 2] (float); Y = 1 for D65 white.
+ * Channels X, Y, Z use nominal range [-1, 2] (float); Y = 1 for D65 white.
+ * The range is nominal: Bradford adaptation of a saturated D50 color yields a
+ * slightly negative component (ProPhoto green has Z ≈ -0.013), so conversions
+ * must not clip to it.
  */
 
 #pragma once
@@ -20,9 +23,11 @@ struct y_tag {};
 struct z_tag {};
 
 // Den=1 keeps values in natural CIE units (not normalized to [0,1]).
-using xyz_x = traits::basic_channel<x_tag, float, 0, 2, 1>;  // [0, 2]
-using xyz_y = traits::basic_channel<y_tag, float, 0, 2, 1>;  // [0, 2]
-using xyz_z = traits::basic_channel<z_tag, float, 0, 2, 1>;  // [0, 2]
+// Bounds are nominal — chromatic adaptation can go slightly negative:
+// [ -1, 2] for all three (ProPhoto green reaches Z ≈ -0.013).
+using xyz_x = traits::basic_channel<x_tag, float, -1, 2, 1>;  // [-1, 2]
+using xyz_y = traits::basic_channel<y_tag, float, -1, 2, 1>;  // [-1, 2]
+using xyz_z = traits::basic_channel<z_tag, float, -1, 2, 1>;  // [-1, 2]
 
 }  // namespace channel
 

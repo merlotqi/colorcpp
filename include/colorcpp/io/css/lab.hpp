@@ -46,10 +46,13 @@ inline core::cielab_t xyz_to_lab(const std::array<float, 3>& xyz, const core::xy
   const float fz = f(xyz[2] / wp.z());
 
   // Clamp to the core channel ranges so construction never throws — the
-  // parser contract is nullopt-on-failure, never exceptions.
+  // parser contract is nullopt-on-failure, never exceptions. Bounds come
+  // from the channel types so this cannot drift when they are widened.
+  using a_ch = core::lab::channel::lab_a;
+  using b_ch = core::lab::channel::lab_b;
   const float L = std::clamp(116.0f * fy - 16.0f, 0.0f, 100.0f);
-  const float A = std::clamp(500.0f * (fx - fy), -128.0f, 128.0f);
-  const float B = std::clamp(200.0f * (fy - fz), -128.0f, 128.0f);
+  const float A = std::clamp(500.0f * (fx - fy), static_cast<float>(a_ch::min), static_cast<float>(a_ch::max));
+  const float B = std::clamp(200.0f * (fy - fz), static_cast<float>(b_ch::min), static_cast<float>(b_ch::max));
   return core::cielab_t{L, A, B};
 }
 
