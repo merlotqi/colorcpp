@@ -81,6 +81,51 @@ TEST(LerpTest, WorksWithRgb8) {
   EXPECT_LE(result.r(), 255);
 }
 
+// --- Issue #50: lerp routed both endpoints through rgbaf_t (sRGB), so
+//     wide-gamut colors were clipped before interpolation: lerp(p3red,
+//     p3red, 0.5) came out as (0.9176, 0.2003, 0.1386). Interpolation must
+//     stay in the caller's own color type. ---
+
+TEST(LerpTest, SelfLerpIsNoOpInCallerSpace) {
+  const core::display_p3f_t p3red{1.0f, 0.0f, 0.0f};
+  const auto mid = lerp(p3red, p3red, 0.5f);
+  EXPECT_FLOAT_EQ(mid.r(), 1.0f);
+  EXPECT_FLOAT_EQ(mid.g(), 0.0f);
+  EXPECT_FLOAT_EQ(mid.b(), 0.0f);
+}
+
+TEST(LerpTest, WideGamutEndpointsSurviveMidpoint) {
+  const core::display_p3f_t p3red{1.0f, 0.0f, 0.0f};
+  const core::display_p3f_t p3green{0.0f, 1.0f, 0.0f};
+  const auto mid = lerp(p3red, p3green, 0.5f);
+  // Channel midpoint in P3's own (gamma-encoded) space. The old rgbaf_t hub
+  // clipped both endpoints to sRGB first, moving the midpoint off (0.5, 0.5, 0).
+  EXPECT_NEAR(mid.r(), 0.5f, 1e-6f);
+  EXPECT_NEAR(mid.g(), 0.5f, 1e-6f);
+  EXPECT_NEAR(mid.b(), 0.0f, 1e-6f);
+}
+
+TEST(LerpTest, SelfLerpOfRec2020GreenStaysOutOfSrgb) {
+  // Rec. 2020 green is far outside sRGB: the old rgbaf_t path clipped it to
+  // sRGB green and back, landing at ~(0.75, 0.93, 0.0) instead of (0, 1, 0).
+  const core::rec2020_rgbf_t green{0.0f, 1.0f, 0.0f};
+  const auto mid = lerp(green, green, 0.5f);
+  EXPECT_FLOAT_EQ(mid.r(), 0.0f);
+  EXPECT_FLOAT_EQ(mid.g(), 1.0f);
+  EXPECT_FLOAT_EQ(mid.b(), 0.0f);
+}
+
+TEST(LerpTest, LinearSrgbOptionInterpolatesWithoutGamma) {
+  // Explicit srgb-linear option: black->white at t=0.5 is linear 0.5, which
+  // encodes to ~0.7354 — not the gamma-encoded midpoint 0.5.
+  const core::rgbf_t black{0.0f, 0.0f, 0.0f};
+  const core::rgbf_t white{1.0f, 1.0f, 1.0f};
+  const auto mid = lerp_linear(black, white, 0.5f);
+  EXPECT_NEAR(mid.r(), 0.7354f, 1e-3f);
+  EXPECT_NEAR(mid.g(), 0.7354f, 1e-3f);
+  EXPECT_NEAR(mid.b(), 0.7354f, 1e-3f);
+}
+
 // lerp_hsl (HSL space)
 
 TEST(LerpHslTest, TZeroReturnsFirst) {
@@ -892,6 +937,17 @@ TEST(LerpAlphaModeTest, MultiplyAlphas) {
   core::rgbaf_t b(0.0f, 0.0f, 1.0f, 0.5f);
   auto result = lerp_alpha_mode(a, b, 0.5f, alpha_mode::multiply);  // multiply alphas
   EXPECT_NEAR(result.a(), 0.4f, 1e-3f);
+}
+
+// Issue #50: lerp_alpha_mode shared the rgbaf_t hub, clipping wide gamuts.
+TEST(LerpAlphaModeTest, WideGamutColorSurvives) {
+  const core::display_p3af_t a(1.0f, 0.0f, 0.0f, 0.25f);
+  const core::display_p3af_t b(1.0f, 0.0f, 0.0f, 0.75f);
+  auto result = lerp_alpha_mode(a, b, 0.5f, alpha_mode::lerp);
+  EXPECT_FLOAT_EQ(result.r(), 1.0f);
+  EXPECT_FLOAT_EQ(result.g(), 0.0f);
+  EXPECT_FLOAT_EQ(result.b(), 0.0f);
+  EXPECT_NEAR(result.a(), 0.5f, 1e-6f);
 }
 
 // Position-based multi_lerp tests
