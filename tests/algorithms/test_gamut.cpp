@@ -422,4 +422,47 @@ TEST(MultiColorspaceGamutTest, ProPhotoClippedResultIsInGamut) {
   EXPECT_TRUE(is_in_gamut(clipped, gamut_type::prophoto_rgb));
 }
 
+// --- Issue #48: the P3/Adobe/ProPhoto "converters" applied only transfer
+//     curves (and clamped first), so every membership check was true. ---
+
+TEST(MultiColorspaceGamutTest, Rec2020GreenOutsideNarrowerGamuts) {
+  // Rec.2020 green (xy 0.170, 0.797) is more saturated than the P3 and
+  // Adobe RGB green primaries (linear g ≈ 1.37 / 1.43), but ProPhoto's
+  // green primary (0.1596, 0.8404) still contains it (linear g ≈ 0.93).
+  const core::rec2020_rgbf_t green(0.0f, 1.0f, 0.0f);
+  EXPECT_FALSE(is_in_gamut(green, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(green, gamut_type::adobe_rgb));
+  EXPECT_TRUE(is_in_gamut(green, gamut_type::prophoto_rgb));
+}
+
+TEST(MultiColorspaceGamutTest, HyperchromaticOutsideAllGamuts) {
+  // oklch(0.6 0.9 140) lies outside sRGB, Display P3, Adobe RGB and ProPhoto.
+  const float C = 0.9f;
+  constexpr float kRad = 140.0f * 3.14159265f / 180.0f;
+  const core::oklab_t c(0.6f, C * std::cos(kRad), C * std::sin(kRad));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::srgb));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::adobe_rgb));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::prophoto_rgb));
+}
+
+TEST(MultiColorspaceGamutTest, P3RedOutsideSrgb) {
+  // Sanity: P3 red (1,0,0) maps to linear sRGB ≈ (1.22, -0.04, -0.02).
+  const core::display_p3f_t red(1.0f, 0.0f, 0.0f);
+  EXPECT_TRUE(is_in_gamut(red, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(red, gamut_type::srgb));
+}
+
+TEST(MultiColorspaceGamutTest, GamutClipToP3MapsOutOfRangeColor) {
+  // gamut_clip_to_gamut(c, display_p3) used to return c unchanged because the
+  // membership check always passed; the result must actually be mapped.
+  const float C = 0.9f;
+  constexpr float kRad = 140.0f * 3.14159265f / 180.0f;
+  const core::oklab_t c(0.6f, C * std::cos(kRad), C * std::sin(kRad));
+  const auto clipped = gamut_clip_to_gamut(c, gamut_type::display_p3);
+  EXPECT_TRUE(is_in_gamut(clipped, gamut_type::display_p3));
+  const auto lab = color_cast<core::oklab_t>(clipped);
+  EXPECT_NE(lab.a(), c.a()) << "chroma must be reduced, not returned unchanged";
+}
+
 }  // namespace colorcpp::algorithms::test

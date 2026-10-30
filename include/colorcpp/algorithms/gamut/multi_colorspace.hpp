@@ -24,36 +24,41 @@ enum class gamut_type {
 
 namespace details {
 
+// Default tolerance for wide-gamut membership. The shared 7-digit XYZ matrix
+// coefficients leave up to ~1.3e-4 of rounding noise on near-boundary colors
+// (D65 white lands at 1.00012 in linear P3 / ProPhoto), so the sRGB check's
+// 1e-4 would exclude white itself from every wide gamut.
+constexpr float kWideGamutEps = 2e-4f;
+
 // Check if linear RGB is in Display P3 gamut
-inline bool linrgb_in_displayp3_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
-  // Display P3 has the same transfer function as sRGB but different primaries
-  // For simplicity, we check if the color can be represented in Display P3
-  // by converting to Display P3 and checking if values are in [0, 1]
+inline bool linrgb_in_displayp3_gamut(float r, float g, float b, float eps = kWideGamutEps) noexcept {
+  // Display P3 shares sRGB's transfer function but not its primaries:
+  // convert linear sRGB through XYZ to linear P3 and range-test unclamped.
   float dp3_r, dp3_g, dp3_b;
-  linrgb_to_displayp3(r, g, b, dp3_r, dp3_g, dp3_b);
-  return dp3_r >= -eps && dp3_r <= 1.0f + eps && dp3_g >= -eps && dp3_g <= 1.0f + eps && dp3_b >= -eps &&
-         dp3_b <= 1.0f + eps;
+  linrgb_to_linear_displayp3(r, g, b, dp3_r, dp3_g, dp3_b);
+  return linrgb_in_gamut(dp3_r, dp3_g, dp3_b, eps);
 }
 
 // Check if linear RGB is in Adobe RGB gamut
-inline bool linrgb_in_adobergb_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
-  // Adobe RGB uses different primaries and gamma
+inline bool linrgb_in_adobergb_gamut(float r, float g, float b, float eps = kWideGamutEps) noexcept {
   float argb_r, argb_g, argb_b;
-  linrgb_to_adobergb(r, g, b, argb_r, argb_g, argb_b);
-  return argb_r >= -eps && argb_r <= 1.0f + eps && argb_g >= -eps && argb_g <= 1.0f + eps && argb_b >= -eps &&
-         argb_b <= 1.0f + eps;
+  linrgb_to_linear_adobergb(r, g, b, argb_r, argb_g, argb_b);
+  return linrgb_in_gamut(argb_r, argb_g, argb_b, eps);
 }
 
 // Check if linear RGB is in ProPhoto RGB gamut
-inline bool linrgb_in_prophoto_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
+inline bool linrgb_in_prophoto_gamut(float r, float g, float b, float eps = kWideGamutEps) noexcept {
   float pprgb_r, pprgb_g, pprgb_b;
-  linrgb_to_prophoto(r, g, b, pprgb_r, pprgb_g, pprgb_b);
-  return pprgb_r >= -eps && pprgb_r <= 1.0f + eps && pprgb_g >= -eps && pprgb_g <= 1.0f + eps && pprgb_b >= -eps &&
-         pprgb_b <= 1.0f + eps;
+  linrgb_to_linear_prophoto(r, g, b, pprgb_r, pprgb_g, pprgb_b);
+  return linrgb_in_gamut(pprgb_r, pprgb_g, pprgb_b, eps);
 }
 
 // Generic gamut check based on gamut type
-inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float eps = 1e-4f) noexcept {
+inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float eps = -1.0f) noexcept {
+  if (eps < 0.0f) {
+    // Not specified: per-type default (sRGB keeps its tighter 1e-4).
+    eps = (type == gamut_type::srgb) ? 1e-4f : kWideGamutEps;
+  }
   switch (type) {
     case gamut_type::srgb:
       return details::linrgb_in_gamut(r, g, b, eps);
