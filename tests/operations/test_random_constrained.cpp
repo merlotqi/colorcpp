@@ -254,3 +254,83 @@ TEST(ContrastGenerator, ConvenienceFunction) {
   float ratio = algorithms::accessibility::contrast_ratio(c, bg);
   EXPECT_GE(ratio, 4.0f);
 }
+
+// --- Issue #61: color_cast<Color>(oklab) already clamps to the target gamut,
+//     so gamut_clip_preserve_lightness received an in-gamut color and returned
+//     it unchanged — the sampled OkLab lightness was silently lost (up to 0.103
+//     off with l_min = l_max = 0.7), and contrast_generator's gamut_map option
+//     changed ~nothing. Gamut mapping must happen in OkLab before the cast. ---
+
+TEST(LuminanceGenerator, PinnedLightnessSurvivesGamutMappingRgbf) {
+  luminance_generator<core::rgbf_t>::options o;
+  o.l_min = 0.7f;
+  o.l_max = 0.7f;
+  o.chroma_max = 0.4f;
+  o.gamut_map = true;
+  luminance_generator<core::rgbf_t> gen(42u, o);
+
+  for (int i = 0; i < 100; ++i) {
+    auto c = gen.next();
+    auto oklab = conversion::color_cast<core::oklab_t>(c);
+    EXPECT_NEAR(oklab.l(), 0.7f, 0.01f) << "L deviated at iteration " << i;
+  }
+}
+
+TEST(LuminanceGenerator, PinnedLightnessSurvivesGamutMappingRgb8) {
+  luminance_generator<core::rgb8_t>::options o;
+  o.l_min = 0.7f;
+  o.l_max = 0.7f;
+  o.chroma_max = 0.4f;
+  o.gamut_map = true;
+  luminance_generator<core::rgb8_t> gen(42u, o);
+
+  for (int i = 0; i < 100; ++i) {
+    auto c = gen.next();
+    auto oklab = conversion::color_cast<core::oklab_t>(c);
+    // 8-bit quantization on top of the map: a little more slack than rgbf.
+    EXPECT_NEAR(oklab.l(), 0.7f, 0.02f) << "L deviated at iteration " << i;
+  }
+}
+
+TEST(ContrastGenerator, GamutMapKeepsLightnessAndContrastRgb8) {
+  contrast_generator<core::rgb8_t>::options o;
+  o.min_ratio = 2.0f;
+  o.l_min = 0.7f;
+  o.l_max = 0.7f;
+  o.gamut_map = true;
+  contrast_generator<core::rgb8_t> gen(42u, o);
+  const core::rgbf_t white{1.0f, 1.0f, 1.0f};
+
+  for (int i = 0; i < 50; ++i) {
+    auto c = gen.next(white);
+    auto oklab = conversion::color_cast<core::oklab_t>(c);
+    EXPECT_NEAR(oklab.l(), 0.7f, 0.02f) << "L deviated at iteration " << i;
+    float ratio = algorithms::accessibility::contrast_ratio(c, white);
+    EXPECT_GE(ratio, 2.0f) << "Contrast too low at iteration " << i;
+  }
+}
+
+TEST(ContrastGenerator, TryGenerateNSucceedsWhenFeasible) {
+  contrast_rgbf_generator g(42u);
+  const core::rgbf_t white{1.0f, 1.0f, 1.0f};
+  auto result = g.try_generate_n(10, white);
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(result->size(), 10u);
+  for (const auto& c : *result) {
+    float ratio = algorithms::accessibility::contrast_ratio(c, white);
+    EXPECT_GE(ratio, 4.4f);
+  }
+}
+
+TEST(ContrastGenerator, TryGenerateNReportsImpossibleConstraint) {
+  // L pinned at 0.5: contrast 10:1 vs white is unreachable, so the batch
+  // must report failure instead of silently returning failing colors.
+  contrast_generator<core::rgbf_t>::options o;
+  o.l_min = 0.5f;
+  o.l_max = 0.5f;
+  o.min_ratio = 10.0f;
+  o.max_attempts = 50;
+  contrast_generator<core::rgbf_t> gen(42u, o);
+  auto result = gen.try_generate_n(5, core::rgbf_t{1.0f, 1.0f, 1.0f});
+  EXPECT_FALSE(result.has_value());
+}

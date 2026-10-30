@@ -97,12 +97,14 @@ class luminance_generator : public basic_random_generator<Color, Engine> {
     const float b = C * std::sin(H_rad);
 
     core::oklab_t lab{L, a, b};
-    Color result = conversion::color_cast<Color>(lab);
 
+    // Map in OkLab BEFORE the cast (issue #61): color_cast<Color> clamps to
+    // the target gamut, so mapping afterwards would see an in-gamut color,
+    // return it unchanged, and silently discard the sampled lightness.
     if (opts_.gamut_map) {
-      result = algorithms::gamut::gamut_clip_preserve_lightness(result);
+      lab = algorithms::gamut::gamut_clip_preserve_lightness(lab);
     }
-    return result;
+    return conversion::color_cast<Color>(lab);
   }
 
   options opts_;
