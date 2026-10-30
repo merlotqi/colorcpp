@@ -352,4 +352,69 @@ TEST(ConversionTest, CielabToOklabViaXyz) {
   EXPECT_NEAR(back.l(), lab.l(), 0.5f);
 }
 
+// --- Issue #49: device-independent <-> device-independent routes took equal-
+//     cost paths through linear sRGB (index tie-break), whose [0,1] clamp
+//     collapses out-of-sRGB colors. Display P3 red -> Lab -> OkLab came out
+//     as sRGB red. DI-to-DI routes must stay inside DI nodes (XYZ hub). ---
+
+TEST(ConversionGraphTest, DisplayP3RedSurvivesLabOklabRoundTrip) {
+  // Route pins: DI <-> DI hops go through the XYZ hub, never linear sRGB.
+  static_assert(graph::device_independent_v<xyz_t>);
+  static_assert(graph::device_independent_v<cielab_t>);
+  static_assert(!graph::device_independent_v<linear_rgbf_t>);
+  static_assert(std::is_same_v<graph::next_hop_t<cielab_t, oklab_t>, xyz_t>);
+  static_assert(graph::minimal_conversion_cost<cielab_t, oklab_t>() == 2);
+
+  const display_p3f_t p3red{1.0f, 0.0f, 0.0f};
+  // Reference: P3 red -> XYZ -> OkLab. Routing via clamped linear sRGB
+  // instead yields sRGB red's OkLab (0.6280, 0.2249, 0.1258).
+  const auto reference = color_cast<oklab_t>(color_cast<xyz_t>(p3red));
+  const auto via_lab = color_cast<oklab_t>(color_cast<cielab_t>(p3red));
+  EXPECT_NEAR(via_lab.l(), reference.l(), 1e-4f);
+  EXPECT_NEAR(via_lab.a(), reference.a(), 1e-4f);
+  EXPECT_NEAR(via_lab.b(), reference.b(), 1e-4f);
+  EXPECT_NEAR(via_lab.l(), 0.6486f, 1e-3f);
+  EXPECT_NEAR(via_lab.a(), 0.2620f, 1e-3f);
+  EXPECT_NEAR(via_lab.b(), 0.1449f, 1e-3f);
+}
+
+// The XYZ <-> OkLab edge must use the same linear-algebra constants as the
+// canonical linear-sRGB <-> OkLab edge (issue #49's routing change made this
+// edge load-bearing for DI <-> DI traffic; its published-matrix pair disagreed
+// with the RGB pair at ~3e-5, which the Lab cube-root amplifies to 0.02 and
+// made cross-space Delta-E comparisons of the same color nonzero).
+TEST(ConversionGraphTest, OklabViaXyzAgreesWithCanonicalRgbEdge) {
+  const rgb8_t src{128, 64, 32};
+  const auto direct = color_cast<oklab_t>(src);
+  const auto via_xyz = color_cast<oklab_t>(color_cast<xyz_t>(src));
+  EXPECT_NEAR(via_xyz.l(), direct.l(), 1e-5f);
+  EXPECT_NEAR(via_xyz.a(), direct.a(), 1e-5f);
+  EXPECT_NEAR(via_xyz.b(), direct.b(), 1e-5f);
+
+  // D65 white is OkLab's achromatic origin: the XYZ edge must hit it too.
+  const auto white = color_cast<oklab_t>(color_cast<xyz_t>(rgbf_t{1.0f, 1.0f, 1.0f}));
+  EXPECT_NEAR(white.l(), 1.0f, 1e-5f);
+  EXPECT_NEAR(white.a(), 0.0f, 1e-5f);
+  EXPECT_NEAR(white.b(), 0.0f, 1e-5f);
+
+  // Same color compared across paths must agree at Lab precision as well
+  // (this is what perceptual_equal's 0.001 threshold exercises).
+  const auto lab_direct = color_cast<cielab_t>(src);
+  const auto lab_via_ok = color_cast<cielab_t>(direct);
+  EXPECT_NEAR(lab_via_ok.l(), lab_direct.l(), 1e-3f);
+  EXPECT_NEAR(lab_via_ok.a(), lab_direct.a(), 1e-3f);
+  EXPECT_NEAR(lab_via_ok.b(), lab_direct.b(), 1e-3f);
+}
+
+TEST(ConversionGraphTest, DisplayP3RedSurvivesLchOklchRoundTrip) {
+  static_assert(std::is_same_v<graph::next_hop_t<cielch_t, oklch_t>, cielab_t>);
+
+  const display_p3f_t p3red{1.0f, 0.0f, 0.0f};
+  const auto reference = color_cast<oklch_t>(color_cast<xyz_t>(p3red));
+  const auto via_lch = color_cast<oklch_t>(color_cast<cielch_t>(p3red));
+  EXPECT_NEAR(via_lch.l(), reference.l(), 1e-4f);
+  EXPECT_NEAR(via_lch.c(), reference.c(), 1e-4f);
+  EXPECT_NEAR(via_lch.h(), reference.h(), 1e-3f);
+}
+
 }  // namespace colorcpp::operations::test
