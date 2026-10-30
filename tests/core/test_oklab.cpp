@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/core/oklab.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
@@ -40,9 +41,9 @@ TEST(OKLabTest, BoundaryValues) {
 
 TEST(OKLabTest, NominalChannelRanges) {
   using namespace oklab::channel;
-  static_assert(okl::min == 0.0f && okl::max == 1.0f);
-  static_assert(oka::min == -1.0f && oka::max == 1.0f);
-  static_assert(okb::min == -1.0f && okb::max == 1.0f);
+  static_assert(okl::min == 0.0f && okl::max == 2.0f);
+  static_assert(oka::min == -2.0f && oka::max == 2.0f);
+  static_assert(okb::min == -2.0f && okb::max == 2.0f);
   SUCCEED();
 }
 
@@ -64,8 +65,8 @@ TEST(OKLChTest, ParameterizedConstruction) {
 
 TEST(OKLChTest, NominalChannelRanges) {
   using namespace oklab::channel;
-  static_assert(okl::min == 0.0f && okl::max == 1.0f);
-  static_assert(okc::min == 0.0f && okc::max == 1.0f);
+  static_assert(okl::min == 0.0f && okl::max == 2.0f);
+  static_assert(okc::min == 0.0f && okc::max == 2.0f);
   static_assert(okh::min == 0.0f && okh::max == 360.0f);
   SUCCEED();
 }
@@ -85,6 +86,52 @@ TEST(OKLabRangeRelaxTest, WideChromaSurvivesOklchToOklab) {
   const oklab_t lab = color_cast<oklab_t>(lch);
   EXPECT_FLOAT_EQ(lab.l(), 0.7f);
   EXPECT_NEAR(lab.a(), 0.6f * std::cos(10.0f * 3.14159265f / 180.0f), 1e-5f);
+}
+
+// --- Issue #67: OkLab storage ranges clipped wide-gamut colors. ProPhoto
+//     blue has raw a ≈ -1.346 (beyond the old ±1 bound), and above-white
+//     values exist at all (ProPhoto white L ≈ 1.000003, XYZ (1,1,1)
+//     L ≈ 1.0032), so ProPhoto → OkLab → ProPhoto corrupted them. The
+//     nominal ranges must cover every supported gamut. ---
+
+TEST(OklabWideGamutTest, ProPhotoBlueOklabValuesUnclipped) {
+  const auto lab = color_cast<oklab_t>(prophoto_rgbf_t(0.0f, 0.0f, 1.0f));
+  EXPECT_NEAR(lab.l(), 0.2167f, 5e-3f);
+  EXPECT_NEAR(lab.a(), -1.3457f, 5e-3f) << "old a/b bound ±1 clipped ProPhoto blue";
+  EXPECT_NEAR(lab.b(), -0.4273f, 5e-3f);
+  const auto lch = color_cast<oklch_t>(lab);
+  EXPECT_NEAR(lch.c(), 1.4119f, 5e-3f) << "old C bound 1 clipped ProPhoto blue";
+}
+
+TEST(OklabWideGamutTest, ProPhotoBlueSurvivesOklabRoundTrip) {
+  const prophoto_rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto back = color_cast<prophoto_rgbf_t>(color_cast<oklab_t>(blue));
+  EXPECT_NEAR(back.r(), 0.0f, 1e-3f);
+  EXPECT_NEAR(back.g(), 0.0f, 1e-3f);
+  EXPECT_NEAR(back.b(), 1.0f, 1e-3f) << "pre-fix: (0.247, 0, 0.942)";
+}
+
+TEST(OklabWideGamutTest, ProPhotoBlueSurvivesOklchRoundTrip) {
+  const prophoto_rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto back = color_cast<prophoto_rgbf_t>(color_cast<oklch_t>(blue));
+  EXPECT_NEAR(back.r(), 0.0f, 1e-3f);
+  EXPECT_NEAR(back.g(), 0.0f, 1e-3f);
+  EXPECT_NEAR(back.b(), 1.0f, 1e-3f);
+}
+
+TEST(OklabWideGamutTest, ProPhotoWhiteLightnessAboveOne) {
+  // ProPhoto white adapts to ≈ D65 white: raw OkLab L = 1.0000031. The old
+  // L ≤ 1 bound stored exactly 1.0 and lost the above-one value.
+  const auto lab = color_cast<oklab_t>(prophoto_rgbf_t(1.0f, 1.0f, 1.0f));
+  EXPECT_GT(lab.l(), 1.0f);
+  EXPECT_NEAR(lab.l(), 1.000003f, 1e-5f);
+}
+
+TEST(OklabWideGamutTest, SuperWhiteXyzLightnessAboveOne) {
+  // XYZ (1, 1, 1) sits above the D65 white point on every axis → L ≈ 1.0032.
+  const auto lab = color_cast<oklab_t>(xyz_t(1.0f, 1.0f, 1.0f));
+  EXPECT_GT(lab.l(), 1.0f);
+  EXPECT_NEAR(lab.l(), 1.0032f, 5e-4f);
 }
 
 // Member and indexed access
@@ -196,11 +243,11 @@ TEST(OKLabTest, TypeTraits) {
   using l_ch = std::tuple_element_t<0, oklab_channels>;
   static_assert(std::is_same_v<l_ch::value_type, float>);
   static_assert(l_ch::min == 0.0f);
-  static_assert(l_ch::max == 1.0f);
+  static_assert(l_ch::max == 2.0f);
 
   using a_ch = std::tuple_element_t<1, oklab_channels>;
-  static_assert(a_ch::min == -1.0f);
-  static_assert(a_ch::max == 1.0f);
+  static_assert(a_ch::min == -2.0f);
+  static_assert(a_ch::max == 2.0f);
 
   using oklch_channels = typename traits::model_traits<oklab::model::oklch>::channels_type;
   static_assert(std::tuple_size_v<oklch_channels> == 3);

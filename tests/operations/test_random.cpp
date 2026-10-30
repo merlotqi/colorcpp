@@ -155,3 +155,96 @@ TEST(PoissonDisk, DefaultGeneratesRequestedCount) {
     }
   }
 }
+
+// ============================================================
+// Sampling domains (Issue #67)
+//
+// Channel ranges are *nominal* — deliberately wide so conversions never
+// clip — and must not double as random-sampling boxes: after the Lab/Luv/XYZ
+// ranges widened to ±400/[-1,2], most of that box fell outside every display
+// gamut. Generators sample the perceptual working range instead.
+// ============================================================
+
+TEST(RandomSamplingDomain, OklabStaysInPerceptualBox) {
+  // Nominal a/b are widening to ±2; sampling stays at the CSS ±0.5 box so
+  // random OkLab colors remain plausibly displayable.
+  oklab_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 1.0f);
+    EXPECT_GE(c.a(), -0.5f) << "sample " << i;
+    EXPECT_LE(c.a(), 0.5f) << "sample " << i;
+    EXPECT_GE(c.b(), -0.5f) << "sample " << i;
+    EXPECT_LE(c.b(), 0.5f) << "sample " << i;
+  }
+}
+
+TEST(RandomSamplingDomain, OklchStaysInPerceptualBox) {
+  oklch_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 1.0f);
+    EXPECT_GE(c.c(), 0.0f);
+    EXPECT_LE(c.c(), 0.4f) << "sample " << i;
+    EXPECT_GE(c.h(), 0.0f);
+    EXPECT_LE(c.h(), 360.0f);
+  }
+}
+
+TEST(RandomSamplingDomain, CielabStaysInPerceptualBox) {
+  // Nominal a*/b* are ±400 since #56; sampling restores the ±128 box so
+  // random Lab colors are not mostly outside sRGB.
+  cielab_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 100.0f);
+    EXPECT_GE(c.a(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.a(), 128.0f) << "sample " << i;
+    EXPECT_GE(c.b(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.b(), 128.0f) << "sample " << i;
+  }
+}
+
+TEST(RandomSamplingDomain, CielchStaysInPerceptualBox) {
+  cielch_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 100.0f);
+    EXPECT_GE(c.c(), 0.0f);
+    EXPECT_LE(c.c(), 200.0f) << "sample " << i;
+    EXPECT_GE(c.h(), 0.0f);
+    EXPECT_LE(c.h(), 360.0f);
+  }
+}
+
+TEST(RandomSamplingDomain, LuvStaysInPerceptualBox) {
+  basic_random_generator<core::luv_t> g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 100.0f);
+    EXPECT_GE(c.u(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.u(), 128.0f) << "sample " << i;
+    EXPECT_GE(c.v(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.v(), 128.0f) << "sample " << i;
+  }
+}
+
+TEST(RandomSamplingDomain, XyzStaysNonNegative) {
+  // Nominal XYZ is [-1, 2] (#56) to preserve chromatic-adaptation
+  // intermediates; sampling stays in the physical [0, 1] box.
+  basic_random_generator<core::xyz_t> g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.x(), 0.0f) << "sample " << i;
+    EXPECT_LE(c.x(), 1.0f) << "sample " << i;
+    EXPECT_GE(c.y(), 0.0f) << "sample " << i;
+    EXPECT_LE(c.y(), 1.0f) << "sample " << i;
+    EXPECT_GE(c.z(), 0.0f) << "sample " << i;
+    EXPECT_LE(c.z(), 1.0f) << "sample " << i;
+  }
+}

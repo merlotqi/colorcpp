@@ -43,7 +43,7 @@ TEST(CIELabTest, BoundaryValues) {
 
 TEST(CIELabTest, NominalChannelRanges) {
   using namespace lab::channel;
-  static_assert(lab_l::min == 0.0f && lab_l::max == 100.0f);
+  static_assert(lab_l::min == 0.0f && lab_l::max == 200.0f);
   static_assert(lab_a::min == -400.0f && lab_a::max == 400.0f);
   static_assert(lab_b::min == -400.0f && lab_b::max == 400.0f);
   SUCCEED();
@@ -67,7 +67,7 @@ TEST(CIELChTest, ParameterizedConstruction) {
 
 TEST(CIELChTest, NominalChannelRanges) {
   using namespace lab::channel;
-  static_assert(lab_l::min == 0.0f && lab_l::max == 100.0f);
+  static_assert(lab_l::min == 0.0f && lab_l::max == 200.0f);
   static_assert(lab_c::min == 0.0f && lab_c::max == 400.0f);
   static_assert(lab_h::min == 0.0f && lab_h::max == 360.0f);
   SUCCEED();
@@ -213,7 +213,7 @@ TEST(CIELabTest, TypeTraits) {
   using l_ch = std::tuple_element_t<0, cielab_channels>;
   static_assert(std::is_same_v<l_ch::value_type, float>);
   static_assert(l_ch::min == 0.0f);
-  static_assert(l_ch::max == 100.0f);
+  static_assert(l_ch::max == 200.0f);
 
   using a_ch = std::tuple_element_t<1, cielab_channels>;
   static_assert(a_ch::min == -400.0f);
@@ -389,6 +389,15 @@ TEST(CIELChTest, WideGamutChromaRoundTrip) {
   EXPECT_NEAR(back.r(), 0.0f, 2e-3f);
   EXPECT_NEAR(back.g(), 1.0f, 2e-3f);
   EXPECT_NEAR(back.b(), 0.0f, 2e-3f);
+}
+
+// --- Issue #67: L* was capped at 100, losing above-white (HDR-ish) values.
+//     XYZ D65 (1, 1.5, 1) has Y = 1.5 → L* ≈ 116·cbrt(1.5) − 16 ≈ 116.79. ---
+
+TEST(CIELabTest, AboveWhiteLightnessSurvives) {
+  const auto lab = color_cast<cielab_t>(xyz_t(1.0f, 1.5f, 1.0f));
+  EXPECT_GT(lab.l(), 100.0f) << "old L* ≤ 100 bound clipped above-white values";
+  EXPECT_NEAR(lab.l(), 116.79f, 0.05f);
 }
 
 }  // namespace colorcpp::core::test

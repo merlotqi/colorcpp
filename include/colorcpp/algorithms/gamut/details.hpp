@@ -60,6 +60,16 @@ inline void linrgb_to_xyz(float r, float g, float b, float& x, float& y, float& 
   z = 0.0193339f * r + 0.1191920f * g + 0.9503041f * b;
 }
 
+// CIE XYZ (D65) → linear sRGB, without clamping. Exact inverse of the matrix
+// above (matches conversion::details::xyz_to_oklab's raw first stage; D65
+// white maps to (1, 1, 1)). Gamut membership computes through this raw helper
+// so no color storage range can influence the result (issue #67).
+inline void xyz_to_linrgb(float x, float y, float z, float& r, float& g, float& b) noexcept {
+  r = 3.2404542f * x - 1.5371385f * y - 0.4985314f * z;
+  g = -0.9692660f * x + 1.8760108f * y + 0.0415560f * z;
+  b = 0.0556434f * x - 0.2040259f * y + 1.0572252f * z;
+}
+
 // CIE XYZ (D65) → linear Display P3
 inline void xyz_to_linear_displayp3(float x, float y, float z, float& r, float& g, float& b) noexcept {
   r = 2.4934969f * x - 0.9313836f * y - 0.4027108f * z;

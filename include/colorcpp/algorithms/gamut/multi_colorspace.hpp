@@ -86,10 +86,15 @@ template <typename Color>
 bool is_in_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
   using namespace operations::conversion;
 
-  auto lab = color_cast<core::oklab_t>(c);
+  // Through XYZ (nominal [-1, 2], wide enough for every supported gamut —
+  // issue #56) and raw float math, never through oklab_t: membership must not
+  // depend on any color storage range clipping the value first (issue #67).
+  // The xyz↔oklab edge is raw, so this costs nothing in accuracy; XYZ's pack
+  // clamp only touches values already outside every RGB gamut (Y > 1 alone
+  // rules all of them out).
+  const auto xyz = color_cast<core::xyz_t>(c);
   float r, g, b;
-  details::oklab_to_linrgb(lab.template get_index<0>(), lab.template get_index<1>(), lab.template get_index<2>(), r, g,
-                           b);
+  details::xyz_to_linrgb(xyz.x(), xyz.y(), xyz.z(), r, g, b);
   return details::linrgb_in_gamut(r, g, b, type);
 }
 

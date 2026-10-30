@@ -1,8 +1,13 @@
 /**
  * @file oklab.hpp
- * @brief Oklab and OkLCH (Björn Ottosson); ranges aligned with CSS Color Level 4.
+ * @brief Oklab and OkLCH (Björn Ottosson).
  *
- * Oklab: L [0, 1], a and b in [-0.5, 0.5]. OkLCH: L, C [0, 0.4], H [0, 360).
+ * Oklab: L [0, 2], a and b in [-2, 2]. OkLCH: L, C [0, 2], H [0, 360).
+ * The ranges are nominal: wide enough that no supported gamut's colors clip
+ * (ProPhoto blue has a ≈ -1.35, C ≈ 1.41; above-white exists — XYZ (1,1,1)
+ * has L ≈ 1.0032), so conversions and gamut membership never see a
+ * storage-clamped value (issue #67). CSS oklab()/oklch() parsing keeps its
+ * own reference ranges in io/.
  */
 
 #pragma once
@@ -22,13 +27,14 @@ using c_tag = traits::chroma_tag;  // chroma (OkLCH, shared chroma tag)
 using h_tag = traits::hue_tag;     // hue angle (OkLCH, shared ring tag)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = Min/Den … Max/Den
-// a/b/c nominal ranges are deliberately wider than any in-gamut value: CSS has no
-// upper chroma bound (0.4 / ±0.4 are only the relative-syntax 100% references) and
-// wide-gamut intermediates exceed the old ±0.5 / 0.4 limits.
-using okl = traits::basic_channel<l_tag, float, 0, 1>;    // [0,    1]
-using oka = traits::basic_channel<a_tag, float, -1, 1>;   // [-1,   1]
-using okb = traits::basic_channel<b_tag, float, -1, 1>;   // [-1,   1]
-using okc = traits::basic_channel<c_tag, float, 0, 1>;    // [0,    1]
+// a/b/c/L nominal ranges are deliberately wider than any in-gamut value: CSS has
+// no upper chroma bound (0.4 / ±0.5 are only the relative-syntax 100% references),
+// wide-gamut intermediates exceed the old ±0.5/±1 limits (ProPhoto blue a ≈ -1.35),
+// and above-white values exist (XYZ (1,1,1) → L ≈ 1.0032).
+using okl = traits::basic_channel<l_tag, float, 0, 2>;    // [0,    2]
+using oka = traits::basic_channel<a_tag, float, -2, 2>;   // [-2,   2]
+using okb = traits::basic_channel<b_tag, float, -2, 2>;   // [-2,   2]
+using okc = traits::basic_channel<c_tag, float, 0, 2>;    // [0,    2]
 using okh = traits::basic_channel<h_tag, float, 0, 360>;  // [0, 360]
 
 }  // namespace channel

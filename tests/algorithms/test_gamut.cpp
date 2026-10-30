@@ -502,4 +502,28 @@ TEST(MultiColorspaceGamutTest, GamutClipToP3PreservesAlpha) {
   EXPECT_NEAR(clipped.a(), 0.5f, 1e-6f);
 }
 
+// --- Issue #67: is_in_gamut routed the color through oklab_t, whose storage
+//     range clipped wide-gamut values before membership was computed — 100 of
+//     ProPhoto's 21³ own-cube grid points (including pure blue) were reported
+//     outside their own gamut. Membership must never see a clipped value. ---
+
+TEST(MultiColorspaceGamutTest, ProPhotoBlueIsInsideOwnGamut) {
+  EXPECT_TRUE(is_in_gamut(core::prophoto_rgbf_t{0.0f, 0.0f, 1.0f}, gamut_type::prophoto_rgb))
+      << "pre-fix: OkLab a was clipped to -1, landing outside ProPhoto";
+}
+
+TEST(MultiColorspaceGamutTest, ProPhotoGridFullyInsideOwnGamut) {
+  int rejected = 0;
+  for (int i = 0; i <= 20; ++i) {
+    for (int j = 0; j <= 20; ++j) {
+      for (int k = 0; k <= 20; ++k) {
+        const core::prophoto_rgbf_t c(static_cast<float>(i) / 20.0f, static_cast<float>(j) / 20.0f,
+                                      static_cast<float>(k) / 20.0f);
+        if (!is_in_gamut(c, gamut_type::prophoto_rgb)) ++rejected;
+      }
+    }
+  }
+  EXPECT_EQ(rejected, 0) << "points on ProPhoto's own [0,1]³ cube must be inside ProPhoto";
+}
+
 }  // namespace colorcpp::algorithms::test

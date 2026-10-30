@@ -2,10 +2,11 @@
  * @file cielab.hpp
  * @brief CIELAB and CIELCH (ISO 11664-4 / ICC), D65 reference white.
  *
- * CIELAB: L* [0, 100], a* and b* [-400, 400]. CIELCH: L*, C* [0, 400], H [0, 360).
- * The a*, b* and C* ranges are nominal: they must be wide enough for every
- * real color (ProPhoto green has a* ≈ -201, C* ≈ 263), so conversions never
- * clip to them. Conversions compose with linear sRGB and XYZ
+ * CIELAB: L* [0, 200], a* and b* [-400, 400]. CIELCH: L* [0, 200], C* [0, 400], H [0, 360).
+ * The ranges are nominal: they must be wide enough for every real color
+ * (ProPhoto green has a* ≈ -201, C* ≈ 263) and for above-white XYZ
+ * (Y = 1.5 → L* ≈ 116.8), so conversions never clip to them (issue #67).
+ * Conversions compose with linear sRGB and XYZ
  * (include @ref linear_rgb.hpp with @ref conversion.hpp).
  */
 
@@ -27,9 +28,9 @@ using h_tag = traits::hue_tag;     // hue angle (CIELCH, shared ring tag)
 
 // basic_channel<Tag, T, Min, Max, Den>: value = static_cast<T>(Min) / static_cast<T>(Den) ... Max/Den
 // Den=1 keeps values in their natural CIE units rather than normalizing to [0,1].
-// The a/b/c bounds are nominal (real colors reach a* ≈ -201, C* ≈ 263):
-// ±128 / 200 clipped wide-gamut conversions.
-using lab_l = traits::basic_channel<l_tag, float, 0, 100, 1>;     // [0,    100]
+// The a/b/c and L bounds are nominal (real colors reach a* ≈ -201, C* ≈ 263;
+// above-white XYZ Y = 2 → L* ≈ 130): ±128 / 200 / 100 clipped conversions.
+using lab_l = traits::basic_channel<l_tag, float, 0, 200, 1>;     // [0,    200]
 using lab_a = traits::basic_channel<a_tag, float, -400, 400, 1>;  // [-400,  400]
 using lab_b = traits::basic_channel<b_tag, float, -400, 400, 1>;  // [-400,  400]
 using lab_c = traits::basic_channel<c_tag, float, 0, 400, 1>;     // [0,    400]
