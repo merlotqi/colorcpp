@@ -417,6 +417,10 @@ inline core::rgbaf_t mix_in_polar_space(const core::rgbaf_t& a, const core::rgba
 
   float hue_a = ca.template get_index<2>();
   float hue_b = cb.template get_index<2>();
+  // CSS Color 4: a powerless hue (chroma ≈ 0) is missing and takes the other
+  // item's hue before any hue-method adjustment (issue #51 — white's OkLCH
+  // hue is atan2 noise at C ≈ 6e-8 and used to steer the mix to teal).
+  operations::interpolate::details::substitute_powerless_hue(ca, cb, hue_a, hue_b);
   adjust_hues_for_interpolation(hue_a, hue_b, hue_method);
 
   float c0 =

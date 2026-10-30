@@ -417,6 +417,25 @@ TEST(ExactCompareTest, OneAchromaticStillDiffersOnChroma) {
   EXPECT_FALSE(exact_equal(gray, tinted));
 }
 
+TEST(ExactCompareTest, NearZeroChromaHueIsIgnored) {
+  // Issue #51: real conversions leave ~1e-7 of chroma noise on grays (white's
+  // OkLCH C is 6e-8, hue 90° from atan2 rounding). Exact-zero missed it, so
+  // the same gray at different stored hues compared unequal. Chroma within
+  // the shared epsilon must count as achromatic too. (Chroma values must be
+  // equal here: the chroma channel itself is still compared exactly.)
+  oklch_t a{0.7f, 1e-7f, 90.0f};
+  oklch_t b{0.7f, 1e-7f, 200.0f};
+  EXPECT_TRUE(exact_equal(a, b));
+  EXPECT_TRUE(equal(a, b));
+}
+
+TEST(EpsilonCompareTest, NearZeroChromaHueIsIgnored) {
+  // HSL gray from a conversion carries the same kind of near-zero saturation.
+  hsl_float_t a{0.0f, 1e-6f, 0.5f};
+  hsl_float_t b{180.0f, 5e-6f, 0.5f};
+  EXPECT_TRUE(epsilon_equal(a, b, 0.01f));
+}
+
 TEST(EpsilonCompareTest, AchromaticHueIsIgnored) {
   hsl_float_t a{0.0f, 0.0f, 0.5f};
   hsl_float_t b{180.0f, 0.0f, 0.5f};
@@ -427,6 +446,24 @@ TEST(RelativeCompareTest, AchromaticHueIsIgnored) {
   hsl_float_t a{0.0f, 0.0f, 0.5f};
   hsl_float_t b{180.0f, 0.0f, 0.5f};
   EXPECT_TRUE(relative_equal(a, b, 1e-3f));
+}
+
+// core::is_achromatic — the shared eps-based check (issue #51). Compare and
+// every polar interpolator must agree on when a hue is powerless.
+
+TEST(AchromaticHelperTest, EpsBasedChromaCheck) {
+  // Real conversions leave atan2 noise on neutrals: white's OkLCH C is 6e-8
+  // with a bogus 90° hue, mid-gray's C is ~1.2e-7.
+  EXPECT_TRUE(core::is_achromatic(conversion::color_cast<oklch_t>(rgbf_t{1.0f, 1.0f, 1.0f})));
+  EXPECT_TRUE(core::is_achromatic(oklch_t{0.7f, 1.2e-7f, 90.0f}));
+  EXPECT_TRUE(core::is_achromatic(hsl_float_t{240.0f, 1e-6f, 0.5f}));
+  EXPECT_FALSE(core::is_achromatic(oklch_t{0.452f, 0.313f, 264.0f}));
+  EXPECT_FALSE(core::is_achromatic(hsl_float_t{240.0f, 0.5f, 0.5f}));
+  // Models without a chroma channel are never achromatic.
+  EXPECT_FALSE(core::is_achromatic(rgbf_t{0.5f, 0.5f, 0.5f}));
+  // Caller-supplied epsilon overrides the default.
+  EXPECT_TRUE(core::is_achromatic(oklch_t{0.7f, 0.01f, 90.0f}, 0.02f));
+  EXPECT_FALSE(core::is_achromatic(oklch_t{0.7f, 0.01f, 90.0f}, 1e-3f));
 }
 
 TEST(EpsilonCompareTest, InfiniteHueTerminatesAndIsNotEqual) {

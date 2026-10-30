@@ -1086,4 +1086,90 @@ TEST(MultiLerpPositionTest, ThrowsOnTooFewStops) {
   EXPECT_THROW(multi_lerp(stops, 0.5f), std::invalid_argument);
 }
 
+// --- Issue #51: a powerless hue (chroma/saturation ≈ 0) must not steer the
+//     shortest-arc interpolation. White/black/gray carry only atan2 noise —
+//     white's OkLCH hue is 90° from C ≈ 6e-8 — so lerp_oklch(white, blue)
+//     used to swing through teal (H ≈ 175°). Per CSS Color 4 a powerless hue
+//     is missing and takes the other endpoint's hue; both missing → unchanged.
+//     Expected values are the CSS spec midpoints: oklch(0.726 0.157 264.05),
+//     lch(66.1 67.2 306.29), hsl(240 50% 75%). ---
+
+TEST(LerpOklchTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_oklch(white, blue, 0.5f);
+  // Buggy midpoint: H ≈ 175° teal rgb(0, 0.77, 0.65). White's hue is
+  // missing, so the whole arc rides blue's 264.05° — a light blue.
+  EXPECT_NEAR(mid.r(), 0.4530f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.6381f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+}
+
+TEST(LerpOklchTest, PowerlessBlackHueTakesBlueHue) {
+  // oklch endpoints keep the assertion on the hue itself (an rgbf result
+  // would be gamut-clipped and shift the hue by ~1°).
+  const core::oklch_t black{0.0f, 0.0f, 0.0f};
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  const auto mid = lerp_oklch(black, blue, 0.5f);
+  // Buggy midpoint: H ≈ 308.7° — black's atan2 noise treated as a real hue.
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(LerpOklchTest, PowerlessGrayHueTakesBlueHue) {
+  // Mid-gray has C ≈ 1.2e-7 of conversion noise; that hue must not steer.
+  const auto gray = color_cast<core::oklch_t>(core::rgbf_t(0.5f, 0.5f, 0.5f));
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  const auto mid = lerp_oklch(gray, blue, 0.5f);
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(LerpLchTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_lch(white, blue, 0.5f);
+  // Buggy midpoint: H ≈ 333°, pink. White's hue is missing, so the arc
+  // rides blue's LCH hue (306.29°) — a light blue, not pink.
+  EXPECT_NEAR(mid.r(), 0.7014f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.5458f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+}
+
+TEST(LerpHslTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_hsl(white, blue, 0.5f);
+  // Buggy midpoint: pink (0.875, 0.625, 0.875). White S = 0 → hue missing
+  // → the arc rides blue's 240°: hsl(240, 50%, 75%) = rgb(0.625, 0.625, 0.875).
+  EXPECT_NEAR(mid.r(), 0.625f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.625f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 0.875f, 2e-3f);
+}
+
+TEST(LerpHsvTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_hsv(white, blue, 0.5f);
+  // White S = 0 → hue = blue's 240°; S = 0.5, V = 1 → rgb(0.5, 0.5, 1).
+  EXPECT_NEAR(mid.r(), 0.5f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.5f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+}
+
+TEST(LerpChromaPreservingTest, PowerlessHueTakesOtherEndpoint) {
+  const auto white = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 1.0f, 1.0f));
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  const auto mid = lerp_chroma_preserving(white, blue, 0.5f, chroma_mode::preserve);
+  // Buggy: hue lerped from white's atan2 noise (90°) toward 264° → teal-ish 177°.
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(LerpHueLockedTest, PowerlessStartHueTakesEndHue) {
+  const auto white = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 1.0f, 1.0f));
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  // Locking to a start hue that carries no information must fall through to
+  // the end hue, not freeze white's noise angle (90°).
+  const auto mid = lerp_hue_locked(white, blue, 0.5f, true);
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
 }  // namespace colorcpp::operations::test

@@ -35,6 +35,24 @@ inline float src_alpha(const Color& c) {
 }
 
 /**
+ * @brief CSS Color 4 powerless-hue substitution (issue #51).
+ *
+ * A hue stored next to ~zero chroma/saturation is missing (white's OkLCH hue
+ * is 90° of atan2 noise at C ≈ 6e-8). One missing hue takes the other
+ * endpoint's; if both are missing the hue carries no information and passes
+ * through. @p hue_a / @p hue_b are updated in place.
+ */
+template <typename Polar>
+inline void substitute_powerless_hue(const Polar& a, const Polar& b, float& hue_a, float& hue_b) {
+  const bool a_missing = ::colorcpp::core::is_achromatic(a);
+  const bool b_missing = ::colorcpp::core::is_achromatic(b);
+  if (a_missing && !b_missing)
+    hue_a = hue_b;
+  else if (b_missing && !a_missing)
+    hue_b = hue_a;
+}
+
+/**
  * @brief Assemble an interpolation result: working-space midpoint + unit-space alpha.
  *
  * Casts the mid straight to Color so an out-of-gamut wide-space midpoint
@@ -114,7 +132,11 @@ Color lerp_hsl(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::hsla_float_t>(a);
   auto cb = color_cast<core::hsla_float_t>(b);
 
-  core::hsla_float_t out{details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
+  float hue_a = ca.template get_index<0>();
+  float hue_b = cb.template get_index<0>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // S = 0 → hue missing (issue #51)
+
+  core::hsla_float_t out{details::lerp_angle_deg(hue_a, hue_b, t),
                          details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                          details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
                          details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
@@ -131,7 +153,11 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::hsva_float_t>(a);
   auto cb = color_cast<core::hsva_float_t>(b);
 
-  core::hsva_float_t out{details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
+  float hue_a = ca.template get_index<0>();
+  float hue_b = cb.template get_index<0>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // S = 0 → hue missing (issue #51)
+
+  core::hsva_float_t out{details::lerp_angle_deg(hue_a, hue_b, t),
                          details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                          details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
                          details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
@@ -164,9 +190,13 @@ Color lerp_oklch(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::oklch_t>(a);
   auto cb = color_cast<core::oklch_t>(b);
 
+  float hue_a = ca.template get_index<2>();
+  float hue_b = cb.template get_index<2>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // C ≈ 0 → hue missing (issue #51)
+
   core::oklch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                    details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+                    details::lerp_angle_deg(hue_a, hue_b, t)};
 
   return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }
@@ -196,9 +226,13 @@ Color lerp_lch(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::cielch_t>(a);
   auto cb = color_cast<core::cielch_t>(b);
 
+  float hue_a = ca.template get_index<2>();
+  float hue_b = cb.template get_index<2>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // C* ≈ 0 → hue missing (issue #51)
+
   core::cielch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
                      details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                     details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+                     details::lerp_angle_deg(hue_a, hue_b, t)};
 
   return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }

@@ -106,14 +106,17 @@ constexpr T circular_diff(T a, T b, T range) noexcept {
 
 /**
  * @brief Whether the color carries a shared chroma channel (HSL/HSV S, CIELCH/OkLCH C).
+ * @see colorcpp::core::has_chroma_channel_v — same check, shared with interpolation.
  */
 template <typename Color>
-inline constexpr bool has_chroma_channel_v =
-    traits::details::has_channel_tag_impl<typename Color::channels_tuple, traits::chroma_tag>::value;
+inline constexpr bool has_chroma_channel_v = ::colorcpp::core::has_chroma_channel_v<Color>;
 
 /**
- * @brief Achromatic iff the chroma channel is exactly zero.
+ * @brief Achromatic iff the chroma channel is within the shared epsilon of zero.
  *
+ * Delegates to @ref colorcpp::core::is_achromatic (issue #51): conversions
+ * leave ~1e-7 of atan2 noise on neutrals (white's OkLCH hue is 90° at
+ * C ≈ 6e-8), so an exact-zero test let that noise steer hue comparison.
  * At zero chroma the stored hue is meaningless (a gray at h = 0 is the same
  * gray at h = 180), so policies may skip the hue comparison for pairs where
  * both sides are achromatic. Models without a chroma channel (HWB, RGB) are
@@ -121,11 +124,7 @@ inline constexpr bool has_chroma_channel_v =
  */
 template <typename Color>
 constexpr bool is_achromatic(const Color& c) noexcept {
-  if constexpr (has_chroma_channel_v<Color>) {
-    return c.template get<traits::chroma_tag>() == typename Color::value_type(0);
-  } else {
-    return false;
-  }
+  return ::colorcpp::core::is_achromatic(c);
 }
 
 /**
@@ -144,7 +143,8 @@ constexpr bool compare_one_channel(const Color& a, const Color& b, LinearComp li
   const auto vb = b.template get_index<Is>();
   if constexpr (is_hue_channel_v<channel_t>) {
     if constexpr (has_chroma_channel_v<Color>) {
-      if (is_achromatic(a) && is_achromatic(b)) return true;
+      // Qualified: ADL would find both this wrapper and core::is_achromatic.
+      if (detail::is_achromatic(a) && detail::is_achromatic(b)) return true;
     }
     using T = typename channel_t::value_type;
     constexpr T range = channel_t::max - channel_t::min;

@@ -31,8 +31,12 @@ Color lerp_hue_locked(const Color& a, const Color& b, float t, bool hue_locked =
 
   float L = details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t);
   float C = details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t);
-  float H = hue_locked ? ca.template get_index<2>()
-                       : details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t);
+  float hue_a = ca.template get_index<2>();
+  float hue_b = cb.template get_index<2>();
+  // C ≈ 0 → hue missing (issue #51): locking to a powerless start hue falls
+  // through to the end hue instead of freezing atan2 noise.
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);
+  float H = hue_locked ? hue_a : details::lerp_angle_deg(hue_a, hue_b, t);
 
   core::oklch_t mid{L, C, H};
 

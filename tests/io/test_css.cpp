@@ -992,6 +992,34 @@ TEST(Css, ColorMixNestedAndInvalidForms) {
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in oklch longer, red, blue)").has_value());
 }
 
+TEST(Css, ColorMixPowerlessHueTakesOtherEndpoint) {
+  // Issue #51: white's OkLCH hue is atan2 noise (H = 90°, C = 6e-8). Without
+  // powerless-hue substitution, color-mix(in oklch, white, blue) blended that
+  // noise toward 264° and produced teal rgb(0 197 165). Per CSS Color 4 the
+  // powerless hue is missing and takes blue's 264.05°: the spec midpoint is
+  // oklch(0.726 0.157 264.05) → rgb(0.453, 0.638, 1).
+  auto c = parse_css_color_rgbaf("color-mix(in oklch, white, blue)");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(c->r(), 0.4530f, 5e-3f);
+  EXPECT_NEAR(c->g(), 0.6381f, 5e-3f);
+  EXPECT_NEAR(c->b(), 1.0f, 5e-3f);
+
+  // Mid-gray is just as powerless as white. Spec midpoint:
+  // oklch((0.598 + 0.452)/2, 0.157, 264.05) → rgb(0.229, 0.392, 0.767).
+  auto g = parse_css_color_rgbaf("color-mix(in oklch, gray, blue)");
+  ASSERT_TRUE(g);
+  EXPECT_NEAR(g->r(), 0.2286f, 5e-3f);
+  EXPECT_NEAR(g->g(), 0.3919f, 5e-3f);
+  EXPECT_NEAR(g->b(), 0.7666f, 5e-3f);
+
+  // CIELCH gets the same rule (blue's LCH hue is 306.29°).
+  auto l = parse_css_color_rgbaf("color-mix(in lch, white, blue)");
+  ASSERT_TRUE(l);
+  EXPECT_NEAR(l->r(), 0.7014f, 5e-3f);
+  EXPECT_NEAR(l->g(), 0.5458f, 5e-3f);
+  EXPECT_NEAR(l->b(), 1.0f, 5e-3f);
+}
+
 TEST(Css, ColorMixHueInterpolationKeywords) {
   auto shorter = parse_css_color_rgbaf("color-mix(in oklch shorter hue, oklch(0.7 0.04 30), oklch(0.7 0.04 90))");
   auto shorter_expected = parse_css_color_rgbaf("oklch(0.7 0.04 60)");
@@ -1158,7 +1186,6 @@ TEST(Css, ToCssColorStringRgbafRoundTrip) {
   ASSERT_TRUE(back);
   expect_rgbaf_near(*back, 1.0f, 0.4f, 0.2f, 0.5f, 0.002f);
 }
-
 
 struct CssTableCase {
   std::string input;
@@ -1437,7 +1464,6 @@ TEST(Css, LabFunctionDefaultsToOpaqueWithoutAlpha) {
   ASSERT_TRUE(c);
   EXPECT_EQ(c->a(), 255);
 }
-
 
 // Channel-expression parsing recurses through calc() and parenthesized
 // groups; without a depth limit, ~20000 levels of nesting overflow the stack

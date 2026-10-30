@@ -256,6 +256,36 @@ constexpr decltype(auto) get(Color&& c) {
   return c.template get_index<I>();
 }
 
+/**
+ * @brief Whether @p Color carries a shared chroma channel (HSL/HSV S, CIELCH/OkLCH C).
+ */
+template <typename Color>
+inline constexpr bool has_chroma_channel_v =
+    traits::details::has_channel_tag_impl<typename Color::channels_tuple, traits::chroma_tag>::value;
+
+/** @brief Default tolerance for @ref is_achromatic, in the chroma channel's own units. */
+inline constexpr float kAchromaticEpsilon = 1e-3f;
+
+/**
+ * @brief Whether the color's chroma/saturation is (nearly) zero — its hue is powerless.
+ *
+ * Per CSS Color 4 a hue stored next to zero chroma carries no information (a
+ * gray at h = 0 is the same gray at h = 180); interpolation must treat it as
+ * missing instead of blending the atan2 noise, and comparison may skip it.
+ * Models without a chroma channel (RGB, HWB, ...) are never achromatic.
+ * @param eps Tolerance in the chroma channel's own units (chroma min is 0 in
+ *            every model that has the channel), default @ref kAchromaticEpsilon.
+ */
+template <typename Color>
+constexpr bool is_achromatic(const Color& c, float eps = kAchromaticEpsilon) noexcept {
+  if constexpr (has_chroma_channel_v<Color>) {
+    const float v = static_cast<float>(c.template get<traits::chroma_tag>());
+    return v <= eps && v >= -eps;
+  } else {
+    return false;
+  }
+}
+
 }  // namespace colorcpp::core
 
 namespace std {
