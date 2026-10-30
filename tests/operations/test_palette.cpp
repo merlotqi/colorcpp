@@ -717,4 +717,35 @@ TEST(IOSTest, FromSeedDifferentColorTypes) {
   EXPECT_GT(p_hsl.system_blue.b(), 0);
 }
 
+// --- Issue #62: lerp_method::rgb routes through the generic lerp, which used
+//     to lerp the hue channel of hsla endpoints as a plain number. A
+//     red-to-red scale across 0° (350° → 10°) midpointed at 180° — blue —
+//     instead of red. ---
+
+TEST(AdvancedScalesTest, RedToRedHslaScaleStaysRed) {
+  const hsla_float_t red350{350.0f, 1.0f, 0.5f, 1.0f};
+  const hsla_float_t red10{10.0f, 1.0f, 0.5f, 1.0f};
+  auto p = linear_scale(red350, red10, 3);
+  ASSERT_EQ(p.size(), 3u);
+  const auto mid_rgb = conversion::color_cast<rgbf_t>(p[1]);
+  // Shortest arc through 0°: midpoint is red, not the naive 180° blue.
+  EXPECT_NEAR(mid_rgb.r(), 1.0f, 2e-3f);
+  EXPECT_NEAR(mid_rgb.g(), 0.0f, 2e-3f);
+  EXPECT_NEAR(mid_rgb.b(), 0.0f, 2e-3f);
+}
+
+TEST(AdvancedScalesTest, MultiScaleRgbMethodHslaKeepsHueArc) {
+  const hsla_float_t red350{350.0f, 1.0f, 0.5f, 1.0f};
+  const hsla_float_t red10{10.0f, 1.0f, 0.5f, 1.0f};
+  auto p = multi_scale(std::vector<hsla_float_t>{red350, red10}, 3u, lerp_method::rgb);
+  ASSERT_GE(p.size(), 3u);
+  // multi_scale appends the endpoint at the end, so p[1] sits at t = 1/3 of
+  // the single segment: the arc gives 350 + 20/3 ≈ 356.67° (still red),
+  // while naive numeric lerp would wrap to 236.67° (blue).
+  EXPECT_NEAR(p[1].h(), 356.667f, 0.5f);
+  const auto mid_rgb = conversion::color_cast<rgbf_t>(p[1]);
+  EXPECT_NEAR(mid_rgb.r(), 1.0f, 2e-3f);
+  EXPECT_NEAR(mid_rgb.b(), 0.0556f, 2e-3f);
+}
+
 }  // namespace colorcpp::operations::test

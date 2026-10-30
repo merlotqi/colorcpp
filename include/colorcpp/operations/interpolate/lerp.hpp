@@ -75,16 +75,52 @@ inline Color lerp_result(const Mid& mid, float alpha) {
 // wide-gamut colors are never clipped to sRGB before interpolating
 // (issue #50). Alpha is just another channel here; callers with a policy
 // (lerp_alpha_mode) overwrite it afterwards.
+//
+// Hue channels (hue_tag) interpolate on the shortest arc, not as plain
+// numbers (issue #62): 350° → 10° must midpoint at 0°, never 180°.
+
+template <typename Color>
+inline constexpr bool has_hue_channel_v =
+    ::colorcpp::traits::details::has_channel_tag_impl<typename Color::channels_tuple,
+                                                      ::colorcpp::traits::hue_tag>::value;
+
+// Per-channel dispatch: hue goes through the arc lerp, everything else
+// (S, L, C, a, b, alpha, …) stays a plain linear blend.
+template <typename Color, std::size_t I>
+inline float lerp_channel_value(const Color& a, const Color& b, float t) {
+  using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
+  const float va = static_cast<float>(a.template get_index<I>());
+  const float vb = static_cast<float>(b.template get_index<I>());
+  if constexpr (std::is_same_v<typename channel_t::tag_type, ::colorcpp::traits::hue_tag>)
+    return lerp_angle_deg(va, vb, t);
+  else
+    return lerp_f(va, vb, t);
+}
+
 template <typename Color, std::size_t... I>
 inline Color lerp_channels_impl(const Color& a, const Color& b, float t, std::index_sequence<I...>) {
   namespace cdetails = ::colorcpp::operations::conversion::details;
-  return cdetails::pack_to<Color>(cdetails::from_value<Color, I>(
-      lerp_f(static_cast<float>(a.template get_index<I>()), static_cast<float>(b.template get_index<I>()), t))...);
+  return cdetails::pack_to<Color>(cdetails::from_value<Color, I>(lerp_channel_value<Color, I>(a, b, t))...);
 }
 
 template <typename Color>
 inline Color lerp_channels(const Color& a, const Color& b, float t) {
-  return lerp_channels_impl(a, b, t, std::make_index_sequence<Color::channels>{});
+  if constexpr (has_hue_channel_v<Color> && ::colorcpp::core::has_chroma_channel_v<Color>) {
+    // Powerless-hue rule (issues #51/#62): chroma ≈ 0 makes the stored hue
+    // missing, so it takes the other endpoint's hue before the arc lerp.
+    Color ca = a;
+    Color cb = b;
+    constexpr std::size_t hi = ::colorcpp::traits::details::find_channel_index_impl<typename Color::channels_tuple,
+                                                                                    ::colorcpp::traits::hue_tag>::value;
+    float hue_a = static_cast<float>(ca.template get_index<hi>());
+    float hue_b = static_cast<float>(cb.template get_index<hi>());
+    substitute_powerless_hue(ca, cb, hue_a, hue_b);
+    ca.template get_index<hi>() = hue_a;
+    cb.template get_index<hi>() = hue_b;
+    return lerp_channels_impl(ca, cb, t, std::make_index_sequence<Color::channels>{});
+  } else {
+    return lerp_channels_impl(a, b, t, std::make_index_sequence<Color::channels>{});
+  }
 }
 
 }  // namespace details
@@ -95,8 +131,9 @@ inline Color lerp_channels(const Color& a, const Color& b, float t) {
  * Each channel (including alpha) is interpolated directly — no conversion
  * through a fixed hub space — so RGB-family callers keep their own gamut:
  * Display P3 / Rec. 2020 endpoints are never clipped to sRGB (issue #50).
- * For hue-bearing models the hue channel is interpolated linearly; use
- * @ref lerp_hsl, @ref lerp_hsv, or @ref lerp_oklch for shortest-arc hue.
+ * For hue-bearing models the hue channel takes the shortest arc with the
+ * powerless-hue rule applied first (issue #62), matching @ref lerp_hsl,
+ * @ref lerp_hsv, and @ref lerp_oklch.
  * @param t Interpolation factor in [0, 1] (clamped).
  */
 template <typename Color>

@@ -1172,4 +1172,57 @@ TEST(LerpHueLockedTest, PowerlessStartHueTakesEndHue) {
   EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
 }
 
+// --- Issue #62: the generic lerp (and everything built on it — lerp_alpha_mode,
+//     ease*, multi_lerp*, palette scales with lerp_method::rgb) interpolates
+//     channel by channel in the caller's type. For hue-bearing models that
+//     lerps the hue as a plain number: no shortest arc, no powerless-hue rule —
+//     the #51 teal returns. Hue channels must go through lerp_angle_deg plus
+//     powerless substitution; RGB-family types keep the #50 behavior. ---
+
+TEST(GenericLerpTest, OklchHueTakesShortestArcWithPowerlessWhite) {
+  const auto white = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 1.0f, 1.0f));
+  const auto blue = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  const auto mid = lerp(white, blue, 0.5f);
+  // White's hue is powerless (C ≈ 6e-8) → blue's 264.05° rides the whole way.
+  // Naive channel lerp landed at H ≈ 177° (teal rgb(0, .773, .646)).
+  EXPECT_NEAR(mid.l(), 0.7260f, 2e-3f);
+  EXPECT_NEAR(mid.c(), 0.1566f, 2e-3f);
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(GenericLerpTest, HslaWhiteToBlueMatchesLerpHsl) {
+  const core::hsla_float_t white{0.0f, 0.0f, 1.0f, 1.0f};
+  const core::hsla_float_t blue{240.0f, 1.0f, 0.5f, 1.0f};
+  const auto mid = lerp(white, blue, 0.5f);
+  const auto rgb = color_cast<core::rgbf_t>(mid);
+  // S = 0 → white's hue missing → 240° rides the arc: hsl(240, 50%, 75%).
+  // Naive channel lerp landed at H = 120° (green rgb(.625, .875, .625)).
+  EXPECT_NEAR(rgb.r(), 0.625f, 2e-3f);
+  EXPECT_NEAR(rgb.g(), 0.625f, 2e-3f);
+  EXPECT_NEAR(rgb.b(), 0.875f, 2e-3f);
+}
+
+TEST(GenericLerpTest, HslaHueWrapsShortestArc) {
+  const core::hsla_float_t a{350.0f, 1.0f, 0.5f, 1.0f};
+  const core::hsla_float_t b{10.0f, 1.0f, 0.5f, 1.0f};
+  const auto mid = lerp(a, b, 0.5f);
+  // Red-to-red across 0°: shortest arc midpoints at 0° (red), not 180° (cyan).
+  EXPECT_NEAR(mid.h(), 0.0f, 0.5f);
+  const auto rgb = color_cast<core::rgbf_t>(mid);
+  EXPECT_NEAR(rgb.r(), 1.0f, 2e-3f);
+  EXPECT_NEAR(rgb.g(), 0.0f, 2e-3f);
+  EXPECT_NEAR(rgb.b(), 0.0f, 2e-3f);
+}
+
+TEST(GenericLerpTest, AlphaModeHslaMatchesChannelPolicy) {
+  const core::hsla_float_t white{0.0f, 0.0f, 1.0f, 1.0f};
+  const core::hsla_float_t blue{240.0f, 1.0f, 0.5, 1.0f};
+  const auto mid = lerp_alpha_mode(white, blue, 0.5f);
+  // Same hue rule as lerp_hsl; alpha lerps 1 → 1 = 1. Naive channel lerp
+  // produced (1, 1, 0) rgb — the H = 120° green again.
+  EXPECT_NEAR(mid.s(), 0.5f, 1e-3f);
+  EXPECT_NEAR(mid.l(), 0.75f, 1e-3f);
+  EXPECT_NEAR(mid.a(), 1.0f, 1e-3f);
+}
+
 }  // namespace colorcpp::operations::test
