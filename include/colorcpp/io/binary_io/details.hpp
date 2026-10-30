@@ -58,12 +58,15 @@ inline std::optional<float> parse_float(std::string_view s) {
   char* end_ptr = nullptr;
   result = std::strtof(s.data(), &end_ptr);
   if (end_ptr == s.data() || end_ptr != s.data() + s.size()) return std::nullopt;
-  if (std::isnan(result) || std::isinf(result)) return std::nullopt;
-  if (result == HUGE_VALF || result == -HUGE_VALF) return std::nullopt;
 #else
   auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
   if (ec != std::errc{} || ptr != s.data() + s.size()) return std::nullopt;
 #endif
+
+  // Reject non-finite values on every platform (issue #64): libstdc++
+  // from_chars parses "nan"/"inf", and those values used to flow into
+  // apply()'s float→size_t index cast (UB).
+  if (!std::isfinite(result)) return std::nullopt;
 
   return result;
 }

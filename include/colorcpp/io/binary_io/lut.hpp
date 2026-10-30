@@ -118,9 +118,12 @@ namespace details {
 
 /**
  * @brief Clamp a value to [0, 1].
+ * @details NaN maps to 0 (issue #64): `v < 0.0f` is false for NaN, so a
+ * naive comparison chain let NaN through to the float→size_t index cast in
+ * apply() — undefined behavior (UBSan float-cast-overflow).
  */
 inline float clamp01(float v) {
-  if (v < 0.0f) return 0.0f;
+  if (!(v > 0.0f)) return 0.0f;
   if (v > 1.0f) return 1.0f;
   return v;
 }

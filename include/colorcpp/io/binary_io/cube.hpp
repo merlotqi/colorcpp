@@ -131,6 +131,13 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
     }
   }
 
+  // Per-channel domain must satisfy DOMAIN_MIN < DOMAIN_MAX (issue #64);
+  // a degenerate or inverted range makes normalization meaningless.
+  // (Non-finite domain values are already rejected by parse_float.)
+  for (std::size_t i = 0; i < 3; ++i) {
+    if (!(domain_min[i] < domain_max[i])) return std::monostate{};
+  }
+
   // Build LUT based on detected size
   if (lut_3d_size) {
     lut3d lut;

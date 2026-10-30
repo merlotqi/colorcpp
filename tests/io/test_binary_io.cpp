@@ -8,6 +8,7 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/io/binary_io.hpp>
 #include <colorcpp/operations/conversion.hpp>
+#include <limits>
 #include <sstream>
 #include <string>
 
@@ -410,4 +411,113 @@ TEST(Cube, Oversized1dSizeReturnsMonostate) {
   const char* cube_data = "LUT_1D_SIZE 2000000000\n";
   std::istringstream ss(cube_data);
   EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss)));
+}
+
+// ===== .cube Non-Finite / Domain Tests (issue #64) =====
+// std::from_chars parses "nan"/"inf" on Linux (the Apple path already
+// rejected them), so non-finite data flowed into apply() and hit a UB
+// float-to-unsigned cast. The reader must reject it on every platform.
+
+TEST(Cube, NonFiniteDataReturnsMonostate) {
+  const char* with_nan = "LUT_1D_SIZE 2\nnan 0.0 0.0\n1.0 1.0 1.0\n";
+  std::istringstream ss_nan(with_nan);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss_nan)));
+
+  const char* with_inf = "LUT_1D_SIZE 2\ninf 1.0 1.0\n1.0 1.0 1.0\n";
+  std::istringstream ss_inf(with_inf);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss_inf)));
+}
+
+TEST(Cube, NonFiniteDomainReturnsMonostate) {
+  const char* nan_min = R"(LUT_1D_SIZE 2
+DOMAIN_MIN nan 0.0 0.0
+0.0 0.0 0.0
+1.0 1.0 1.0
+)";
+  std::istringstream ss1(nan_min);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss1)));
+
+  const char* inf_ends = R"(LUT_1D_SIZE 2
+DOMAIN_MIN -inf 0.0 0.0
+DOMAIN_MAX inf 1.0 1.0
+0.0 0.0 0.0
+1.0 1.0 1.0
+)";
+  std::istringstream ss2(inf_ends);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss2)));
+}
+
+TEST(Cube, DomainMinNotLessThanMaxReturnsMonostate) {
+  // Per-channel domain must satisfy DOMAIN_MIN < DOMAIN_MAX; a degenerate or
+  // inverted range makes normalization meaningless.
+  const char* equal = R"(LUT_1D_SIZE 2
+DOMAIN_MIN 0.5 0.0 0.0
+DOMAIN_MAX 0.5 1.0 1.0
+0.0 0.0 0.0
+1.0 1.0 1.0
+)";
+  std::istringstream ss1(equal);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss1)));
+
+  const char* inverted = R"(LUT_1D_SIZE 2
+DOMAIN_MIN 1.0 0.0 0.0
+DOMAIN_MAX 0.0 1.0 1.0
+0.0 0.0 0.0
+1.0 1.0 1.0
+)";
+  std::istringstream ss2(inverted);
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(cube::read(ss2)));
+}
+
+// ===== apply() NaN/Inf input tests (issue #64) =====
+// clamp01(NaN) returned NaN, so idx became NaN and the float→size_t cast was
+// UB (UBSan: "nan is outside the range of representable values"). A NaN input
+// must map to the 0 endpoint (clamp01's defined NaN policy) before indexing.
+
+TEST(Lut1d, NaNInputMapsToZeroEndpoint) {
+  lut1d lut;
+  lut.size = 2;
+  lut.r = {0.0f, 1.0f};
+  lut.g = {0.0f, 1.0f};
+  lut.b = {0.0f, 1.0f};
+  ASSERT_TRUE(lut.valid());
+
+  // Pre-fix this returned table.back() (1.0) via the UB cast; post-fix the
+  // NaN clamps to 0 and interpolates at the first entry.
+  const auto out = apply(lut, std::numeric_limits<float>::quiet_NaN(), 0.5f, 0.5f);
+  EXPECT_FLOAT_EQ(out[0], 0.0f);
+  EXPECT_FLOAT_EQ(out[1], 0.5f);
+  EXPECT_FLOAT_EQ(out[2], 0.5f);
+
+  // Infinity was already handled by clamp01's comparisons — pin it.
+  const auto out_inf = apply(lut, std::numeric_limits<float>::infinity(), 0.5f, 0.5f);
+  EXPECT_FLOAT_EQ(out_inf[0], 1.0f);
+  const auto out_ninf = apply(lut, -std::numeric_limits<float>::infinity(), 0.5f, 0.5f);
+  EXPECT_FLOAT_EQ(out_ninf[0], 0.0f);
+}
+
+TEST(Lut3d, NaNInputMapsToDefinedCell) {
+  lut3d lut;
+  lut.size = 2;
+  // Identity grid, index = r*4 + g*2 + b (b varies fastest): value = (r, g, b).
+  lut.data = {
+      {{0.0f, 0.0f, 0.0f}}, {{0.0f, 0.0f, 1.0f}},  // r0: g0 at b0, b1
+      {{0.0f, 1.0f, 0.0f}}, {{0.0f, 1.0f, 1.0f}},  // r0: g1 at b0, b1
+      {{1.0f, 0.0f, 0.0f}}, {{1.0f, 0.0f, 1.0f}},  // r1: g0 at b0, b1
+      {{1.0f, 1.0f, 0.0f}}, {{1.0f, 1.0f, 1.0f}},  // r1: g1 at b0, b1
+  };
+  ASSERT_TRUE(lut.valid());
+
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  // Mixed input: only green is NaN. Identity grid → expected {0.5, 0, 0.5}.
+  const auto out = apply(lut, 0.5f, nan, 0.5f);
+  EXPECT_FLOAT_EQ(out[0], 0.5f);
+  EXPECT_FLOAT_EQ(out[1], 0.0f);  // pre-fix: 1.0 via UB cast at frac=1
+  EXPECT_FLOAT_EQ(out[2], 0.5f);
+
+  // All-NaN input maps to the (0,0,0) cell.
+  const auto all = apply(lut, nan, nan, nan);
+  EXPECT_FLOAT_EQ(all[0], 0.0f);
+  EXPECT_FLOAT_EQ(all[1], 0.0f);
+  EXPECT_FLOAT_EQ(all[2], 0.0f);
 }
