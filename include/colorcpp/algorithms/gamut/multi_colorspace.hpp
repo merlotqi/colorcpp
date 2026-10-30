@@ -139,7 +139,11 @@ Color gamut_clip_to_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
   float chroma = std::sqrt(a * a + b * b);
   if (chroma < 1e-6f) {
     float L_clamped = std::clamp(L, 0.0f, 1.0f);
-    return color_cast<Color>(core::rgbaf_t{L_clamped, L_clamped, L_clamped, alpha});
+    // OkLab L is not an sRGB value: rebuild through OkLab instead of treating
+    // L as a channel, and carry the source alpha through.
+    auto gray = color_cast<core::rgbaf_t>(core::oklab_t{L_clamped, 0.0f, 0.0f});
+    gray.a() = alpha;
+    return color_cast<Color>(gray);
   }
 
   // Calculate hue
@@ -167,10 +171,12 @@ Color gamut_clip_to_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
     }
   }
 
-  // Construct the clipped color
+  // Construct the clipped color (OkLab has no alpha channel: re-apply it)
   float final_a = min_C * cos_h;
   float final_b = min_C * sin_h;
-  return color_cast<Color>(color_cast<core::rgbaf_t>(core::oklab_t{L, final_a, final_b}));
+  auto out = color_cast<core::rgbaf_t>(core::oklab_t{L, final_a, final_b});
+  out.a() = alpha;
+  return color_cast<Color>(out);
 }
 
 }  // namespace colorcpp::algorithms::gamut

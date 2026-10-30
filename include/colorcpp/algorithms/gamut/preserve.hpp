@@ -35,6 +35,15 @@ inline float oklab_chroma(float a, float b) noexcept { return std::sqrt(a * a + 
 // Calculate OKLab hue (in radians)
 inline float oklab_hue(float a, float b) noexcept { return std::atan2(b, a); }
 
+// Rebuild a Color from OkLab channels. OkLab has no alpha channel, so a direct
+// cast would silently reset alpha to 1.0; carry the source alpha through.
+template <typename Color>
+Color oklab_to_color(float L, float a, float b, float alpha) {
+  auto out = operations::conversion::color_cast<core::rgbaf_t>(core::oklab_t{L, a, b});
+  out.a() = alpha;
+  return operations::conversion::color_cast<Color>(out);
+}
+
 }  // namespace details
 
 /**
@@ -46,6 +55,9 @@ inline float oklab_hue(float a, float b) noexcept { return std::atan2(b, a); }
 template <typename Color>
 Color gamut_clip_preserve_lightness(const Color& c) {
   using namespace operations::conversion;
+
+  // Already in gamut: return unchanged (this also covers every gray with L in [0, 1]).
+  if (is_in_srgb_gamut(c)) return c;
 
   auto lab = color_cast<core::oklab_t>(c);
   float L = lab.template get_index<0>();
@@ -60,7 +72,7 @@ Color gamut_clip_preserve_lightness(const Color& c) {
   const float C = details::oklab_chroma(a, b);
   if (C < 1e-6f) {
     // Achromatic - just return with clamped lightness
-    return color_cast<Color>(core::rgbaf_t{L, L, L, alpha});
+    return details::oklab_to_color<Color>(L, 0.0f, 0.0f, alpha);
   }
 
   // Calculate hue
@@ -86,7 +98,7 @@ Color gamut_clip_preserve_lightness(const Color& c) {
   }
 
   // Construct color with preserved lightness and reduced chroma
-  return color_cast<Color>(color_cast<core::rgbaf_t>(core::oklab_t{L, min_C * cos_h, min_C * sin_h}));
+  return details::oklab_to_color<Color>(L, min_C * cos_h, min_C * sin_h, alpha);
 }
 
 /**
@@ -109,7 +121,7 @@ Color gamut_clip_preserve_hue(const Color& c) {
   if (C < 1e-6f) {
     // Achromatic - use simple clipping
     L = std::clamp(L, 0.0f, 1.0f);
-    return color_cast<Color>(core::rgbaf_t{L, L, L, alpha});
+    return details::oklab_to_color<Color>(L, 0.0f, 0.0f, alpha);
   }
 
   const float H = details::oklab_hue(a, b);
@@ -141,7 +153,7 @@ Color gamut_clip_preserve_hue(const Color& c) {
     }
   }
 
-  return color_cast<Color>(color_cast<core::rgbaf_t>(core::oklab_t{L, min_C * cos_h, min_C * sin_h}));
+  return details::oklab_to_color<Color>(L, min_C * cos_h, min_C * sin_h, alpha);
 }
 
 /**
@@ -152,6 +164,9 @@ Color gamut_clip_preserve_hue(const Color& c) {
 template <typename Color>
 Color gamut_clip_preserve_saturation(const Color& c) {
   using namespace operations::conversion;
+
+  // Already in gamut: return unchanged (this also covers every gray with L in [0, 1]).
+  if (is_in_srgb_gamut(c)) return c;
 
   auto lab = color_cast<core::oklab_t>(c);
   float L = lab.template get_index<0>();
@@ -164,7 +179,7 @@ Color gamut_clip_preserve_saturation(const Color& c) {
   if (C < 1e-6f) {
     // Achromatic - use simple clipping
     L = std::clamp(L, 0.0f, 1.0f);
-    return color_cast<Color>(core::rgbaf_t{L, L, L, alpha});
+    return details::oklab_to_color<Color>(L, 0.0f, 0.0f, alpha);
   }
 
   // Calculate hue
@@ -172,37 +187,65 @@ Color gamut_clip_preserve_saturation(const Color& c) {
   const float cos_h = std::cos(H);
   const float sin_h = std::sin(H);
 
-  // Binary search for lightness that keeps chroma in gamut
-  float min_L = 0.0f;
-  float max_L = 1.0f;
   constexpr float kEps = 1e-4f;
 
-  // Find the lightness that allows the full chroma
-  while (max_L - min_L > kEps) {
-    const float mid_L = (min_L + max_L) * 0.5f;
+  auto in_gamut_at = [&](float lightness) {
     float r, g, bl;
-    details::oklab_to_linrgb(mid_L, C * cos_h, C * sin_h, r, g, bl);
+    details::oklab_to_linrgb(lightness, C * cos_h, C * sin_h, r, g, bl);
+    return details::linrgb_in_gamut(r, g, bl);
+  };
 
-    if (details::linrgb_in_gamut(r, g, bl)) {
-      // This lightness works - try to get closer to original
-      if (mid_L < L) {
-        min_L = mid_L;
-      } else {
-        max_L = mid_L;
-      }
-    } else {
-      // This lightness doesn't work
-      if (mid_L < L) {
-        min_L = mid_L;
-      } else {
-        max_L = mid_L;
-      }
+  // The lightness values that admit the full chroma form an interval (the
+  // predicate is not monotonic over [0, 1], so a plain bisection cannot find
+  // it); a coarse scan locates it first.
+  constexpr int kScan = 64;
+  int first = -1;
+  int last = -1;
+  for (int i = 0; i <= kScan; ++i) {
+    if (in_gamut_at(static_cast<float>(i) / static_cast<float>(kScan))) {
+      if (first < 0) first = i;
+      last = i;
     }
   }
 
-  // Use the found lightness
-  const float final_L = (min_L + max_L) * 0.5f;
-  return color_cast<Color>(color_cast<core::rgbaf_t>(core::oklab_t{final_L, C * cos_h, C * sin_h}));
+  if (first < 0) {
+    // Full chroma is unreachable at every lightness: keep lightness and hue,
+    // reduce chroma instead (preserves hue like gamut_clip_preserve_hue).
+    L = std::clamp(L, 0.0f, 1.0f);
+    float min_C = 0.0f;
+    float max_C = C;
+    while (max_C - min_C > kEps) {
+      const float mid_C = (min_C + max_C) * 0.5f;
+      float r, g, bl;
+      details::oklab_to_linrgb(L, mid_C * cos_h, mid_C * sin_h, r, g, bl);
+      if (details::linrgb_in_gamut(r, g, bl)) {
+        min_C = mid_C;
+      } else {
+        max_C = mid_C;
+      }
+    }
+    return details::oklab_to_color<Color>(L, min_C * cos_h, min_C * sin_h, alpha);
+  }
+
+  // Bisect from the in-gamut scan sample nearest the original lightness toward
+  // it: `lower` stays in gamut, `upper` out, so `lower` converges to the
+  // in-gamut lightness closest to the original.
+  const float first_L = static_cast<float>(first) / static_cast<float>(kScan);
+  const float last_L = static_cast<float>(last) / static_cast<float>(kScan);
+  float lower = (std::fabs(L - first_L) <= std::fabs(L - last_L)) ? first_L : last_L;
+  float upper = L;
+  if (lower > upper) std::swap(lower, upper);
+  if (!in_gamut_at(lower)) std::swap(lower, upper);
+  while (upper - lower > kEps) {
+    const float mid_L = (lower + upper) * 0.5f;
+    if (in_gamut_at(mid_L)) {
+      lower = mid_L;
+    } else {
+      upper = mid_L;
+    }
+  }
+
+  return details::oklab_to_color<Color>(lower, C * cos_h, C * sin_h, alpha);
 }
 
 /**
@@ -232,7 +275,7 @@ Color gamut_clip_perceptual(const Color& c) {
   if (C < 1e-6f) {
     // Achromatic - clamp lightness
     float L_clamped = std::clamp(L, 0.0f, 1.0f);
-    return color_cast<Color>(core::rgbaf_t{L_clamped, L_clamped, L_clamped, alpha});
+    return details::oklab_to_color<Color>(L_clamped, 0.0f, 0.0f, alpha);
   }
 
   const float H = details::oklab_hue(a, b);

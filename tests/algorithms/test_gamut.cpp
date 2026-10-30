@@ -332,6 +332,50 @@ TEST(PreserveModeTest, GamutClipWithInfo) {
   }
 }
 
+// --- Issue #57: preserve-saturation bisection was a no-op, grays misread
+//     OkLab L as sRGB, in-gamut colors were rebuilt, alpha was dropped. ---
+
+TEST(PreserveModeTest, SaturationPreservationKeepsChroma) {
+  // C = 0.24 at hue 30° only fits sRGB for L in a narrow band (~0.60–0.65).
+  // Preserving chroma means moving L into that band, not channel-clipping.
+  const float C = 0.24f;
+  constexpr float kRad = 30.0f * 3.14159265f / 180.0f;
+  const core::oklab_t input(0.7f, C * std::cos(kRad), C * std::sin(kRad));
+
+  const auto result = gamut_clip_preserve_saturation(input);
+  EXPECT_TRUE(is_in_srgb_gamut(result));
+
+  const auto lab = color_cast<core::oklab_t>(result);
+  const float chroma = std::sqrt(lab.a() * lab.a() + lab.b() * lab.b());
+  EXPECT_NEAR(chroma, C, 1e-3f) << "chroma must survive, only lightness may move";
+  EXPECT_NEAR(lab.l(), 0.646f, 0.03f) << "lightness must land on the feasible band edge";
+}
+
+TEST(PreserveModeTest, SaturationInGamutReturnedUnchanged) {
+  // In-gamut input must come back bit-identical, not rebuilt via OkLab.
+  const core::rgbf_t in(0.3f, 0.6f, 0.9f);
+  const auto result = gamut_clip_preserve_saturation(in);
+  EXPECT_EQ(result.r(), in.r());
+  EXPECT_EQ(result.g(), in.g());
+  EXPECT_EQ(result.b(), in.b());
+}
+
+TEST(PreserveModeTest, SaturationGrayUnchanged) {
+  // Gray OkLab L = 0.5 must stay 0.5 (not be reinterpreted as sRGB gray 0.5 → 0.5982).
+  const core::oklab_t gray(0.5f, 0.0f, 0.0f);
+  const auto result = gamut_clip_preserve_saturation(gray);
+  const auto lab = color_cast<core::oklab_t>(result);
+  EXPECT_NEAR(lab.l(), 0.5f, 1e-3f);
+}
+
+TEST(PreserveModeTest, PreserveAlpha) {
+  // Rebuilding through 3-channel OkLab used to reset alpha to 1.0.
+  const core::rgbaf_t oog(1.5f, 0.1f, 0.1f, 0.5f);
+  EXPECT_FLOAT_EQ(gamut_clip_preserve_lightness(oog).a(), 0.5f);
+  EXPECT_FLOAT_EQ(gamut_clip_preserve_hue(oog).a(), 0.5f);
+  EXPECT_FLOAT_EQ(gamut_clip_preserve_saturation(oog).a(), 0.5f);
+}
+
 // --- ProPhoto RGB gamut ---
 
 TEST(MultiColorspaceGamutTest, ProPhotoInGamut) {
