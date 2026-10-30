@@ -157,6 +157,52 @@ TEST(PoissonDisk, DefaultGeneratesRequestedCount) {
 }
 
 // ============================================================
+// Distance guarantee in the received color (Issue #69)
+//
+// Candidates were distance-checked as raw OkLab and only converted to the
+// output type at the very end: for rgb8 the cast clamps out-of-sRGB
+// candidates and quantizes, so raw candidates that were far apart collapsed
+// onto identical received values (exact duplicates, pairs closer than
+// min_distance). The guarantee must hold in the color the caller receives.
+// ============================================================
+
+TEST(PoissonDisk, Rgb8PaletteKeepsMinDistanceAfterQuantization) {
+  poisson_disk_generator<core::rgb8_t> gen(42u, 0.1f);
+  auto palette = gen.generate(30);
+  // A usable palette must still come back; the pairwise loop below is
+  // meaningless if almost everything was rejected.
+  ASSERT_GE(palette.size(), 20u);
+  for (std::size_t i = 0; i < palette.size(); ++i) {
+    for (std::size_t j = i + 1; j < palette.size(); ++j) {
+      // Measure in the color the caller actually receives (the rgb8 value
+      // mapped to OkLab), not the raw candidate that was drawn.
+      const auto a = conversion::color_cast<core::oklab_t>(palette[i]);
+      const auto b = conversion::color_cast<core::oklab_t>(palette[j]);
+      const float d = algorithms::delta_e::delta_e_ok(a, b);
+      EXPECT_GE(d, 0.1f - 1e-4f) << "Received pair (" << i << ", " << j << ") closer than min_distance"
+                                 << " (pre-fix: raw candidates were checked, then clamped to rgb8)";
+    }
+  }
+}
+
+TEST(PoissonDisk, Rgb8GenerateMaxKeepsMinDistanceAndNoDuplicates) {
+  poisson_disk_generator<core::rgb8_t> gen(42u, 0.1f);
+  auto colors = gen.generate_max();
+  ASSERT_GE(colors.size(), 20u);
+  for (std::size_t i = 0; i < colors.size(); ++i) {
+    for (std::size_t j = i + 1; j < colors.size(); ++j) {
+      const auto a = conversion::color_cast<core::oklab_t>(colors[i]);
+      const auto b = conversion::color_cast<core::oklab_t>(colors[j]);
+      const float d = algorithms::delta_e::delta_e_ok(a, b);
+      // Also subsumes exact duplicates (ΔE = 0 after rgb8 clamping).
+      EXPECT_GE(d, 0.1f - 1e-4f) << "Received pair (" << i << ", " << j << ") closer than min_distance"
+                                 << " (pre-fix: generate_max reported thousands of 'distinct' colors that"
+                                 << " collapsed after rgb8 quantization)";
+    }
+  }
+}
+
+// ============================================================
 // Sampling domains (Issue #67)
 //
 // Channel ranges are *nominal* — deliberately wide so conversions never

@@ -7,7 +7,10 @@
  * and produces visually balanced and distinguishable sets.
  *
  * @note Uses OkLab Euclidean distance (not CIEDE2000) for efficiency.
- *       Results may lie outside display gamuts; convert through a gamut mapper if needed.
+ *       The guarantee holds for the colors the caller actually receives:
+ *       candidates are converted to the output type (which may clamp to a
+ *       gamut and quantize) *before* the distance check, and the received
+ *       values are what gets stored and returned (issue #69).
  */
 
 #pragma once
@@ -25,9 +28,11 @@ namespace colorcpp::operations::random {
 /**
  * @brief Poisson Disk Sampling color generator.
  *
- * Generates a palette of colors where each pair of colors has a minimum
- * perceptual distance ΔE between them. Uses OkLab color space and Euclidean
- * distance in OkLab for fast perceptual distance measurement.
+ * Generates a palette of colors where each pair of *received* colors has a
+ * minimum perceptual distance ΔE between them. Uses OkLab color space and
+ * Euclidean distance in OkLab for fast perceptual distance measurement;
+ * candidates are converted to Color (gamut clamp + quantization) before the
+ * check, so the guarantee holds for the values the caller gets (issue #69).
  *
  * @tparam Color Target output color type.
  * @tparam Engine Random engine type.
@@ -85,7 +90,7 @@ class poisson_disk_generator {
       bool found = false;
 
       for (std::size_t attempt = 0; attempt < max_attempts; ++attempt) {
-        auto candidate = gen.next();
+        auto candidate = to_received(gen.next());
 
         if (is_valid_candidate(candidate, samples)) {
           samples.push_back(candidate);
@@ -128,7 +133,7 @@ class poisson_disk_generator {
     std::size_t consecutive_failures = 0;
 
     while (consecutive_failures < max_attempts) {
-      auto candidate = gen.next();
+      auto candidate = to_received(gen.next());
 
       if (is_valid_candidate(candidate, samples)) {
         samples.push_back(candidate);
@@ -183,6 +188,19 @@ class poisson_disk_generator {
    */
   static constexpr float sanitize_min_distance(float distance) noexcept {
     return distance > 0.0f ? distance : kDefaultMinDistance;
+  }
+
+  /**
+   * @brief Map a raw sampled candidate onto the color the caller would receive.
+   *
+   * Casting to Color clamps to the output gamut and may quantize (e.g. rgb8):
+   * raw candidates that were far apart in OkLab can collapse onto the same
+   * received value. The distance guarantee must hold for that received value,
+   * so candidates are round-tripped through Color before the check and the
+   * stored samples (issue #69).
+   */
+  intermediate_type to_received(const intermediate_type& candidate) const {
+    return conversion::color_cast<intermediate_type>(conversion::color_cast<Color>(candidate));
   }
 
   /**
