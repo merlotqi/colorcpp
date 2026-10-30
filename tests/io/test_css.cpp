@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <colorcpp/colorcpp.hpp>
 #include <string>
 #include <vector>
@@ -1500,6 +1501,89 @@ TEST(Css, ModerateNestingStillParses) {
   std::string s = "rgb(from red calc(calc(calc(1 + 2))) g b)";
   auto c = parse_css_color_rgba8(s);
   ASSERT_TRUE(c);
+}
+
+// Issue #63: the #53 depth budget lives only in the calc() parser, so every
+// other recursive entry (color-mix, light-dark, relative from) still overflows
+// the stack at ~20000 levels. Each form must fail cleanly with nullopt instead.
+// Uniform nesting makes the deep input cheap to build: prefix*n + core + suffix*n.
+
+TEST(Css, DeepColorMixNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "color-mix(in srgb, ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += ", blue)";
+  const auto t0 = std::chrono::steady_clock::now();
+  const auto r = parse_css_color_rgba8(s);
+  const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0);
+  EXPECT_FALSE(r.has_value());
+  EXPECT_LT(ms.count(), 2000);
+}
+
+TEST(Css, DeepLightDarkNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "light-dark(";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += ", blue)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepRgbFromNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "rgb(from ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += " r g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepHslFromNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "hsl(from ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += " h s l)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepOklchFromNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "oklch(from ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += " l c h)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+// Polar from() resolves its origin twice per level (alpha + channels), so the
+// cost doubles per level: depth 22 took ~1.7s at -O2 before the fix. One
+// shared resolution per level makes it linear.
+TEST(Css, PolarFromNestingRunsInBoundedTime) {
+  std::string s;
+  for (int i = 0; i < 22; ++i) s += "hsl(from ";
+  s += "red";
+  for (int i = 0; i < 22; ++i) s += " h s l)";
+  const auto t0 = std::chrono::steady_clock::now();
+  const auto r = parse_css_color_rgba8(s);
+  const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0);
+  EXPECT_TRUE(r.has_value());  // depth 22 is under the cap
+  EXPECT_LT(ms.count(), 500);
+}
+
+// Nesting beyond the shared budget fails with nullopt; pre-fix this input
+// parses fine (quadratic but fast), so the missing limit shows up here.
+TEST(Css, ColorMixBeyondDepthBudgetFailsCleanly) {
+  std::string s;
+  for (int i = 0; i < 100; ++i) s += "color-mix(in srgb, ";
+  s += "red";
+  for (int i = 0; i < 100; ++i) s += ", blue)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+// Depth well under the budget must keep parsing for every recursive form.
+TEST(Css, ModerateFromNestingStillParses) {
+  std::string s;
+  for (int i = 0; i < 16; ++i) s += "hsl(from ";
+  s += "red";
+  for (int i = 0; i < 16; ++i) s += " h s l)";
+  EXPECT_TRUE(parse_css_color_rgba8(s).has_value());
 }
 
 }  // namespace colorcpp::io::test

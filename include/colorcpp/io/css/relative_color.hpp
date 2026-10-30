@@ -881,9 +881,11 @@ inline std::optional<float> evaluate_expression(const std::shared_ptr<channel_ex
   return std::nullopt;
 }
 
+// alpha_out (optional): the origin's resolved alpha, computed by the same
+// single evaluation instead of a second full parse of the source (issue #63).
 template <typename Color>
 inline std::optional<Color> evaluate_relative_color(const relative_color& parsed,
-                                                    const parse_css_color_context& context);
+                                                    const parse_css_color_context& context, float* alpha_out = nullptr);
 
 inline std::optional<core::rgbaf_t> parse_concrete_css_source_rgbaf(std::string_view source_expression,
                                                                     const parse_css_color_context& context) {
@@ -903,29 +905,57 @@ inline std::optional<core::rgbaf_t> parse_concrete_css_source_rgbaf(std::string_
 
 template <typename Color>
 inline std::optional<Color> resolve_source_color(std::string_view source_expression,
-                                                 const parse_css_color_context& context) {
+                                                 const parse_css_color_context& context, float* alpha_out = nullptr) {
+  // One step of the shared nesting budget (issue #63): every relative from()
+  // level passes through here, so this counter bounds color-mix / light-dark
+  // / from() stack depth regardless of which form is nested.
+  details::css_nesting_guard guard;
+  if (details::css_nesting_exceeded()) return std::nullopt;
+
   if (auto var_name = try_extract_var_name(source_expression)) {
     if (!context.variable_resolver) return std::nullopt;
     auto resolved = context.variable_resolver(*var_name);
     if (!resolved) return std::nullopt;
+    if (alpha_out) *alpha_out = resolved->a();
     return operations::conversion::color_cast<Color>(*resolved);
   }
 
+  // A nested relative source is evaluated exactly ONCE (issue #63). The old
+  // polar paths additionally re-resolved the same expression just for alpha,
+  // doubling the work per level — exponential for hsl()/oklch() from chains.
   if (auto relative = parse_relative_css_color(source_expression)) {
-    return evaluate_relative_color<Color>(*relative, context);
+    return evaluate_relative_color<Color>(*relative, context, alpha_out);
   }
 
   if constexpr (std::is_same_v<Color, core::rgbaf_t>) {
-    return parse_concrete_css_source_rgbaf(source_expression, context);
+    auto concrete = parse_concrete_css_source_rgbaf(source_expression, context);
+    if (!concrete) return std::nullopt;
+    if (alpha_out) *alpha_out = concrete->a();
+    return concrete;
   } else {
     details::Cursor c{source_expression, 0};
     if (auto typed = parse_color_function_as<Color>(c)) {
       c.skip_ws();
-      if (c.eof()) return typed;
+      if (c.eof()) {
+        if (alpha_out) {
+          if constexpr (::colorcpp::operations::conversion::details::has_alpha_v<Color>) {
+            *alpha_out = ::colorcpp::operations::conversion::details::get_src_alpha(*typed);
+          } else {
+            // Alpha-less destination (xyz/lab/oklab …): re-parse the atomic
+            // color as rgbaf just for alpha. This path only ever matches a
+            // single atomic function, so the duplicate parse never recurses.
+            auto as_rgbaf = parse_concrete_css_source_rgbaf(source_expression, context);
+            if (!as_rgbaf) return std::nullopt;
+            *alpha_out = as_rgbaf->a();
+          }
+        }
+        return typed;
+      }
     }
 
     auto concrete = parse_concrete_css_source_rgbaf(source_expression, context);
     if (!concrete) return std::nullopt;
+    if (alpha_out) *alpha_out = concrete->a();
     return operations::conversion::color_cast<Color>(*concrete);
   }
 }
@@ -1002,48 +1032,51 @@ inline std::optional<source_channel_values> resolve_relative_rgb_source(std::str
 inline std::optional<source_channel_values> resolve_relative_color_source(std::string_view source_expression,
                                                                           relative_color_space space,
                                                                           const parse_css_color_context& context) {
-  auto alpha_source = resolve_source_color<core::rgbaf_t>(source_expression, context);
-  if (!alpha_source) return std::nullopt;
-  const float alpha = alpha_source->a();
-
+  // One resolution per level (issue #63): alpha travels through the same
+  // resolve via alpha_out instead of a second full parse/evaluate of the
+  // origin (which made color(from …) chains exponential).
+  float alpha = 1.0f;
   switch (space) {
-    case relative_color_space::srgb:
-      return source_channel_values{alpha_source->r(), alpha_source->g(), alpha_source->b(), alpha};
+    case relative_color_space::srgb: {
+      auto source = resolve_source_color<core::rgbaf_t>(source_expression, context, &alpha);
+      if (!source) return std::nullopt;
+      return source_channel_values{source->r(), source->g(), source->b(), alpha};
+    }
     case relative_color_space::srgb_linear: {
-      auto source = resolve_source_color<core::linear_rgbf_t>(source_expression, context);
+      auto source = resolve_source_color<core::linear_rgbf_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       return source_channel_values{source->r(), source->g(), source->b(), alpha};
     }
     case relative_color_space::display_p3: {
-      auto source = resolve_source_color<core::display_p3f_t>(source_expression, context);
+      auto source = resolve_source_color<core::display_p3f_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       return source_channel_values{source->r(), source->g(), source->b(), alpha};
     }
     case relative_color_space::display_p3_linear: {
-      auto source = resolve_source_color<core::linear_display_p3f_t>(source_expression, context);
+      auto source = resolve_source_color<core::linear_display_p3f_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       return source_channel_values{source->r(), source->g(), source->b(), alpha};
     }
     case relative_color_space::xyz_d65: {
-      auto source = resolve_source_color<core::xyz_t>(source_expression, context);
+      auto source = resolve_source_color<core::xyz_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       return source_channel_values{source->x(), source->y(), source->z(), alpha};
     }
     case relative_color_space::xyz_d50: {
-      auto source = resolve_source_color<core::xyz_t>(source_expression, context);
+      auto source = resolve_source_color<core::xyz_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       const auto xyz = xyz_d65_to_d50(source->x(), source->y(), source->z());
       return source_channel_values{xyz.x, xyz.y, xyz.z, alpha};
     }
     case relative_color_space::a98_rgb: {
-      auto source = resolve_source_color<core::xyz_t>(source_expression, context);
+      auto source = resolve_source_color<core::xyz_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       const auto linear = xyz_d65_to_linear_a98(source->x(), source->y(), source->z());
       return source_channel_values{gamma_encode_a98(linear.x), gamma_encode_a98(linear.y), gamma_encode_a98(linear.z),
                                    alpha};
     }
     case relative_color_space::prophoto_rgb: {
-      auto source = resolve_source_color<core::xyz_t>(source_expression, context);
+      auto source = resolve_source_color<core::xyz_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       const auto xyz_d50 = xyz_d65_to_d50(source->x(), source->y(), source->z());
       const auto linear = xyz_d50_to_linear_prophoto(xyz_d50.x, xyz_d50.y, xyz_d50.z);
@@ -1051,7 +1084,7 @@ inline std::optional<source_channel_values> resolve_relative_color_source(std::s
                                    gamma_encode_prophoto(linear.z), alpha};
     }
     case relative_color_space::rec2020: {
-      auto source = resolve_source_color<core::xyz_t>(source_expression, context);
+      auto source = resolve_source_color<core::xyz_t>(source_expression, context, &alpha);
       if (!source) return std::nullopt;
       const auto linear = xyz_d65_to_linear_rec2020(source->x(), source->y(), source->z());
       return source_channel_values{gamma_encode_rec2020(linear.x), gamma_encode_rec2020(linear.y),
@@ -1114,15 +1147,19 @@ inline details_color_fn::rgb3f oklab_to_linear_srgb_raw(float L, float a, float 
 
 inline std::optional<source_channel_values> resolve_relative_oklab_source(std::string_view source_expression,
                                                                           bool cylindrical,
-                                                                          const parse_css_color_context& context) {
+                                                                          const parse_css_color_context& context,
+                                                                          float* alpha_out = nullptr) {
+  // Single resolve (issue #63): alpha_out carries the origin's alpha from the
+  // same evaluation, so the caller needs no second rgbaf resolution.
   if (cylindrical) {
-    auto source = resolve_source_color<core::oklch_t>(source_expression, context);
+    auto source = resolve_source_color<core::oklch_t>(source_expression, context, alpha_out);
     if (!source) return std::nullopt;
-    return source_channel_values{source->l(), source->c(), normalize_hue_degrees(source->h()), 1.0f};
+    return source_channel_values{source->l(), source->c(), normalize_hue_degrees(source->h()),
+                                 alpha_out ? *alpha_out : 1.0f};
   }
-  auto source = resolve_source_color<core::oklab_t>(source_expression, context);
+  auto source = resolve_source_color<core::oklab_t>(source_expression, context, alpha_out);
   if (!source) return std::nullopt;
-  return source_channel_values{source->l(), source->a(), source->b(), 1.0f};
+  return source_channel_values{source->l(), source->a(), source->b(), alpha_out ? *alpha_out : 1.0f};
 }
 
 inline channel_environment make_oklab_environment(bool cylindrical, const source_channel_values& source) {
@@ -1253,17 +1290,21 @@ inline channel_environment make_hwb_environment(const source_channel_values& sou
 // white point); the D65 core type is converted back at the boundary.
 inline std::optional<source_channel_values> resolve_relative_lab_source(std::string_view source_expression,
                                                                         bool cylindrical,
-                                                                        const parse_css_color_context& context) {
-  auto source = resolve_source_color<core::cielab_t>(source_expression, context);
+                                                                        const parse_css_color_context& context,
+                                                                        float* alpha_out = nullptr) {
+  // Single resolve (issue #63): alpha_out carries the origin's alpha from the
+  // same evaluation, so the caller needs no second rgbaf resolution.
+  auto source = resolve_source_color<core::cielab_t>(source_expression, context, alpha_out);
   if (!source) return std::nullopt;
   const auto d50 = css_lab_detail::lab_d65_to_d50(*source);
+  const float alpha = alpha_out ? *alpha_out : 1.0f;
   if (cylindrical) {
     const float c = std::sqrt(d50.a() * d50.a() + d50.b() * d50.b());
     float h = std::atan2(d50.b(), d50.a()) * (180.0f / 3.14159265358979323846f);
     if (h < 0.0f) h += 360.0f;
-    return source_channel_values{d50.l(), c, h, 1.0f};
+    return source_channel_values{d50.l(), c, h, alpha};
   }
-  return source_channel_values{d50.l(), d50.a(), d50.b(), 1.0f};
+  return source_channel_values{d50.l(), d50.a(), d50.b(), alpha};
 }
 
 inline channel_environment make_lab_environment(bool cylindrical, const source_channel_values& source) {
@@ -1282,7 +1323,7 @@ inline channel_environment make_lab_environment(bool cylindrical, const source_c
 
 template <typename Color>
 inline std::optional<Color> evaluate_relative_color(const relative_color& parsed,
-                                                    const parse_css_color_context& context) {
+                                                    const parse_css_color_context& context, float* alpha_out) {
   if (parsed.function == relative_color_function_kind::rgb) {
     auto source = resolve_relative_rgb_source(parsed.source_expression, context);
     if (!source) return std::nullopt;
@@ -1303,6 +1344,7 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
         std::clamp(*b / 255.0f, 0.0f, 1.0f),
         std::clamp(*alpha, 0.0f, 1.0f),
     };
+    if (alpha_out) *alpha_out = out.a();
     return operations::conversion::color_cast<Color>(out);
   }
 
@@ -1313,14 +1355,15 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
     // clamped before conversion; the resulting sRGB channels and alpha are.
     const bool is_hsl = parsed.function == relative_color_function_kind::hsl;
 
-    auto alpha_source = resolve_source_color<core::rgbaf_t>(parsed.source_expression, context);
-    if (!alpha_source) return std::nullopt;
+    // One resolve (issue #63): resolve_relative_hsl/hwb_source already runs
+    // resolve_source_color<rgbaf_t> — the old second call just for alpha was
+    // an identical duplicate, doubling the work per nesting level.
     auto source = is_hsl ? resolve_relative_hsl_source(parsed.source_expression, context)
                          : resolve_relative_hwb_source(parsed.source_expression, context);
     if (!source) return std::nullopt;
 
     auto env = is_hsl ? make_hsl_environment(*source) : make_hwb_environment(*source);
-    env.set("alpha", alpha_source->a());
+    env.set("alpha", source->alpha);
 
     auto h = evaluate_expression(parsed.channels[0], env, 360.0f, context);
     auto c2 = evaluate_expression(parsed.channels[1], env, 100.0f, context);
@@ -1340,6 +1383,7 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
         std::clamp(rgb.z, 0.0f, 1.0f),
         out_alpha,
     };
+    if (alpha_out) *alpha_out = out_alpha;
     return operations::conversion::color_cast<Color>(out);
   }
 
@@ -1352,13 +1396,14 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
     // before conversion; the adapted core channels and alpha are.
     const bool cylindrical = parsed.function == relative_color_function_kind::lch;
 
-    auto alpha_source = resolve_source_color<core::rgbaf_t>(parsed.source_expression, context);
-    if (!alpha_source) return std::nullopt;
-    auto source = resolve_relative_lab_source(parsed.source_expression, cylindrical, context);
+    // One resolve (issue #63): lab/lch channels AND alpha now come from the
+    // same single evaluation of the origin.
+    float src_alpha = 1.0f;
+    auto source = resolve_relative_lab_source(parsed.source_expression, cylindrical, context, &src_alpha);
     if (!source) return std::nullopt;
 
     auto env = make_lab_environment(cylindrical, *source);
-    env.set("alpha", alpha_source->a());
+    env.set("alpha", src_alpha);
 
     const float l_scale = 100.0f;
     const float axis_scale = cylindrical ? 150.0f : 125.0f;
@@ -1369,9 +1414,10 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
     if (!l || !c2 || !c3) return std::nullopt;
 
     auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
-                                    : std::optional<float>{alpha_source->a()};
+                                    : std::optional<float>{src_alpha};
     if (!alpha) return std::nullopt;
     const float out_alpha = std::clamp(*alpha, 0.0f, 1.0f);
+    if (alpha_out) *alpha_out = out_alpha;
 
     // Evaluate in D50, then adapt to the D65 core type (helpers clamp to the
     // channel ranges, so construction never throws).
@@ -1408,13 +1454,14 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
     // as a lenient stand-in). Channels are not clamped; alpha is.
     const bool cylindrical = parsed.function == relative_color_function_kind::oklch;
 
-    auto alpha_source = resolve_source_color<core::rgbaf_t>(parsed.source_expression, context);
-    if (!alpha_source) return std::nullopt;
-    auto source = resolve_relative_oklab_source(parsed.source_expression, cylindrical, context);
+    // One resolve (issue #63): oklab/oklch channels AND alpha now come from
+    // the same single evaluation of the origin.
+    float src_alpha = 1.0f;
+    auto source = resolve_relative_oklab_source(parsed.source_expression, cylindrical, context, &src_alpha);
     if (!source) return std::nullopt;
 
     auto env = make_oklab_environment(cylindrical, *source);
-    env.set("alpha", alpha_source->a());
+    env.set("alpha", src_alpha);
 
     const float l_scale = 1.0f;
     const float axis_scale = 0.4f;
@@ -1425,9 +1472,10 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
     if (!l || !c2 || !c3) return std::nullopt;
 
     auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
-                                    : std::optional<float>{alpha_source->a()};
+                                    : std::optional<float>{src_alpha};
     if (!alpha) return std::nullopt;
     const float out_alpha = std::clamp(*alpha, 0.0f, 1.0f);
+    if (alpha_out) *alpha_out = out_alpha;
 
     if (cylindrical) {
       const float C = *c2;
@@ -1477,6 +1525,7 @@ inline std::optional<Color> evaluate_relative_color(const relative_color& parsed
   auto alpha = parsed.channels[3] ? evaluate_expression(parsed.channels[3], env, 1.0f, context)
                                   : std::optional<float>{source->alpha};
   if (!alpha) return std::nullopt;
+  if (alpha_out) *alpha_out = std::clamp(*alpha, 0.0f, 1.0f);
 
   details_color_fn::parsed_color_function color_fn{
       to_color_function_space(*parsed.target_space), *c1, *c2, *c3, std::clamp(*alpha, 0.0f, 1.0f),
