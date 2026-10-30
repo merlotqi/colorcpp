@@ -117,6 +117,23 @@ bool is_in_prophoto_gamut(const Color& c) {
   return is_in_gamut(c, gamut_type::prophoto_rgb);
 }
 
+namespace details {
+
+// Assemble a gamut-clip result: target-gamut OkLab cast straight to Color
+// (never through core::rgbaf_t, whose sRGB clamp would re-clip wide-gamut
+// targets — issue #65), with unit-space alpha re-applied.
+template <typename Color, typename Mid>
+Color clip_result_to(const Mid& mid, float alpha) {
+  Color out = ::colorcpp::operations::conversion::color_cast<Color>(mid);
+  if constexpr (::colorcpp::operations::conversion::details::has_alpha_v<Color>) {
+    constexpr std::size_t ai = ::colorcpp::operations::conversion::details::alpha_index_v<Color>;
+    out.template get_index<ai>() = ::colorcpp::operations::conversion::details::from_unit<Color, ai>(alpha);
+  }
+  return out;
+}
+
+}  // namespace details
+
 /**
  * @brief Clip a color to the specified gamut using simple channel clamping.
  * @tparam Color Input color type.
@@ -144,11 +161,10 @@ Color gamut_clip_to_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
   float chroma = std::sqrt(a * a + b * b);
   if (chroma < 1e-6f) {
     float L_clamped = std::clamp(L, 0.0f, 1.0f);
-    // OkLab L is not an sRGB value: rebuild through OkLab instead of treating
-    // L as a channel, and carry the source alpha through.
-    auto gray = color_cast<core::rgbaf_t>(core::oklab_t{L_clamped, 0.0f, 0.0f});
-    gray.a() = alpha;
-    return color_cast<Color>(gray);
+    // Rebuild through OkLab and cast straight to Color (issue #65): routing
+    // the result through core::rgbaf_t would clamp it to sRGB even when the
+    // target gamut is wider. Carry the source alpha through.
+    return details::clip_result_to<Color>(core::oklab_t{L_clamped, 0.0f, 0.0f}, alpha);
   }
 
   // Calculate hue
@@ -176,12 +192,13 @@ Color gamut_clip_to_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
     }
   }
 
-  // Construct the clipped color (OkLab has no alpha channel: re-apply it)
+  // Construct the clipped color (OkLab has no alpha channel: re-apply it).
+  // Cast straight to Color: the search already landed on the *target* gamut's
+  // boundary, and rebuilding through core::rgbaf_t would clamp that wide
+  // result back into sRGB (issue #65).
   float final_a = min_C * cos_h;
   float final_b = min_C * sin_h;
-  auto out = color_cast<core::rgbaf_t>(core::oklab_t{L, final_a, final_b});
-  out.a() = alpha;
-  return color_cast<Color>(out);
+  return details::clip_result_to<Color>(core::oklab_t{L, final_a, final_b}, alpha);
 }
 
 }  // namespace colorcpp::algorithms::gamut

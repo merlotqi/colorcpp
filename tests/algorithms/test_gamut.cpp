@@ -465,4 +465,41 @@ TEST(MultiColorspaceGamutTest, GamutClipToP3MapsOutOfRangeColor) {
   EXPECT_NE(lab.a(), c.a()) << "chroma must be reduced, not returned unchanged";
 }
 
+// --- Issue #65: the clip result was rebuilt through core::rgbaf_t, whose sRGB
+//     clamp silently re-clipped wide-gamut targets. The returned color must
+//     sit on the *target* gamut's boundary, never inside sRGB. ---
+
+TEST(MultiColorspaceGamutTest, GamutClipToP3LandsOnP3BoundaryNotSrgb) {
+  // oklch(0.6 0.9 140): outside both sRGB and P3. The P3 boundary chroma at
+  // this L and hue is ≈ 0.2275; the sRGB boundary is ≈ 0.1933. Pre-fix the
+  // rgbaf_t rebuild clamped the search result back to chroma ≈ 0.2052
+  // (fully inside sRGB) and drifted L to 0.603.
+  constexpr float kRad = 140.0f * 3.14159265f / 180.0f;
+  const core::oklab_t c(0.6f, 0.9f * std::cos(kRad), 0.9f * std::sin(kRad));
+  const auto clipped = gamut_clip_to_gamut(c, gamut_type::display_p3);
+
+  EXPECT_TRUE(is_in_gamut(clipped, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(clipped, gamut_type::srgb))
+      << "clip-to-P3 result must reach beyond sRGB, not be re-clamped into it";
+
+  const auto lab = color_cast<core::oklab_t>(clipped);
+  const float L = lab.get_index<0>();
+  const float chroma = std::sqrt(lab.get_index<1>() * lab.get_index<1>() + lab.get_index<2>() * lab.get_index<2>());
+  EXPECT_NEAR(L, 0.6f, 5e-3f) << "a chroma-only clip must preserve lightness";
+  EXPECT_NEAR(chroma, 0.2275f, 3e-3f) << "must land on the P3 boundary, not sRGB's";
+
+  // True boundary check: pushing chroma further at the same hue leaves P3.
+  const core::oklab_t beyond(L, (chroma + 0.01f) * std::cos(kRad), (chroma + 0.01f) * std::sin(kRad));
+  EXPECT_FALSE(is_in_gamut(beyond, gamut_type::display_p3));
+}
+
+TEST(MultiColorspaceGamutTest, GamutClipToP3PreservesAlpha) {
+  // Out-of-gamut P3 coordinates with alpha: the clip must keep alpha and
+  // return a P3 value (never re-clamped through sRGB).
+  const core::display_p3af_t c(1.2f, -0.05f, 0.1f, 0.5f);
+  const auto clipped = gamut_clip_to_gamut(c, gamut_type::display_p3);
+  EXPECT_TRUE(is_in_gamut(clipped, gamut_type::display_p3));
+  EXPECT_NEAR(clipped.a(), 0.5f, 1e-6f);
+}
+
 }  // namespace colorcpp::algorithms::test
