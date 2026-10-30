@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <colorcpp/algorithms/chromatic_adaptation.hpp>
 #include <colorcpp/core/xyz.hpp>
@@ -77,21 +78,26 @@ inline void xyz_to_linear_displayp3(float x, float y, float z, float& r, float& 
   b = 0.0358458f * x - 0.0761724f * y + 0.9568845f * z;
 }
 
-// CIE XYZ (D65) → linear Adobe RGB (A98)
+// CIE XYZ (D65) → linear Adobe RGB (A98). Exact inverse of the forward
+// matrix registered in conversion/functions/adobe_rgb.hpp (Gauss-Jordan on
+// the 7-digit coefficients): the pair must be mutually inverse or colors on
+// Adobe's own cube — including white — round-trip outside it (issue #68).
 inline void xyz_to_linear_adobergb(float x, float y, float z, float& r, float& g, float& b) noexcept {
-  r = 2.0413690f * x - 0.5649654f * y - 0.3446945f * z;
-  g = -0.9692660f * x + 1.8760108f * y + 0.0415560f * z;
-  b = 0.0134474f * x - 0.1183897f * y + 1.0154096f * z;
+  r = 2.0415871f * x - 0.5650054f * y - 0.3447321f * z;
+  g = -0.9692428f * x + 1.8759654f * y + 0.0415562f * z;
+  b = 0.0134451f * x - 0.1183627f * y + 1.0151743f * z;
 }
 
-// CIE XYZ (D65) → linear ProPhoto RGB (D50): Bradford adaptation, then the
-// ProPhoto primaries matrix. Reuses the cone matrices and white points of
-// algorithms::chromatic_adaptation so the two paths cannot drift; plain-float
-// arithmetic (no color_cast) so out-of-range values survive.
-inline void xyz_to_linear_prophoto(float x, float y, float z, float& r, float& g, float& b) noexcept {
+// CIE XYZ (D65) → XYZ (D50) Bradford adaptation, folded once at compile time:
+// M_BFD_inv · diag(cone_D50 / cone_D65) · M_BFD, with the cone responses of
+// the two white points. Derived from algorithms::chromatic_adaptation's
+// matrices and white points (they are constexpr), so the two paths cannot
+// drift; per-call recomputation used to cost ~8 ns instead of ~3 ns
+// (issue #68).
+constexpr std::array<float, 9> MakeBradfordD65ToD50() {
   namespace ca = colorcpp::algorithms::chromatic_adaptation;
-  const auto& m = ca::details::M_BFD;
-  const auto& mi = ca::details::M_BFD_inv;
+  const float* m = ca::details::M_BFD;
+  const float* mi = ca::details::M_BFD_inv;
   const auto& sw = ca::WHITEPOINT_D65;
   const auto& dw = ca::WHITEPOINT_D50;
 
@@ -101,17 +107,31 @@ inline void xyz_to_linear_prophoto(float x, float y, float z, float& r, float& g
   const float cone_dst[3] = {m[0] * dw.x() + m[1] * dw.y() + m[2] * dw.z(),
                              m[3] * dw.x() + m[4] * dw.y() + m[5] * dw.z(),
                              m[6] * dw.x() + m[7] * dw.y() + m[8] * dw.z()};
-  const float cone[3] = {m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z,
-                         m[6] * x + m[7] * y + m[8] * z};
 
-  float scaled[3];
+  // adapted = M_BFD_inv · S · M_BFD where S = diag(cone_dst / cone_src)
+  std::array<float, 9> out{};
   for (int i = 0; i < 3; ++i) {
-    scaled[i] = (cone_src[i] != 0.0f) ? cone[i] * cone_dst[i] / cone_src[i] : cone[i];
+    for (int j = 0; j < 3; ++j) {
+      float sum = 0.0f;
+      for (int k = 0; k < 3; ++k) {
+        sum += mi[3 * i + k] * (cone_dst[k] / cone_src[k]) * m[3 * k + j];
+      }
+      out[3 * i + j] = sum;
+    }
   }
+  return out;
+}
+inline constexpr std::array<float, 9> kBradfordD65ToD50 = MakeBradfordD65ToD50();
 
-  const float x50 = mi[0] * scaled[0] + mi[1] * scaled[1] + mi[2] * scaled[2];
-  const float y50 = mi[3] * scaled[0] + mi[4] * scaled[1] + mi[5] * scaled[2];
-  const float z50 = mi[6] * scaled[0] + mi[7] * scaled[1] + mi[8] * scaled[2];
+// CIE XYZ (D65) → linear ProPhoto RGB (D50): precomputed Bradford adaptation
+// (kBradfordD65ToD50), then the ProPhoto primaries matrix. Plain-float
+// arithmetic (no color_cast) so out-of-range values survive.
+inline void xyz_to_linear_prophoto(float x, float y, float z, float& r, float& g, float& b) noexcept {
+  const auto& a = kBradfordD65ToD50;
+
+  const float x50 = a[0] * x + a[1] * y + a[2] * z;
+  const float y50 = a[3] * x + a[4] * y + a[5] * z;
+  const float z50 = a[6] * x + a[7] * y + a[8] * z;
 
   // XYZ(D50) → linear ProPhoto (matches conversion::details::xyz_to_linear_prophoto_rgb)
   r = 1.3459433f * x50 - 0.2556075f * y50 - 0.0511118f * z50;

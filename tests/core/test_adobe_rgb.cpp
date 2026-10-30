@@ -207,6 +207,30 @@ TEST(AdobeRGBConversionTest, ToXYZAndBack) {
   EXPECT_NEAR(back.b(), orig.b(), 1e-4f);
 }
 
+// --- Issue #68: forward and inverse XYZ matrices must be mutual inverses,
+//     and the transfer function must use the spec exponent 563/256, not a
+//     rounded 2.2. Pre-fix, linear (1,1,1) round-tripped through XYZ as
+//     (0.99987, 1.00002, 1.00023) — white landed outside Adobe's own gamut. ---
+
+TEST(AdobeRGBConversionTest, WhiteXyzRoundTripIsMutuallyInverse) {
+  const linear_adobe_rgbf_t white(1.0f, 1.0f, 1.0f);
+  const auto xyz = color_cast<xyz_t>(white);
+  const auto back = color_cast<linear_adobe_rgbf_t>(xyz);
+  EXPECT_NEAR(back.r(), 1.0f, 1e-5f) << "pre-fix: 0.99987 (matrix pair not mutually inverse)";
+  EXPECT_NEAR(back.g(), 1.0f, 1e-5f);
+  EXPECT_NEAR(back.b(), 1.0f, 1e-5f) << "pre-fix: 1.00023 — above 1, outside Adobe's own gamut";
+}
+
+TEST(AdobeRGBLinearTest, GammaIsSpecFraction) {
+  // Adobe RGB (1998) spec: transfer exponent 563/256 (= 2.19921875), not 2.2.
+  const adobe_rgbf_t mid(0.5f, 0.5f, 0.5f);
+  const auto linear = color_cast<linear_adobe_rgbf_t>(mid);
+  const float expected = std::pow(0.5f, 563.0f / 256.0f);
+  EXPECT_NEAR(linear.r(), expected, 1e-6f) << "pre-fix: used pow(v, 2.2f)";
+  EXPECT_NEAR(linear.g(), expected, 1e-6f);
+  EXPECT_NEAR(linear.b(), expected, 1e-6f);
+}
+
 // --- CSS parsing support ---
 
 TEST(AdobeRGBCSSTest, ColorFunctionAsRgba8) {

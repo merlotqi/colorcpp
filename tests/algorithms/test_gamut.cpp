@@ -526,4 +526,43 @@ TEST(MultiColorspaceGamutTest, ProPhotoGridFullyInsideOwnGamut) {
   EXPECT_EQ(rejected, 0) << "points on ProPhoto's own [0,1]³ cube must be inside ProPhoto";
 }
 
+// --- Issue #68: a gamut must accept every color on its own cube. Adobe RGB's
+//     forward and inverse XYZ matrices came from different sources (the inverse
+//     even had a transposed digit), so the pair was not mutually inverse and
+//     white / the whole blue corner of Adobe's own cube were rejected. The
+//     transfer function must also be the spec's 563/256, not a rounded 2.2. ---
+
+TEST(MultiColorspaceGamutTest, AdobeWhiteIsInsideOwnGamut) {
+  EXPECT_TRUE(is_in_gamut(core::adobe_rgbf_t{1.0f, 1.0f, 1.0f}, gamut_type::adobe_rgb))
+      << "pre-fix: linear Adobe blue of white was 1.00023 > 1 + wide-gamut eps";
+}
+
+TEST(MultiColorspaceGamutTest, AdobeGridFullyInsideOwnGamut) {
+  int rejected = 0;
+  for (int i = 0; i <= 20; ++i) {
+    for (int j = 0; j <= 20; ++j) {
+      for (int k = 0; k <= 20; ++k) {
+        const core::adobe_rgbf_t c(static_cast<float>(i) / 20.0f, static_cast<float>(j) / 20.0f,
+                                   static_cast<float>(k) / 20.0f);
+        if (!is_in_gamut(c, gamut_type::adobe_rgb)) ++rejected;
+      }
+    }
+  }
+  EXPECT_EQ(rejected, 0) << "points on Adobe RGB's own [0,1]³ cube must be inside Adobe RGB";
+}
+
+TEST(MultiColorspaceGamutTest, DisplayP3GridFullyInsideOwnGamut) {
+  int rejected = 0;
+  for (int i = 0; i <= 20; ++i) {
+    for (int j = 0; j <= 20; ++j) {
+      for (int k = 0; k <= 20; ++k) {
+        const core::display_p3f_t c(static_cast<float>(i) / 20.0f, static_cast<float>(j) / 20.0f,
+                                    static_cast<float>(k) / 20.0f);
+        if (!is_in_gamut(c, gamut_type::display_p3)) ++rejected;
+      }
+    }
+  }
+  EXPECT_EQ(rejected, 0) << "points on Display P3's own [0,1]³ cube must be inside Display P3";
+}
+
 }  // namespace colorcpp::algorithms::test
