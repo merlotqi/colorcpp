@@ -221,6 +221,31 @@ jobs:
       - name: Test
         run: ctest --test-dir build-simd --output-on-failure --no-tests=error
 
+  build-test-simd-arm64:
+    name: SIMD-on (ARM64 / NEON)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build g++ cmake
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build-simd-arm64 -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON \
+            -DCOLORCPP_ENABLE_SIMD=ON
+
+      - name: Build
+        run: cmake --build build-simd-arm64 --parallel
+
+      - name: Test
+        run: ctest --test-dir build-simd-arm64 --output-on-failure --no-tests=error
+
   install-consume:
     name: Install + consumer smoke test
     runs-on: ubuntu-24.04
@@ -342,3 +367,33 @@ jobs:
           tags: colorcpp:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  build-test-freebsd:
+    name: GCC + Ninja (FreeBSD)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: FreeBSD VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          version: 14.2
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo pkg update
+          sudo pkg install -y ninja cmake gcc14
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
