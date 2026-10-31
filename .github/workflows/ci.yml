@@ -371,6 +371,9 @@ jobs:
   build-test-freebsd:
     name: GCC + Ninja (FreeBSD)
     runs-on: ubuntu-24.04
+    env:
+      CC: gcc14
+      CXX: g++14
     steps:
       - name: FreeBSD VM
         uses: vmactions/freebsd-vm@v1
@@ -382,8 +385,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo pkg update
-          sudo pkg install -y ninja cmake gcc14
+          export PATH="/usr/sbin:$PATH"
+          pkg update
+          pkg install -y ninja cmake gcc14
 
       - name: Configure
         run: |
