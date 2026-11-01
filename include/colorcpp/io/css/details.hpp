@@ -260,4 +260,26 @@ inline std::optional<std::string_view> consume_parenthesized_contents(Cursor& c)
   return std::nullopt;
 }
 
+// Shared recursion budget for every recursive CSS parse entry (issue #63).
+// color-mix(), light-dark(), contrast-color() and relative from() all funnel
+// through parse_css_color_rgbaf/rgba8 and resolve_source_color, which each
+// take one step of this thread_local counter; the calc() parser keeps its own
+// channel-expression budget. Beyond the budget the parse fails with nullopt
+// instead of overflowing the stack.
+inline constexpr int kMaxCssNestingDepth = 64;
+
+inline int& css_nesting_depth() {
+  thread_local int depth = 0;
+  return depth;
+}
+
+struct css_nesting_guard {
+  css_nesting_guard() { ++css_nesting_depth(); }
+  ~css_nesting_guard() { --css_nesting_depth(); }
+  css_nesting_guard(const css_nesting_guard&) = delete;
+  css_nesting_guard& operator=(const css_nesting_guard&) = delete;
+};
+
+inline bool css_nesting_exceeded() { return css_nesting_depth() > kMaxCssNestingDepth; }
+
 }  // namespace colorcpp::io::css::details

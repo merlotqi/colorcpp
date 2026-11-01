@@ -97,6 +97,10 @@ enum class alpha_mode {
 
 /**
  * @brief Interpolation with independent alpha channel control.
+ *
+ * Color channels are interpolated in @p Color's own space (same as
+ * @ref lerp — issue #50: the old @c rgbaf_t hub clipped wide gamuts);
+ * only the alpha selection policy differs.
  * @param a Start color
  * @param b End color
  * @param t Interpolation factor in [0, 1] (clamped).
@@ -104,37 +108,36 @@ enum class alpha_mode {
  */
 template <typename Color>
 Color lerp_alpha_mode(const Color& a, const Color& b, float t, alpha_mode mode = alpha_mode::lerp) {
-  using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
 
-  auto ca = color_cast<core::rgbaf_t>(a);
-  auto cb = color_cast<core::rgbaf_t>(b);
+  Color mid = details::lerp_channels(a, b, t);
 
-  float r = details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t);
-  float g = details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t);
-  float bl = details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t);
+  if constexpr (conversion::details::has_alpha_v<Color>) {
+    constexpr std::size_t ai = conversion::details::alpha_index_v<Color>;
 
-  float alpha;
-  switch (mode) {
-    case alpha_mode::lerp:
-      alpha = details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t);
-      break;
-    case alpha_mode::start:
-      alpha = ca.template get_index<3>();
-      break;
-    case alpha_mode::end:
-      alpha = cb.template get_index<3>();
-      break;
-    case alpha_mode::multiply:
-      alpha = ca.template get_index<3>() * cb.template get_index<3>();
-      break;
-    default:
-      alpha = details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t);
-      break;
+    const float aa = details::src_alpha(a);
+    const float ab = details::src_alpha(b);
+
+    float alpha;
+    switch (mode) {
+      case alpha_mode::start:
+        alpha = aa;
+        break;
+      case alpha_mode::end:
+        alpha = ab;
+        break;
+      case alpha_mode::multiply:
+        alpha = aa * ab;
+        break;
+      case alpha_mode::lerp:
+      default:
+        alpha = details::lerp_f(aa, ab, t);
+        break;
+    }
+
+    mid.template get_index<ai>() = conversion::details::from_unit<Color, ai>(alpha);
   }
-
-  core::rgbaf_t out{r, g, bl, alpha};
-  return color_cast<Color>(out);
+  return mid;
 }
 
 /** @brief RGB @ref lerp with @p ef applied to @p t (e.g. @c easing::in_cubic). */

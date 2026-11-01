@@ -67,6 +67,10 @@ inline std::optional<core::rgbaf_t> parse_contrast_color_rgbaf(std::string_view 
 
 inline std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str,
                                                           const parse_css_color_context& context) {
+  // One step of the shared nesting budget (issue #63): light-dark(),
+  // color-mix(), contrast-color() and relative colors re-enter this entry.
+  details::css_nesting_guard guard;
+  if (details::css_nesting_exceeded()) return std::nullopt;
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};
@@ -101,6 +105,9 @@ inline std::optional<core::rgba8_t> parse_css_color_rgba8(std::string_view str) 
 
 inline std::optional<core::rgbaf_t> parse_css_color_rgbaf(std::string_view str,
                                                           const parse_css_color_context& context) {
+  // One step of the shared nesting budget (issue #63); see rgba8 overload.
+  details::css_nesting_guard guard;
+  if (details::css_nesting_exceeded()) return std::nullopt;
   details::trim(str);
   if (str.empty()) return std::nullopt;
   details::Cursor c{str, 0};

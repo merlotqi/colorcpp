@@ -65,10 +65,15 @@ constexpr typename Color::template channel_value_t<I> from_unit(float v) {
   using value_t = typename Color::template channel_value_t<I>;
   v = std::clamp(v, 0.0f, 1.0f);
   float val = v * static_cast<float>(channel_t::max - channel_t::min) + static_cast<float>(channel_t::min);
-  if constexpr (std::is_integral_v<value_t>)
+  if constexpr (std::is_integral_v<value_t>) {
+    // std::clamp passes NaN through; casting NaN to an integral channel is UB.
+    // Map it to unit 0 (= channel min). `v != v` is the NaN check (std::isnan
+    // is not constexpr in C++17).
+    if (val != val) val = static_cast<float>(channel_t::min);
     return static_cast<value_t>(std::round(val));
-  else
+  } else {
     return static_cast<value_t>(val);
+  }
 }
 
 // Maps a raw channel value (already in the channel's natural units, possibly signed)
@@ -80,10 +85,34 @@ constexpr typename Color::template channel_value_t<I> from_value(float v) {
   using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
   using value_t = typename Color::template channel_value_t<I>;
   float clamped = std::clamp(v, static_cast<float>(channel_t::min), static_cast<float>(channel_t::max));
-  if constexpr (std::is_integral_v<value_t>)
+  if constexpr (std::is_integral_v<value_t>) {
+    // NaN survives the clamp; keep the integral cast defined by flooring to
+    // the channel minimum.
+    if (clamped != clamped) clamped = static_cast<float>(channel_t::min);
     return static_cast<value_t>(std::round(clamped));
-  else
+  } else {
     return static_cast<value_t>(clamped);
+  }
+}
+
+/**
+ * @brief Normalizes a unit-space hue (degrees / 360) for 6-way sector indexing.
+ *
+ * Issue #66: `static_cast<int>(h * 6)` is undefined behavior for NaN / ±inf,
+ * and `i % 6` is negative for negative hues (no switch case matches). Policy:
+ * non-finite hue has no sector and maps to 0 (red); finite out-of-range hue
+ * wraps around the ring, so hsv(-30°) lands in the 330° sector.
+ *
+ * The NaN check (`h != h`) and the ±inf check (`h - h != 0`) are constexpr in
+ * C++17; the in-range fast path returns before `std::fmod` (not constexpr),
+ * keeping compile-time evaluation of well-formed hues working.
+ */
+constexpr float wrap_unit_hue(float h) {
+  if (h != h) return 0.0f;         // NaN → 0
+  if (h - h != 0.0f) return 0.0f;  // ±inf (inf - inf is NaN) → 0
+  if (h >= 0.0f && h < 1.0f) return h;
+  float r = std::fmod(h, 1.0f);
+  return r < 0.0f ? r + 1.0f : r;
 }
 
 /**

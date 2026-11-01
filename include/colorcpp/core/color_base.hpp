@@ -34,6 +34,8 @@ struct basic_color;
  * Colors are plain value types: construction, @c set, and the mutable accessors never validate against the
  * channel's nominal range. Boundary policy lives at the edges — the stream parser rejects out-of-range text
  * (failbit), and @ref colorcpp::core::clamped / @ref colorcpp::core::make_checked provide opt-in factories.
+ * The one defined exception (issue #66): a non-finite float argument (NaN / ±inf) stored into an integral
+ * channel maps to the channel minimum, because the float→integral cast of those values is undefined behavior.
  *
  * Channel access:
  * - @c get<Tag>() / @c get_index<I>() for read/write references.
@@ -155,7 +157,26 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   template <std::size_t... Is, typename... Args>
   constexpr static storage_type make_storage(std::index_sequence<Is...>, Args... args) {
     auto tp = std::make_tuple(args...);
-    return storage_type{static_cast<value_type>(static_cast<channel_value_t<Is>>(std::get<Is>(tp)))...};
+    return storage_type{static_cast<value_type>(make_storage_one<Is>(std::get<Is>(tp)))...};
+  }
+
+  // Integral channels: a NaN/±inf float argument would make the narrowing
+  // cast undefined behavior (issue #66). Non-finite values map to the
+  // channel minimum — the same policy as from_unit / from_value / clamped.
+  // Finite values are stored as-is: construction never range-validates.
+  // (`f != f` catches NaN; `f - f != 0` catches ±inf. Both are constexpr
+  // in C++17 — std::isnan / std::isfinite are not.)
+  template <std::size_t I, typename Arg>
+  constexpr static channel_value_t<I> make_storage_one(Arg v) {
+    if constexpr (std::is_floating_point_v<Arg> && std::is_integral_v<channel_value_t<I>>) {
+      float f = static_cast<float>(v);
+      if (f != f || f - f != 0.0f) {
+        f = static_cast<float>(std::tuple_element_t<I, channels_tuple>::min);
+      }
+      return static_cast<channel_value_t<I>>(f);
+    } else {
+      return static_cast<channel_value_t<I>>(v);
+    }
   }
 };
 
@@ -168,8 +189,12 @@ namespace factory_details {
 /** Clamps one argument into Channel's nominal range (rounding for integral channels). */
 template <typename Channel, typename Arg>
 constexpr typename Channel::value_type clamp_to_channel(Arg v) {
-  const float x = std::clamp(static_cast<float>(v), static_cast<float>(Channel::min), static_cast<float>(Channel::max));
+  float x = std::clamp(static_cast<float>(v), static_cast<float>(Channel::min), static_cast<float>(Channel::max));
   if constexpr (std::is_integral_v<typename Channel::value_type>) {
+    // std::clamp passes NaN through; casting NaN to an integral channel is UB.
+    // Map it to the channel minimum. `x != x` is the NaN check (std::isnan is
+    // not constexpr in C++17).
+    if (x != x) x = static_cast<float>(Channel::min);
     return static_cast<typename Channel::value_type>(std::round(x));
   } else {
     return static_cast<typename Channel::value_type>(x);
@@ -250,6 +275,36 @@ constexpr decltype(auto) get(Color&& c) {
 template <std::size_t I, typename Color>
 constexpr decltype(auto) get(Color&& c) {
   return c.template get_index<I>();
+}
+
+/**
+ * @brief Whether @p Color carries a shared chroma channel (HSL/HSV S, CIELCH/OkLCH C).
+ */
+template <typename Color>
+inline constexpr bool has_chroma_channel_v =
+    traits::details::has_channel_tag_impl<typename Color::channels_tuple, traits::chroma_tag>::value;
+
+/** @brief Default tolerance for @ref is_achromatic, in the chroma channel's own units. */
+inline constexpr float kAchromaticEpsilon = 1e-3f;
+
+/**
+ * @brief Whether the color's chroma/saturation is (nearly) zero — its hue is powerless.
+ *
+ * Per CSS Color 4 a hue stored next to zero chroma carries no information (a
+ * gray at h = 0 is the same gray at h = 180); interpolation must treat it as
+ * missing instead of blending the atan2 noise, and comparison may skip it.
+ * Models without a chroma channel (RGB, HWB, ...) are never achromatic.
+ * @param eps Tolerance in the chroma channel's own units (chroma min is 0 in
+ *            every model that has the channel), default @ref kAchromaticEpsilon.
+ */
+template <typename Color>
+constexpr bool is_achromatic(const Color& c, float eps = kAchromaticEpsilon) noexcept {
+  if constexpr (has_chroma_channel_v<Color>) {
+    const float v = static_cast<float>(c.template get<traits::chroma_tag>());
+    return v <= eps && v >= -eps;
+  } else {
+    return false;
+  }
 }
 
 }  // namespace colorcpp::core

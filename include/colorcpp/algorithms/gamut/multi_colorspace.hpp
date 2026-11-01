@@ -24,36 +24,41 @@ enum class gamut_type {
 
 namespace details {
 
+// Default tolerance for wide-gamut membership. The shared 7-digit XYZ matrix
+// coefficients leave up to ~1.3e-4 of rounding noise on near-boundary colors
+// (D65 white lands at 1.00012 in linear P3 / ProPhoto), so the sRGB check's
+// 1e-4 would exclude white itself from every wide gamut.
+constexpr float kWideGamutEps = 2e-4f;
+
 // Check if linear RGB is in Display P3 gamut
-inline bool linrgb_in_displayp3_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
-  // Display P3 has the same transfer function as sRGB but different primaries
-  // For simplicity, we check if the color can be represented in Display P3
-  // by converting to Display P3 and checking if values are in [0, 1]
+inline bool linrgb_in_displayp3_gamut(float r, float g, float b, float eps = kWideGamutEps) noexcept {
+  // Display P3 shares sRGB's transfer function but not its primaries:
+  // convert linear sRGB through XYZ to linear P3 and range-test unclamped.
   float dp3_r, dp3_g, dp3_b;
-  linrgb_to_displayp3(r, g, b, dp3_r, dp3_g, dp3_b);
-  return dp3_r >= -eps && dp3_r <= 1.0f + eps && dp3_g >= -eps && dp3_g <= 1.0f + eps && dp3_b >= -eps &&
-         dp3_b <= 1.0f + eps;
+  linrgb_to_linear_displayp3(r, g, b, dp3_r, dp3_g, dp3_b);
+  return linrgb_in_gamut(dp3_r, dp3_g, dp3_b, eps);
 }
 
 // Check if linear RGB is in Adobe RGB gamut
-inline bool linrgb_in_adobergb_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
-  // Adobe RGB uses different primaries and gamma
+inline bool linrgb_in_adobergb_gamut(float r, float g, float b, float eps = kWideGamutEps) noexcept {
   float argb_r, argb_g, argb_b;
-  linrgb_to_adobergb(r, g, b, argb_r, argb_g, argb_b);
-  return argb_r >= -eps && argb_r <= 1.0f + eps && argb_g >= -eps && argb_g <= 1.0f + eps && argb_b >= -eps &&
-         argb_b <= 1.0f + eps;
+  linrgb_to_linear_adobergb(r, g, b, argb_r, argb_g, argb_b);
+  return linrgb_in_gamut(argb_r, argb_g, argb_b, eps);
 }
 
 // Check if linear RGB is in ProPhoto RGB gamut
-inline bool linrgb_in_prophoto_gamut(float r, float g, float b, float eps = 1e-4f) noexcept {
+inline bool linrgb_in_prophoto_gamut(float r, float g, float b, float eps = kWideGamutEps) noexcept {
   float pprgb_r, pprgb_g, pprgb_b;
-  linrgb_to_prophoto(r, g, b, pprgb_r, pprgb_g, pprgb_b);
-  return pprgb_r >= -eps && pprgb_r <= 1.0f + eps && pprgb_g >= -eps && pprgb_g <= 1.0f + eps && pprgb_b >= -eps &&
-         pprgb_b <= 1.0f + eps;
+  linrgb_to_linear_prophoto(r, g, b, pprgb_r, pprgb_g, pprgb_b);
+  return linrgb_in_gamut(pprgb_r, pprgb_g, pprgb_b, eps);
 }
 
 // Generic gamut check based on gamut type
-inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float eps = 1e-4f) noexcept {
+inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float eps = -1.0f) noexcept {
+  if (eps < 0.0f) {
+    // Not specified: per-type default (sRGB keeps its tighter 1e-4).
+    eps = (type == gamut_type::srgb) ? 1e-4f : kWideGamutEps;
+  }
   switch (type) {
     case gamut_type::srgb:
       return details::linrgb_in_gamut(r, g, b, eps);
@@ -81,10 +86,15 @@ template <typename Color>
 bool is_in_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
   using namespace operations::conversion;
 
-  auto lab = color_cast<core::oklab_t>(c);
+  // Through XYZ (nominal [-1, 2], wide enough for every supported gamut —
+  // issue #56) and raw float math, never through oklab_t: membership must not
+  // depend on any color storage range clipping the value first (issue #67).
+  // The xyz↔oklab edge is raw, so this costs nothing in accuracy; XYZ's pack
+  // clamp only touches values already outside every RGB gamut (Y > 1 alone
+  // rules all of them out).
+  const auto xyz = color_cast<core::xyz_t>(c);
   float r, g, b;
-  details::oklab_to_linrgb(lab.template get_index<0>(), lab.template get_index<1>(), lab.template get_index<2>(), r, g,
-                           b);
+  details::xyz_to_linrgb(xyz.x(), xyz.y(), xyz.z(), r, g, b);
   return details::linrgb_in_gamut(r, g, b, type);
 }
 
@@ -111,6 +121,23 @@ template <typename Color>
 bool is_in_prophoto_gamut(const Color& c) {
   return is_in_gamut(c, gamut_type::prophoto_rgb);
 }
+
+namespace details {
+
+// Assemble a gamut-clip result: target-gamut OkLab cast straight to Color
+// (never through core::rgbaf_t, whose sRGB clamp would re-clip wide-gamut
+// targets — issue #65), with unit-space alpha re-applied.
+template <typename Color, typename Mid>
+Color clip_result_to(const Mid& mid, float alpha) {
+  Color out = ::colorcpp::operations::conversion::color_cast<Color>(mid);
+  if constexpr (::colorcpp::operations::conversion::details::has_alpha_v<Color>) {
+    constexpr std::size_t ai = ::colorcpp::operations::conversion::details::alpha_index_v<Color>;
+    out.template get_index<ai>() = ::colorcpp::operations::conversion::details::from_unit<Color, ai>(alpha);
+  }
+  return out;
+}
+
+}  // namespace details
 
 /**
  * @brief Clip a color to the specified gamut using simple channel clamping.
@@ -139,7 +166,10 @@ Color gamut_clip_to_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
   float chroma = std::sqrt(a * a + b * b);
   if (chroma < 1e-6f) {
     float L_clamped = std::clamp(L, 0.0f, 1.0f);
-    return color_cast<Color>(core::rgbaf_t{L_clamped, L_clamped, L_clamped, alpha});
+    // Rebuild through OkLab and cast straight to Color (issue #65): routing
+    // the result through core::rgbaf_t would clamp it to sRGB even when the
+    // target gamut is wider. Carry the source alpha through.
+    return details::clip_result_to<Color>(core::oklab_t{L_clamped, 0.0f, 0.0f}, alpha);
   }
 
   // Calculate hue
@@ -167,10 +197,13 @@ Color gamut_clip_to_gamut(const Color& c, gamut_type type = gamut_type::srgb) {
     }
   }
 
-  // Construct the clipped color
+  // Construct the clipped color (OkLab has no alpha channel: re-apply it).
+  // Cast straight to Color: the search already landed on the *target* gamut's
+  // boundary, and rebuilding through core::rgbaf_t would clamp that wide
+  // result back into sRGB (issue #65).
   float final_a = min_C * cos_h;
   float final_b = min_C * sin_h;
-  return color_cast<Color>(color_cast<core::rgbaf_t>(core::oklab_t{L, final_a, final_b}));
+  return details::clip_result_to<Color>(core::oklab_t{L, final_a, final_b}, alpha);
 }
 
 }  // namespace colorcpp::algorithms::gamut

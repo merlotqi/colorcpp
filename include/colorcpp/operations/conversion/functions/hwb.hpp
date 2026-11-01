@@ -45,6 +45,10 @@ constexpr To hwb_to_rgb(const From& src) {
   float b = to_unit<From, 2>(src.template get_index<2>());  // [0,1]
   float a = get_src_alpha(src);
 
+  // Non-finite hue would make the sector cast UB, and negative hue picked a
+  // wrong (negative) sector — wrap onto the ring first (issue #66).
+  h = wrap_unit_hue(h);
+
   // If whiteness + blackness >= 1, the color is achromatic
   if (w + b >= 1.0f) {
     float grayf = w / (w + b);

@@ -81,6 +81,51 @@ TEST(LerpTest, WorksWithRgb8) {
   EXPECT_LE(result.r(), 255);
 }
 
+// --- Issue #50: lerp routed both endpoints through rgbaf_t (sRGB), so
+//     wide-gamut colors were clipped before interpolation: lerp(p3red,
+//     p3red, 0.5) came out as (0.9176, 0.2003, 0.1386). Interpolation must
+//     stay in the caller's own color type. ---
+
+TEST(LerpTest, SelfLerpIsNoOpInCallerSpace) {
+  const core::display_p3f_t p3red{1.0f, 0.0f, 0.0f};
+  const auto mid = lerp(p3red, p3red, 0.5f);
+  EXPECT_FLOAT_EQ(mid.r(), 1.0f);
+  EXPECT_FLOAT_EQ(mid.g(), 0.0f);
+  EXPECT_FLOAT_EQ(mid.b(), 0.0f);
+}
+
+TEST(LerpTest, WideGamutEndpointsSurviveMidpoint) {
+  const core::display_p3f_t p3red{1.0f, 0.0f, 0.0f};
+  const core::display_p3f_t p3green{0.0f, 1.0f, 0.0f};
+  const auto mid = lerp(p3red, p3green, 0.5f);
+  // Channel midpoint in P3's own (gamma-encoded) space. The old rgbaf_t hub
+  // clipped both endpoints to sRGB first, moving the midpoint off (0.5, 0.5, 0).
+  EXPECT_NEAR(mid.r(), 0.5f, 1e-6f);
+  EXPECT_NEAR(mid.g(), 0.5f, 1e-6f);
+  EXPECT_NEAR(mid.b(), 0.0f, 1e-6f);
+}
+
+TEST(LerpTest, SelfLerpOfRec2020GreenStaysOutOfSrgb) {
+  // Rec. 2020 green is far outside sRGB: the old rgbaf_t path clipped it to
+  // sRGB green and back, landing at ~(0.75, 0.93, 0.0) instead of (0, 1, 0).
+  const core::rec2020_rgbf_t green{0.0f, 1.0f, 0.0f};
+  const auto mid = lerp(green, green, 0.5f);
+  EXPECT_FLOAT_EQ(mid.r(), 0.0f);
+  EXPECT_FLOAT_EQ(mid.g(), 1.0f);
+  EXPECT_FLOAT_EQ(mid.b(), 0.0f);
+}
+
+TEST(LerpTest, LinearSrgbOptionInterpolatesWithoutGamma) {
+  // Explicit srgb-linear option: black->white at t=0.5 is linear 0.5, which
+  // encodes to ~0.7354 — not the gamma-encoded midpoint 0.5.
+  const core::rgbf_t black{0.0f, 0.0f, 0.0f};
+  const core::rgbf_t white{1.0f, 1.0f, 1.0f};
+  const auto mid = lerp_linear(black, white, 0.5f);
+  EXPECT_NEAR(mid.r(), 0.7354f, 1e-3f);
+  EXPECT_NEAR(mid.g(), 0.7354f, 1e-3f);
+  EXPECT_NEAR(mid.b(), 0.7354f, 1e-3f);
+}
+
 // lerp_hsl (HSL space)
 
 TEST(LerpHslTest, TZeroReturnsFirst) {
@@ -894,6 +939,17 @@ TEST(LerpAlphaModeTest, MultiplyAlphas) {
   EXPECT_NEAR(result.a(), 0.4f, 1e-3f);
 }
 
+// Issue #50: lerp_alpha_mode shared the rgbaf_t hub, clipping wide gamuts.
+TEST(LerpAlphaModeTest, WideGamutColorSurvives) {
+  const core::display_p3af_t a(1.0f, 0.0f, 0.0f, 0.25f);
+  const core::display_p3af_t b(1.0f, 0.0f, 0.0f, 0.75f);
+  auto result = lerp_alpha_mode(a, b, 0.5f, alpha_mode::lerp);
+  EXPECT_FLOAT_EQ(result.r(), 1.0f);
+  EXPECT_FLOAT_EQ(result.g(), 0.0f);
+  EXPECT_FLOAT_EQ(result.b(), 0.0f);
+  EXPECT_NEAR(result.a(), 0.5f, 1e-6f);
+}
+
 // Position-based multi_lerp tests
 
 TEST(MultiLerpPositionTest, BasicGradient) {
@@ -1028,6 +1084,145 @@ TEST(MultiLerpPositionTest, ThrowsOnTooFewStops) {
   std::vector<stop<core::rgbf_t>> stops = {{red, 0.0f}};
 
   EXPECT_THROW(multi_lerp(stops, 0.5f), std::invalid_argument);
+}
+
+// --- Issue #51: a powerless hue (chroma/saturation ≈ 0) must not steer the
+//     shortest-arc interpolation. White/black/gray carry only atan2 noise —
+//     white's OkLCH hue is 90° from C ≈ 6e-8 — so lerp_oklch(white, blue)
+//     used to swing through teal (H ≈ 175°). Per CSS Color 4 a powerless hue
+//     is missing and takes the other endpoint's hue; both missing → unchanged.
+//     Expected values are the CSS spec midpoints: oklch(0.726 0.157 264.05),
+//     lch(66.1 67.2 306.29), hsl(240 50% 75%). ---
+
+TEST(LerpOklchTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_oklch(white, blue, 0.5f);
+  // Buggy midpoint: H ≈ 175° teal rgb(0, 0.77, 0.65). White's hue is
+  // missing, so the whole arc rides blue's 264.05° — a light blue.
+  EXPECT_NEAR(mid.r(), 0.4530f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.6381f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+}
+
+TEST(LerpOklchTest, PowerlessBlackHueTakesBlueHue) {
+  // oklch endpoints keep the assertion on the hue itself (an rgbf result
+  // would be gamut-clipped and shift the hue by ~1°).
+  const core::oklch_t black{0.0f, 0.0f, 0.0f};
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  const auto mid = lerp_oklch(black, blue, 0.5f);
+  // Buggy midpoint: H ≈ 308.7° — black's atan2 noise treated as a real hue.
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(LerpOklchTest, PowerlessGrayHueTakesBlueHue) {
+  // Mid-gray has C ≈ 1.2e-7 of conversion noise; that hue must not steer.
+  const auto gray = color_cast<core::oklch_t>(core::rgbf_t(0.5f, 0.5f, 0.5f));
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  const auto mid = lerp_oklch(gray, blue, 0.5f);
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(LerpLchTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_lch(white, blue, 0.5f);
+  // Buggy midpoint: H ≈ 333°, pink. White's hue is missing, so the arc
+  // rides blue's LCH hue (306.29°) — a light blue, not pink.
+  EXPECT_NEAR(mid.r(), 0.7014f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.5458f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+}
+
+TEST(LerpHslTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_hsl(white, blue, 0.5f);
+  // Buggy midpoint: pink (0.875, 0.625, 0.875). White S = 0 → hue missing
+  // → the arc rides blue's 240°: hsl(240, 50%, 75%) = rgb(0.625, 0.625, 0.875).
+  EXPECT_NEAR(mid.r(), 0.625f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.625f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 0.875f, 2e-3f);
+}
+
+TEST(LerpHsvTest, PowerlessWhiteHueTakesBlueHue) {
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  const auto mid = lerp_hsv(white, blue, 0.5f);
+  // White S = 0 → hue = blue's 240°; S = 0.5, V = 1 → rgb(0.5, 0.5, 1).
+  EXPECT_NEAR(mid.r(), 0.5f, 2e-3f);
+  EXPECT_NEAR(mid.g(), 0.5f, 2e-3f);
+  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+}
+
+TEST(LerpChromaPreservingTest, PowerlessHueTakesOtherEndpoint) {
+  const auto white = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 1.0f, 1.0f));
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  const auto mid = lerp_chroma_preserving(white, blue, 0.5f, chroma_mode::preserve);
+  // Buggy: hue lerped from white's atan2 noise (90°) toward 264° → teal-ish 177°.
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(LerpHueLockedTest, PowerlessStartHueTakesEndHue) {
+  const auto white = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 1.0f, 1.0f));
+  const core::oklch_t blue{0.452014f, 0.313214f, 264.052f};
+  // Locking to a start hue that carries no information must fall through to
+  // the end hue, not freeze white's noise angle (90°).
+  const auto mid = lerp_hue_locked(white, blue, 0.5f, true);
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+// --- Issue #62: the generic lerp (and everything built on it — lerp_alpha_mode,
+//     ease*, multi_lerp*, palette scales with lerp_method::rgb) interpolates
+//     channel by channel in the caller's type. For hue-bearing models that
+//     lerps the hue as a plain number: no shortest arc, no powerless-hue rule —
+//     the #51 teal returns. Hue channels must go through lerp_angle_deg plus
+//     powerless substitution; RGB-family types keep the #50 behavior. ---
+
+TEST(GenericLerpTest, OklchHueTakesShortestArcWithPowerlessWhite) {
+  const auto white = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 1.0f, 1.0f));
+  const auto blue = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
+  const auto mid = lerp(white, blue, 0.5f);
+  // White's hue is powerless (C ≈ 6e-8) → blue's 264.05° rides the whole way.
+  // Naive channel lerp landed at H ≈ 177° (teal rgb(0, .773, .646)).
+  EXPECT_NEAR(mid.l(), 0.7260f, 2e-3f);
+  EXPECT_NEAR(mid.c(), 0.1566f, 2e-3f);
+  EXPECT_NEAR(mid.h(), 264.052f, 0.5f);
+}
+
+TEST(GenericLerpTest, HslaWhiteToBlueMatchesLerpHsl) {
+  const core::hsla_float_t white{0.0f, 0.0f, 1.0f, 1.0f};
+  const core::hsla_float_t blue{240.0f, 1.0f, 0.5f, 1.0f};
+  const auto mid = lerp(white, blue, 0.5f);
+  const auto rgb = color_cast<core::rgbf_t>(mid);
+  // S = 0 → white's hue missing → 240° rides the arc: hsl(240, 50%, 75%).
+  // Naive channel lerp landed at H = 120° (green rgb(.625, .875, .625)).
+  EXPECT_NEAR(rgb.r(), 0.625f, 2e-3f);
+  EXPECT_NEAR(rgb.g(), 0.625f, 2e-3f);
+  EXPECT_NEAR(rgb.b(), 0.875f, 2e-3f);
+}
+
+TEST(GenericLerpTest, HslaHueWrapsShortestArc) {
+  const core::hsla_float_t a{350.0f, 1.0f, 0.5f, 1.0f};
+  const core::hsla_float_t b{10.0f, 1.0f, 0.5f, 1.0f};
+  const auto mid = lerp(a, b, 0.5f);
+  // Red-to-red across 0°: shortest arc midpoints at 0° (red), not 180° (cyan).
+  EXPECT_NEAR(mid.h(), 0.0f, 0.5f);
+  const auto rgb = color_cast<core::rgbf_t>(mid);
+  EXPECT_NEAR(rgb.r(), 1.0f, 2e-3f);
+  EXPECT_NEAR(rgb.g(), 0.0f, 2e-3f);
+  EXPECT_NEAR(rgb.b(), 0.0f, 2e-3f);
+}
+
+TEST(GenericLerpTest, AlphaModeHslaMatchesChannelPolicy) {
+  const core::hsla_float_t white{0.0f, 0.0f, 1.0f, 1.0f};
+  const core::hsla_float_t blue{240.0f, 1.0f, 0.5, 1.0f};
+  const auto mid = lerp_alpha_mode(white, blue, 0.5f);
+  // Same hue rule as lerp_hsl; alpha lerps 1 → 1 = 1. Naive channel lerp
+  // produced (1, 1, 0) rgb — the H = 120° green again.
+  EXPECT_NEAR(mid.s(), 0.5f, 1e-3f);
+  EXPECT_NEAR(mid.l(), 0.75f, 1e-3f);
+  EXPECT_NEAR(mid.a(), 1.0f, 1e-3f);
 }
 
 }  // namespace colorcpp::operations::test

@@ -43,7 +43,10 @@ Color lerp_chroma_preserving(const Color& a, const Color& b, float t, chroma_mod
   auto cb = color_cast<core::oklch_t>(b);
 
   float L = details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t);
-  float H = details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t);
+  float hue_a = ca.template get_index<2>();
+  float hue_b = cb.template get_index<2>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // C ≈ 0 → hue missing (issue #51)
+  float H = details::lerp_angle_deg(hue_a, hue_b, t);
 
   // Determine chroma based on mode
   float C;

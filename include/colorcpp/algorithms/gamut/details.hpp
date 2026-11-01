@@ -5,8 +5,10 @@
 
 #pragma once
 
-#include <algorithm>
+#include <array>
 #include <cmath>
+#include <colorcpp/algorithms/chromatic_adaptation.hpp>
+#include <colorcpp/core/xyz.hpp>
 
 namespace colorcpp::algorithms::gamut::details {
 
@@ -46,65 +48,116 @@ inline bool linrgb_in_gamut(float r, float g, float b, float eps = 1e-4f) noexce
   return r >= -eps && r <= 1.0f + eps && g >= -eps && g <= 1.0f + eps && b >= -eps && b <= 1.0f + eps;
 }
 
-// Display P3 → linear RGB (D65)
-inline void displayp3_to_linrgb(float r, float g, float b, float& lr, float& lg, float& lb) noexcept {
-  // Display P3 uses the same primaries as DCI-P3 but with D65 white point
-  // and sRGB transfer function
-  auto gamma_decode = [](float v) noexcept {
-    return (v <= 0.04045f) ? (v / 12.92f) : std::pow((v + 0.055f) / 1.055f, 2.4f);
-  };
-  lr = gamma_decode(r);
-  lg = gamma_decode(g);
-  lb = gamma_decode(b);
+// ---- Wide-gamut membership helpers ----
+// linear sRGB → target linear RGB via XYZ. Coefficients match the matrices
+// registered in operations/conversion/functions/{linear_rgb,xyz,adobe_rgb,
+// prophoto_rgb}.hpp. Everything stays unclamped: gamut testing needs the
+// out-of-range values (transfer curves and [0,1] clamps hide them).
+
+// linear sRGB → CIE XYZ (D65)
+inline void linrgb_to_xyz(float r, float g, float b, float& x, float& y, float& z) noexcept {
+  x = 0.4124564f * r + 0.3575761f * g + 0.1804375f * b;
+  y = 0.2126729f * r + 0.7151522f * g + 0.0721750f * b;
+  z = 0.0193339f * r + 0.1191920f * g + 0.9503041f * b;
 }
 
-// linear RGB → Display P3
-inline void linrgb_to_displayp3(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
-  auto gamma_encode = [](float v) noexcept {
-    v = std::clamp(v, 0.0f, 1.0f);
-    return (v <= 0.0031308f) ? (12.92f * v) : (1.055f * std::pow(v, 1.0f / 2.4f) - 0.055f);
-  };
-  r = gamma_encode(lr);
-  g = gamma_encode(lg);
-  b = gamma_encode(lb);
+// CIE XYZ (D65) → linear sRGB, without clamping. Exact inverse of the matrix
+// above (matches conversion::details::xyz_to_oklab's raw first stage; D65
+// white maps to (1, 1, 1)). Gamut membership computes through this raw helper
+// so no color storage range can influence the result (issue #67).
+inline void xyz_to_linrgb(float x, float y, float z, float& r, float& g, float& b) noexcept {
+  r = 3.2404542f * x - 1.5371385f * y - 0.4985314f * z;
+  g = -0.9692660f * x + 1.8760108f * y + 0.0415560f * z;
+  b = 0.0556434f * x - 0.2040259f * y + 1.0572252f * z;
 }
 
-// Adobe RGB → linear RGB (D65)
-inline void adobergb_to_linrgb(float r, float g, float b, float& lr, float& lg, float& lb) noexcept {
-  // Adobe RGB uses gamma 2.19921875 (563/256)
-  constexpr float gamma = 2.19921875f;
-  lr = std::pow(r, gamma);
-  lg = std::pow(g, gamma);
-  lb = std::pow(b, gamma);
+// CIE XYZ (D65) → linear Display P3
+inline void xyz_to_linear_displayp3(float x, float y, float z, float& r, float& g, float& b) noexcept {
+  r = 2.4934969f * x - 0.9313836f * y - 0.4027108f * z;
+  g = -0.8294890f * x + 1.7626641f * y + 0.0236247f * z;
+  b = 0.0358458f * x - 0.0761724f * y + 0.9568845f * z;
 }
 
-// linear RGB → Adobe RGB
-inline void linrgb_to_adobergb(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
-  constexpr float gamma = 2.19921875f;
-  constexpr float inv_gamma = 1.0f / gamma;
-  r = std::pow(std::clamp(lr, 0.0f, 1.0f), inv_gamma);
-  g = std::pow(std::clamp(lg, 0.0f, 1.0f), inv_gamma);
-  b = std::pow(std::clamp(lb, 0.0f, 1.0f), inv_gamma);
+// CIE XYZ (D65) → linear Adobe RGB (A98). Exact inverse of the forward
+// matrix registered in conversion/functions/adobe_rgb.hpp (Gauss-Jordan on
+// the 7-digit coefficients): the pair must be mutually inverse or colors on
+// Adobe's own cube — including white — round-trip outside it (issue #68).
+inline void xyz_to_linear_adobergb(float x, float y, float z, float& r, float& g, float& b) noexcept {
+  r = 2.0415871f * x - 0.5650054f * y - 0.3447321f * z;
+  g = -0.9692428f * x + 1.8759654f * y + 0.0415562f * z;
+  b = 0.0134451f * x - 0.1183627f * y + 1.0151743f * z;
 }
 
-// ProPhoto RGB → linear RGB (D50 white point via conversion)
-inline void prophoto_to_linrgb(float r, float g, float b, float& lr, float& lg, float& lb) noexcept {
-  // ProPhoto uses gamma 1.8 with linear segment below 1/512
-  auto gamma_decode = [](float v) noexcept { return (v < (1.0f / 32.0f)) ? (v / 16.0f) : std::pow(v, 1.8f); };
-  lr = gamma_decode(r);
-  lg = gamma_decode(g);
-  lb = gamma_decode(b);
+// CIE XYZ (D65) → XYZ (D50) Bradford adaptation, folded once at compile time:
+// M_BFD_inv · diag(cone_D50 / cone_D65) · M_BFD, with the cone responses of
+// the two white points. Derived from algorithms::chromatic_adaptation's
+// matrices and white points (they are constexpr), so the two paths cannot
+// drift; per-call recomputation used to cost ~8 ns instead of ~3 ns
+// (issue #68).
+constexpr std::array<float, 9> MakeBradfordD65ToD50() {
+  namespace ca = colorcpp::algorithms::chromatic_adaptation;
+  const float* m = ca::details::M_BFD;
+  const float* mi = ca::details::M_BFD_inv;
+  const auto& sw = ca::WHITEPOINT_D65;
+  const auto& dw = ca::WHITEPOINT_D50;
+
+  const float cone_src[3] = {m[0] * sw.x() + m[1] * sw.y() + m[2] * sw.z(),
+                             m[3] * sw.x() + m[4] * sw.y() + m[5] * sw.z(),
+                             m[6] * sw.x() + m[7] * sw.y() + m[8] * sw.z()};
+  const float cone_dst[3] = {m[0] * dw.x() + m[1] * dw.y() + m[2] * dw.z(),
+                             m[3] * dw.x() + m[4] * dw.y() + m[5] * dw.z(),
+                             m[6] * dw.x() + m[7] * dw.y() + m[8] * dw.z()};
+
+  // adapted = M_BFD_inv · S · M_BFD where S = diag(cone_dst / cone_src)
+  std::array<float, 9> out{};
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      float sum = 0.0f;
+      for (int k = 0; k < 3; ++k) {
+        sum += mi[3 * i + k] * (cone_dst[k] / cone_src[k]) * m[3 * k + j];
+      }
+      out[3 * i + j] = sum;
+    }
+  }
+  return out;
+}
+inline constexpr std::array<float, 9> kBradfordD65ToD50 = MakeBradfordD65ToD50();
+
+// CIE XYZ (D65) → linear ProPhoto RGB (D50): precomputed Bradford adaptation
+// (kBradfordD65ToD50), then the ProPhoto primaries matrix. Plain-float
+// arithmetic (no color_cast) so out-of-range values survive.
+inline void xyz_to_linear_prophoto(float x, float y, float z, float& r, float& g, float& b) noexcept {
+  const auto& a = kBradfordD65ToD50;
+
+  const float x50 = a[0] * x + a[1] * y + a[2] * z;
+  const float y50 = a[3] * x + a[4] * y + a[5] * z;
+  const float z50 = a[6] * x + a[7] * y + a[8] * z;
+
+  // XYZ(D50) → linear ProPhoto (matches conversion::details::xyz_to_linear_prophoto_rgb)
+  r = 1.3459433f * x50 - 0.2556075f * y50 - 0.0511118f * z50;
+  g = -0.5445989f * x50 + 1.5081673f * y50 + 0.0205351f * z50;
+  b = 1.2119587f * z50;
 }
 
-// linear RGB → ProPhoto RGB
-inline void linrgb_to_prophoto(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
-  auto gamma_encode = [](float v) noexcept {
-    v = std::clamp(v, 0.0f, 1.0f);
-    return (v < (1.0f / 512.0f)) ? (v * 16.0f) : std::pow(v, 1.0f / 1.8f);
-  };
-  r = gamma_encode(lr);
-  g = gamma_encode(lg);
-  b = gamma_encode(lb);
+// linear sRGB → linear Display P3 (D65)
+inline void linrgb_to_linear_displayp3(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
+  float x, y, z;
+  linrgb_to_xyz(lr, lg, lb, x, y, z);
+  xyz_to_linear_displayp3(x, y, z, r, g, b);
+}
+
+// linear sRGB → linear Adobe RGB (D65)
+inline void linrgb_to_linear_adobergb(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
+  float x, y, z;
+  linrgb_to_xyz(lr, lg, lb, x, y, z);
+  xyz_to_linear_adobergb(x, y, z, r, g, b);
+}
+
+// linear sRGB → linear ProPhoto RGB (D50)
+inline void linrgb_to_linear_prophoto(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
+  float x, y, z;
+  linrgb_to_xyz(lr, lg, lb, x, y, z);
+  xyz_to_linear_prophoto(x, y, z, r, g, b);
 }
 
 }  // namespace colorcpp::algorithms::gamut::details

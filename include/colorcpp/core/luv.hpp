@@ -2,9 +2,12 @@
  * @file luv.hpp
  * @brief CIE L*u*v* (ISO 11664-5), D65 reference white.
  *
- * Channels: L* [0, 100], u* and v* [-128, 128]. Uses the CIE 1976 u'v'
- * uniformity diagram (u' = 4X/(X+15Y+3Z), v' = 9Y/(X+15Y+3Z)).
- * Conversion composes with XYZ (include @ref xyz.hpp with @ref conversion.hpp).
+ * Channels: L* [0, 100], u* and v* [-400, 400]. The u* and v* range is
+ * nominal: it must be wide enough for every real color (sRGB red already
+ * has u* ≈ 175, ProPhoto red ≈ 331), so conversions never clip to it.
+ * Uses the CIE 1976 u'v' uniformity diagram (u' = 4X/(X+15Y+3Z),
+ * v' = 9Y/(X+15Y+3Z)). Conversion composes with XYZ
+ * (include @ref xyz.hpp with @ref conversion.hpp).
  */
 
 #pragma once
@@ -21,10 +24,11 @@ struct l_tag {};  // lightness
 struct u_tag {};  // red-green opponent axis
 struct v_tag {};  // yellow-blue opponent axis
 
-// Den=1 keeps values in their natural CIE units.
+// Den=1 keeps values in their natural CIE units. The u/v bounds are nominal:
+// real colors reach u* ≈ 331 (ProPhoto red), so ±128 clipped conversions.
 using luv_l = traits::basic_channel<l_tag, float, 0, 100, 1>;     // [0,    100]
-using luv_u = traits::basic_channel<u_tag, float, -128, 128, 1>;  // [-128,  128]
-using luv_v = traits::basic_channel<v_tag, float, -128, 128, 1>;  // [-128,  128]
+using luv_u = traits::basic_channel<u_tag, float, -400, 400, 1>;  // [-400,  400]
+using luv_v = traits::basic_channel<v_tag, float, -400, 400, 1>;  // [-400,  400]
 
 }  // namespace channel
 

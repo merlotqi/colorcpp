@@ -45,6 +45,10 @@ constexpr To hsv_to_rgb(const From& src) {
   float v = to_unit<From, 2>(src.template get_index<2>());
   float a = get_src_alpha(src);
 
+  // Non-finite hue would make the sector cast UB, and negative hue picked a
+  // wrong (negative) sector — wrap onto the ring first (issue #66).
+  h = wrap_unit_hue(h);
+
   int i = static_cast<int>(h * 6.0f);
   float f = h * 6.0f - static_cast<float>(i);
   float p = v * (1.0f - s);

@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 namespace colorcpp::operations::conversion::graph {
 
@@ -309,6 +310,56 @@ struct search_state {
   std::array<std::size_t, NodeCount> prev{};
 };
 
+/**
+ * @brief Trait marking device-independent spaces (XYZ, CIE and perceptual
+ *        appearance models).
+ *
+ * RGB-family nodes normalize channels to [0,1] at the boundary, which clamps
+ * out-of-gamut values. An equal-cost route between two device-independent
+ * spaces that hops through such a node silently collapses wide-gamut colors
+ * (e.g. Display P3 red degenerating to sRGB red through linear sRGB).
+ * Conversions where both endpoints are device-independent therefore stay
+ * inside this node subset, with XYZ as the hub. Specialize for custom
+ * device-independent spaces to include them in that restriction.
+ */
+template <typename T>
+struct device_independent : std::false_type {};
+
+template <>
+struct device_independent<core::xyz_t> : std::true_type {};
+template <>
+struct device_independent<core::cielab_t> : std::true_type {};
+template <>
+struct device_independent<core::cielch_t> : std::true_type {};
+template <>
+struct device_independent<core::oklab_t> : std::true_type {};
+template <>
+struct device_independent<core::oklch_t> : std::true_type {};
+template <>
+struct device_independent<core::luv_t> : std::true_type {};
+template <>
+struct device_independent<core::xyy_t> : std::true_type {};
+template <>
+struct device_independent<core::jzazbz_t> : std::true_type {};
+
+template <typename T>
+inline constexpr bool device_independent_v = device_independent<T>::value;
+
+namespace details {
+
+// Per-node device-independent mask, indexed like the adjacency matrix.
+template <typename Nodes, std::size_t... I>
+constexpr std::array<bool, Nodes::size> di_mask_impl(std::index_sequence<I...>) {
+  return {device_independent_v<node_at_t<Nodes, I>>...};
+}
+
+template <typename Nodes>
+constexpr std::array<bool, Nodes::size> di_mask() {
+  return di_mask_impl<Nodes>(std::make_index_sequence<Nodes::size>{});
+}
+
+}  // namespace details
+
 template <typename Nodes, typename Edges, typename Source, typename Target, std::size_t MaxNodes = 64>
 struct shortest_path_for_nodes {
  private:
@@ -318,7 +369,21 @@ struct shortest_path_for_nodes {
   static constexpr std::size_t source_index = index_of_node_v<Nodes, Source>;
   static constexpr std::size_t target_index = index_of_node_v<Nodes, Target>;
 
-  static constexpr auto adjacency = adjacency_matrix<Nodes, Edges>::value;
+  // When both endpoints are device-independent, drop every edge that would
+  // enter a clamping (non-DI) node so equal-cost ties cannot pick it.
+  static constexpr auto build_adjacency() {
+    auto matrix = adjacency_matrix<Nodes, Edges>::value;
+    if constexpr (device_independent_v<Source> && device_independent_v<Target>) {
+      const auto di = details::di_mask<Nodes>();
+      for (std::size_t col = 0; col < node_count; ++col) {
+        if (di[col]) continue;
+        for (std::size_t row = 0; row < node_count; ++row) matrix[row * node_count + col] = inf;
+      }
+    }
+    return matrix;
+  }
+
+  static constexpr auto adjacency = build_adjacency();
 
   static constexpr search_state<node_count> run_dijkstra() {
     search_state<node_count> s{};

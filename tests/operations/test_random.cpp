@@ -119,6 +119,31 @@ TEST(PoissonDisk, DefaultDistanceIsOkLabScale) {
   EXPECT_FLOAT_EQ(gen.min_distance(), 0.1f);
 }
 
+TEST(PoissonDisk, RepeatedCallsAdvanceEngine) {
+  // generate() used to build its sampler from a copy of the engine and never
+  // write the state back, so every call replayed the identical palette.
+  poisson_disk_generator<core::oklab_t> gen(42u);
+  auto first = gen.generate(8);
+  auto second = gen.generate(8);
+  ASSERT_EQ(first.size(), 8u);
+  ASSERT_EQ(second.size(), 8u);
+  bool any_diff = false;
+  for (std::size_t i = 0; i < first.size(); ++i) {
+    if (first[i] != second[i]) any_diff = true;
+  }
+  EXPECT_TRUE(any_diff) << "consecutive generate() calls returned identical palettes";
+}
+
+TEST(PoissonDisk, NonPositiveMinDistanceClampsAndTerminates) {
+  // min_distance <= 0 makes every candidate valid, so generate_max() never
+  // saw a failure and looped forever. The constructor must clamp to a
+  // positive default instead.
+  poisson_disk_generator<core::oklab_t> gen(42u, 0.f);
+  EXPECT_GT(gen.min_distance(), 0.f);
+  gen.set_min_distance(-1.f);
+  EXPECT_GT(gen.min_distance(), 0.f);
+}
+
 TEST(PoissonDisk, DefaultGeneratesRequestedCount) {
   poisson_disk_generator<core::oklab_t> gen(42u);
   auto colors = gen.generate(8);
@@ -128,5 +153,144 @@ TEST(PoissonDisk, DefaultGeneratesRequestedCount) {
       float d = algorithms::delta_e::delta_e_ok(colors[i], colors[j]);
       EXPECT_GE(d, 0.1f - 1e-4f) << "Pair (" << i << ", " << j << ") closer than min_distance";
     }
+  }
+}
+
+// ============================================================
+// Distance guarantee in the received color (Issue #69)
+//
+// Candidates were distance-checked as raw OkLab and only converted to the
+// output type at the very end: for rgb8 the cast clamps out-of-sRGB
+// candidates and quantizes, so raw candidates that were far apart collapsed
+// onto identical received values (exact duplicates, pairs closer than
+// min_distance). The guarantee must hold in the color the caller receives.
+// ============================================================
+
+TEST(PoissonDisk, Rgb8PaletteKeepsMinDistanceAfterQuantization) {
+  poisson_disk_generator<core::rgb8_t> gen(42u, 0.1f);
+  auto palette = gen.generate(30);
+  // A usable palette must still come back; the pairwise loop below is
+  // meaningless if almost everything was rejected.
+  ASSERT_GE(palette.size(), 20u);
+  for (std::size_t i = 0; i < palette.size(); ++i) {
+    for (std::size_t j = i + 1; j < palette.size(); ++j) {
+      // Measure in the color the caller actually receives (the rgb8 value
+      // mapped to OkLab), not the raw candidate that was drawn.
+      const auto a = conversion::color_cast<core::oklab_t>(palette[i]);
+      const auto b = conversion::color_cast<core::oklab_t>(palette[j]);
+      const float d = algorithms::delta_e::delta_e_ok(a, b);
+      EXPECT_GE(d, 0.1f - 1e-4f) << "Received pair (" << i << ", " << j << ") closer than min_distance"
+                                 << " (pre-fix: raw candidates were checked, then clamped to rgb8)";
+    }
+  }
+}
+
+TEST(PoissonDisk, Rgb8GenerateMaxKeepsMinDistanceAndNoDuplicates) {
+  poisson_disk_generator<core::rgb8_t> gen(42u, 0.1f);
+  auto colors = gen.generate_max();
+  ASSERT_GE(colors.size(), 20u);
+  for (std::size_t i = 0; i < colors.size(); ++i) {
+    for (std::size_t j = i + 1; j < colors.size(); ++j) {
+      const auto a = conversion::color_cast<core::oklab_t>(colors[i]);
+      const auto b = conversion::color_cast<core::oklab_t>(colors[j]);
+      const float d = algorithms::delta_e::delta_e_ok(a, b);
+      // Also subsumes exact duplicates (ΔE = 0 after rgb8 clamping).
+      EXPECT_GE(d, 0.1f - 1e-4f) << "Received pair (" << i << ", " << j << ") closer than min_distance"
+                                 << " (pre-fix: generate_max reported thousands of 'distinct' colors that"
+                                 << " collapsed after rgb8 quantization)";
+    }
+  }
+}
+
+// ============================================================
+// Sampling domains (Issue #67)
+//
+// Channel ranges are *nominal* — deliberately wide so conversions never
+// clip — and must not double as random-sampling boxes: after the Lab/Luv/XYZ
+// ranges widened to ±400/[-1,2], most of that box fell outside every display
+// gamut. Generators sample the perceptual working range instead.
+// ============================================================
+
+TEST(RandomSamplingDomain, OklabStaysInPerceptualBox) {
+  // Nominal a/b are widening to ±2; sampling stays at the CSS ±0.5 box so
+  // random OkLab colors remain plausibly displayable.
+  oklab_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 1.0f);
+    EXPECT_GE(c.a(), -0.5f) << "sample " << i;
+    EXPECT_LE(c.a(), 0.5f) << "sample " << i;
+    EXPECT_GE(c.b(), -0.5f) << "sample " << i;
+    EXPECT_LE(c.b(), 0.5f) << "sample " << i;
+  }
+}
+
+TEST(RandomSamplingDomain, OklchStaysInPerceptualBox) {
+  oklch_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 1.0f);
+    EXPECT_GE(c.c(), 0.0f);
+    EXPECT_LE(c.c(), 0.4f) << "sample " << i;
+    EXPECT_GE(c.h(), 0.0f);
+    EXPECT_LE(c.h(), 360.0f);
+  }
+}
+
+TEST(RandomSamplingDomain, CielabStaysInPerceptualBox) {
+  // Nominal a*/b* are ±400 since #56; sampling restores the ±128 box so
+  // random Lab colors are not mostly outside sRGB.
+  cielab_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 100.0f);
+    EXPECT_GE(c.a(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.a(), 128.0f) << "sample " << i;
+    EXPECT_GE(c.b(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.b(), 128.0f) << "sample " << i;
+  }
+}
+
+TEST(RandomSamplingDomain, CielchStaysInPerceptualBox) {
+  cielch_generator g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 100.0f);
+    EXPECT_GE(c.c(), 0.0f);
+    EXPECT_LE(c.c(), 200.0f) << "sample " << i;
+    EXPECT_GE(c.h(), 0.0f);
+    EXPECT_LE(c.h(), 360.0f);
+  }
+}
+
+TEST(RandomSamplingDomain, LuvStaysInPerceptualBox) {
+  basic_random_generator<core::luv_t> g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.l(), 0.0f);
+    EXPECT_LE(c.l(), 100.0f);
+    EXPECT_GE(c.u(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.u(), 128.0f) << "sample " << i;
+    EXPECT_GE(c.v(), -128.0f) << "sample " << i;
+    EXPECT_LE(c.v(), 128.0f) << "sample " << i;
+  }
+}
+
+TEST(RandomSamplingDomain, XyzStaysNonNegative) {
+  // Nominal XYZ is [-1, 2] (#56) to preserve chromatic-adaptation
+  // intermediates; sampling stays in the physical [0, 1] box.
+  basic_random_generator<core::xyz_t> g(42u);
+  for (int i = 0; i < 200; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.x(), 0.0f) << "sample " << i;
+    EXPECT_LE(c.x(), 1.0f) << "sample " << i;
+    EXPECT_GE(c.y(), 0.0f) << "sample " << i;
+    EXPECT_LE(c.y(), 1.0f) << "sample " << i;
+    EXPECT_GE(c.z(), 0.0f) << "sample " << i;
+    EXPECT_LE(c.z(), 1.0f) << "sample " << i;
   }
 }

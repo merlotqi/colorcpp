@@ -25,8 +25,11 @@ namespace colorcpp::io::css {
  * C: 0-150 or 0-150% (chroma)
  * H: hue angle with units (deg, grad, rad, turn)
  * Optional alpha with /
+ *
+ * @param alpha_out Optional sink for the parsed alpha in [0,1]; written only on
+ *        success (see @ref parse_lab_function).
  */
-inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c) {
+inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c, float* alpha_out = nullptr) {
   if (!c.consume_ci("lch")) return std::nullopt;
   c.skip_ws();
   if (!c.consume_char('(')) return std::nullopt;
@@ -71,12 +74,13 @@ inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c) {
 
     d.skip_ws();
 
-    // Parse optional alpha (cielch_t doesn't have alpha channel, so we parse but ignore it)
+    // Parse optional alpha; cielch_t has no alpha channel, so hand it to the
+    // caller through alpha_out (CSS default is opaque when "/" is omitted).
+    float alpha = 1.0f;
     if (d.consume_char('/')) {
       auto av = d.parse_alpha_value();
       if (!av) return std::nullopt;
-      // Alpha is parsed but not used since cielch_t doesn't have an alpha channel
-      (void)av;
+      alpha = std::clamp(static_cast<float>(*av), 0.0f, 1.0f);
     }
 
     d.skip_ws();
@@ -85,6 +89,7 @@ inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c) {
     if (!d.eof()) return std::nullopt;
 
     c.i = d.i;
+    if (alpha_out) *alpha_out = alpha;
 
     // D50 lch → D50 lab → Bradford → D65 lab → D65 lch
     const float h_rad = H * (3.14159265358979323846f / 180.0f);

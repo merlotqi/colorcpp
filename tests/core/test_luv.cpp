@@ -5,7 +5,10 @@
 
 #include <gtest/gtest.h>
 
+#include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/luv.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
+#include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion.hpp>
@@ -96,6 +99,40 @@ TEST(LuvTest, CastFromSRGBThroughGraph) {
   EXPECT_NEAR(luv.l(), expected.l(), 1e-6f);
   EXPECT_NEAR(luv.u(), expected.u(), 1e-6f);
   EXPECT_NEAR(luv.v(), expected.v(), 1e-6f);
+}
+
+// --- Issue #56: u/v were limited to ±128, clipping real colors (sRGB red
+//     u* = 175.01, blue v* ≈ -130.3) and breaking wide-gamut round-trips. ---
+
+TEST(LuvTest, SRGBPrimariesMatchReference) {
+  const auto red = color_cast<luv_t>(rgbf_t(1.0f, 0.0f, 0.0f));
+  EXPECT_NEAR(red.l(), 53.24f, 0.05f);
+  EXPECT_NEAR(red.u(), 175.01f, 0.05f);
+  EXPECT_NEAR(red.v(), 37.76f, 0.05f);
+
+  const auto blue = color_cast<luv_t>(rgbf_t(0.0f, 0.0f, 1.0f));
+  EXPECT_NEAR(blue.v(), -130.34f, 0.05f);
+}
+
+TEST(LuvTest, WideGamutPrimariesRoundTrip) {
+  // 5e-3, not 2e-3: at an encoded-0 baseline (rec2020 green's b), float32
+  // round-trip noise of ~1e-6 in the linear channel is amplified ~450x by
+  // the gamma encode — still under one 8-bit level, whereas the clipping
+  // bugs this test guards against move channels by >= 0.08.
+  const auto check = [](const auto& rgb, const char* name) {
+    using RGB = std::decay_t<decltype(rgb)>;
+    const auto back = color_cast<RGB>(color_cast<luv_t>(rgb));
+    EXPECT_NEAR(back.r(), rgb.r(), 5e-3f) << name;
+    EXPECT_NEAR(back.g(), rgb.g(), 5e-3f) << name;
+    EXPECT_NEAR(back.b(), rgb.b(), 5e-3f) << name;
+  };
+  check(rgbf_t(1.0f, 0.0f, 0.0f), "srgb red");
+  check(rgbf_t(0.0f, 0.0f, 1.0f), "srgb blue");
+  check(display_p3f_t(1.0f, 0.0f, 0.0f), "p3 red");
+  check(rec2020_rgbf_t(1.0f, 0.0f, 0.0f), "rec2020 red");  // u* ≈ 272
+  check(rec2020_rgbf_t(0.0f, 1.0f, 0.0f), "rec2020 green");
+  check(prophoto_rgbf_t(1.0f, 0.0f, 0.0f), "prophoto red");  // u* ≈ 331
+  check(prophoto_rgbf_t(0.0f, 1.0f, 0.0f), "prophoto green");
 }
 
 }  // namespace colorcpp::core::test

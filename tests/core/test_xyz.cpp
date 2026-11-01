@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/core/cielab.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion.hpp>
@@ -48,9 +49,9 @@ TEST(XYZTest, BoundaryValuesMax) {
 
 TEST(XYZTest, NominalChannelRanges) {
   using namespace xyz::channel;
-  static_assert(xyz_x::min == 0.0f && xyz_x::max == 2.0f);
-  static_assert(xyz_y::min == 0.0f && xyz_y::max == 2.0f);
-  static_assert(xyz_z::min == 0.0f && xyz_z::max == 2.0f);
+  static_assert(xyz_x::min == -1.0f && xyz_x::max == 2.0f);
+  static_assert(xyz_y::min == -1.0f && xyz_y::max == 2.0f);
+  static_assert(xyz_z::min == -1.0f && xyz_z::max == 2.0f);
   SUCCEED();
 }
 
@@ -151,7 +152,7 @@ TEST(XYZTest, TypeTraits) {
 
   using x_ch = std::tuple_element_t<0, xyz_channels>;
   static_assert(std::is_same_v<x_ch::value_type, float>);
-  static_assert(x_ch::min == 0.0f);
+  static_assert(x_ch::min == -1.0f);
   static_assert(x_ch::max == 2.0f);
 
   static_assert(traits::has_channel_tag_v<xyz::model::xyze, xyz::channel::x_tag>);
@@ -190,6 +191,23 @@ TEST(XYZConversionTest, CIELABRoundTrip) {
   EXPECT_NEAR(back.x(), orig.x(), 1e-3f);
   EXPECT_NEAR(back.y(), orig.y(), 1e-3f);
   EXPECT_NEAR(back.z(), orig.z(), 1e-3f);
+}
+
+// --- Issue #56: XYZ channels were clamped to [0, 2], but Bradford
+//     adaptation of a saturated D50 color can produce a slightly negative
+//     component (ProPhoto green → XYZ(D65) has Z ≈ -0.0129). Clipping it to
+//     0 corrupted every downstream device-independent space. ---
+
+TEST(XYZTest, ProPhotoGreenHasSlightlyNegativeZ) {
+  const auto xyz = color_cast<xyz_t>(prophoto_rgbf_t(0.0f, 1.0f, 0.0f));
+  EXPECT_NEAR(xyz.x(), 0.11278f, 1e-4f);
+  EXPECT_NEAR(xyz.y(), 0.71510f, 1e-4f);
+  EXPECT_NEAR(xyz.z(), -0.01292f, 1e-4f);
+
+  const auto back = color_cast<prophoto_rgbf_t>(xyz);
+  EXPECT_NEAR(back.r(), 0.0f, 2e-3f);
+  EXPECT_NEAR(back.g(), 1.0f, 2e-3f);
+  EXPECT_NEAR(back.b(), 0.0f, 2e-3f);
 }
 
 }  // namespace colorcpp::core::test

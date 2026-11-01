@@ -69,6 +69,9 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
       details::trim(sv);
       auto val = details::parse_int(sv);
       if (!val || *val <= 0) return std::monostate{};
+      // Reject oversized tables at the header so read() never reserves
+      // gigabytes for a hostile file.
+      if (static_cast<std::size_t>(*val) > kMaxLut1dSize) return std::monostate{};
       lut_1d_size = *val;
       continue;
     }
@@ -79,6 +82,9 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
       details::trim(sv);
       auto val = details::parse_int(sv);
       if (!val || *val <= 0) return std::monostate{};
+      // Reject oversized grids at the header: a wrapped size³ would make
+      // valid() pass for truncated data and apply() read out of bounds.
+      if (static_cast<std::size_t>(*val) > kMaxLut3dSize) return std::monostate{};
       lut_3d_size = *val;
       continue;
     }
@@ -123,6 +129,13 @@ inline std::variant<lut1d, lut3d, std::monostate> read(std::istream& is) {
       // Malformed data line: wrong token count — reject the entire file
       return std::monostate{};
     }
+  }
+
+  // Per-channel domain must satisfy DOMAIN_MIN < DOMAIN_MAX (issue #64);
+  // a degenerate or inverted range makes normalization meaningless.
+  // (Non-finite domain values are already rejected by parse_float.)
+  for (std::size_t i = 0; i < 3; ++i) {
+    if (!(domain_min[i] < domain_max[i])) return std::monostate{};
   }
 
   // Build LUT based on detected size

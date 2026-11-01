@@ -417,6 +417,10 @@ inline core::rgbaf_t mix_in_polar_space(const core::rgbaf_t& a, const core::rgba
 
   float hue_a = ca.template get_index<2>();
   float hue_b = cb.template get_index<2>();
+  // CSS Color 4: a powerless hue (chroma ≈ 0) is missing and takes the other
+  // item's hue before any hue-method adjustment (issue #51 — white's OkLCH
+  // hue is atan2 noise at C ≈ 6e-8 and used to steer the mix to teal).
+  operations::interpolate::details::substitute_powerless_hue(ca, cb, hue_a, hue_b);
   adjust_hues_for_interpolation(hue_a, hue_b, hue_method);
 
   float c0 =
@@ -620,6 +624,9 @@ inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c,
   }
 
   details::Cursor sub{t, 0};
+  // Parsers whose core type has no alpha channel report it via this sink;
+  // 1.0 is the CSS default when "/ alpha" is omitted.
+  float alpha = 1.0f;
   if (auto r = parse_rgb_function(sub)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
@@ -638,28 +645,36 @@ inline std::optional<core::rgba8_t> try_atomic_rgba8_cursor(details::Cursor& c,
     return r;
   }
   sub.i = 0;
-  if (auto r = parse_lab_function(sub)) {
+  if (auto r = parse_lab_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgba8_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgba8_t>(*r);
+    out.a() = sub.alpha_byte_from_double(alpha);
+    return out;
   }
   sub.i = 0;
-  if (auto r = parse_lch_function(sub)) {
+  if (auto r = parse_lch_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgba8_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgba8_t>(*r);
+    out.a() = sub.alpha_byte_from_double(alpha);
+    return out;
   }
   sub.i = 0;
-  if (auto r = parse_oklab_function(sub)) {
+  if (auto r = parse_oklab_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgba8_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgba8_t>(*r);
+    out.a() = sub.alpha_byte_from_double(alpha);
+    return out;
   }
   sub.i = 0;
-  if (auto r = parse_oklch_function(sub)) {
+  if (auto r = parse_oklch_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgba8_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgba8_t>(*r);
+    out.a() = sub.alpha_byte_from_double(alpha);
+    return out;
   }
   sub.i = 0;
   if (auto r = parse_color_function_rgba8(sub)) {
@@ -722,6 +737,9 @@ inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c,
   }
 
   details::Cursor sub{t, 0};
+  // Parsers whose core type has no alpha channel report it via this sink;
+  // 1.0 is the CSS default when "/ alpha" is omitted.
+  float alpha = 1.0f;
   if (auto r = parse_rgb_function_rgbaf(sub)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
@@ -740,28 +758,36 @@ inline std::optional<core::rgbaf_t> try_atomic_rgbaf_cursor(details::Cursor& c,
     return r;
   }
   sub.i = 0;
-  if (auto r = parse_lab_function(sub)) {
+  if (auto r = parse_lab_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgbaf_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgbaf_t>(*r);
+    out.a() = alpha;
+    return out;
   }
   sub.i = 0;
-  if (auto r = parse_lch_function(sub)) {
+  if (auto r = parse_lch_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgbaf_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgbaf_t>(*r);
+    out.a() = alpha;
+    return out;
   }
   sub.i = 0;
-  if (auto r = parse_oklab_function(sub)) {
+  if (auto r = parse_oklab_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgbaf_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgbaf_t>(*r);
+    out.a() = alpha;
+    return out;
   }
   sub.i = 0;
-  if (auto r = parse_oklch_function(sub)) {
+  if (auto r = parse_oklch_function(sub, &alpha)) {
     if (!sub.eof()) return std::nullopt;
     c.i = a + sub.i;
-    return operations::conversion::color_cast<core::rgbaf_t>(*r);
+    auto out = operations::conversion::color_cast<core::rgbaf_t>(*r);
+    out.a() = alpha;
+    return out;
   }
   sub.i = 0;
   if (auto r = parse_color_function_rgbaf(sub)) {

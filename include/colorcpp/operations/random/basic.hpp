@@ -12,6 +12,8 @@
  *
  * @par Lab-like spaces
  * Independent uniform channels define a box in that space; results may lie outside common RGB display gamuts.
+ * For device-independent spaces the box is the channel's perceptual working range rather than its
+ * nominal storage range (the nominal ranges are deliberately wide so conversions never clip — issue #67).
  */
 
 #pragma once
@@ -25,7 +27,11 @@
 namespace colorcpp::operations::random {
 
 /**
- * @brief Base: uniform random values per channel within model min/max.
+ * @brief Base: uniform random values per channel within the model's sampling domain.
+ *
+ * The domain is the channel's [min, max] for device spaces; device-independent
+ * spaces (OkLab, Lab, Luv, XYZ) sample their perceptual working range instead —
+ * see @ref details::sample_channel (issue #67).
  *
  * The generator maintains an internal copy of the random engine.
  * This ensures reproducibility when using the same seed, while avoiding
@@ -143,7 +149,7 @@ class basic_random_generator {
  protected:
   template <std::size_t... Is>
   Color generate_full_random(std::index_sequence<Is...>) const {
-    return Color{this->random_value(traits::template min_at<Is>(), traits::template max_at<Is>())...};
+    return Color{this->random_value(traits::template sample_min_at<Is>(), traits::template sample_max_at<Is>())...};
   }
 };
 

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <colorcpp/colorcpp.hpp>
 #include <string>
 #include <vector>
@@ -992,6 +993,34 @@ TEST(Css, ColorMixNestedAndInvalidForms) {
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in oklch longer, red, blue)").has_value());
 }
 
+TEST(Css, ColorMixPowerlessHueTakesOtherEndpoint) {
+  // Issue #51: white's OkLCH hue is atan2 noise (H = 90°, C = 6e-8). Without
+  // powerless-hue substitution, color-mix(in oklch, white, blue) blended that
+  // noise toward 264° and produced teal rgb(0 197 165). Per CSS Color 4 the
+  // powerless hue is missing and takes blue's 264.05°: the spec midpoint is
+  // oklch(0.726 0.157 264.05) → rgb(0.453, 0.638, 1).
+  auto c = parse_css_color_rgbaf("color-mix(in oklch, white, blue)");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(c->r(), 0.4530f, 5e-3f);
+  EXPECT_NEAR(c->g(), 0.6381f, 5e-3f);
+  EXPECT_NEAR(c->b(), 1.0f, 5e-3f);
+
+  // Mid-gray is just as powerless as white. Spec midpoint:
+  // oklch((0.598 + 0.452)/2, 0.157, 264.05) → rgb(0.229, 0.392, 0.767).
+  auto g = parse_css_color_rgbaf("color-mix(in oklch, gray, blue)");
+  ASSERT_TRUE(g);
+  EXPECT_NEAR(g->r(), 0.2286f, 5e-3f);
+  EXPECT_NEAR(g->g(), 0.3919f, 5e-3f);
+  EXPECT_NEAR(g->b(), 0.7666f, 5e-3f);
+
+  // CIELCH gets the same rule (blue's LCH hue is 306.29°).
+  auto l = parse_css_color_rgbaf("color-mix(in lch, white, blue)");
+  ASSERT_TRUE(l);
+  EXPECT_NEAR(l->r(), 0.7014f, 5e-3f);
+  EXPECT_NEAR(l->g(), 0.5458f, 5e-3f);
+  EXPECT_NEAR(l->b(), 1.0f, 5e-3f);
+}
+
 TEST(Css, ColorMixHueInterpolationKeywords) {
   auto shorter = parse_css_color_rgbaf("color-mix(in oklch shorter hue, oklch(0.7 0.04 30), oklch(0.7 0.04 90))");
   auto shorter_expected = parse_css_color_rgbaf("oklch(0.7 0.04 60)");
@@ -1147,6 +1176,16 @@ TEST(Css, ToCssColorStringRoundTrip) {
   auto back = parse_css_color_rgba8(s);
   ASSERT_TRUE(back);
   expect_rgba(*back, 255, 99, 71, 255);
+}
+
+TEST(Css, ToCssColorStringRgbafRoundTrip) {
+  // rgb() numeric channels are 0-255 in CSS; serializing unit floats as bare
+  // numbers made "rgb(1.0 0 0)" parse back as r = 1/255.
+  const rgbaf_t src{1.0f, 0.4f, 0.2f, 0.5f};
+  auto s = to_css_color_string(src);
+  auto back = parse_css_color<rgbaf_t>(s);
+  ASSERT_TRUE(back);
+  expect_rgbaf_near(*back, 1.0f, 0.4f, 0.2f, 0.5f, 0.002f);
 }
 
 struct CssTableCase {
@@ -1386,6 +1425,165 @@ TEST(Css, ContrastColorRejectsMalformed) {
     EXPECT_FALSE(parse_css_color_rgbaf(row.input).has_value());
     EXPECT_FALSE(parse_css_color_rgba8(row.input).has_value());
   }
+}
+
+// lab()/lch()/oklab()/oklch() used to parse "/ alpha" and then discard it, so
+// every rgba8/rgbaf conversion came back fully opaque. The slash alpha must
+// survive the cast into the alpha-carrying targets.
+TEST(Css, LabFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("lab(50% 40 59.5 / 0.5)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 128);
+}
+
+TEST(Css, LchFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("lch(50% 40 270 / 50%)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 128);
+}
+
+TEST(Css, OklabFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("oklab(0.5 0.1 -0.2 / 25%)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 64);
+}
+
+TEST(Css, OklchFunctionAlphaSurvivesRgba8Cast) {
+  auto c = parse_css_color_rgba8("oklch(0.6 0.1 30 / 0)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 0);
+}
+
+TEST(Css, OklchFunctionAlphaSurvivesRgbafCast) {
+  auto c = parse_css_color<rgbaf_t>("oklch(0.6 0.1 30 / 0.25)");
+  ASSERT_TRUE(c);
+  EXPECT_NEAR(c->a(), 0.25f, 0.002f);
+}
+
+TEST(Css, LabFunctionDefaultsToOpaqueWithoutAlpha) {
+  auto c = parse_css_color_rgba8("lab(50% 40 59.5)");
+  ASSERT_TRUE(c);
+  EXPECT_EQ(c->a(), 255);
+}
+
+// Channel-expression parsing recurses through calc() and parenthesized
+// groups; without a depth limit, ~20000 levels of nesting overflow the stack
+// (segfault). The parser must fail cleanly (nullopt) instead.
+TEST(Css, DeepCalcNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s = "rgb(from red ";
+  for (int i = 0; i < 20000; ++i) s += "calc(";
+  s += "1";
+  for (int i = 0; i < 20000; ++i) s += ")";
+  s += " g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepParenNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s = "rgb(from red ";
+  for (int i = 0; i < 20000; ++i) s += "(";
+  s += "1";
+  for (int i = 0; i < 20000; ++i) s += ")";
+  s += " g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+// A flat 1+1+1+... chain parses iteratively but builds a left-deep AST;
+// evaluate_expression then recurses once per operator and overflows.
+TEST(Css, LongAdditiveChainFailsCleanlyInsteadOfCrashing) {
+  std::string s = "rgb(from red calc(1";
+  for (int i = 0; i < 50000; ++i) s += "+1";
+  s += ") g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, ModerateNestingStillParses) {
+  // Depth well under the limit must keep working.
+  std::string s = "rgb(from red calc(calc(calc(1 + 2))) g b)";
+  auto c = parse_css_color_rgba8(s);
+  ASSERT_TRUE(c);
+}
+
+// Issue #63: the #53 depth budget lives only in the calc() parser, so every
+// other recursive entry (color-mix, light-dark, relative from) still overflows
+// the stack at ~20000 levels. Each form must fail cleanly with nullopt instead.
+// Uniform nesting makes the deep input cheap to build: prefix*n + core + suffix*n.
+
+TEST(Css, DeepColorMixNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "color-mix(in srgb, ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += ", blue)";
+  const auto t0 = std::chrono::steady_clock::now();
+  const auto r = parse_css_color_rgba8(s);
+  const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0);
+  EXPECT_FALSE(r.has_value());
+  EXPECT_LT(ms.count(), 2000);
+}
+
+TEST(Css, DeepLightDarkNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "light-dark(";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += ", blue)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepRgbFromNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "rgb(from ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += " r g b)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepHslFromNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "hsl(from ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += " h s l)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+TEST(Css, DeepOklchFromNestingFailsCleanlyInsteadOfCrashing) {
+  std::string s;
+  for (int i = 0; i < 20000; ++i) s += "oklch(from ";
+  s += "red";
+  for (int i = 0; i < 20000; ++i) s += " l c h)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+// Polar from() resolves its origin twice per level (alpha + channels), so the
+// cost doubles per level: depth 22 took ~1.7s at -O2 before the fix. One
+// shared resolution per level makes it linear.
+TEST(Css, PolarFromNestingRunsInBoundedTime) {
+  std::string s;
+  for (int i = 0; i < 22; ++i) s += "hsl(from ";
+  s += "red";
+  for (int i = 0; i < 22; ++i) s += " h s l)";
+  const auto t0 = std::chrono::steady_clock::now();
+  const auto r = parse_css_color_rgba8(s);
+  const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0);
+  EXPECT_TRUE(r.has_value());  // depth 22 is under the cap
+  EXPECT_LT(ms.count(), 500);
+}
+
+// Nesting beyond the shared budget fails with nullopt; pre-fix this input
+// parses fine (quadratic but fast), so the missing limit shows up here.
+TEST(Css, ColorMixBeyondDepthBudgetFailsCleanly) {
+  std::string s;
+  for (int i = 0; i < 100; ++i) s += "color-mix(in srgb, ";
+  s += "red";
+  for (int i = 0; i < 100; ++i) s += ", blue)";
+  EXPECT_FALSE(parse_css_color_rgba8(s).has_value());
+}
+
+// Depth well under the budget must keep parsing for every recursive form.
+TEST(Css, ModerateFromNestingStillParses) {
+  std::string s;
+  for (int i = 0; i < 16; ++i) s += "hsl(from ";
+  s += "red";
+  for (int i = 0; i < 16; ++i) s += " h s l)";
+  EXPECT_TRUE(parse_css_color_rgba8(s).has_value());
 }
 
 }  // namespace colorcpp::io::test

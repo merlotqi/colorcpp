@@ -332,6 +332,67 @@ TEST(PreserveModeTest, GamutClipWithInfo) {
   }
 }
 
+// --- Issue #57: preserve-saturation bisection was a no-op, grays misread
+//     OkLab L as sRGB, in-gamut colors were rebuilt, alpha was dropped. ---
+
+TEST(PreserveModeTest, SaturationPreservationKeepsChroma) {
+  // C = 0.24 at hue 30° only fits sRGB for L in a narrow band (~0.60–0.65).
+  // Preserving chroma means moving L into that band, not channel-clipping.
+  const float C = 0.24f;
+  constexpr float kRad = 30.0f * 3.14159265f / 180.0f;
+  const core::oklab_t input(0.7f, C * std::cos(kRad), C * std::sin(kRad));
+
+  const auto result = gamut_clip_preserve_saturation(input);
+  EXPECT_TRUE(is_in_srgb_gamut(result));
+
+  const auto lab = color_cast<core::oklab_t>(result);
+  const float chroma = std::sqrt(lab.a() * lab.a() + lab.b() * lab.b());
+  EXPECT_NEAR(chroma, C, 1e-3f) << "chroma must survive, only lightness may move";
+  EXPECT_NEAR(lab.l(), 0.646f, 0.03f) << "lightness must land on the feasible band edge";
+}
+
+TEST(PreserveModeTest, SaturationInGamutReturnedUnchanged) {
+  // In-gamut input must come back bit-identical, not rebuilt via OkLab.
+  const core::rgbf_t in(0.3f, 0.6f, 0.9f);
+  const auto result = gamut_clip_preserve_saturation(in);
+  EXPECT_EQ(result.r(), in.r());
+  EXPECT_EQ(result.g(), in.g());
+  EXPECT_EQ(result.b(), in.b());
+}
+
+TEST(PreserveModeTest, SaturationGrayUnchanged) {
+  // Gray OkLab L = 0.5 must stay 0.5 (not be reinterpreted as sRGB gray 0.5 → 0.5982).
+  const core::oklab_t gray(0.5f, 0.0f, 0.0f);
+  const auto result = gamut_clip_preserve_saturation(gray);
+  const auto lab = color_cast<core::oklab_t>(result);
+  EXPECT_NEAR(lab.l(), 0.5f, 1e-3f);
+}
+
+TEST(PreserveModeTest, PreserveAlpha) {
+  // Rebuilding through 3-channel OkLab used to reset alpha to 1.0.
+  const core::rgbaf_t oog(1.5f, 0.1f, 0.1f, 0.5f);
+  EXPECT_FLOAT_EQ(gamut_clip_preserve_lightness(oog).a(), 0.5f);
+  EXPECT_FLOAT_EQ(gamut_clip_preserve_hue(oog).a(), 0.5f);
+  EXPECT_FLOAT_EQ(gamut_clip_preserve_saturation(oog).a(), 0.5f);
+}
+
+// --- Issue #58: perceptual mode stored *linear* sRGB in rgbaf_t (gamma-
+//     encoded), so results were far too dark. CSS Color 4 reference vector. ---
+
+TEST(PreserveModeTest, PerceptualMatchesCssReference) {
+  // color.js / CSS Color 4 gamut mapping for oklch(0.7 0.3 30):
+  // rgb(1, 0.3451, 0.2646). Storing the linear value (0.0976) in rgbaf_t
+  // used to read back as encoded 0.0976 instead of 0.3451.
+  const float C = 0.3f;
+  constexpr float kRad = 30.0f * 3.14159265f / 180.0f;
+  const core::oklab_t input(0.7f, C * std::cos(kRad), C * std::sin(kRad));
+
+  const auto result = color_cast<core::rgbaf_t>(gamut_clip_perceptual(input));
+  EXPECT_NEAR(result.r(), 1.0f, 2e-3f);
+  EXPECT_NEAR(result.g(), 0.3451f, 2e-3f);
+  EXPECT_NEAR(result.b(), 0.2646f, 2e-3f);
+}
+
 // --- ProPhoto RGB gamut ---
 
 TEST(MultiColorspaceGamutTest, ProPhotoInGamut) {
@@ -359,6 +420,149 @@ TEST(MultiColorspaceGamutTest, ProPhotoClippedResultIsInGamut) {
   // Clip an out-of-gamut color to ProPhoto, verify in-gamut
   auto clipped = gamut_clip_to_gamut(core::oklab_t{0.5f, 0.4f, 0.0f}, gamut_type::prophoto_rgb);
   EXPECT_TRUE(is_in_gamut(clipped, gamut_type::prophoto_rgb));
+}
+
+// --- Issue #48: the P3/Adobe/ProPhoto "converters" applied only transfer
+//     curves (and clamped first), so every membership check was true. ---
+
+TEST(MultiColorspaceGamutTest, Rec2020GreenOutsideNarrowerGamuts) {
+  // Rec.2020 green (xy 0.170, 0.797) is more saturated than the P3 and
+  // Adobe RGB green primaries (linear g ≈ 1.37 / 1.43), but ProPhoto's
+  // green primary (0.1596, 0.8404) still contains it (linear g ≈ 0.93).
+  const core::rec2020_rgbf_t green(0.0f, 1.0f, 0.0f);
+  EXPECT_FALSE(is_in_gamut(green, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(green, gamut_type::adobe_rgb));
+  EXPECT_TRUE(is_in_gamut(green, gamut_type::prophoto_rgb));
+}
+
+TEST(MultiColorspaceGamutTest, HyperchromaticOutsideAllGamuts) {
+  // oklch(0.6 0.9 140) lies outside sRGB, Display P3, Adobe RGB and ProPhoto.
+  const float C = 0.9f;
+  constexpr float kRad = 140.0f * 3.14159265f / 180.0f;
+  const core::oklab_t c(0.6f, C * std::cos(kRad), C * std::sin(kRad));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::srgb));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::adobe_rgb));
+  EXPECT_FALSE(is_in_gamut(c, gamut_type::prophoto_rgb));
+}
+
+TEST(MultiColorspaceGamutTest, P3RedOutsideSrgb) {
+  // Sanity: P3 red (1,0,0) maps to linear sRGB ≈ (1.22, -0.04, -0.02).
+  const core::display_p3f_t red(1.0f, 0.0f, 0.0f);
+  EXPECT_TRUE(is_in_gamut(red, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(red, gamut_type::srgb));
+}
+
+TEST(MultiColorspaceGamutTest, GamutClipToP3MapsOutOfRangeColor) {
+  // gamut_clip_to_gamut(c, display_p3) used to return c unchanged because the
+  // membership check always passed; the result must actually be mapped.
+  const float C = 0.9f;
+  constexpr float kRad = 140.0f * 3.14159265f / 180.0f;
+  const core::oklab_t c(0.6f, C * std::cos(kRad), C * std::sin(kRad));
+  const auto clipped = gamut_clip_to_gamut(c, gamut_type::display_p3);
+  EXPECT_TRUE(is_in_gamut(clipped, gamut_type::display_p3));
+  const auto lab = color_cast<core::oklab_t>(clipped);
+  EXPECT_NE(lab.a(), c.a()) << "chroma must be reduced, not returned unchanged";
+}
+
+// --- Issue #65: the clip result was rebuilt through core::rgbaf_t, whose sRGB
+//     clamp silently re-clipped wide-gamut targets. The returned color must
+//     sit on the *target* gamut's boundary, never inside sRGB. ---
+
+TEST(MultiColorspaceGamutTest, GamutClipToP3LandsOnP3BoundaryNotSrgb) {
+  // oklch(0.6 0.9 140): outside both sRGB and P3. The P3 boundary chroma at
+  // this L and hue is ≈ 0.2275; the sRGB boundary is ≈ 0.1933. Pre-fix the
+  // rgbaf_t rebuild clamped the search result back to chroma ≈ 0.2052
+  // (fully inside sRGB) and drifted L to 0.603.
+  constexpr float kRad = 140.0f * 3.14159265f / 180.0f;
+  const core::oklab_t c(0.6f, 0.9f * std::cos(kRad), 0.9f * std::sin(kRad));
+  const auto clipped = gamut_clip_to_gamut(c, gamut_type::display_p3);
+
+  EXPECT_TRUE(is_in_gamut(clipped, gamut_type::display_p3));
+  EXPECT_FALSE(is_in_gamut(clipped, gamut_type::srgb))
+      << "clip-to-P3 result must reach beyond sRGB, not be re-clamped into it";
+
+  const auto lab = color_cast<core::oklab_t>(clipped);
+  const float L = lab.get_index<0>();
+  const float chroma = std::sqrt(lab.get_index<1>() * lab.get_index<1>() + lab.get_index<2>() * lab.get_index<2>());
+  EXPECT_NEAR(L, 0.6f, 5e-3f) << "a chroma-only clip must preserve lightness";
+  EXPECT_NEAR(chroma, 0.2275f, 3e-3f) << "must land on the P3 boundary, not sRGB's";
+
+  // True boundary check: pushing chroma further at the same hue leaves P3.
+  const core::oklab_t beyond(L, (chroma + 0.01f) * std::cos(kRad), (chroma + 0.01f) * std::sin(kRad));
+  EXPECT_FALSE(is_in_gamut(beyond, gamut_type::display_p3));
+}
+
+TEST(MultiColorspaceGamutTest, GamutClipToP3PreservesAlpha) {
+  // Out-of-gamut P3 coordinates with alpha: the clip must keep alpha and
+  // return a P3 value (never re-clamped through sRGB).
+  const core::display_p3af_t c(1.2f, -0.05f, 0.1f, 0.5f);
+  const auto clipped = gamut_clip_to_gamut(c, gamut_type::display_p3);
+  EXPECT_TRUE(is_in_gamut(clipped, gamut_type::display_p3));
+  EXPECT_NEAR(clipped.a(), 0.5f, 1e-6f);
+}
+
+// --- Issue #67: is_in_gamut routed the color through oklab_t, whose storage
+//     range clipped wide-gamut values before membership was computed — 100 of
+//     ProPhoto's 21³ own-cube grid points (including pure blue) were reported
+//     outside their own gamut. Membership must never see a clipped value. ---
+
+TEST(MultiColorspaceGamutTest, ProPhotoBlueIsInsideOwnGamut) {
+  EXPECT_TRUE(is_in_gamut(core::prophoto_rgbf_t{0.0f, 0.0f, 1.0f}, gamut_type::prophoto_rgb))
+      << "pre-fix: OkLab a was clipped to -1, landing outside ProPhoto";
+}
+
+TEST(MultiColorspaceGamutTest, ProPhotoGridFullyInsideOwnGamut) {
+  int rejected = 0;
+  for (int i = 0; i <= 20; ++i) {
+    for (int j = 0; j <= 20; ++j) {
+      for (int k = 0; k <= 20; ++k) {
+        const core::prophoto_rgbf_t c(static_cast<float>(i) / 20.0f, static_cast<float>(j) / 20.0f,
+                                      static_cast<float>(k) / 20.0f);
+        if (!is_in_gamut(c, gamut_type::prophoto_rgb)) ++rejected;
+      }
+    }
+  }
+  EXPECT_EQ(rejected, 0) << "points on ProPhoto's own [0,1]³ cube must be inside ProPhoto";
+}
+
+// --- Issue #68: a gamut must accept every color on its own cube. Adobe RGB's
+//     forward and inverse XYZ matrices came from different sources (the inverse
+//     even had a transposed digit), so the pair was not mutually inverse and
+//     white / the whole blue corner of Adobe's own cube were rejected. The
+//     transfer function must also be the spec's 563/256, not a rounded 2.2. ---
+
+TEST(MultiColorspaceGamutTest, AdobeWhiteIsInsideOwnGamut) {
+  EXPECT_TRUE(is_in_gamut(core::adobe_rgbf_t{1.0f, 1.0f, 1.0f}, gamut_type::adobe_rgb))
+      << "pre-fix: linear Adobe blue of white was 1.00023 > 1 + wide-gamut eps";
+}
+
+TEST(MultiColorspaceGamutTest, AdobeGridFullyInsideOwnGamut) {
+  int rejected = 0;
+  for (int i = 0; i <= 20; ++i) {
+    for (int j = 0; j <= 20; ++j) {
+      for (int k = 0; k <= 20; ++k) {
+        const core::adobe_rgbf_t c(static_cast<float>(i) / 20.0f, static_cast<float>(j) / 20.0f,
+                                   static_cast<float>(k) / 20.0f);
+        if (!is_in_gamut(c, gamut_type::adobe_rgb)) ++rejected;
+      }
+    }
+  }
+  EXPECT_EQ(rejected, 0) << "points on Adobe RGB's own [0,1]³ cube must be inside Adobe RGB";
+}
+
+TEST(MultiColorspaceGamutTest, DisplayP3GridFullyInsideOwnGamut) {
+  int rejected = 0;
+  for (int i = 0; i <= 20; ++i) {
+    for (int j = 0; j <= 20; ++j) {
+      for (int k = 0; k <= 20; ++k) {
+        const core::display_p3f_t c(static_cast<float>(i) / 20.0f, static_cast<float>(j) / 20.0f,
+                                    static_cast<float>(k) / 20.0f);
+        if (!is_in_gamut(c, gamut_type::display_p3)) ++rejected;
+      }
+    }
+  }
+  EXPECT_EQ(rejected, 0) << "points on Display P3's own [0,1]³ cube must be inside Display P3";
 }
 
 }  // namespace colorcpp::algorithms::test

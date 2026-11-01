@@ -13,6 +13,7 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
+#include <utility>
 
 namespace colorcpp::operations::interpolate {
 
@@ -34,6 +35,24 @@ inline float src_alpha(const Color& c) {
 }
 
 /**
+ * @brief CSS Color 4 powerless-hue substitution (issue #51).
+ *
+ * A hue stored next to ~zero chroma/saturation is missing (white's OkLCH hue
+ * is 90° of atan2 noise at C ≈ 6e-8). One missing hue takes the other
+ * endpoint's; if both are missing the hue carries no information and passes
+ * through. @p hue_a / @p hue_b are updated in place.
+ */
+template <typename Polar>
+inline void substitute_powerless_hue(const Polar& a, const Polar& b, float& hue_a, float& hue_b) {
+  const bool a_missing = ::colorcpp::core::is_achromatic(a);
+  const bool b_missing = ::colorcpp::core::is_achromatic(b);
+  if (a_missing && !b_missing)
+    hue_a = hue_b;
+  else if (b_missing && !a_missing)
+    hue_b = hue_a;
+}
+
+/**
  * @brief Assemble an interpolation result: working-space midpoint + unit-space alpha.
  *
  * Casts the mid straight to Color so an out-of-gamut wide-space midpoint
@@ -51,26 +70,94 @@ inline Color lerp_result(const Mid& mid, float alpha) {
   return out;
 }
 
+// Channel-wise interpolation in Color's own channel space. No conversion
+// through a fixed hub type: RGB-family callers keep their own gamut, so
+// wide-gamut colors are never clipped to sRGB before interpolating
+// (issue #50). Alpha is just another channel here; callers with a policy
+// (lerp_alpha_mode) overwrite it afterwards.
+//
+// Hue channels (hue_tag) interpolate on the shortest arc, not as plain
+// numbers (issue #62): 350° → 10° must midpoint at 0°, never 180°.
+
+template <typename Color>
+inline constexpr bool has_hue_channel_v =
+    ::colorcpp::traits::details::has_channel_tag_impl<typename Color::channels_tuple,
+                                                      ::colorcpp::traits::hue_tag>::value;
+
+// Per-channel dispatch: hue goes through the arc lerp, everything else
+// (S, L, C, a, b, alpha, …) stays a plain linear blend.
+template <typename Color, std::size_t I>
+inline float lerp_channel_value(const Color& a, const Color& b, float t) {
+  using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
+  const float va = static_cast<float>(a.template get_index<I>());
+  const float vb = static_cast<float>(b.template get_index<I>());
+  if constexpr (std::is_same_v<typename channel_t::tag_type, ::colorcpp::traits::hue_tag>)
+    return lerp_angle_deg(va, vb, t);
+  else
+    return lerp_f(va, vb, t);
+}
+
+template <typename Color, std::size_t... I>
+inline Color lerp_channels_impl(const Color& a, const Color& b, float t, std::index_sequence<I...>) {
+  namespace cdetails = ::colorcpp::operations::conversion::details;
+  return cdetails::pack_to<Color>(cdetails::from_value<Color, I>(lerp_channel_value<Color, I>(a, b, t))...);
+}
+
+template <typename Color>
+inline Color lerp_channels(const Color& a, const Color& b, float t) {
+  if constexpr (has_hue_channel_v<Color> && ::colorcpp::core::has_chroma_channel_v<Color>) {
+    // Powerless-hue rule (issues #51/#62): chroma ≈ 0 makes the stored hue
+    // missing, so it takes the other endpoint's hue before the arc lerp.
+    Color ca = a;
+    Color cb = b;
+    constexpr std::size_t hi = ::colorcpp::traits::details::find_channel_index_impl<typename Color::channels_tuple,
+                                                                                    ::colorcpp::traits::hue_tag>::value;
+    float hue_a = static_cast<float>(ca.template get_index<hi>());
+    float hue_b = static_cast<float>(cb.template get_index<hi>());
+    substitute_powerless_hue(ca, cb, hue_a, hue_b);
+    ca.template get_index<hi>() = hue_a;
+    cb.template get_index<hi>() = hue_b;
+    return lerp_channels_impl(ca, cb, t, std::make_index_sequence<Color::channels>{});
+  } else {
+    return lerp_channels_impl(a, b, t, std::make_index_sequence<Color::channels>{});
+  }
+}
+
 }  // namespace details
 
 /**
- * @brief RGB-space linear interpolation (via @c rgbaf_t); fast; vivid hues may look muddy.
+ * @brief Channel-wise linear interpolation in @p Color's own color space.
+ *
+ * Each channel (including alpha) is interpolated directly — no conversion
+ * through a fixed hub space — so RGB-family callers keep their own gamut:
+ * Display P3 / Rec. 2020 endpoints are never clipped to sRGB (issue #50).
+ * For hue-bearing models the hue channel takes the shortest arc with the
+ * powerless-hue rule applied first (issue #62), matching @ref lerp_hsl,
+ * @ref lerp_hsv, and @ref lerp_oklch.
  * @param t Interpolation factor in [0, 1] (clamped).
  */
 template <typename Color>
 Color lerp(const Color& a, const Color& b, float t) {
+  t = std::clamp(t, 0.0f, 1.0f);
+  return details::lerp_channels(a, b, t);
+}
+
+/**
+ * @brief Interpolation in linear sRGB (gamma-free weighting).
+ *
+ * Converts both endpoints through @c linear_rgbaf_t, so this is the explicit
+ * opt-in for "srgb-linear" interpolation; endpoints outside the sRGB gamut
+ * are clipped by that conversion. Use @ref lerp to stay in the caller's own
+ * space.
+ */
+template <typename Color>
+Color lerp_linear(const Color& a, const Color& b, float t) {
   using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
 
-  auto ca = color_cast<core::rgbaf_t>(a);
-  auto cb = color_cast<core::rgbaf_t>(b);
-
-  core::rgbaf_t out{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
-                    details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                    details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
-                    details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
-
-  return color_cast<Color>(out);
+  const auto ca = color_cast<core::linear_rgbaf_t>(a);
+  const auto cb = color_cast<core::linear_rgbaf_t>(b);
+  return color_cast<Color>(details::lerp_channels(ca, cb, t));
 }
 
 /** @brief HSL interpolation with shortest-arc hue; S, L, A linear. */
@@ -82,7 +169,11 @@ Color lerp_hsl(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::hsla_float_t>(a);
   auto cb = color_cast<core::hsla_float_t>(b);
 
-  core::hsla_float_t out{details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
+  float hue_a = ca.template get_index<0>();
+  float hue_b = cb.template get_index<0>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // S = 0 → hue missing (issue #51)
+
+  core::hsla_float_t out{details::lerp_angle_deg(hue_a, hue_b, t),
                          details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                          details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
                          details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
@@ -99,7 +190,11 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::hsva_float_t>(a);
   auto cb = color_cast<core::hsva_float_t>(b);
 
-  core::hsva_float_t out{details::lerp_angle_deg(ca.template get_index<0>(), cb.template get_index<0>(), t),
+  float hue_a = ca.template get_index<0>();
+  float hue_b = cb.template get_index<0>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // S = 0 → hue missing (issue #51)
+
+  core::hsva_float_t out{details::lerp_angle_deg(hue_a, hue_b, t),
                          details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
                          details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
                          details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
@@ -132,9 +227,13 @@ Color lerp_oklch(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::oklch_t>(a);
   auto cb = color_cast<core::oklch_t>(b);
 
+  float hue_a = ca.template get_index<2>();
+  float hue_b = cb.template get_index<2>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // C ≈ 0 → hue missing (issue #51)
+
   core::oklch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                    details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+                    details::lerp_angle_deg(hue_a, hue_b, t)};
 
   return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }
@@ -164,9 +263,13 @@ Color lerp_lch(const Color& a, const Color& b, float t) {
   auto ca = color_cast<core::cielch_t>(a);
   auto cb = color_cast<core::cielch_t>(b);
 
+  float hue_a = ca.template get_index<2>();
+  float hue_b = cb.template get_index<2>();
+  details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // C* ≈ 0 → hue missing (issue #51)
+
   core::cielch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
                      details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                     details::lerp_angle_deg(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+                     details::lerp_angle_deg(hue_a, hue_b, t)};
 
   return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
 }

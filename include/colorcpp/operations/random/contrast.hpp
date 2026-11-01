@@ -130,6 +130,40 @@ class contrast_generator : public basic_random_generator<Color, Engine> {
     return out;
   }
 
+  /**
+   * @brief Like generate_n against white, but reports whether every color met min_ratio.
+   * @return The generated colors if all met min_ratio within max_attempts each, else std::nullopt.
+   */
+  std::optional<std::vector<Color>> try_generate_n(std::size_t count) const {
+    return try_generate_n(count, core::rgbf_t{1.0f, 1.0f, 1.0f});
+  }
+
+  /**
+   * @brief Like generate_n(reference), but reports whether every color met min_ratio.
+   *
+   * next()/generate_n keep their best-effort behavior and may return colors
+   * below min_ratio when the attempt budget runs out (e.g. an impossible
+   * constraint). Use this when the caller must distinguish "met min_ratio"
+   * from "attempts exhausted" for a whole batch: the first failing sample
+   * aborts the batch and yields std::nullopt.
+   *
+   * @tparam RefColor Reference color type.
+   * @param count Number of colors to generate.
+   * @param reference The reference (typically background) color.
+   * @return The generated colors if every one met min_ratio, else std::nullopt.
+   */
+  template <typename RefColor>
+  std::optional<std::vector<Color>> try_generate_n(std::size_t count, const RefColor& reference) const {
+    std::vector<Color> out;
+    out.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) {
+      std::optional<Color> c = try_next(reference);
+      if (!c) return std::nullopt;
+      out.push_back(*c);
+    }
+    return out;
+  }
+
   const options& get_options() const { return opts_; }
 
   void set_options(const options& o) {
@@ -171,12 +205,14 @@ class contrast_generator : public basic_random_generator<Color, Engine> {
     const float b = C * std::sin(H_rad);
 
     core::oklab_t lab{L, a, b};
-    Color result = conversion::color_cast<Color>(lab);
 
+    // Map in OkLab BEFORE the cast (issue #61): color_cast<Color> clamps to
+    // the target gamut, so mapping afterwards would see an in-gamut color,
+    // return it unchanged, and silently discard the sampled lightness.
     if (opts_.gamut_map) {
-      result = algorithms::gamut::gamut_clip_preserve_lightness(result);
+      lab = algorithms::gamut::gamut_clip_preserve_lightness(lab);
     }
-    return result;
+    return conversion::color_cast<Color>(lab);
   }
 
   options opts_;
