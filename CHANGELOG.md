@@ -2,6 +2,48 @@
 
 All notable changes to `colorcpp` are documented here.
 
+## [1.0.6] - 2026-11-01
+
+Patch release with stability and correctness fixes across CSS parsing,
+gamut mapping, interpolation, random generation, colour-space conversions,
+and CI.
+
+### Fixed
+
+- **CSS**: bound every recursive parse path so deep nesting fails cleanly;
+  preserve slash alpha from `lab()`/`lch()`/`oklab()`/`oklch()`/
+  `display-p3()`; cap channel-expression depth; serialize `rgbaf_t`
+  channels as percentages for round-trip; resolve `from()` origins once.
+- **Gamut**: return the target-gamut clip result without an sRGB clamp;
+  make preserve-saturation bisection effective while keeping alpha and
+  grays; build perceptual results with `linear_rgbaf_t`; convert through
+  XYZ for P3 / Adobe / ProPhoto membership; make the Adobe matrix pair
+  mutually inverse and use the spec gamma.
+- **Interpolate**: take the shortest hue arc with powerless substitution
+  in generic lerp; treat powerless hues as missing in polar lerps and
+  `color-mix()`; lerp in the caller's colour space instead of a clamped
+  `rgbaf_t`.
+- **Random**: guarantee the Poisson-disk min distance in the received
+  colour; advance the Poisson engine across calls and guard `min_distance
+  <= 0`; gamut-map in OkLab before casting to the target type.
+- **Conversion**: route device-independent spaces through XYZ, not clamped
+  RGB; wrap hue before sector cast and define a NaN policy for integral
+  construction; map NaN to channel min on integral targets.
+- **Core / colour spaces**: widen Luv u/v, Lab a/b/C and XYZ ranges so
+  conversions stop clipping; widen OkLab/Lab ranges and decouple random
+  sampling domains.
+- **Compare**: bound `circular_diff` wrap so infinite hues cannot loop.
+- **LUT / `.cube`**: reject oversized LUT sizes before size³ can wrap;
+  reject non-finite data/domains and make `clamp01` NaN-safe.
+- **Ohno / ITP / Jzazbz**: correct the `v_vertex` calculation in
+  `uv_to_cct_ohno`; change `inline constexpr` to `inline` for `pq_encode`
+  / `pq_decode` in ITP and Jzazbz.
+
+### CI / Build
+
+- Add ARM64 and FreeBSD build and test jobs to the CI workflow.
+- Enhance the FreeBSD build configuration with environment variables.
+
 ## [Unreleased]
 
 ## [1.0.5] - 2026-10-29
@@ -59,7 +101,8 @@ extension API for the conversion graph.
 
 ## [1.0.4] - 2026-10-28
 
-Patch release focused on W3C/CSS parity for the interpolate and blend modules, comparison-policy enhancements, and color-type hashing/ordering.
+Patch release focused on W3C/CSS parity for the interpolate and blend modules,
+comparison-policy enhancements, and color-type hashing/ordering.
 
 ### Fixed
 
@@ -112,7 +155,7 @@ Patch release focused on W3C/CSS parity for the interpolate and blend modules, c
 
 - **Stream parsing defaults (breaking fix)**: a missing trailing channel
   defaulted to the channel's max for every model — `parse<cielab_t>("lab(50,
-  10)")` produced `b* = 128`, `rgb8` input `"10 20"` produced `b = 255`. The
+10)")` produced `b* = 128`, `rgb8` input `"10 20"` produced `b = 255`. The
   default fill now applies only to alpha models (`model_has_alpha_v`), where an
   omitted trailing alpha becomes opaque; a missing non-alpha channel sets
   `failbit`.
@@ -209,7 +252,7 @@ Patch release focused on W3C/CSS parity for the interpolate and blend modules, c
 - **Non-uniform Catmull-Rom modes pass through their control points**
   (`interpolate/catmull_rom.hpp`): `cr_mode::centripetal` / `chordal` remapped
   `t` into the uniform basis (`g(0) = -d01/d12 ≠ 0`), so the curve at `t = 0`
-  was evaluated *before* `p1` (grey-ramp evidence: 0.17 instead of 0.39; chordal
+  was evaluated _before_ `p1` (grey-ramp evidence: 0.17 instead of 0.39; chordal
   saturated to 1.0 for half the segment) — the documented pass-through held only
   for `uniform`. Both modes now build joint knots from the OkLab-space distances
   between control points and evaluate a true non-uniform Catmull-Rom (Hermite
@@ -346,7 +389,7 @@ Patch release focused on W3C/CSS parity for the interpolate and blend modules, c
 - **Colors are plain value types (breaking)**: construction and `set<Tag>` no
   longer validate against nominal channel ranges and never throw; values are
   stored verbatim (integral channels narrow with a `static_cast` — `rgb8_t(300,
-  0, 0)` stores `r = 44`). Boundary policy lives at the edges: the stream parser
+0, 0)` stores `r = 44`). Boundary policy lives at the edges: the stream parser
   pre-validates and sets `failbit` (all-or-nothing, never throws), and
   `clamped()` / `make_checked()` are the opt-in factories. Nominal ranges
   (`Channel::min` / `Channel::max`) now drive normalization, stream I/O policy
@@ -481,6 +524,7 @@ production-ready header-only C++17 colour library.
 ### Added
 
 #### Core colour spaces
+
 - `core::hwb_t` — Hue-Whiteness-Blackness cylindrical model.
 - `core::display_p3_t` — Display P3 wide-gamut colour space with D65 white point.
 - `core::cielab_t` / `core::cielch_t` — CIE L\*a\*b\* and cylindrical form (D65).
@@ -488,6 +532,7 @@ production-ready header-only C++17 colour library.
 - `core::linear_rgbf_t` — Linear-light sRGB (no transfer function).
 
 #### Operations
+
 - **`operations::conversion`** — Compile-time shortest-path graph routing for
   `color_cast<T>()`. Every registered colour space can convert to every other
   registered space through ranked edge-cost routes. Extension points are
@@ -514,6 +559,7 @@ production-ready header-only C++17 colour library.
   `epsilon`-based colour comparison with explicit cross-type contracts.
 
 #### Algorithms (new top-level module)
+
 - **`algorithms::accessibility`** — WCAG 2.x contrast ratio and compliance
   checks (`wcag_level::aa` / `aaa`, `text_size::normal` / `large`). APCA
   (SAPC / Silver draft) perceptual contrast with direction-aware
@@ -539,24 +585,25 @@ production-ready header-only C++17 colour library.
 - **`algorithms::palette`** — `advanced_scales`, `rainbow`, `families` generators.
 
 #### I/O
+
 - **`io::css`** — Full CSS Color Module Level 4 parser plus selected Level 5
   features:
-  * Hex notation (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`).
-  * `rgb()` / `rgba()` — legacy comma and modern space-separated, slash alpha,
+  - Hex notation (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`).
+  - `rgb()` / `rgba()` — legacy comma and modern space-separated, slash alpha,
     percentages.
-  * `hsl()` / `hsla()` / `hwb()` — hue angles in `deg` / `grad` / `rad` / `turn`.
-  * `oklab()` / `oklch()`, `lab()` / `lch()`.
-  * `color()` function — `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`,
+  - `hsl()` / `hsla()` / `hwb()` — hue angles in `deg` / `grad` / `rad` / `turn`.
+  - `oklab()` / `oklch()`, `lab()` / `lch()`.
+  - `color()` function — `srgb`, `srgb-linear`, `display-p3`, `display-p3-linear`,
     `a98-rgb`, `prophoto-rgb`, `rec2020`, `xyz`, `xyz-d50`, `xyz-d65`.
-  * `color-mix()` — multi-colour item-list mixes, progress-form mixes, hue
+  - `color-mix()` — multi-colour item-list mixes, progress-form mixes, hue
     interpolation for cylindrical spaces.
-  * Relative colour syntax `rgb(from …)` / `color(from …)` with arithmetic
+  - Relative colour syntax `rgb(from …)` / `color(from …)` with arithmetic
     expressions (`+ - * /`), `calc()` wrapper, and nested `var(--token)` resolution.
-  * Context-aware parsing: `currentColor`, CSS system colours, `light-dark()`,
+  - Context-aware parsing: `currentColor`, CSS system colours, `light-dark()`,
     `var()` injection via `variable_resolver` (colour) and
     `numeric_variable_resolver` (scalar).
-  * AST delayed evaluation with `parse_css_color_ast()` / `evaluate()`.
-  * All 140+ CSS named colours plus `transparent`.
+  - AST delayed evaluation with `parse_css_color_ast()` / `evaluate()`.
+  - All 140+ CSS named colours plus `transparent`.
 - **`io::literals`** — Compile-time user-defined literals: `_rgb`, `_rgba`,
   `_argb`, `_hex`, `_hsl`, `_hsv`, `_hwb`, `_cmyk`, `_oklab`, `_oklch`,
   `_color` (CSS named colour lookup). Literal contracts are hardened with
@@ -573,6 +620,7 @@ production-ready header-only C++17 colour library.
   all step counts.
 
 ### Changed
+
 - **Module reorganisation** — `operations/` split from flat collections into
   fine-grained sub-modules (`conversion`, `blend`, `compare`, `interpolate`,
   `palette`, `random`). `algorithms/` promoted to a top-level namespace
@@ -589,6 +637,7 @@ production-ready header-only C++17 colour library.
   `operator<<` round-trip semantics.
 
 ### Fixed
+
 - **Binary I/O hardening** — `apply_color()` preserves input passthrough for
   invalid LUTs instead of silently producing garbage. Regression-tested.
 - **Literals correctness** — `_rgb` / `_rgba` / `_argb` enforce value-range
@@ -603,6 +652,7 @@ production-ready header-only C++17 colour library.
   `print_contrast()`.
 
 ### Build & CI
+
 - **Cross-platform CI matrix**: GCC + Clang (Linux), MSVC + Ninja (Windows),
   MSVC + Visual Studio 17 2022 (Windows), Clang + Ninja (macOS).
 - **SIMD CI job** — `COLORCPP_ENABLE_SIMD=ON` tested on every push.
@@ -620,6 +670,7 @@ production-ready header-only C++17 colour library.
   `debuild` producing `libcolorcpp-dev`.
 
 ### Removed
+
 - **Flow module** (`operations/flow`) — unmaintained; removed from public API.
 - **Legacy algorithm headers** — `operations/vision.hpp` and
   `operations/accessibility.hpp` replaced by `algorithms/vision/` and
@@ -627,6 +678,7 @@ production-ready header-only C++17 colour library.
 - **`ChangeLog`** (capital-C, capital-L) — consolidated into `CHANGELOG.md`.
 
 ### API Notes
+
 - The canonical namespaces are `colorcpp::core`, `colorcpp::operations::*`,
   `colorcpp::algorithms::*`, and `colorcpp::io::*`. The umbrella
   `colorcpp.hpp` also re-exports `core`, `operations`, and `algorithms` into
@@ -647,25 +699,30 @@ production-ready header-only C++17 colour library.
 ## [0.3.0] - 2026-05-14
 
 ### Added
+
 - Header-only Debian packaging support for `libcolorcpp-dev`.
 - GitHub Release-ready release notes and a structured changelog entry for the current release.
 - ANSI palette container overload for contiguous containers in C++17-friendly form.
 
 ### Changed
+
 - ANSI helper output now restores caller stream formatting state after `print_color()`, `print_color_verbose()`, and `print_contrast()`.
 - `print_gradient()` now has explicit boundary behavior for `steps <= 1`.
 - ANSI docs and examples now describe the converted `rgba8_t` terminal preview model more explicitly.
 
 ### Packaging
+
 - Added Debian packaging files under `debian/` for `dpkg-buildpackage` / `debuild` workflows.
 - Added `.gitignore` entries for Debian build artifacts.
 
 ### API Notes
+
 - `ansi::print_palette()` now accepts a contiguous container overload in addition to pointer + count.
 - `ansi::print_gradient()` now defines behavior for zero and one step.
 - Stream-formatting helpers no longer leak fixed/precision/fill state to caller streams.
 
 ### Release Process
+
 - Tag the release as `v0.3.0`.
 - Attach the source archive generated by GitHub Releases.
 - Copy the contents of `docs/release-notes/v0.3.0.md` into the GitHub Release description.
