@@ -37,6 +37,11 @@ constexpr To hsl_to_rgb(const From& src) {
   float l = to_unit<From, 2>(src.template get_index<2>());
   float a = get_src_alpha(src);
 
+  // hue2rgb's single ±1 adjustment cannot recover hues needing two wraps
+  // (hsl(780°) rendered black) — wrap onto the ring first, like hsv/hwb
+  // (issues #66, #72).
+  h = wrap_unit_hue(h);
+
   auto hue2rgb = [](float p, float q, float t) {
     if (t < 0.0f) t += 1.0f;
     if (t > 1.0f) t -= 1.0f;

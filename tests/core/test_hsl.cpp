@@ -292,4 +292,31 @@ TEST(HSLTest, HueAngleEquivalence) {
   EXPECT_NEAR(color2.h(), 360.0f, 1e-6f);
 }
 
+// Issue #72: hsl_to_rgb must wrap out-of-range hue like hsv/hwb (#66).
+// Pre-fix, hue2rgb's single ±1 adjustment cannot recover hues needing two
+// wraps, so hsl(780°) rendered black instead of yellow.
+TEST(HSLConversionTest, OutOfRangeHueWrapsLikeHsv) {
+  const auto yellow = color_cast<rgb8_t>(hsl_float_t(60.0f, 1.0f, 0.5f));
+
+  // 780° = 60° (two wraps) — pre-fix: (0,0,0) black.
+  const auto h780 = color_cast<rgb8_t>(hsl_float_t(780.0f, 1.0f, 0.5f));
+  EXPECT_EQ(h780.r(), yellow.r()) << "hsl(780°) must equal hsl(60°) yellow";
+  EXPECT_EQ(h780.g(), yellow.g());
+  EXPECT_EQ(h780.b(), yellow.b());
+
+  // 700° = 340° (one full wrap + sector).
+  const auto h700 = color_cast<rgb8_t>(hsl_float_t(700.0f, 1.0f, 0.5f));
+  const auto ref340 = color_cast<rgb8_t>(hsl_float_t(340.0f, 1.0f, 0.5f));
+  EXPECT_EQ(h700.r(), ref340.r()) << "hsl(700°) must equal hsl(340°)";
+  EXPECT_EQ(h700.g(), ref340.g());
+  EXPECT_EQ(h700.b(), ref340.b());
+
+  // Negative hue: -60° = 300°.
+  const auto hneg = color_cast<rgb8_t>(hsl_float_t(-60.0f, 1.0f, 0.5f));
+  const auto ref300 = color_cast<rgb8_t>(hsl_float_t(300.0f, 1.0f, 0.5f));
+  EXPECT_EQ(hneg.r(), ref300.r()) << "hsl(-60°) must equal hsl(300°)";
+  EXPECT_EQ(hneg.g(), ref300.g());
+  EXPECT_EQ(hneg.b(), ref300.b());
+}
+
 }  // namespace colorcpp::core::test
