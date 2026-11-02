@@ -501,4 +501,52 @@ TEST(ConversionGraphTest, DisplayP3RedSurvivesLchOklchRoundTrip) {
   EXPECT_NEAR(via_lch.h(), reference.h(), 1e-3f);
 }
 
+// Reference-white consistency (issue #73): the XYZ matrices of the wide-gamut
+// spaces were built from chromaticity-rounded D65/D50 (column sums
+// 0.950456/1.089058) while Lab's Xn/Yn/Zn are the CIE tabulated whites
+// (0.95047/1.08883). White (1,1,1) therefore landed at a*≈-0.002, b*≈-0.014
+// instead of the achromatic origin.
+
+TEST(ConversionWhitePointTest, DisplayP3WhiteIsLabOrigin) {
+  const auto lab = color_cast<cielab_t>(display_p3f_t{1.0f, 1.0f, 1.0f});
+  EXPECT_NEAR(lab.a(), 0.0f, 1e-3f) << "pre-fix: a* ≈ -0.012 (matrix row sums ≠ Xn)";
+  EXPECT_NEAR(lab.b(), 0.0f, 1e-3f) << "pre-fix: b* ≈ -0.014";
+}
+
+TEST(ConversionWhitePointTest, Rec2020WhiteIsLabOrigin) {
+  const auto lab = color_cast<cielab_t>(rec2020_rgbf_t{1.0f, 1.0f, 1.0f});
+  EXPECT_NEAR(lab.a(), 0.0f, 1e-3f) << "pre-fix: a* ≈ -0.012";
+  EXPECT_NEAR(lab.b(), 0.0f, 1e-3f) << "pre-fix: b* ≈ -0.014";
+}
+
+TEST(ConversionWhitePointTest, ProPhotoWhiteIsLabOrigin) {
+  // ProPhoto white maps to D50, then Bradford-adapts to D65 — the D50
+  // primaries must sum to the tabulated WHITEPOINT_D50 for that to land
+  // on Lab's Xn exactly.
+  const auto lab = color_cast<cielab_t>(prophoto_rgbf_t{1.0f, 1.0f, 1.0f});
+  EXPECT_NEAR(lab.a(), 0.0f, 1e-3f) << "pre-fix: a* ≈ 0.012";
+  EXPECT_NEAR(lab.b(), 0.0f, 1e-3f) << "pre-fix: b* ≈ 0.036";
+}
+
+TEST(ConversionWhitePointTest, AdobeRgbWhiteIsLabOrigin) {
+  const auto lab = color_cast<cielab_t>(adobe_rgbf_t{1.0f, 1.0f, 1.0f});
+  EXPECT_NEAR(lab.a(), 0.0f, 1e-3f) << "pre-fix: a* ≈ -0.0024";
+  EXPECT_NEAR(lab.b(), 0.0f, 1e-3f) << "pre-fix: b* ≈ -0.014";
+}
+
+TEST(ConversionWhitePointTest, WideGamutWhiteRoundTripsThroughLab) {
+  // Normalized forward matrices must stay mutually inverse with their
+  // re-derived inverses: white → Lab → back to the source space.
+  const auto check = [](const auto& white) {
+    const auto lab = color_cast<cielab_t>(white);
+    const auto back = color_cast<std::decay_t<decltype(white)>>(lab);
+    EXPECT_NEAR(back.r(), 1.0f, 1e-3f);
+    EXPECT_NEAR(back.g(), 1.0f, 1e-3f);
+    EXPECT_NEAR(back.b(), 1.0f, 1e-3f);
+  };
+  check(display_p3f_t{1.0f, 1.0f, 1.0f});
+  check(rec2020_rgbf_t{1.0f, 1.0f, 1.0f});
+  check(adobe_rgbf_t{1.0f, 1.0f, 1.0f});
+}
+
 }  // namespace colorcpp::operations::test

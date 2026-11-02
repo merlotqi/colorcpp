@@ -994,23 +994,26 @@ inline details_color_fn::rgb3f xyz_d65_to_d50(float x, float y, float z) {
   return invert_mul3x3(d50_to_d65, x, y, z);
 }
 
+// Row-normalized primaries matrices (column sums = CIE tabulated whites;
+// issue #73) — kept in sync with conversion/functions/*.hpp.
+
 inline details_color_fn::rgb3f xyz_d65_to_linear_a98(float x, float y, float z) {
   static constexpr float a98_to_xyz[9] = {
-      0.5766690f, 0.1855582f, 0.1882286f, 0.2973450f, 0.6273636f, 0.0752915f, 0.0270314f, 0.0706889f, 0.9913375f,
+      0.5766775f, 0.1855607f, 0.1882318f, 0.2973450f, 0.6273640f, 0.0752910f, 0.0270253f, 0.0706742f, 0.9911305f,
   };
   return invert_mul3x3(a98_to_xyz, x, y, z);
 }
 
 inline details_color_fn::rgb3f xyz_d50_to_linear_prophoto(float x, float y, float z) {
   static constexpr float prophoto_to_xyz[9] = {
-      0.7977605f, 0.1351858f, 0.0313493f, 0.2880711f, 0.7118432f, 0.0000857f, 0.0000000f, 0.0000000f, 0.8251046f,
+      0.7976980f, 0.1351752f, 0.0313468f, 0.2880711f, 0.7118432f, 0.0000857f, 0.0000000f, 0.0000000f, 0.8252100f,
   };
   return invert_mul3x3(prophoto_to_xyz, x, y, z);
 }
 
 inline details_color_fn::rgb3f xyz_d65_to_linear_rec2020(float x, float y, float z) {
   static constexpr float rec2020_to_xyz[9] = {
-      0.6369580f, 0.1446169f, 0.1688810f, 0.2627002f, 0.6779981f, 0.0593017f, 0.0000000f, 0.0280727f, 1.0609851f,
+      0.6369675f, 0.1446190f, 0.1688835f, 0.2627002f, 0.6779981f, 0.0593017f, 0.0000000f, 0.0280668f, 1.0607632f,
   };
   return invert_mul3x3(rec2020_to_xyz, x, y, z);
 }

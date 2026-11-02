@@ -71,11 +71,12 @@ inline void xyz_to_linrgb(float x, float y, float z, float& r, float& g, float& 
   b = 0.0556434f * x - 0.2040259f * y + 1.0572252f * z;
 }
 
-// CIE XYZ (D65) → linear Display P3
+// CIE XYZ (D65) → linear Display P3 (matches the normalized inverse in
+// conversion/functions/xyz.hpp, issue #73)
 inline void xyz_to_linear_displayp3(float x, float y, float z, float& r, float& g, float& b) noexcept {
-  r = 2.4934969f * x - 0.9313836f * y - 0.4027108f * z;
-  g = -0.8294890f * x + 1.7626641f * y + 0.0236247f * z;
-  b = 0.0358458f * x - 0.0761724f * y + 0.9568845f * z;
+  r = 2.4934604f * x - 0.9313837f * y - 0.4027951f * z;
+  g = -0.8294770f * x + 1.7626642f * y + 0.0236297f * z;
+  b = 0.0358454f * x - 0.0761725f * y + 0.9570847f * z;
 }
 
 // CIE XYZ (D65) → linear Adobe RGB (A98). Exact inverse of the forward
@@ -83,9 +84,9 @@ inline void xyz_to_linear_displayp3(float x, float y, float z, float& r, float& 
 // the 7-digit coefficients): the pair must be mutually inverse or colors on
 // Adobe's own cube — including white — round-trip outside it (issue #68).
 inline void xyz_to_linear_adobergb(float x, float y, float z, float& r, float& g, float& b) noexcept {
-  r = 2.0415871f * x - 0.5650054f * y - 0.3447321f * z;
-  g = -0.9692428f * x + 1.8759654f * y + 0.0415562f * z;
-  b = 0.0134451f * x - 0.1183627f * y + 1.0151743f * z;
+  r = 2.0415569f * x - 0.5650053f * y - 0.3448044f * z;
+  g = -0.9692284f * x + 1.8759654f * y + 0.0415650f * z;
+  b = 0.0134450f * x - 0.1183627f * y + 1.0153868f * z;
 }
 
 // CIE XYZ (D65) → XYZ (D50) Bradford adaptation, folded once at compile time:
@@ -133,10 +134,11 @@ inline void xyz_to_linear_prophoto(float x, float y, float z, float& r, float& g
   const float y50 = a[3] * x + a[4] * y + a[5] * z;
   const float z50 = a[6] * x + a[7] * y + a[8] * z;
 
-  // XYZ(D50) → linear ProPhoto (matches conversion::details::xyz_to_linear_prophoto_rgb)
-  r = 1.3459433f * x50 - 0.2556075f * y50 - 0.0511118f * z50;
-  g = -0.5445989f * x50 + 1.5081673f * y50 + 0.0205351f * z50;
-  b = 1.2119587f * z50;
+  // XYZ(D50) → linear ProPhoto (matches conversion::details::xyz_to_linear_prophoto_rgb,
+  // normalized D50 primaries, issue #73)
+  r = 1.3459044f * x50 - 0.2555800f * y50 - 0.0510996f * z50;
+  g = -0.5446651f * x50 + 1.5082327f * y50 + 0.0205333f * z50;
+  b = 1.2118128f * z50;
 }
 
 // linear sRGB → linear Display P3 (D65)

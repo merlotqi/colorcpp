@@ -90,9 +90,9 @@ TEST(OKLabRangeRelaxTest, WideChromaSurvivesOklchToOklab) {
 
 // --- Issue #67: OkLab storage ranges clipped wide-gamut colors. ProPhoto
 //     blue has raw a ≈ -1.346 (beyond the old ±1 bound), and above-white
-//     values exist at all (ProPhoto white L ≈ 1.000003, XYZ (1,1,1)
-//     L ≈ 1.0032), so ProPhoto → OkLab → ProPhoto corrupted them. The
-//     nominal ranges must cover every supported gamut. ---
+//     values exist at all (XYZ (1,1,1) L ≈ 1.0032), so ProPhoto → OkLab →
+//     ProPhoto corrupted them. The nominal ranges must cover every supported
+//     gamut. ---
 
 TEST(OklabWideGamutTest, ProPhotoBlueOklabValuesUnclipped) {
   const auto lab = color_cast<oklab_t>(prophoto_rgbf_t(0.0f, 0.0f, 1.0f));
@@ -119,12 +119,16 @@ TEST(OklabWideGamutTest, ProPhotoBlueSurvivesOklchRoundTrip) {
   EXPECT_NEAR(back.b(), 1.0f, 1e-3f);
 }
 
-TEST(OklabWideGamutTest, ProPhotoWhiteLightnessAboveOne) {
-  // ProPhoto white adapts to ≈ D65 white: raw OkLab L = 1.0000031. The old
-  // L ≤ 1 bound stored exactly 1.0 and lost the above-one value.
+TEST(OklabWideGamutTest, ProPhotoWhiteMapsToD65Origin) {
+  // Pre-#73 the D50 primaries summed to (0.964296, 1, 0.825105), so
+  // ProPhoto white adapted to ≈ D65 with raw OkLab L = 1.0000031 — an
+  // achromatic color sitting above white. Normalized primaries now map
+  // white exactly onto D65: L = 1.0, a = b = 0. Above-one clipping stays
+  // covered by SuperWhiteXyzLightnessAboveOne.
   const auto lab = color_cast<oklab_t>(prophoto_rgbf_t(1.0f, 1.0f, 1.0f));
-  EXPECT_GT(lab.l(), 1.0f);
-  EXPECT_NEAR(lab.l(), 1.000003f, 1e-5f);
+  EXPECT_NEAR(lab.l(), 1.0f, 1e-5f);
+  EXPECT_NEAR(lab.a(), 0.0f, 1e-5f);
+  EXPECT_NEAR(lab.b(), 0.0f, 1e-5f);
 }
 
 TEST(OklabWideGamutTest, SuperWhiteXyzLightnessAboveOne) {
