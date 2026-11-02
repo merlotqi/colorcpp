@@ -29,6 +29,7 @@
 
 #include <cmath>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/operations/conversion/detail.hpp>
 namespace colorcpp::operations::conversion {
 // Forward declaration — full definition in conversion.hpp
 template <typename To, typename From>
@@ -73,6 +74,11 @@ template <typename ColorT>
 ColorT cone_scale_adapt(const float (&m)[9], const float (&m_inv)[9], const ColorT& color, const core::xyz_t& src_white,
                         const core::xyz_t& dst_white) {
   using namespace operations::conversion;
+  namespace conv_details = ::colorcpp::operations::conversion::details;
+
+  // xyz_t carries no alpha, so the cast back below would default it to 1.0.
+  // Capture it before the hop and restore after (issue #74).
+  const float alpha = conv_details::get_src_alpha(color);
 
   auto src = color_cast<core::xyz_t>(color);
 
@@ -103,7 +109,12 @@ ColorT cone_scale_adapt(const float (&m)[9], const float (&m_inv)[9], const Colo
   float y = m_inv[3] * cone[0] + m_inv[4] * cone[1] + m_inv[5] * cone[2];
   float z = m_inv[6] * cone[0] + m_inv[7] * cone[1] + m_inv[8] * cone[2];
 
-  return color_cast<ColorT>(core::xyz_t{x, y, z});
+  auto result = color_cast<ColorT>(core::xyz_t{x, y, z});
+  if constexpr (conv_details::has_alpha_v<ColorT>) {
+    constexpr std::size_t ai = conv_details::alpha_index_v<ColorT>;
+    result.template get_index<ai>() = conv_details::from_unit<ColorT, ai>(alpha);
+  }
+  return result;
 }
 
 // Von Kries LMS matrix (Hunt-Pointer-Estevez, normalized to D65)
