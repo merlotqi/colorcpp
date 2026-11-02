@@ -544,6 +544,7 @@ show how the library is expected to be consumed, validated, and documented.
 - **C++17** or later
 - Any C++17-compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - **Optional**: C++20 for enhanced template features
+- **constexpr conversions**: `color_cast` through the Adobe gamma and CIELAB/CIELUV/OKLab cbrt paths constant-evaluates on compilers providing `__builtin_is_constant_evaluated` (GCC 9+, Clang 8+, MSVC 2019 16.4+) — runtime always uses `std::pow`/`std::cbrt` (see `operations/conversion/math.hpp`, issue #75). Older compilers fall back to their previous behavior.
 
 ## 📝 Examples
 

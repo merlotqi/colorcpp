@@ -9,6 +9,7 @@
 #include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
+#include <colorcpp/operations/conversion/math.hpp>
 
 namespace colorcpp::operations::conversion::details {
 
@@ -34,7 +35,8 @@ constexpr To xyz_to_luv(const From& src) {
   constexpr float eps = 216.0f / 24389.0f;   // (6/29)^3
   constexpr float kappa = 24389.0f / 27.0f;  // (29/3)^3
 
-  float L = (Y > eps) ? 116.0f * std::cbrt(Y) - 16.0f : kappa * Y;
+  // portable_cbrt keeps std::cbrt at runtime, shims constant evaluation (#75)
+  float L = (Y > eps) ? 116.0f * portable_cbrt(Y) - 16.0f : kappa * Y;
 
   float u_prime = 0.0f, v_prime = 0.0f;
   float sum = X + 15.0f * Y + 3.0f * Z;

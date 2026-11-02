@@ -11,6 +11,7 @@
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
+#include <colorcpp/operations/conversion/math.hpp>
 
 namespace colorcpp::operations::conversion::details {
 
@@ -26,7 +27,8 @@ constexpr std::array<float, 3> linear_srgb_to_oklab_raw(float r, float g, float 
   float lms_m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b;
   float lms_s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b;
 
-  auto safe_cbrt = [](float x) noexcept { return x >= 0.0f ? std::cbrt(x) : -std::cbrt(-x); };
+  // portable_cbrt keeps std::cbrt at runtime, shims constant evaluation (#75)
+  auto safe_cbrt = [](float x) noexcept { return x >= 0.0f ? portable_cbrt(x) : -portable_cbrt(-x); };
   float l_ = safe_cbrt(lms_l);
   float m_ = safe_cbrt(lms_m);
   float s_ = safe_cbrt(lms_s);

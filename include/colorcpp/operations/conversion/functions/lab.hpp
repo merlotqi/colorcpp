@@ -10,6 +10,7 @@
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
+#include <colorcpp/operations/conversion/math.hpp>
 
 namespace colorcpp::operations::conversion::details {
 
@@ -42,7 +43,8 @@ constexpr To linear_rgb_to_lab(const From& src) {
   constexpr float k = 1.0f / (3.0f * delta * delta);
   constexpr float b0 = 4.0f / 29.0f;
 
-  auto f = [=](float t) noexcept { return t > delta3 ? std::cbrt(t) : k * t + b0; };
+  // portable_cbrt keeps std::cbrt at runtime, shims constant evaluation (#75)
+  auto f = [=](float t) noexcept { return t > delta3 ? portable_cbrt(t) : k * t + b0; };
 
   float fxv = f(fx), fyv = f(fy), fzv = f(fz);
 
@@ -166,7 +168,8 @@ constexpr To xyz_to_lab(const From& src) {
   constexpr float k = 1.0f / (3.0f * delta * delta);
   constexpr float b0 = 4.0f / 29.0f;
 
-  auto f = [=](float t) noexcept { return t > delta3 ? std::cbrt(t) : k * t + b0; };
+  // portable_cbrt keeps std::cbrt at runtime, shims constant evaluation (#75)
+  auto f = [=](float t) noexcept { return t > delta3 ? portable_cbrt(t) : k * t + b0; };
 
   float fxv = f(X / Xn), fyv = f(Y / Yn), fzv = f(Z / Zn);
 

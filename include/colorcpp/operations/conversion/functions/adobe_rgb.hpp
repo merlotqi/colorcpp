@@ -15,6 +15,7 @@
 #include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
+#include <colorcpp/operations/conversion/math.hpp>
 
 namespace colorcpp::operations::conversion::details {
 
@@ -30,8 +31,9 @@ namespace colorcpp::operations::conversion::details {
 template <typename To, typename From>
 constexpr To adobe_rgb_to_linear_adobe_rgb(const From& src) {
   // Spec exponent 563/256, not a rounded 2.2 (issue #68); no sRGB-style
-  // linear segment.
-  auto linearize = [](float v) noexcept { return std::pow(v, 563.0f / 256.0f); };
+  // linear segment. portable_adobe_linearize keeps std::pow at runtime and
+  // shims it for constant evaluation (issue #75).
+  auto linearize = [](float v) noexcept { return portable_adobe_linearize(v); };
   float r = linearize(to_unit<From, 0>(src.template get_index<0>()));
   float g = linearize(to_unit<From, 1>(src.template get_index<1>()));
   float b = linearize(to_unit<From, 2>(src.template get_index<2>()));
@@ -54,10 +56,11 @@ constexpr To adobe_rgb_to_linear_adobe_rgb(const From& src) {
  */
 template <typename To, typename From>
 constexpr To linear_adobe_rgb_to_adobe_rgb(const From& src) {
-  // Spec inverse exponent 256/563 (exact inverse of 563/256, issue #68)
+  // Spec inverse exponent 256/563 (exact inverse of 563/256, issue #68);
+  // clamp first, then the portable pow (shim under constant evaluation, #75)
   auto gamma_encode = [](float v) noexcept {
     v = std::clamp(v, 0.0f, 1.0f);
-    return std::pow(v, 256.0f / 563.0f);
+    return portable_adobe_gamma_encode(v);
   };
   float r = gamma_encode(to_unit<From, 0>(src.template get_index<0>()));
   float g = gamma_encode(to_unit<From, 1>(src.template get_index<1>()));
