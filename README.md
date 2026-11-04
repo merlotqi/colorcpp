@@ -196,6 +196,23 @@ auto polar = color_cast<oklch_t>(oklab_color);
 auto lab_to_ok = color_cast<oklab_t>(lab_color);  // uses the lowest-cost registered route via XYZ
 ```
 
+### Extended range (scRGB/HDR intermediates)
+
+Linear RGB float models and XYZ are **extended-range**: conversion hops preserve negative
+and greater-than-1 float values, so over/under-range intermediates survive
+`rgb → linear → xyz → linear` round trips and Rec.2020's sign-preserving transfer curve
+sees its real input. Display-encoded models (sRGB gamma, Adobe, P3, Rec.2020, ProPhoto)
+still clamp at the encode boundary — a device cannot show those values — and integral
+channels always clamp. Storage itself never validates; use `clamped()` / `make_checked()`
+for nominal-range guarantees at construction. The opt-in is per-model
+(`traits::model_extended_range_v`, issue #76).
+
+```cpp
+auto lin = color_cast<linear_rgbf_t>(rgbf_t{-0.1f, 0.5f, 1.2f});  // preserved (-0.0077, 0.214, 1.517)
+auto xyz = color_cast<xyz_t>(lin);                                 // preserved
+auto srgb = color_cast<rgbf_t>(lin);                               // clamped to [0,1] at the display boundary
+```
+
 ## 🎨 Color Operations
 
 ### Blending

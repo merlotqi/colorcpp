@@ -64,6 +64,7 @@ struct model_traits<core::display_p3::model::linear_display_p3f> {
                                    core::display_p3::channel::f32_blue>;
 
   static constexpr std::string_view prefix = "linear_display_p3f";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 template <>
@@ -71,6 +72,7 @@ struct model_traits<core::display_p3::model::linear_display_p3af> {
   using channels_type = std::tuple<core::display_p3::channel::f32_red, core::display_p3::channel::f32_green,
                                    core::display_p3::channel::f32_blue, core::display_p3::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear_display_p3af";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 }  // namespace colorcpp::traits

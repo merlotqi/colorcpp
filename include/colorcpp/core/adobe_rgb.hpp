@@ -65,6 +65,7 @@ struct model_traits<core::adobe_rgb::model::linear_adobe_rgbf> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue>;
   static constexpr std::string_view prefix = "linear-adobe-rgb";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 template <>
@@ -72,6 +73,7 @@ struct model_traits<core::adobe_rgb::model::linear_adobe_rgbaf> {
   using channels_type = std::tuple<core::adobe_rgb::channel::f32_red, core::adobe_rgb::channel::f32_green,
                                    core::adobe_rgb::channel::f32_blue, core::adobe_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-adobe-rgba";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 }  // namespace colorcpp::traits

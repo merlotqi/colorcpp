@@ -46,6 +46,21 @@ inline constexpr bool has_alpha_v<Color, std::void_t<extract_model_t<Color>>> =
 template <typename Color>
 inline constexpr std::size_t alpha_index_v = traits::channel_index_v<extract_model_t<Color>, traits::alpha_tag>;
 
+/**
+ * @brief Whether @p Color's model accepts out-of-range float values in conversion hops (issue #76).
+ *
+ * Extended-range models (linear RGB float families, XYZ) skip the clamp in
+ * @ref from_unit / @ref from_value so negative and greater-than-1 intermediates
+ * survive the algebraic middle of a pipeline. Detection mirrors @ref has_alpha_v:
+ * types that are not @c basic_color specializations default to false (clamping).
+ */
+template <typename Color, typename = void>
+inline constexpr bool color_extended_range_v = false;
+
+template <typename Color>
+inline constexpr bool color_extended_range_v<Color, std::void_t<extract_model_t<Color>>> =
+    traits::model_extended_range_v<extract_model_t<Color>>;
+
 // V is deduced from the call argument (e.g. uint8_t for rgb8, float for rgbf).
 // Using a deduced V instead of Color::value_type makes to_unit work correctly
 // with heterogeneous-channel models where each channel has its own scalar type.
@@ -55,15 +70,24 @@ constexpr float to_unit(V v) {
   return static_cast<float>(v - channel_t::min) / static_cast<float>(channel_t::max - channel_t::min);
 }
 
-// Maps a unit-normalized value u ∈ [0,1] back to channel I's [min, max] range.
-// The clamp is applied in unit space to guard against floating-point arithmetic
-// producing values like 1.0000001; it does NOT clip out-of-gamut channel values.
+// Maps a unit-normalized value u back to channel I's [min, max] range
+// (u = (v - min) / (max - min), the exact inverse of to_unit).
+// Clamp policy (issue #76):
+//  - integral channels always clamp — storage has no room for out-of-range;
+//  - float channels of non-extended models (display-encoded RGB, cylindrical
+//    spaces, …) clamp in unit space, which doubles as the FP guard against
+//    values like 1.0000001;
+//  - float channels of extended-range models (linear RGB, XYZ) pass the value
+//    through unclamped so negative/>1 intermediates survive the algebraic
+//    middle of a pipeline (scRGB/HDR-style values).
 // Returns channel I's exact value_type (supports heterogeneous-channel models).
 template <typename Color, std::size_t I>
 constexpr typename Color::template channel_value_t<I> from_unit(float v) {
   using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
   using value_t = typename Color::template channel_value_t<I>;
-  v = std::clamp(v, 0.0f, 1.0f);
+  if constexpr (std::is_integral_v<value_t> || !color_extended_range_v<Color>) {
+    v = std::clamp(v, 0.0f, 1.0f);
+  }
   float val = v * static_cast<float>(channel_t::max - channel_t::min) + static_cast<float>(channel_t::min);
   if constexpr (std::is_integral_v<value_t>) {
     // std::clamp passes NaN through; casting NaN to an integral channel is UB.
@@ -77,21 +101,27 @@ constexpr typename Color::template channel_value_t<I> from_unit(float v) {
 }
 
 // Maps a raw channel value (already in the channel's natural units, possibly signed)
-// directly to the target type, clamping to the channel's [min, max].
+// directly to the target type.
 // Use this instead of from_unit when the value is NOT in [0,1] unit space —
 // e.g., when writing Oklab a/b channels that live in [-0.5, 0.5].
+// Clamp policy (issue #76): integral channels and non-extended float models
+// clamp to [min, max] (XYZ's [-1, 2] included only when not opted in);
+// extended-range float models (linear RGB, XYZ) pass values through so the
+// algebraic middle of a pipeline never clips.
 template <typename Color, std::size_t I>
 constexpr typename Color::template channel_value_t<I> from_value(float v) {
   using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
   using value_t = typename Color::template channel_value_t<I>;
-  float clamped = std::clamp(v, static_cast<float>(channel_t::min), static_cast<float>(channel_t::max));
+  if constexpr (std::is_integral_v<value_t> || !color_extended_range_v<Color>) {
+    v = std::clamp(v, static_cast<float>(channel_t::min), static_cast<float>(channel_t::max));
+  }
   if constexpr (std::is_integral_v<value_t>) {
     // NaN survives the clamp; keep the integral cast defined by flooring to
     // the channel minimum.
-    if (clamped != clamped) clamped = static_cast<float>(channel_t::min);
-    return static_cast<value_t>(std::round(clamped));
+    if (v != v) v = static_cast<float>(channel_t::min);
+    return static_cast<value_t>(std::round(v));
   } else {
-    return static_cast<value_t>(clamped);
+    return static_cast<value_t>(v);
   }
 }
 
