@@ -45,6 +45,7 @@ template <>
 struct model_traits<core::xyz::model::xyze> {
   using channels_type = std::tuple<core::xyz::channel::xyz_x, core::xyz::channel::xyz_y, core::xyz::channel::xyz_z>;
   static constexpr std::string_view prefix = "xyz";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 }  // namespace colorcpp::traits

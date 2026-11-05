@@ -15,6 +15,7 @@
 #include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion/detail.hpp>
+#include <colorcpp/operations/conversion/math.hpp>
 
 namespace colorcpp::operations::conversion::details {
 
@@ -30,8 +31,9 @@ namespace colorcpp::operations::conversion::details {
 template <typename To, typename From>
 constexpr To adobe_rgb_to_linear_adobe_rgb(const From& src) {
   // Spec exponent 563/256, not a rounded 2.2 (issue #68); no sRGB-style
-  // linear segment.
-  auto linearize = [](float v) noexcept { return std::pow(v, 563.0f / 256.0f); };
+  // linear segment. portable_adobe_linearize keeps std::pow at runtime and
+  // shims it for constant evaluation (issue #75).
+  auto linearize = [](float v) noexcept { return portable_adobe_linearize(v); };
   float r = linearize(to_unit<From, 0>(src.template get_index<0>()));
   float g = linearize(to_unit<From, 1>(src.template get_index<1>()));
   float b = linearize(to_unit<From, 2>(src.template get_index<2>()));
@@ -54,10 +56,11 @@ constexpr To adobe_rgb_to_linear_adobe_rgb(const From& src) {
  */
 template <typename To, typename From>
 constexpr To linear_adobe_rgb_to_adobe_rgb(const From& src) {
-  // Spec inverse exponent 256/563 (exact inverse of 563/256, issue #68)
+  // Spec inverse exponent 256/563 (exact inverse of 563/256, issue #68);
+  // clamp first, then the portable pow (shim under constant evaluation, #75)
   auto gamma_encode = [](float v) noexcept {
     v = std::clamp(v, 0.0f, 1.0f);
-    return std::pow(v, 256.0f / 563.0f);
+    return portable_adobe_gamma_encode(v);
   };
   float r = gamma_encode(to_unit<From, 0>(src.template get_index<0>()));
   float g = gamma_encode(to_unit<From, 1>(src.template get_index<1>()));
@@ -84,9 +87,12 @@ constexpr To linear_adobe_rgb_to_xyz(const From& src) {
   float g = to_unit<From, 1>(src.template get_index<1>());
   float b = to_unit<From, 2>(src.template get_index<2>());
 
-  float x = 0.5766690f * r + 0.1855580f * g + 0.1882290f * b;
+  // Rows normalized so column sums equal the CIE tabulated D65 white
+  // (0.95047, 1, 1.08883 = Lab's Xn/Yn/Zn) — white maps to Lab's origin
+  // (issue #73). Inverse below is Gauss-Jordan of this exact matrix.
+  float x = 0.5766775f * r + 0.1855607f * g + 0.1882318f * b;
   float y = 0.2973450f * r + 0.6273640f * g + 0.0752910f * b;
-  float z = 0.0270310f * r + 0.0706890f * g + 0.9913380f * b;
+  float z = 0.0270253f * r + 0.0706742f * g + 0.9911305f * b;
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);
@@ -113,9 +119,9 @@ constexpr To xyz_to_linear_adobe_rgb(const From& src) {
   float y = static_cast<float>(src.template get_index<1>());
   float z = static_cast<float>(src.template get_index<2>());
 
-  float r = 2.0415871f * x - 0.5650054f * y - 0.3447321f * z;
-  float g = -0.9692428f * x + 1.8759654f * y + 0.0415562f * z;
-  float b = 0.0134451f * x - 0.1183627f * y + 1.0151743f * z;
+  float r = 2.0415569f * x - 0.5650053f * y - 0.3448044f * z;
+  float g = -0.9692284f * x + 1.8759654f * y + 0.0415650f * z;
+  float b = 0.0134450f * x - 0.1183627f * y + 1.0153868f * z;
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);

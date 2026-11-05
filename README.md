@@ -196,6 +196,23 @@ auto polar = color_cast<oklch_t>(oklab_color);
 auto lab_to_ok = color_cast<oklab_t>(lab_color);  // uses the lowest-cost registered route via XYZ
 ```
 
+### Extended range (scRGB/HDR intermediates)
+
+Linear RGB float models and XYZ are **extended-range**: conversion hops preserve negative
+and greater-than-1 float values, so over/under-range intermediates survive
+`rgb → linear → xyz → linear` round trips and Rec.2020's sign-preserving transfer curve
+sees its real input. Display-encoded models (sRGB gamma, Adobe, P3, Rec.2020, ProPhoto)
+still clamp at the encode boundary — a device cannot show those values — and integral
+channels always clamp. Storage itself never validates; use `clamped()` / `make_checked()`
+for nominal-range guarantees at construction. The opt-in is per-model
+(`traits::model_extended_range_v`, issue #76).
+
+```cpp
+auto lin = color_cast<linear_rgbf_t>(rgbf_t{-0.1f, 0.5f, 1.2f});  // preserved (-0.0077, 0.214, 1.517)
+auto xyz = color_cast<xyz_t>(lin);                                 // preserved
+auto srgb = color_cast<rgbf_t>(lin);                               // clamped to [0,1] at the display boundary
+```
+
 ## 🎨 Color Operations
 
 ### Blending
@@ -544,6 +561,7 @@ show how the library is expected to be consumed, validated, and documented.
 - **C++17** or later
 - Any C++17-compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - **Optional**: C++20 for enhanced template features
+- **constexpr conversions**: `color_cast` through the Adobe gamma and CIELAB/CIELUV/OKLab cbrt paths constant-evaluates on compilers providing `__builtin_is_constant_evaluated` (GCC 9+, Clang 8+, MSVC 2019 16.4+) — runtime always uses `std::pow`/`std::cbrt` (see `operations/conversion/math.hpp`, issue #75). Older compilers fall back to their previous behavior.
 
 ## 📝 Examples
 

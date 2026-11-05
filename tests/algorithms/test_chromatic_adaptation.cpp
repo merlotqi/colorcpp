@@ -236,4 +236,34 @@ TEST(XYZScalingTest, RoundTripD65D50D65) {
   EXPECT_NEAR(back.z(), color.z(), 1e-4f);
 }
 
+// Issue #74: adaptation hops through xyz_t (no alpha), so the final cast
+// defaulted alpha to 1.0 and silently discarded the caller's value.
+TEST(AlphaPreservationTest, BradfordKeepsAlpha) {
+  const rgbaf_t color(1.0f, 0.0f, 0.0f, 0.5f);
+  const auto result = bradford_adapt(color, WHITEPOINT_D65, WHITEPOINT_D50);
+  EXPECT_FLOAT_EQ(result.a(), 0.5f) << "pre-fix: alpha defaulted to 1.0";
+}
+
+TEST(AlphaPreservationTest, Cat02AndCat16KeepAlpha) {
+  const rgbaf_t color(0.2f, 0.4f, 0.8f, 0.25f);
+  EXPECT_FLOAT_EQ(cat02_adapt(color, WHITEPOINT_D65, WHITEPOINT_D50).a(), 0.25f);
+  EXPECT_FLOAT_EQ(cat16_adapt(color, WHITEPOINT_D65, WHITEPOINT_D50).a(), 0.25f);
+}
+
+TEST(AlphaPreservationTest, Rgba8KeepsAlphaThroughAdaptation) {
+  const rgba8_t color(200, 100, 50, 64);
+  const auto result = bradford_adapt(color, WHITEPOINT_D65, WHITEPOINT_D50);
+  EXPECT_EQ(result.a(), 64) << "pre-fix: alpha defaulted to 255";
+}
+
+TEST(AlphaPreservationTest, AlphaOneStillOneAndThreeChannelUnaffected) {
+  // Full alpha stays full; 3-channel inputs must still compile and round-trip.
+  const rgbaf_t opaque(0.5f, 0.5f, 0.5f, 1.0f);
+  EXPECT_FLOAT_EQ(bradford_adapt(opaque, WHITEPOINT_D65, WHITEPOINT_D50).a(), 1.0f);
+  const rgbf_t noalpha(0.5f, 0.3f, 0.7f);
+  const auto r = bradford_adapt(noalpha, WHITEPOINT_D65, WHITEPOINT_D50);
+  EXPECT_GE(r.r(), 0.0f);
+  EXPECT_LE(r.r(), 1.0f);
+}
+
 }  // namespace colorcpp::algorithms::test

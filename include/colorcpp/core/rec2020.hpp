@@ -65,6 +65,7 @@ struct model_traits<core::rec2020::model::linear_rec2020f> {
   using channels_type =
       std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green, core::rec2020::channel::f32_blue>;
   static constexpr std::string_view prefix = "linear-rec2020";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 template <>
@@ -72,6 +73,7 @@ struct model_traits<core::rec2020::model::linear_rec2020af> {
   using channels_type = std::tuple<core::rec2020::channel::f32_red, core::rec2020::channel::f32_green,
                                    core::rec2020::channel::f32_blue, core::rec2020::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-rec2020a";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 }  // namespace colorcpp::traits

@@ -30,9 +30,12 @@ constexpr To linear_display_p3_to_xyz(const From& src) {
   float g = to_unit<From, 1>(src.template get_index<1>());
   float b = to_unit<From, 2>(src.template get_index<2>());
 
-  float X = 0.4865709f * r + 0.2656677f * g + 0.1982173f * b;
+  // Rows normalized so column sums equal the CIE tabulated D65 white
+  // (0.95047, 1, 1.08883 = Lab's Xn/Yn/Zn) — white maps to Lab's origin
+  // (issue #73). Inverse below is Gauss-Jordan of this exact matrix.
+  float X = 0.4865781f * r + 0.2656716f * g + 0.1982202f * b;
   float Y = 0.2289746f * r + 0.6917385f * g + 0.0792869f * b;
-  float Z = 0.0000000f * r + 0.0451134f * g + 1.0439444f * b;
+  float Z = 0.0000000f * r + 0.0451040f * g + 1.0437260f * b;
 
   return pack_to<To>(from_value<To, 0>(X), from_value<To, 1>(Y), from_value<To, 2>(Z));
 }
@@ -55,9 +58,9 @@ constexpr To xyz_to_linear_display_p3(const From& src) {
   float Y = static_cast<float>(src.template get_index<1>());
   float Z = static_cast<float>(src.template get_index<2>());
 
-  float r = 2.4934969f * X - 0.9313836f * Y - 0.4027108f * Z;
-  float g = -0.8294890f * X + 1.7626641f * Y + 0.0236247f * Z;
-  float b = 0.0358458f * X - 0.0761724f * Y + 0.9568845f * Z;
+  float r = 2.4934604f * X - 0.9313837f * Y - 0.4027951f * Z;
+  float g = -0.8294770f * X + 1.7626642f * Y + 0.0236297f * Z;
+  float b = 0.0358454f * X - 0.0761725f * Y + 0.9570847f * Z;
 
   if constexpr (To::channels >= 4)
     return pack_to<To>(from_unit<To, 0>(r), from_unit<To, 1>(g), from_unit<To, 2>(b), from_unit<To, 3>(1.0f));

@@ -120,11 +120,14 @@ constexpr To linear_prophoto_rgb_to_xyz(const From& src) {
   float g = to_unit<From, 1>(src.template get_index<1>());
   float b = to_unit<From, 2>(src.template get_index<2>());
 
-  // Step 1: Linear ProPhoto RGB → XYZ(D50) via pure primaries matrix
-  // M_prophoto_to_xyz(D50) from Bruce Lindbloom
-  float x_d50 = 0.7977605f * r + 0.1351858f * g + 0.0313493f * b;
+  // Step 1: Linear ProPhoto RGB → XYZ(D50) via pure primaries matrix.
+  // Rows normalized so column sums equal the CIE tabulated D50 white
+  // (0.96422, 1, 0.82521 = WHITEPOINT_D50); Bradford below then maps that
+  // to D65 exactly, so white lands on Lab's origin (issue #73).
+  // Inverse below is Gauss-Jordan of this exact matrix.
+  float x_d50 = 0.7976980f * r + 0.1351752f * g + 0.0313468f * b;
   float y_d50 = 0.2880711f * r + 0.7118432f * g + 0.0000857f * b;
-  float z_d50 = 0.0000000f * r + 0.0000000f * g + 0.8251046f * b;
+  float z_d50 = 0.0000000f * r + 0.0000000f * g + 0.8252100f * b;
 
   // Step 2: Bradford chromatic adaptation D50 → D65
   core::xyz_t xyz_d50{x_d50, y_d50, z_d50};
@@ -161,9 +164,9 @@ constexpr To xyz_to_linear_prophoto_rgb(const From& src) {
 
   // Step 2: XYZ(D50) → Linear ProPhoto RGB via inverse primaries matrix
   // M_xyz_to_prophoto(D50) from Bruce Lindbloom
-  float r = 1.3459433f * xyz_d50.x() - 0.2556075f * xyz_d50.y() - 0.0511118f * xyz_d50.z();
-  float g = -0.5445989f * xyz_d50.x() + 1.5081673f * xyz_d50.y() + 0.0205351f * xyz_d50.z();
-  float b = 0.0000000f * xyz_d50.x() + 0.0000000f * xyz_d50.y() + 1.2119587f * xyz_d50.z();
+  float r = 1.3459044f * xyz_d50.x() - 0.2555800f * xyz_d50.y() - 0.0510996f * xyz_d50.z();
+  float g = -0.5446651f * xyz_d50.x() + 1.5082327f * xyz_d50.y() + 0.0205333f * xyz_d50.z();
+  float b = 0.0000000f * xyz_d50.x() + 0.0000000f * xyz_d50.y() + 1.2118128f * xyz_d50.z();
 
   if constexpr (To::channels >= 4) {
     float a = get_src_alpha(src);

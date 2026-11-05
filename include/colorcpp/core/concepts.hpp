@@ -161,6 +161,25 @@ struct model_has_alpha<Model, std::void_t<typename model_traits<Model>::channels
 template <typename Model>
 inline constexpr bool model_has_alpha_v = model_has_alpha<Model>::value;
 
+/**
+ * @brief Whether @p Model accepts out-of-range float values in conversion intermediates (issue #76).
+ *
+ * Opt-in via a @c static constexpr bool extended_range = true; member on the model's
+ * @ref model_traits specialization. Extended-range models (linear RGB float families and XYZ)
+ * skip the unit/channel clamp in @c from_unit / @c from_value, so negative and greater-than-1
+ * values survive the algebraic middle of a pipeline (scRGB/HDR-style intermediates).
+ * Display-encoded models keep clamping at the encode boundary, integral channels always clamp.
+ */
+template <typename Model, typename = void>
+struct model_extended_range : std::false_type {};
+
+template <typename Model>
+struct model_extended_range<Model, std::void_t<decltype(model_traits<Model>::extended_range)>>
+    : std::bool_constant<model_traits<Model>::extended_range> {};
+
+template <typename Model>
+inline constexpr bool model_extended_range_v = model_extended_range<Model>::value;
+
 /** @brief Zero-based index of channel @p Tag in @p Model (compile-time error if missing). */
 template <typename Model, typename Tag>
 struct channel_index {

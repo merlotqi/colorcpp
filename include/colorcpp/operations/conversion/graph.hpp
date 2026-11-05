@@ -314,13 +314,16 @@ struct search_state {
  * @brief Trait marking device-independent spaces (XYZ, CIE and perceptual
  *        appearance models).
  *
- * RGB-family nodes normalize channels to [0,1] at the boundary, which clamps
- * out-of-gamut values. An equal-cost route between two device-independent
- * spaces that hops through such a node silently collapses wide-gamut colors
- * (e.g. Display P3 red degenerating to sRGB red through linear sRGB).
- * Conversions where both endpoints are device-independent therefore stay
- * inside this node subset, with XYZ as the hub. Specialize for custom
- * device-independent spaces to include them in that restriction.
+ * Display-encoded RGB-family nodes normalize channels to [0,1] at the
+ * boundary, which clamps out-of-gamut values (linear float RGB and XYZ
+ * preserve out-of-range values since issue #76, but stay outside this subset
+ * so equal-cost DI↔DI ties keep routing deterministically through XYZ). An
+ * equal-cost route between two device-independent spaces that hops through a
+ * clamping node silently collapses wide-gamut colors (e.g. Display P3 red
+ * degenerating to sRGB red through rgbf). Conversions where both endpoints
+ * are device-independent therefore stay inside this node subset, with XYZ as
+ * the hub. Specialize for custom device-independent spaces to include them
+ * in that restriction.
  */
 template <typename T>
 struct device_independent : std::false_type {};

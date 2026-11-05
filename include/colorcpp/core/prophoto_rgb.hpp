@@ -73,6 +73,7 @@ struct model_traits<core::prophoto_rgb::model::linear_prophoto_rgbf> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue>;
   static constexpr std::string_view prefix = "linear-prophoto-rgb";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 template <>
@@ -80,6 +81,7 @@ struct model_traits<core::prophoto_rgb::model::linear_prophoto_rgbaf> {
   using channels_type = std::tuple<core::prophoto_rgb::channel::f32_red, core::prophoto_rgb::channel::f32_green,
                                    core::prophoto_rgb::channel::f32_blue, core::prophoto_rgb::channel::f32_alpha>;
   static constexpr std::string_view prefix = "linear-prophoto-rgba";
+  static constexpr bool extended_range = true;  // issue #76: keep OOR float intermediates
 };
 
 }  // namespace colorcpp::traits
