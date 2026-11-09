@@ -229,11 +229,16 @@ Color lerp_linear(const Color& a, const Color& b, float t) {
   return color_cast<Color>(details::lerp_channels(ca, cb, t));
 }
 
-/** @brief HSL interpolation with shortest-arc hue; S, L premultiplied (issue #80), A linear. */
+namespace details {
+
+// Unclamped HSL blend core (issue #81): the public @ref lerp_hsl clamps its
+// t entry to [0, 1], but ease_hsl feeds the RAW eased factor here so back
+// easing's overshoot (t outside [0, 1]) extrapolates instead of being erased
+// by a second clamp. Exact t = 0 / 1 still short-circuit to the endpoints.
+
 template <typename Color>
-Color lerp_hsl(const Color& a, const Color& b, float t) {
+Color lerp_hsl_unclamped(const Color& a, const Color& b, float t) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
   if (t == 0.0f) return a;
   if (t == 1.0f) return b;
 
@@ -254,6 +259,14 @@ Color lerp_hsl(const Color& a, const Color& b, float t) {
                          details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
 
   return color_cast<Color>(out);
+}
+
+}  // namespace details
+
+/** @brief HSL interpolation with shortest-arc hue; S, L premultiplied (issue #80), A linear. */
+template <typename Color>
+Color lerp_hsl(const Color& a, const Color& b, float t) {
+  return details::lerp_hsl_unclamped(a, b, std::clamp(t, 0.0f, 1.0f));
 }
 
 /** @brief HSV interpolation with shortest-arc hue; S, V premultiplied (issue #80), A linear. */
@@ -283,11 +296,14 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   return color_cast<Color>(out);
 }
 
-/** @brief OkLab interpolation (perceptually uniform); channels premultiplied (issue #80). */
+namespace details {
+
+// Unclamped OkLab blend core (issue #81): same contract as
+// lerp_hsl_unclamped — ease_oklab feeds the raw eased factor.
+
 template <typename Color>
-Color lerp_oklab(const Color& a, const Color& b, float t) {
+Color lerp_oklab_unclamped(const Color& a, const Color& b, float t) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
   if (t == 0.0f) return a;
   if (t == 1.0f) return b;
 
@@ -305,11 +321,22 @@ Color lerp_oklab(const Color& a, const Color& b, float t) {
   return details::lerp_result<Color>(mid, a_mid);
 }
 
-/** @brief OkLCH interpolation: shortest-arc hue; L, C premultiplied (issue #80). */
+}  // namespace details
+
+/** @brief OkLab interpolation (perceptually uniform); channels premultiplied (issue #80). */
 template <typename Color>
-Color lerp_oklch(const Color& a, const Color& b, float t) {
+Color lerp_oklab(const Color& a, const Color& b, float t) {
+  return details::lerp_oklab_unclamped(a, b, std::clamp(t, 0.0f, 1.0f));
+}
+
+namespace details {
+
+// Unclamped OkLCH blend core (issue #81): same contract as
+// lerp_hsl_unclamped — ease_oklch feeds the raw eased factor.
+
+template <typename Color>
+Color lerp_oklch_unclamped(const Color& a, const Color& b, float t) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
   if (t == 0.0f) return a;
   if (t == 1.0f) return b;
 
@@ -329,6 +356,14 @@ Color lerp_oklch(const Color& a, const Color& b, float t) {
                     details::lerp_angle_deg(hue_a, hue_b, t)};
 
   return details::lerp_result<Color>(mid, a_mid);
+}
+
+}  // namespace details
+
+/** @brief OkLCH interpolation: shortest-arc hue; L, C premultiplied (issue #80). */
+template <typename Color>
+Color lerp_oklch(const Color& a, const Color& b, float t) {
+  return details::lerp_oklch_unclamped(a, b, std::clamp(t, 0.0f, 1.0f));
 }
 
 /** @brief CIELAB interpolation; channels premultiplied (issue #80). */

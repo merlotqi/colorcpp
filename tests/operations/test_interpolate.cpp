@@ -938,10 +938,23 @@ TEST(LerpAlphaModeTest, UseEndAlpha) {
 }
 
 TEST(LerpAlphaModeTest, MultiplyAlphas) {
+  // Issue #81: multiply is the geometric blend pow(aa, 1-t) * pow(ab, t) —
+  // the only "product" curve that stays t-dependent and still hits both
+  // endpoints. At t = 0.5 it equals sqrt(aa * ab). The old constant product
+  // aa * ab ignored t entirely and pinned 0.4 here.
   core::rgbaf_t a(1.0f, 0.0f, 0.0f, 0.8f);
   core::rgbaf_t b(0.0f, 0.0f, 1.0f, 0.5f);
   auto result = lerp_alpha_mode(a, b, 0.5f, alpha_mode::multiply);  // multiply alphas
-  EXPECT_NEAR(result.a(), 0.4f, 1e-3f);
+  EXPECT_NEAR(result.a(), std::sqrt(0.8f * 0.5f), 1e-3f);           // ≈ 0.6325
+}
+
+TEST(LerpAlphaModeTest, MultiplyHitsEndpointsExactly) {
+  // Issue #81: the constant product broke both endpoints — t = 0 must return
+  // the start alpha and t = 1 the end alpha.
+  core::rgbaf_t a(1.0f, 0.0f, 0.0f, 0.3f);
+  core::rgbaf_t b(0.0f, 0.0f, 1.0f, 0.5f);
+  EXPECT_NEAR(lerp_alpha_mode(a, b, 0.0f, alpha_mode::multiply).a(), 0.3f, 1e-4f);
+  EXPECT_NEAR(lerp_alpha_mode(a, b, 1.0f, alpha_mode::multiply).a(), 0.5f, 1e-4f);
 }
 
 // Issue #50: lerp_alpha_mode shared the rgbaf_t hub, clipping wide gamuts.
@@ -953,6 +966,84 @@ TEST(LerpAlphaModeTest, WideGamutColorSurvives) {
   EXPECT_FLOAT_EQ(result.g(), 0.0f);
   EXPECT_FLOAT_EQ(result.b(), 0.0f);
   EXPECT_NEAR(result.a(), 0.5f, 1e-6f);
+}
+
+// ease* overshoot (issue #81): back easing dips below 0 / rises above 1 on
+// purpose. The blend must use the RAW eased factor — only the caller's own t
+// is a unit-interval parameter. The old ease* re-entered the clamping public
+// lerps, so lerp(a, b, in_back(0.1)) collapsed to the t = 0 endpoint and the
+// whole overshoot was erased.
+
+TEST(LerpEaseTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  const float te = easing::in_back(0.1f);  // ≈ -0.0143
+  EXPECT_LT(te, 0.0f);
+  auto e = ease(gray, light, 0.1f, easing::in_back);
+  // 0.5 + (0.7 - 0.5) * te ≈ 0.4971: slightly *before* the start color.
+  EXPECT_NEAR(e.r(), 0.5f + 0.2f * te, 1e-4f);
+  EXPECT_LT(e.r(), 0.5f);
+}
+
+TEST(LerpEaseTest, CallerTStaysClampedToUnitInterval) {
+  // Contract guard: the eased factor may overshoot, but the caller's own t
+  // is clamped — out-of-range t means "hold an endpoint".
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  EXPECT_FLOAT_EQ(ease(gray, light, -1.0f, easing::in_back).r(), 0.5f);
+  EXPECT_FLOAT_EQ(ease(gray, light, 2.0f, easing::in_back).r(), 0.7f);
+}
+
+TEST(LerpEaseHslTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  const float te = easing::in_back(0.1f);
+  auto e = ease_hsl(gray, light, 0.1f, easing::in_back);
+  EXPECT_NEAR(e.r(), 0.5f + 0.2f * te, 1e-4f);  // achromatic L blend extrapolates
+  EXPECT_LT(e.r(), 0.5f);
+}
+
+TEST(LerpEaseOklabTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  auto e = ease_oklab(gray, light, 0.1f, easing::in_back);
+  EXPECT_LT(e.r(), 0.5f);   // extrapolates before the start color
+  EXPECT_GT(e.r(), 0.45f);  // the overshoot is slight, not a huge extrapolation
+}
+
+TEST(LerpEaseOklchTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  auto e = ease_oklch(gray, light, 0.1f, easing::in_back);
+  EXPECT_LT(e.r(), 0.5f);
+  EXPECT_GT(e.r(), 0.45f);
+}
+
+TEST(LerpChromaPreservingTest, PreserveChromaIsContinuousNearEndpoints) {
+  // Issue #81: preserve held max(Ca, Cb) at every interior t while the exact
+  // endpoints returned Ca / Cb, so chroma stepped at t -> 0 and t -> 1. The
+  // continuous form C = lerp(Ca, Cb, t) + (max(Ca,Cb) - lerp) * 4t(1 - t)
+  // keeps C(0) = Ca, C(1) = Cb, C(0.5) = max. Compared in OkLCH — unbounded
+  // target (issue #79), so no gamut mapping hides the ramp.
+  const auto dark = color_cast<core::oklch_t>(core::rgbf_t(0.2f, 0.2f, 0.2f));
+  const auto red = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 0.0f, 0.0f));
+  const float peak = std::max(dark.c(), red.c());
+
+  auto c0 = lerp_chroma_preserving(dark, red, 0.0f, chroma_mode::preserve);
+  auto c001 = lerp_chroma_preserving(dark, red, 0.001f, chroma_mode::preserve);
+  EXPECT_NEAR(c0.c(), c001.c(), 0.01f);  // no step from max(Ca, Cb)
+
+  auto c1 = lerp_chroma_preserving(dark, red, 1.0f, chroma_mode::preserve);
+  auto c999 = lerp_chroma_preserving(dark, red, 0.999f, chroma_mode::preserve);
+  EXPECT_NEAR(c1.c(), c999.c(), 0.01f);
+
+  auto cm = lerp_chroma_preserving(dark, red, 0.5f, chroma_mode::preserve);
+  EXPECT_NEAR(cm.c(), peak, 1e-3f);  // midpoint still holds the peak chroma
+
+  // Exact ramp at t = 0.25: base + (peak - base) * 4t(1-t) = 0.25*Ca + 0.75*max
+  auto c25 = lerp_chroma_preserving(dark, red, 0.25f, chroma_mode::preserve);
+  const float base = 0.75f * dark.c() + 0.25f * red.c();
+  EXPECT_NEAR(c25.c(), base + (peak - base) * 4.0f * 0.25f * 0.75f, 1e-3f);
 }
 
 // Position-based multi_lerp tests

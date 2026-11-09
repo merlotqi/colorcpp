@@ -92,7 +92,7 @@ enum class alpha_mode {
   lerp,     ///< Interpolate alpha channel linearly between start and end values
   start,    ///< Use the start color's alpha value throughout the interpolation
   end,      ///< Use the end color's alpha value throughout the interpolation
-  multiply  ///< Multiply the alpha values of both colors at each interpolation step
+  multiply  ///< Geometric blend of the alphas: pow(start, 1-t) * pow(end, t) (issue #81)
 };
 
 /**
@@ -127,7 +127,12 @@ Color lerp_alpha_mode(const Color& a, const Color& b, float t, alpha_mode mode =
         alpha = ab;
         break;
       case alpha_mode::multiply:
-        alpha = aa * ab;
+        // Geometric blend (issue #81): pow(aa, 1-t) * pow(ab, t) is the only
+        // product-flavored curve that stays t-dependent and still hits both
+        // endpoints exactly; the old constant aa * ab ignored t and broke
+        // them. Alphas are clamped first so a negative stored value cannot
+        // produce NaN inside std::pow.
+        alpha = std::pow(std::clamp(aa, 0.0f, 1.0f), 1.0f - t) * std::pow(std::clamp(ab, 0.0f, 1.0f), t);
         break;
       case alpha_mode::lerp:
       default:
@@ -140,28 +145,35 @@ Color lerp_alpha_mode(const Color& a, const Color& b, float t, alpha_mode mode =
   return mid;
 }
 
-/** @brief RGB @ref lerp with @p ef applied to @p t (e.g. @c easing::in_cubic). */
+/**
+ * @brief RGB @ref lerp with @p ef applied to @p t (e.g. @c easing::in_cubic).
+ *
+ * The caller's own @p t is clamped to [0, 1] (a unit-interval parameter), but
+ * the eased factor is fed to the blend UNCLAMPED (issue #81): back easing
+ * deliberately overshoots below 0 / above 1 and that overshoot must
+ * extrapolate, not collapse onto the endpoint.
+ */
 template <typename Color, typename EasingFunc>
 Color ease(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return lerp(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_channels(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
-/** @brief HSL @ref lerp_hsl with easing on @p t. */
+/** @brief HSL @ref lerp_hsl with easing on @p t (raw eased factor, see @ref ease). */
 template <typename Color, typename EasingFunc>
 Color ease_hsl(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return lerp_hsl(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_hsl_unclamped(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
-/** @brief OkLab @ref lerp_oklab with easing on @p t. */
+/** @brief OkLab @ref lerp_oklab with easing on @p t (raw eased factor, see @ref ease). */
 template <typename Color, typename EasingFunc>
 Color ease_oklab(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return lerp_oklab(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_oklab_unclamped(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
-/** @brief OkLCH @ref lerp_oklch with easing on @p t. */
+/** @brief OkLCH @ref lerp_oklch with easing on @p t (raw eased factor, see @ref ease). */
 template <typename Color, typename EasingFunc>
 Color ease_oklch(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return lerp_oklch(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_oklch_unclamped(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
 }
 
 /** @brief Shorthand for @ref ease with @c easing::smoothstep. */
