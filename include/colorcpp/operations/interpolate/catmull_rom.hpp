@@ -104,7 +104,7 @@ template <typename Color>
 Color lerp_catmull_rom(const Color& p0, const Color& p1, const Color& p2, const Color& p3, float t,
                        cr_mode mode = cr_mode::uniform) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   auto c0 = color_cast<core::oklab_t>(p0);
   auto c1 = color_cast<core::oklab_t>(p1);

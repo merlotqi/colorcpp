@@ -24,7 +24,7 @@ namespace colorcpp::operations::interpolate {
 template <typename Color>
 Color lerp_hue_locked(const Color& a, const Color& b, float t, bool hue_locked = true) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   auto ca = color_cast<core::oklch_t>(a);
   auto cb = color_cast<core::oklch_t>(b);

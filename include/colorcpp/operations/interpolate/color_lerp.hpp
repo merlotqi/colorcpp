@@ -108,7 +108,7 @@ enum class alpha_mode {
  */
 template <typename Color>
 Color lerp_alpha_mode(const Color& a, const Color& b, float t, alpha_mode mode = alpha_mode::lerp) {
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   Color mid = details::lerp_channels(a, b, t);
 
@@ -155,25 +155,25 @@ Color lerp_alpha_mode(const Color& a, const Color& b, float t, alpha_mode mode =
  */
 template <typename Color, typename EasingFunc>
 Color ease(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return details::lerp_channels(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_channels(a, b, ef(details::sanitize_t(t)));
 }
 
 /** @brief HSL @ref lerp_hsl with easing on @p t (raw eased factor, see @ref ease). */
 template <typename Color, typename EasingFunc>
 Color ease_hsl(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return details::lerp_hsl_unclamped(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_hsl_unclamped(a, b, ef(details::sanitize_t(t)));
 }
 
 /** @brief OkLab @ref lerp_oklab with easing on @p t (raw eased factor, see @ref ease). */
 template <typename Color, typename EasingFunc>
 Color ease_oklab(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return details::lerp_oklab_unclamped(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_oklab_unclamped(a, b, ef(details::sanitize_t(t)));
 }
 
 /** @brief OkLCH @ref lerp_oklch with easing on @p t (raw eased factor, see @ref ease). */
 template <typename Color, typename EasingFunc>
 Color ease_oklch(const Color& a, const Color& b, float t, EasingFunc&& ef) {
-  return details::lerp_oklch_unclamped(a, b, ef(std::clamp(t, 0.0f, 1.0f)));
+  return details::lerp_oklch_unclamped(a, b, ef(details::sanitize_t(t)));
 }
 
 /** @brief Shorthand for @ref ease with @c easing::smoothstep. */
@@ -186,7 +186,7 @@ Color ease_in_out(const Color& a, const Color& b, float t) {
 template <typename Color>
 Color multi_lerp(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   const std::size_t n = stops.size() - 1;
   float scaled = t * static_cast<float>(n);
@@ -204,7 +204,7 @@ Color multi_lerp(std::initializer_list<Color> stops, float t) {
 template <typename Color>
 Color multi_lerp_hsl(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_hsl requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   const std::size_t n = stops.size() - 1;
   float scaled = t * static_cast<float>(n);
@@ -222,7 +222,7 @@ Color multi_lerp_hsl(std::initializer_list<Color> stops, float t) {
 template <typename Color>
 Color multi_lerp_oklab(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklab requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   const std::size_t n = stops.size() - 1;
   float scaled = t * static_cast<float>(n);
@@ -240,7 +240,7 @@ Color multi_lerp_oklab(std::initializer_list<Color> stops, float t) {
 template <typename Color>
 Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklch requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   const std::size_t n = stops.size() - 1;
   float scaled = t * static_cast<float>(n);
@@ -262,18 +262,28 @@ Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
 template <typename Color>
 Color multi_lerp(const std::vector<stop<Color>>& stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
+
+  // CSS Gradient stop rule (issue #82): positions are normalized to be
+  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
+  // out-of-order input can no longer sample from arbitrary segments.
+  float prev_pos = stops.front().position;
+  float back_pos = prev_pos;
+  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
 
   if (t <= stops.front().position) return stops.front().color;
-  if (t >= stops.back().position) return stops.back().color;
+  if (t >= back_pos) return stops.back().color;
 
   for (std::size_t i = 0; i < stops.size() - 1; ++i) {
     const auto& lo = stops[i];
     const auto& hi = stops[i + 1];
-    if (t >= lo.position && t <= hi.position) {
-      float range = hi.position - lo.position;
+    const float lo_pos = prev_pos;
+    const float hi_pos = std::max(hi.position, prev_pos);
+    prev_pos = hi_pos;
+    if (t >= lo_pos && t <= hi_pos) {
+      float range = hi_pos - lo_pos;
       if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo.position) / range;
+      float local_t = (t - lo_pos) / range;
       return lerp(lo.color, hi.color, local_t);
     }
   }
@@ -287,18 +297,28 @@ Color multi_lerp(const std::vector<stop<Color>>& stops, float t) {
 template <typename Color>
 Color multi_lerp_hsl(const std::vector<stop<Color>>& stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_hsl requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
+
+  // CSS Gradient stop rule (issue #82): positions are normalized to be
+  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
+  // out-of-order input can no longer sample from arbitrary segments.
+  float prev_pos = stops.front().position;
+  float back_pos = prev_pos;
+  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
 
   if (t <= stops.front().position) return stops.front().color;
-  if (t >= stops.back().position) return stops.back().color;
+  if (t >= back_pos) return stops.back().color;
 
   for (std::size_t i = 0; i < stops.size() - 1; ++i) {
     const auto& lo = stops[i];
     const auto& hi = stops[i + 1];
-    if (t >= lo.position && t <= hi.position) {
-      float range = hi.position - lo.position;
+    const float lo_pos = prev_pos;
+    const float hi_pos = std::max(hi.position, prev_pos);
+    prev_pos = hi_pos;
+    if (t >= lo_pos && t <= hi_pos) {
+      float range = hi_pos - lo_pos;
       if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo.position) / range;
+      float local_t = (t - lo_pos) / range;
       return lerp_hsl(lo.color, hi.color, local_t);
     }
   }
@@ -312,18 +332,28 @@ Color multi_lerp_hsl(const std::vector<stop<Color>>& stops, float t) {
 template <typename Color>
 Color multi_lerp_oklab(const std::vector<stop<Color>>& stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklab requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
+
+  // CSS Gradient stop rule (issue #82): positions are normalized to be
+  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
+  // out-of-order input can no longer sample from arbitrary segments.
+  float prev_pos = stops.front().position;
+  float back_pos = prev_pos;
+  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
 
   if (t <= stops.front().position) return stops.front().color;
-  if (t >= stops.back().position) return stops.back().color;
+  if (t >= back_pos) return stops.back().color;
 
   for (std::size_t i = 0; i < stops.size() - 1; ++i) {
     const auto& lo = stops[i];
     const auto& hi = stops[i + 1];
-    if (t >= lo.position && t <= hi.position) {
-      float range = hi.position - lo.position;
+    const float lo_pos = prev_pos;
+    const float hi_pos = std::max(hi.position, prev_pos);
+    prev_pos = hi_pos;
+    if (t >= lo_pos && t <= hi_pos) {
+      float range = hi_pos - lo_pos;
       if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo.position) / range;
+      float local_t = (t - lo_pos) / range;
       return lerp_oklab(lo.color, hi.color, local_t);
     }
   }
@@ -337,18 +367,28 @@ Color multi_lerp_oklab(const std::vector<stop<Color>>& stops, float t) {
 template <typename Color>
 Color multi_lerp_oklch(const std::vector<stop<Color>>& stops, float t) {
   if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklch requires at least 2 colour stops");
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
+
+  // CSS Gradient stop rule (issue #82): positions are normalized to be
+  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
+  // out-of-order input can no longer sample from arbitrary segments.
+  float prev_pos = stops.front().position;
+  float back_pos = prev_pos;
+  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
 
   if (t <= stops.front().position) return stops.front().color;
-  if (t >= stops.back().position) return stops.back().color;
+  if (t >= back_pos) return stops.back().color;
 
   for (std::size_t i = 0; i < stops.size() - 1; ++i) {
     const auto& lo = stops[i];
     const auto& hi = stops[i + 1];
-    if (t >= lo.position && t <= hi.position) {
-      float range = hi.position - lo.position;
+    const float lo_pos = prev_pos;
+    const float hi_pos = std::max(hi.position, prev_pos);
+    prev_pos = hi_pos;
+    if (t >= lo_pos && t <= hi_pos) {
+      float range = hi_pos - lo_pos;
       if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo.position) / range;
+      float local_t = (t - lo_pos) / range;
       return lerp_oklch(lo.color, hi.color, local_t);
     }
   }

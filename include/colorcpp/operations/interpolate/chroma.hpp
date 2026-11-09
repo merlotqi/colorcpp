@@ -34,7 +34,7 @@ enum class chroma_mode {
 template <typename Color>
 Color lerp_chroma_preserving(const Color& a, const Color& b, float t, chroma_mode mode = chroma_mode::preserve_safe) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   // Special case: return exact colors at endpoints
   if (t == 0.0f) return a;

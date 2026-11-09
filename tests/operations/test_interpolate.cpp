@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <colorcpp/algorithms/gamut/multi_colorspace.hpp>
 #include <colorcpp/colorcpp.hpp>
+#include <limits>
 
 namespace colorcpp::operations::test {
 
@@ -643,12 +644,13 @@ TEST(LerpMonotonicSplineTest, AlphaStaysWithinSegmentRange) {
 
 // lerp_path (piecewise multi-control-point interpolation)
 
-TEST(LerpPathTest, EmptyContainerReturnsDefaultColor) {
+TEST(LerpPathTest, EmptyContainerThrows) {
+  // Issue #82: a silent Color{} (transparent black) is a footgun; align with
+  // multi_lerp's documented std::invalid_argument contract. (Replaces
+  // EmptyContainerReturnsDefaultColor, which pinned the silent behavior.)
   std::vector<core::rgbf_t> colors;
-  auto result = lerp_path(colors, 0.5f);
-  EXPECT_NEAR(result.r(), 0.0f, 1e-6f);
-  EXPECT_NEAR(result.g(), 0.0f, 1e-6f);
-  EXPECT_NEAR(result.b(), 0.0f, 1e-6f);
+  EXPECT_THROW(lerp_path(colors, 0.5f), std::invalid_argument);
+  EXPECT_THROW(lerp_path(std::initializer_list<core::rgbf_t>{}, 0.5f), std::invalid_argument);
 }
 
 TEST(LerpPathTest, SingleColorReturnsOnlyColor) {
@@ -660,6 +662,9 @@ TEST(LerpPathTest, SingleColorReturnsOnlyColor) {
 }
 
 TEST(LerpPathTest, LinearModeSelectsExpectedSegment) {
+  // Issue #82: linear segments interpolate in OkLab like every spline (the
+  // old caller-space blend pinned 0.5/0.5 here). t = 0.25 is the midpoint of
+  // red -> green in OkLab; t = 0.75 the midpoint of green -> blue.
   std::vector<core::rgbf_t> colors = {
       core::rgbf_t(1.0f, 0.0f, 0.0f),
       core::rgbf_t(0.0f, 1.0f, 0.0f),
@@ -667,14 +672,14 @@ TEST(LerpPathTest, LinearModeSelectsExpectedSegment) {
   };
 
   auto first_half = lerp_path(colors, 0.25f, path_algorithm::linear);
-  EXPECT_NEAR(first_half.r(), 0.5f, 1e-4f);
-  EXPECT_NEAR(first_half.g(), 0.5f, 1e-4f);
-  EXPECT_NEAR(first_half.b(), 0.0f, 1e-4f);
+  EXPECT_NEAR(first_half.r(), 0.816297f, 1e-3f);
+  EXPECT_NEAR(first_half.g(), 0.660363f, 1e-3f);
+  EXPECT_NEAR(first_half.b(), 0.001770f, 1e-3f);
 
   auto second_half = lerp_path(colors, 0.75f, path_algorithm::linear);
-  EXPECT_NEAR(second_half.r(), 0.0f, 1e-4f);
-  EXPECT_NEAR(second_half.g(), 0.5f, 1e-4f);
-  EXPECT_NEAR(second_half.b(), 0.5f, 1e-4f);
+  EXPECT_NEAR(second_half.r(), 0.000449f, 1e-3f);
+  EXPECT_NEAR(second_half.g(), 0.646763f, 1e-3f);
+  EXPECT_NEAR(second_half.b(), 0.706347f, 1e-3f);
 }
 
 TEST(LerpPathTest, HalfwayWithThreeStopsReturnsMiddleControlPoint) {
@@ -691,14 +696,102 @@ TEST(LerpPathTest, HalfwayWithThreeStopsReturnsMiddleControlPoint) {
 }
 
 TEST(LerpPathTest, InitializerListOverloadWorks) {
+  // Issue #82: same OkLab linear blend as LinearModeSelectsExpectedSegment.
   core::rgbf_t red(1.0f, 0.0f, 0.0f);
   core::rgbf_t green(0.0f, 1.0f, 0.0f);
   core::rgbf_t blue(0.0f, 0.0f, 1.0f);
 
   auto result = lerp_path({red, green, blue}, 0.25f, path_algorithm::linear);
-  EXPECT_NEAR(result.r(), 0.5f, 1e-4f);
-  EXPECT_NEAR(result.g(), 0.5f, 1e-4f);
-  EXPECT_NEAR(result.b(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result.r(), 0.816297f, 1e-3f);
+  EXPECT_NEAR(result.g(), 0.660363f, 1e-3f);
+  EXPECT_NEAR(result.b(), 0.001770f, 1e-3f);
+}
+
+TEST(LerpPathTest, LinearModeInterpolatesInOklabNotCallerSpace) {
+  // Issue #82: linear segments used to blend in the caller's space while
+  // every spline ran in OkLab — same API, different lightness behavior. In
+  // OkLab, black -> gray(0.5) at the quarter point sits at 0.1783, not the
+  // gamma-space 0.25.
+  std::vector<core::rgbf_t> colors = {
+      core::rgbf_t(0.0f, 0.0f, 0.0f),
+      core::rgbf_t(0.5f, 0.5f, 0.5f),
+      core::rgbf_t(1.0f, 1.0f, 1.0f),
+  };
+  auto result = lerp_path(colors, 0.25f, path_algorithm::linear);
+  EXPECT_NEAR(result.r(), 0.178349f, 1e-3f);
+  EXPECT_NEAR(result.g(), 0.178349f, 1e-3f);
+  EXPECT_NEAR(result.b(), 0.178349f, 1e-3f);
+}
+
+TEST(LerpPathTest, NaNTReturnsFirstControlPoint) {
+  // Issue #82: NaN survives std::clamp and reached static_cast<size_t> (UB).
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  std::vector<core::rgbf_t> colors = {core::rgbf_t(0.2f, 0.4f, 0.6f), core::rgbf_t(0.9f, 0.1f, 0.5f)};
+  auto result = lerp_path(colors, nan);
+  EXPECT_FLOAT_EQ(result.r(), 0.2f);
+  EXPECT_FLOAT_EQ(result.g(), 0.4f);
+  EXPECT_FLOAT_EQ(result.b(), 0.6f);
+}
+
+// NaN-t sanitization (issue #82): std::clamp(NaN, 0, 1) returns NaN (every
+// comparison is false) and the piecewise samplers then cast it to size_t —
+// undefined behavior. Policy: NaN means "the first color"; every other value
+// clamps to [0, 1] as before.
+
+TEST(LerpNanTTest, LerpFamilyReturnsFirstColor) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t first(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t second(0.9f, 0.1f, 0.5f);
+  EXPECT_NEAR(lerp(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_linear(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_hsl(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_hsv(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_oklab(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_oklch(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_lab(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_lch(first, second, nan).r(), first.r(), 1e-6f);
+}
+
+TEST(LerpNanTTest, MultiLerpReturnsFirstStop) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t first(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t second(0.9f, 0.1f, 0.5f);
+  const core::rgbf_t third(0.1f, 0.8f, 0.3f);
+  const std::vector<stop<core::rgbf_t>> stops = {{first, 0.0f}, {second, 0.5f}, {third, 1.0f}};
+
+  EXPECT_NEAR(multi_lerp({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_hsl({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklab({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklch({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp(stops, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_hsl(stops, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklab(stops, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklch(stops, nan).r(), first.r(), 1e-6f);
+}
+
+TEST(LerpNanTTest, EaseFamilyReturnsFirstColor) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t first(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t second(0.9f, 0.1f, 0.5f);
+  EXPECT_NEAR(ease(first, second, nan, easing::in_back).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_hsl(first, second, nan, easing::smoothstep).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_oklab(first, second, nan, easing::in_cubic).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_oklch(first, second, nan, easing::out_quad).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_in_out(first, second, nan).r(), first.r(), 1e-6f);
+}
+
+TEST(LerpNanTTest, SplineAndPolicyEntriesReturnFirstColor) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t p0(0.1f, 0.2f, 0.3f);
+  const core::rgbf_t p1(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t p2(0.9f, 0.1f, 0.5f);
+  const core::rgbf_t p3(0.4f, 0.7f, 0.2f);
+  EXPECT_NEAR(lerp_catmull_rom(p0, p1, p2, p3, nan).r(), p1.r(), 1e-5f);
+  EXPECT_NEAR(lerp_cubic_hermite(p0, p1, p2, p3, nan).r(), p1.r(), 1e-5f);
+  EXPECT_NEAR(lerp_monotonic_spline(p0, p1, p2, p3, nan).r(), p1.r(), 1e-5f);
+  EXPECT_NEAR(lerp_alpha_mode(p1, p2, nan).r(), p1.r(), 1e-6f);
+  EXPECT_NEAR(lerp_chroma_preserving(p1, p2, nan).r(), p1.r(), 1e-6f);
+  EXPECT_NEAR(lerp_hue_locked(p1, p2, nan).r(), p1.r(), 1e-6f);
 }
 
 TEST(LerpPathTest, CatmullRomModeProducesFiniteColor) {
@@ -1074,6 +1167,44 @@ TEST(MultiLerpPositionTest, BasicGradient) {
   EXPECT_NEAR(result100.r(), 0.0f, 1e-4f);
   EXPECT_NEAR(result100.g(), 0.0f, 1e-4f);
   EXPECT_NEAR(result100.b(), 1.0f, 1e-4f);
+}
+
+TEST(MultiLerpPositionTest, UnsortedStopsAreNormalizedNonDecreasing) {
+  // Issue #82 / CSS Gradient rule: normalize positions to be non-decreasing
+  // (pos_i = max(pos_i, pos_{i-1})) before sampling — out-of-order input used
+  // to sample from arbitrary segments.
+  using S = stop<core::rgbf_t>;
+  const core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  const core::rgbf_t green(0.0f, 1.0f, 0.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+
+  // blue's 0.2 clamps up to red's 0.5, so t = 0.7 sits halfway along
+  // blue -> green (0.5 .. 0.9): (0, 0.5, 0.5). The old raw scan sampled
+  // blue -> green from 0.2 .. 0.9 and returned (0, 0.714, 0.286).
+  std::vector<S> stops{{red, 0.5f}, {blue, 0.2f}, {green, 0.9f}};
+  auto result = multi_lerp(stops, 0.7f);
+  EXPECT_NEAR(result.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result.g(), 0.5f, 1e-4f);
+  EXPECT_NEAR(result.b(), 0.5f, 1e-4f);
+
+  // Unsorted input behaves exactly like the normalized stop list, in every
+  // blend space.
+  std::vector<S> normalized{{red, 0.5f}, {blue, 0.5f}, {green, 0.9f}};
+  for (float t : {0.2f, 0.5f, 0.7f, 0.85f}) {
+    auto a = multi_lerp(stops, t);
+    auto b = multi_lerp(normalized, t);
+    EXPECT_NEAR(a.r(), b.r(), 1e-6f);
+    EXPECT_NEAR(a.g(), b.g(), 1e-6f);
+    EXPECT_NEAR(a.b(), b.b(), 1e-6f);
+    EXPECT_NEAR(multi_lerp_hsl(stops, t).g(), multi_lerp_hsl(normalized, t).g(), 1e-6f);
+    EXPECT_NEAR(multi_lerp_oklab(stops, t).g(), multi_lerp_oklab(normalized, t).g(), 1e-6f);
+    EXPECT_NEAR(multi_lerp_oklch(stops, t).g(), multi_lerp_oklch(normalized, t).g(), 1e-6f);
+  }
+
+  // The issue's 2-stop example: positions clamp to [0.8, 0.8] and t = 0.5
+  // still samples the first stop — red — by CSS semantics.
+  std::vector<S> pair{{red, 0.8f}, {blue, 0.2f}};
+  EXPECT_NEAR(multi_lerp(pair, 0.5f).r(), 1.0f, 1e-4f);
 }
 
 TEST(MultiLerpPositionTest, NonUniformStops) {

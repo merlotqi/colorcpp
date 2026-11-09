@@ -22,6 +22,14 @@ namespace details {
 
 inline float lerp_f(float a, float b, float t) { return a + (b - a) * t; }
 
+// Public-entry t sanitation (issue #82): NaN survives std::clamp (every
+// comparison is false) and would later reach a static_cast<size_t> in the
+// piecewise samplers — undefined behavior. Policy: NaN means "the first
+// color" (factor 0); every other value clamps normally (±inf clamps to an
+// endpoint). Applied once at each public entry, never inside the unclamped
+// blend cores.
+inline float sanitize_t(float t) { return std::isnan(t) ? 0.0f : std::clamp(t, 0.0f, 1.0f); }
+
 // Shortest-path hue interpolation in degree space [0, 360).
 // Wraps delta into [-180, 180] first so the shorter arc is always taken;
 // an exact ±180 tie keeps the sign of (b - a) so the mapping is antisymmetric
@@ -207,7 +215,7 @@ inline Color lerp_channels(const Color& a, const Color& b, float t) {
  */
 template <typename Color>
 Color lerp(const Color& a, const Color& b, float t) {
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
   return details::lerp_channels(a, b, t);
 }
 
@@ -222,7 +230,7 @@ Color lerp(const Color& a, const Color& b, float t) {
 template <typename Color>
 Color lerp_linear(const Color& a, const Color& b, float t) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   const auto ca = color_cast<core::linear_rgbaf_t>(a);
   const auto cb = color_cast<core::linear_rgbaf_t>(b);
@@ -266,14 +274,14 @@ Color lerp_hsl_unclamped(const Color& a, const Color& b, float t) {
 /** @brief HSL interpolation with shortest-arc hue; S, L premultiplied (issue #80), A linear. */
 template <typename Color>
 Color lerp_hsl(const Color& a, const Color& b, float t) {
-  return details::lerp_hsl_unclamped(a, b, std::clamp(t, 0.0f, 1.0f));
+  return details::lerp_hsl_unclamped(a, b, details::sanitize_t(t));
 }
 
 /** @brief HSV interpolation with shortest-arc hue; S, V premultiplied (issue #80), A linear. */
 template <typename Color>
 Color lerp_hsv(const Color& a, const Color& b, float t) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
   if (t == 0.0f) return a;
   if (t == 1.0f) return b;
 
@@ -326,7 +334,7 @@ Color lerp_oklab_unclamped(const Color& a, const Color& b, float t) {
 /** @brief OkLab interpolation (perceptually uniform); channels premultiplied (issue #80). */
 template <typename Color>
 Color lerp_oklab(const Color& a, const Color& b, float t) {
-  return details::lerp_oklab_unclamped(a, b, std::clamp(t, 0.0f, 1.0f));
+  return details::lerp_oklab_unclamped(a, b, details::sanitize_t(t));
 }
 
 namespace details {
@@ -363,14 +371,14 @@ Color lerp_oklch_unclamped(const Color& a, const Color& b, float t) {
 /** @brief OkLCH interpolation: shortest-arc hue; L, C premultiplied (issue #80). */
 template <typename Color>
 Color lerp_oklch(const Color& a, const Color& b, float t) {
-  return details::lerp_oklch_unclamped(a, b, std::clamp(t, 0.0f, 1.0f));
+  return details::lerp_oklch_unclamped(a, b, details::sanitize_t(t));
 }
 
 /** @brief CIELAB interpolation; channels premultiplied (issue #80). */
 template <typename Color>
 Color lerp_lab(const Color& a, const Color& b, float t) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
   if (t == 0.0f) return a;
   if (t == 1.0f) return b;
 
@@ -392,7 +400,7 @@ Color lerp_lab(const Color& a, const Color& b, float t) {
 template <typename Color>
 Color lerp_lch(const Color& a, const Color& b, float t) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
   if (t == 0.0f) return a;
   if (t == 1.0f) return b;
 
