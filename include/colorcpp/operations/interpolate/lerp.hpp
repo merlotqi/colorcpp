@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <colorcpp/algorithms/gamut/multi_colorspace.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
@@ -81,6 +82,16 @@ inline void substitute_powerless_hue(const Polar& a, const Polar& b, float& hue_
     hue_b = hue_a;
 }
 
+// Write unit-space alpha into Color's own alpha channel (no-op when the
+// model has none).
+template <typename Color>
+inline void write_alpha(Color& c, float alpha) {
+  if constexpr (::colorcpp::operations::conversion::details::has_alpha_v<Color>) {
+    constexpr std::size_t ai = ::colorcpp::operations::conversion::details::alpha_index_v<Color>;
+    c.template get_index<ai>() = ::colorcpp::operations::conversion::details::from_unit<Color, ai>(alpha);
+  }
+}
+
 /**
  * @brief Assemble an interpolation result: working-space midpoint + unit-space alpha.
  *
@@ -88,14 +99,29 @@ inline void substitute_powerless_hue(const Polar& a, const Polar& b, float& hue_
  * (e.g. lerp_oklab with Color = oklab_t) is never clamped through sRGB;
  * RGB destinations still clamp via the normal conversion path. Alpha is
  * written into Color's own alpha channel when the model has one.
+ *
+ * When Color has a bounded target gamut (issue #79) an out-of-gamut
+ * midpoint is first mapped into that gamut by OkLCH chroma reduction at
+ * fixed lightness and hue (CSS Color 4), instead of letting the conversion
+ * clip channels and drag hue with it: the green↔blue OkLCH midpoint keeps
+ * its 203° hue rather than hard-clipping to 220.6°. In-gamut midpoints and
+ * unbounded or extended-range destinations (issue #76) take the plain cast
+ * path unchanged.
  */
 template <typename Color, typename Mid>
 inline Color lerp_result(const Mid& mid, float alpha) {
-  Color out = ::colorcpp::operations::conversion::color_cast<Color>(mid);
-  if constexpr (::colorcpp::operations::conversion::details::has_alpha_v<Color>) {
-    constexpr std::size_t ai = ::colorcpp::operations::conversion::details::alpha_index_v<Color>;
-    out.template get_index<ai>() = ::colorcpp::operations::conversion::details::from_unit<Color, ai>(alpha);
+  if constexpr (::colorcpp::algorithms::gamut::has_target_gamut_v<Color>) {
+    constexpr ::colorcpp::algorithms::gamut::gamut_type kGamut = ::colorcpp::algorithms::gamut::target_gamut_v<Color>;
+    if (!::colorcpp::algorithms::gamut::is_in_gamut(mid, kGamut)) {
+      const auto lab = ::colorcpp::operations::conversion::color_cast<core::oklab_t>(mid);
+      const auto mapped = ::colorcpp::algorithms::gamut::gamut_clip_to_gamut(lab, kGamut);
+      Color out = ::colorcpp::operations::conversion::color_cast<Color>(mapped);
+      write_alpha(out, alpha);
+      return out;
+    }
   }
+  Color out = ::colorcpp::operations::conversion::color_cast<Color>(mid);
+  write_alpha(out, alpha);
   return out;
 }
 

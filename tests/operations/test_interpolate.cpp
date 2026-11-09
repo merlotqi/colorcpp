@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <colorcpp/algorithms/gamut/multi_colorspace.hpp>
 #include <colorcpp/colorcpp.hpp>
 
 namespace colorcpp::operations::test {
@@ -328,7 +329,11 @@ TEST(LerpCatmullRomTest, QuarterPoint) {
   auto result = lerp_catmull_rom(p0, p1, p2, p3, 0.25f);
   // At t=0.25, should be closer to p1 than p2
   EXPECT_GT(result.r(), result.g());
-  EXPECT_NEAR(result.b(), 0.0f, 1e-3f);
+  // The uniform basis overshoots the red→green segment out of sRGB (mid
+  // OkLab ≈ (0.730, 0.143, 0.157), hue 47.7°). Gamut mapping keeps that
+  // hue (issue #79); the old per-channel clip pinned b at 0 and dragged
+  // the hue to ~33°.
+  EXPECT_NEAR(color_cast<core::oklch_t>(result).h(), 47.7f, 3.0f);
 }
 
 TEST(LerpCatmullRomTest, ThreeQuarterPoint) {
@@ -779,15 +784,15 @@ TEST(MaxChromaForTest, NeverExceedsSrgbCeiling) {
 
 TEST(LerpChromaPreservingTest, PreserveSafeMidpointDiffersFromPreserve) {
   // red -> blue: both endpoints have chroma above the mid-lightness gamut
-  // boundary, so preserve pins a channel at the limit while preserve_safe
-  // must reduce chroma — the two modes cannot produce the same midpoint.
-  core::rgbf_t red(1.0f, 0.0f, 0.0f);
-  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  // boundary, so preserve keeps the max endpoint chroma while preserve_safe
+  // must reduce it. Compared in OkLCH because a bounded target gamut-maps
+  // both onto the same boundary point (issue #79) and cannot show the
+  // difference.
+  const auto red = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 0.0f, 0.0f));
+  const auto blue = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
   auto safe = lerp_chroma_preserving(red, blue, 0.5f, chroma_mode::preserve_safe);
   auto pres = lerp_chroma_preserving(red, blue, 0.5f, chroma_mode::preserve);
-  float max_diff =
-      std::max({std::fabs(safe.r() - pres.r()), std::fabs(safe.g() - pres.g()), std::fabs(safe.b() - pres.b())});
-  EXPECT_GT(max_diff, 0.01f);
+  EXPECT_GT(pres.c(), safe.c() + 0.01f);
 }
 
 TEST(LerpChromaPreservingTest, PreserveSafeMidpointChromaStaysBelowBoundary) {
@@ -1099,10 +1104,16 @@ TEST(LerpOklchTest, PowerlessWhiteHueTakesBlueHue) {
   const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
   const auto mid = lerp_oklch(white, blue, 0.5f);
   // Buggy midpoint: H ≈ 175° teal rgb(0, 0.77, 0.65). White's hue is
-  // missing, so the whole arc rides blue's 264.05° — a light blue.
-  EXPECT_NEAR(mid.r(), 0.4530f, 2e-3f);
-  EXPECT_NEAR(mid.g(), 0.6381f, 2e-3f);
-  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+  // missing, so the whole arc rides blue's 264.05° — a light blue. The
+  // midpoint leaves sRGB; gamut mapping (issue #79) keeps hue and L while
+  // chroma falls to the boundary, where the old per-channel clip pinned b
+  // at 1 and dragged the hue ~10°.
+  const auto ok = color_cast<core::oklch_t>(mid);
+  const auto ok_blue = color_cast<core::oklch_t>(blue);
+  EXPECT_NEAR(ok.h(), ok_blue.h(), 1.0f);
+  EXPECT_NEAR(ok.l(), 0.5f * (1.0f + ok_blue.l()), 2e-3f);
+  EXPECT_GT(mid.b(), mid.g());  // light blue, not teal (teal has g > b)
+  EXPECT_GT(mid.g(), mid.r());
 }
 
 TEST(LerpOklchTest, PowerlessBlackHueTakesBlueHue) {
@@ -1128,10 +1139,15 @@ TEST(LerpLchTest, PowerlessWhiteHueTakesBlueHue) {
   const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
   const auto mid = lerp_lch(white, blue, 0.5f);
   // Buggy midpoint: H ≈ 333°, pink. White's hue is missing, so the arc
-  // rides blue's LCH hue (306.29°) — a light blue, not pink.
-  EXPECT_NEAR(mid.r(), 0.7014f, 2e-3f);
-  EXPECT_NEAR(mid.g(), 0.5458f, 2e-3f);
-  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+  // rides blue's LCH hue (306.29°) — a light blue-purple, not pink. The
+  // midpoint leaves sRGB; gamut mapping (issue #79) keeps the hue (within
+  // the small OkLCH↔CIELCH drift) where the old clip dragged it away.
+  const auto ok = color_cast<core::cielch_t>(mid);
+  const auto ok_blue = color_cast<core::cielch_t>(blue);
+  EXPECT_NEAR(ok.h(), ok_blue.h(), 1.0f);
+  EXPECT_NEAR(ok.l(), 0.5f * (100.0f + ok_blue.l()), 0.5f);
+  EXPECT_GT(mid.b(), mid.r());
+  EXPECT_GT(mid.b(), mid.g());
 }
 
 TEST(LerpHslTest, PowerlessWhiteHueTakesBlueHue) {
@@ -1276,15 +1292,21 @@ TEST(LerpPremultipliedTest, TransparentEndpointDoesNotTintMidpoint) {
 TEST(LerpPremultipliedTest, NamedSpaceMatchesCssColorMixReference) {
   // The io/css color-mix implementation is the in-repo CSS Color 4
   // reference (premultiplied channels + powerless hue + shorter arc).
-  // lerp_oklch must agree with it at the midpoint.
+  // The blend runs through the extended-range linear target (issue #76: no
+  // gamut mapping, no clamping) and is compared after sRGB serialization —
+  // the same clip the css output has already gone through. A bounded
+  // target would gamut-map this out-of-gamut midpoint instead (issue #79),
+  // which LerpGamutMappingTest covers.
   const core::rgbaf_t transparent_red{1.0f, 0.0f, 0.0f, 0.0f};
   const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
   const auto ref = colorcpp::io::css::parse_css_color_rgbaf("color-mix(in oklch, rgba(255, 0, 0, 0), blue)");
   ASSERT_TRUE(ref.has_value());
-  const auto mid = lerp_oklch(transparent_red, blue, 0.5f);
-  EXPECT_NEAR(mid.r(), ref->r(), 2e-3f);
-  EXPECT_NEAR(mid.g(), ref->g(), 2e-3f);
-  EXPECT_NEAR(mid.b(), ref->b(), 2e-3f);
+  const auto mid =
+      lerp_oklch(color_cast<core::linear_rgbaf_t>(transparent_red), color_cast<core::linear_rgbaf_t>(blue), 0.5f);
+  const auto serialized = color_cast<core::rgbaf_t>(mid);
+  EXPECT_NEAR(serialized.r(), ref->r(), 2e-3f);
+  EXPECT_NEAR(serialized.g(), ref->g(), 2e-3f);
+  EXPECT_NEAR(serialized.b(), ref->b(), 2e-3f);
   EXPECT_NEAR(mid.a(), ref->a(), 2e-3f);
 }
 
@@ -1308,6 +1330,84 @@ TEST(LerpPremultipliedTest, EqualAlphasKeepStraightBlend) {
   EXPECT_NEAR(mid.r(), 0.5f, 1e-4f);
   EXPECT_NEAR(mid.b(), 0.5f, 1e-4f);
   EXPECT_NEAR(mid.a(), 0.5f, 1e-4f);
+}
+
+// ---- issue #79: out-of-gamut interpolation results are gamut-mapped ----
+
+TEST(LerpGamutMappingTest, OklchMidpointKeepsHueWhenMappedToSrgb) {
+  // lerp_oklch(green, blue, 0.5) sits outside sRGB (C ≈ 0.30 at H ≈ 203).
+  // Per-channel clipping used to drag the back-converted hue to 220.6°;
+  // CSS gamut mapping (chroma reduction at fixed L and hue) keeps ≈ 203°.
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 1.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto mid = lerp_oklch(green, blue, 0.5f);
+  const auto ok = color_cast<core::oklch_t>(mid);
+  EXPECT_NEAR(ok.h(), 203.3f, 3.0f);
+  EXPECT_GT(ok.c(), 0.05f);  // mapped to the sRGB boundary, not to gray
+}
+
+TEST(LerpGamutMappingTest, AlphaSurvivesGamutMapping) {
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 0.4f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 0.4f};
+  const auto mid = lerp_oklch(green, blue, 0.5f);
+  EXPECT_NEAR(mid.a(), 0.4f, 1e-3f);
+  EXPECT_NEAR(color_cast<core::oklch_t>(mid).h(), 203.3f, 3.0f);
+}
+
+TEST(LerpGamutMappingTest, InGamutMidpointMatchesStraightCast) {
+  // An in-gamut midpoint must come out of the mapping untouched: the result
+  // equals the unbounded-space midpoint cast straight to sRGB.
+  const core::rgbaf_t a{0.85f, 0.55f, 0.55f, 1.0f};
+  const core::rgbaf_t b{0.55f, 0.55f, 0.85f, 1.0f};
+  const auto unbounded = lerp_oklch(color_cast<core::oklch_t>(a), color_cast<core::oklch_t>(b), 0.5f);
+  ASSERT_TRUE(::colorcpp::algorithms::gamut::is_in_gamut(unbounded));
+  const auto expected = color_cast<core::rgbaf_t>(unbounded);
+  const auto actual = lerp_oklch(a, b, 0.5f);
+  EXPECT_NEAR(actual.r(), expected.r(), 2e-4f);
+  EXPECT_NEAR(actual.g(), expected.g(), 2e-4f);
+  EXPECT_NEAR(actual.b(), expected.b(), 2e-4f);
+}
+
+TEST(LerpGamutMappingTest, UnboundedTargetKeepsOutOfRangeMidpoint) {
+  // OkLCH is an unbounded working space (like the extended-range targets of
+  // issue #76): the out-of-gamut midpoint passes through with full chroma.
+  const auto green = color_cast<core::oklch_t>(core::rgbaf_t{0.0f, 1.0f, 0.0f, 1.0f});
+  const auto blue = color_cast<core::oklch_t>(core::rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f});
+  const auto mid = lerp_oklch(green, blue, 0.5f);
+  ASSERT_FALSE(::colorcpp::algorithms::gamut::is_in_gamut(mid));
+  EXPECT_NEAR(mid.l(), 0.5f * (green.l() + blue.l()), 1e-3f);
+  EXPECT_NEAR(mid.c(), 0.5f * (green.c() + blue.c()), 1e-3f);
+  EXPECT_NEAR(mid.h(), 203.3f, 3.0f);
+}
+
+TEST(LerpGamutMappingTest, WideGamutTargetKeepsMoreChromaThanSrgb) {
+  // Same colors, Display P3 destination: the midpoint must be mapped into
+  // P3 (not sRGB), keeping its hue and more chroma than the sRGB result.
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 1.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto srgb_mid = lerp_oklch(green, blue, 0.5f);
+  const auto p3_mid = lerp_oklch(color_cast<core::display_p3af_t>(green), color_cast<core::display_p3af_t>(blue), 0.5f);
+  const auto cs = color_cast<core::oklch_t>(srgb_mid);
+  const auto cp = color_cast<core::oklch_t>(p3_mid);
+  EXPECT_NEAR(cs.h(), 203.3f, 3.0f);
+  EXPECT_NEAR(cp.h(), 203.3f, 3.0f);
+  EXPECT_GT(cp.c(), cs.c() + 1e-3f);
+}
+
+TEST(LerpGamutMappingTest, Rec2020TargetKeepsMoreChromaThanSrgb) {
+  // Rec.2020 destination: mapped into the Rec.2020 gamut, hue kept.
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 1.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto srgb_mid = lerp_oklch(green, blue, 0.5f);
+  const auto r20_mid =
+      lerp_oklch(color_cast<core::rec2020_rgbaf_t>(green), color_cast<core::rec2020_rgbaf_t>(blue), 0.5f);
+  const auto cs = color_cast<core::oklch_t>(srgb_mid);
+  const auto cr = color_cast<core::oklch_t>(r20_mid);
+  EXPECT_NEAR(cr.h(), 203.3f, 3.0f);
+  // Rec.2020 is wider than sRGB: mapping into its own gamut keeps more
+  // chroma than the sRGB-mapped result (and per-channel clipping would
+  // drag the hue away, caught just above).
+  EXPECT_GT(cr.c(), cs.c() + 1e-3f);
 }
 
 }  // namespace colorcpp::operations::test

@@ -89,6 +89,16 @@ inline void xyz_to_linear_adobergb(float x, float y, float z, float& r, float& g
   b = 0.0134450f * x - 0.1183627f * y + 1.0153868f * z;
 }
 
+// CIE XYZ (D65) → linear Rec.2020 (D65). Exact inverse of the forward
+// matrix registered in conversion/functions/rec2020.hpp (Gauss-Jordan on
+// its 9-digit coefficients), same mutual-inverse contract as the Adobe RGB
+// pair above (issue #68).
+inline void xyz_to_linear_rec2020(float x, float y, float z, float& r, float& g, float& b) noexcept {
+  r = 1.716625772f * x - 0.355670784f * y - 0.253419279f * z;
+  g = -0.666674481f * x + 1.616481236f * y + 0.015771845f * z;
+  b = 0.017639596f * x - 0.042770613f * y + 0.942300181f * z;
+}
+
 // CIE XYZ (D65) → XYZ (D50) Bradford adaptation, folded once at compile time:
 // M_BFD_inv · diag(cone_D50 / cone_D65) · M_BFD, with the cone responses of
 // the two white points. Derived from algorithms::chromatic_adaptation's
@@ -160,6 +170,13 @@ inline void linrgb_to_linear_prophoto(float lr, float lg, float lb, float& r, fl
   float x, y, z;
   linrgb_to_xyz(lr, lg, lb, x, y, z);
   xyz_to_linear_prophoto(x, y, z, r, g, b);
+}
+
+// linear sRGB → linear Rec.2020 (D65)
+inline void linrgb_to_linear_rec2020(float lr, float lg, float lb, float& r, float& g, float& b) noexcept {
+  float x, y, z;
+  linrgb_to_xyz(lr, lg, lb, x, y, z);
+  xyz_to_linear_rec2020(x, y, z, r, g, b);
 }
 
 }  // namespace colorcpp::algorithms::gamut::details
