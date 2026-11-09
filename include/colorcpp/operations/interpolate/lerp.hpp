@@ -45,6 +45,24 @@ inline float src_alpha(const Color& c) {
   return ::colorcpp::operations::conversion::details::get_src_alpha(c);
 }
 
+// CSS Color 4 premultiplied channel blend (issue #80): weight each color
+// channel by its endpoint's unit alpha and un-premultiply by the blended
+// alpha, matching io/css mix_in_rectangular_space / mix_in_polar_space.
+// When the blended alpha is 0 the premultiplied sum passes through
+// undivided (the un-premultiplied color is defined as 0 there). Hue and
+// alpha channels are never premultiplied.
+inline float lerp_premul(float va, float aa, float vb, float ab, float t, float a_mid) {
+  const float blended = lerp_f(va * aa, vb * ab, t);
+  return a_mid > 0.0f ? blended / a_mid : blended;
+}
+
+// Unit-space blend weight of a color's alpha, clamped to [0, 1] like the
+// CSS mix reference.
+template <typename Color>
+inline float premul_weight(const Color& c) {
+  return std::clamp(src_alpha(c), 0.0f, 1.0f);
+}
+
 /**
  * @brief CSS Color 4 powerless-hue substitution (issue #51).
  *
@@ -95,27 +113,39 @@ inline constexpr bool has_hue_channel_v =
     ::colorcpp::traits::details::has_channel_tag_impl<typename Color::channels_tuple,
                                                       ::colorcpp::traits::hue_tag>::value;
 
-// Per-channel dispatch: hue goes through the arc lerp, everything else
-// (S, L, C, a, b, alpha, …) stays a plain linear blend.
+// Per-channel dispatch: hue goes through the arc lerp, alpha blends
+// linearly, and every other channel (S, L, C, a, b, …) blends
+// premultiplied (issue #80).
 template <typename Color, std::size_t I>
-inline float lerp_channel_value(const Color& a, const Color& b, float t) {
+inline float lerp_channel_value(const Color& a, const Color& b, float t, float aa, float ab, float a_mid) {
   using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
   const float va = static_cast<float>(a.template get_index<I>());
   const float vb = static_cast<float>(b.template get_index<I>());
   if constexpr (std::is_same_v<typename channel_t::tag_type, ::colorcpp::traits::hue_tag>)
     return lerp_angle_deg(va, vb, t);
-  else
+  else if constexpr (std::is_same_v<typename channel_t::tag_type, ::colorcpp::traits::alpha_tag>)
     return lerp_f(va, vb, t);
+  else
+    return lerp_premul(va, aa, vb, ab, t, a_mid);
 }
 
 template <typename Color, std::size_t... I>
-inline Color lerp_channels_impl(const Color& a, const Color& b, float t, std::index_sequence<I...>) {
+inline Color lerp_channels_impl(const Color& a, const Color& b, float t, float aa, float ab, float a_mid,
+                                std::index_sequence<I...>) {
   namespace cdetails = ::colorcpp::operations::conversion::details;
-  return cdetails::pack_to<Color>(cdetails::from_value<Color, I>(lerp_channel_value<Color, I>(a, b, t))...);
+  return cdetails::pack_to<Color>(
+      cdetails::from_value<Color, I>(lerp_channel_value<Color, I>(a, b, t, aa, ab, a_mid))...);
 }
 
 template <typename Color>
 inline Color lerp_channels(const Color& a, const Color& b, float t) {
+  // Exact endpoints first (issue #80): premultiplied blending would divide
+  // 0/0 at a zero-alpha endpoint, and callers pin t = 0/1 to the inputs.
+  if (t == 0.0f) return a;
+  if (t == 1.0f) return b;
+  const float aa = premul_weight(a);
+  const float ab = premul_weight(b);
+  const float a_mid = lerp_f(aa, ab, t);
   if constexpr (has_hue_channel_v<Color> && ::colorcpp::core::has_chroma_channel_v<Color>) {
     // Powerless-hue rule (issues #51/#62): chroma ≈ 0 makes the stored hue
     // missing, so it takes the other endpoint's hue before the arc lerp.
@@ -128,23 +158,25 @@ inline Color lerp_channels(const Color& a, const Color& b, float t) {
     substitute_powerless_hue(ca, cb, hue_a, hue_b);
     ca.template get_index<hi>() = hue_a;
     cb.template get_index<hi>() = hue_b;
-    return lerp_channels_impl(ca, cb, t, std::make_index_sequence<Color::channels>{});
+    return lerp_channels_impl(ca, cb, t, aa, ab, a_mid, std::make_index_sequence<Color::channels>{});
   } else {
-    return lerp_channels_impl(a, b, t, std::make_index_sequence<Color::channels>{});
+    return lerp_channels_impl(a, b, t, aa, ab, a_mid, std::make_index_sequence<Color::channels>{});
   }
 }
 
 }  // namespace details
 
 /**
- * @brief Channel-wise linear interpolation in @p Color's own color space.
+ * @brief Channel-wise interpolation in @p Color's own color space.
  *
- * Each channel (including alpha) is interpolated directly — no conversion
- * through a fixed hub space — so RGB-family callers keep their own gamut:
- * Display P3 / Rec. 2020 endpoints are never clipped to sRGB (issue #50).
- * For hue-bearing models the hue channel takes the shortest arc with the
- * powerless-hue rule applied first (issue #62), matching @ref lerp_hsl,
- * @ref lerp_hsv, and @ref lerp_oklch.
+ * Interpolated directly in the caller's space — no conversion through a
+ * fixed hub type — so RGB-family callers keep their own gamut: Display P3 /
+ * Rec. 2020 endpoints are never clipped to sRGB (issue #50). Color channels
+ * blend on their CSS premultiplied form (issue #80): weighted by each
+ * endpoint's alpha and un-premultiplied by the blended alpha, so a fully
+ * transparent endpoint does not tint the result. Hue takes the shortest arc
+ * with the powerless-hue rule applied first (issues #51/#62), matching
+ * @ref lerp_hsl, @ref lerp_hsv, and @ref lerp_oklch; alpha blends linearly.
  * @param t Interpolation factor in [0, 1] (clamped).
  */
 template <typename Color>
@@ -171,11 +203,13 @@ Color lerp_linear(const Color& a, const Color& b, float t) {
   return color_cast<Color>(details::lerp_channels(ca, cb, t));
 }
 
-/** @brief HSL interpolation with shortest-arc hue; S, L, A linear. */
+/** @brief HSL interpolation with shortest-arc hue; S, L premultiplied (issue #80), A linear. */
 template <typename Color>
 Color lerp_hsl(const Color& a, const Color& b, float t) {
   using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
+  if (t == 0.0f) return a;
+  if (t == 1.0f) return b;
 
   auto ca = color_cast<core::hsla_float_t>(a);
   auto cb = color_cast<core::hsla_float_t>(b);
@@ -184,19 +218,25 @@ Color lerp_hsl(const Color& a, const Color& b, float t) {
   float hue_b = cb.template get_index<0>();
   details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // S = 0 → hue missing (issue #51)
 
+  const float aa = details::premul_weight(a);
+  const float ab = details::premul_weight(b);
+  const float a_mid = details::lerp_f(aa, ab, t);
+
   core::hsla_float_t out{details::lerp_angle_deg(hue_a, hue_b, t),
-                         details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                         details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
+                         details::lerp_premul(ca.template get_index<1>(), aa, cb.template get_index<1>(), ab, t, a_mid),
+                         details::lerp_premul(ca.template get_index<2>(), aa, cb.template get_index<2>(), ab, t, a_mid),
                          details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
 
   return color_cast<Color>(out);
 }
 
-/** @brief HSV interpolation with shortest-arc hue; S, V, A linear. */
+/** @brief HSV interpolation with shortest-arc hue; S, V premultiplied (issue #80), A linear. */
 template <typename Color>
 Color lerp_hsv(const Color& a, const Color& b, float t) {
   using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
+  if (t == 0.0f) return a;
+  if (t == 1.0f) return b;
 
   auto ca = color_cast<core::hsva_float_t>(a);
   auto cb = color_cast<core::hsva_float_t>(b);
@@ -205,35 +245,47 @@ Color lerp_hsv(const Color& a, const Color& b, float t) {
   float hue_b = cb.template get_index<0>();
   details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // S = 0 → hue missing (issue #51)
 
+  const float aa = details::premul_weight(a);
+  const float ab = details::premul_weight(b);
+  const float a_mid = details::lerp_f(aa, ab, t);
+
   core::hsva_float_t out{details::lerp_angle_deg(hue_a, hue_b, t),
-                         details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                         details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t),
+                         details::lerp_premul(ca.template get_index<1>(), aa, cb.template get_index<1>(), ab, t, a_mid),
+                         details::lerp_premul(ca.template get_index<2>(), aa, cb.template get_index<2>(), ab, t, a_mid),
                          details::lerp_f(ca.template get_index<3>(), cb.template get_index<3>(), t)};
 
   return color_cast<Color>(out);
 }
 
-/** @brief OkLab interpolation (perceptually uniform); alpha lerped from endpoints. */
+/** @brief OkLab interpolation (perceptually uniform); channels premultiplied (issue #80). */
 template <typename Color>
 Color lerp_oklab(const Color& a, const Color& b, float t) {
   using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
+  if (t == 0.0f) return a;
+  if (t == 1.0f) return b;
 
   auto ca = color_cast<core::oklab_t>(a);
   auto cb = color_cast<core::oklab_t>(b);
 
-  core::oklab_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
-                    details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                    details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+  const float aa = details::premul_weight(a);
+  const float ab = details::premul_weight(b);
+  const float a_mid = details::lerp_f(aa, ab, t);
 
-  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
+  core::oklab_t mid{details::lerp_premul(ca.template get_index<0>(), aa, cb.template get_index<0>(), ab, t, a_mid),
+                    details::lerp_premul(ca.template get_index<1>(), aa, cb.template get_index<1>(), ab, t, a_mid),
+                    details::lerp_premul(ca.template get_index<2>(), aa, cb.template get_index<2>(), ab, t, a_mid)};
+
+  return details::lerp_result<Color>(mid, a_mid);
 }
 
-/** @brief OkLCH interpolation: shortest-arc hue; L, C linear; alpha from endpoints. */
+/** @brief OkLCH interpolation: shortest-arc hue; L, C premultiplied (issue #80). */
 template <typename Color>
 Color lerp_oklch(const Color& a, const Color& b, float t) {
   using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
+  if (t == 0.0f) return a;
+  if (t == 1.0f) return b;
 
   auto ca = color_cast<core::oklch_t>(a);
   auto cb = color_cast<core::oklch_t>(b);
@@ -242,34 +294,46 @@ Color lerp_oklch(const Color& a, const Color& b, float t) {
   float hue_b = cb.template get_index<2>();
   details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // C ≈ 0 → hue missing (issue #51)
 
-  core::oklch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
-                    details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+  const float aa = details::premul_weight(a);
+  const float ab = details::premul_weight(b);
+  const float a_mid = details::lerp_f(aa, ab, t);
+
+  core::oklch_t mid{details::lerp_premul(ca.template get_index<0>(), aa, cb.template get_index<0>(), ab, t, a_mid),
+                    details::lerp_premul(ca.template get_index<1>(), aa, cb.template get_index<1>(), ab, t, a_mid),
                     details::lerp_angle_deg(hue_a, hue_b, t)};
 
-  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
+  return details::lerp_result<Color>(mid, a_mid);
 }
 
-/** @brief CIELAB interpolation; alpha from endpoints. */
+/** @brief CIELAB interpolation; channels premultiplied (issue #80). */
 template <typename Color>
 Color lerp_lab(const Color& a, const Color& b, float t) {
   using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
+  if (t == 0.0f) return a;
+  if (t == 1.0f) return b;
 
   auto ca = color_cast<core::cielab_t>(a);
   auto cb = color_cast<core::cielab_t>(b);
 
-  core::cielab_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
-                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
-                     details::lerp_f(ca.template get_index<2>(), cb.template get_index<2>(), t)};
+  const float aa = details::premul_weight(a);
+  const float ab = details::premul_weight(b);
+  const float a_mid = details::lerp_f(aa, ab, t);
 
-  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
+  core::cielab_t mid{details::lerp_premul(ca.template get_index<0>(), aa, cb.template get_index<0>(), ab, t, a_mid),
+                     details::lerp_premul(ca.template get_index<1>(), aa, cb.template get_index<1>(), ab, t, a_mid),
+                     details::lerp_premul(ca.template get_index<2>(), aa, cb.template get_index<2>(), ab, t, a_mid)};
+
+  return details::lerp_result<Color>(mid, a_mid);
 }
 
-/** @brief CIELCH interpolation: shortest-arc hue; L*, C* linear; alpha from endpoints. */
+/** @brief CIELCH interpolation: shortest-arc hue; L*, C* premultiplied (issue #80). */
 template <typename Color>
 Color lerp_lch(const Color& a, const Color& b, float t) {
   using namespace conversion;
   t = std::clamp(t, 0.0f, 1.0f);
+  if (t == 0.0f) return a;
+  if (t == 1.0f) return b;
 
   auto ca = color_cast<core::cielch_t>(a);
   auto cb = color_cast<core::cielch_t>(b);
@@ -278,11 +342,15 @@ Color lerp_lch(const Color& a, const Color& b, float t) {
   float hue_b = cb.template get_index<2>();
   details::substitute_powerless_hue(ca, cb, hue_a, hue_b);  // C* ≈ 0 → hue missing (issue #51)
 
-  core::cielch_t mid{details::lerp_f(ca.template get_index<0>(), cb.template get_index<0>(), t),
-                     details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t),
+  const float aa = details::premul_weight(a);
+  const float ab = details::premul_weight(b);
+  const float a_mid = details::lerp_f(aa, ab, t);
+
+  core::cielch_t mid{details::lerp_premul(ca.template get_index<0>(), aa, cb.template get_index<0>(), ab, t, a_mid),
+                     details::lerp_premul(ca.template get_index<1>(), aa, cb.template get_index<1>(), ab, t, a_mid),
                      details::lerp_angle_deg(hue_a, hue_b, t)};
 
-  return details::lerp_result<Color>(mid, details::lerp_f(details::src_alpha(a), details::src_alpha(b), t));
+  return details::lerp_result<Color>(mid, a_mid);
 }
 
 }  // namespace colorcpp::operations::interpolate

@@ -1256,4 +1256,58 @@ TEST(LerpAngleDegTest, OutOfRangeStoredHueWraps) {
   EXPECT_NEAR(rev.h(), 5.0f, 0.5f);
 }
 
+// --- Issue #80: premultiplied alpha interpolation ----------------------
+// CSS Color 4 interpolates on premultiplied colors: each color channel is
+// weighted by its endpoint's alpha and un-premultiplied by the blended
+// alpha. A fully transparent endpoint must not tint the result.
+
+TEST(LerpPremultipliedTest, TransparentEndpointDoesNotTintMidpoint) {
+  // Doc case: the straight mix gave rgb(0.5, 0, 0.5) — a purple edge from
+  // the transparent red's hidden RGB. CSS premultiplied gives pure blue.
+  const core::rgbaf_t transparent_red{1.0f, 0.0f, 0.0f, 0.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto mid = lerp(transparent_red, blue, 0.5f);
+  EXPECT_NEAR(mid.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(mid.g(), 0.0f, 1e-4f);
+  EXPECT_NEAR(mid.b(), 1.0f, 1e-4f);
+  EXPECT_NEAR(mid.a(), 0.5f, 1e-4f);
+}
+
+TEST(LerpPremultipliedTest, NamedSpaceMatchesCssColorMixReference) {
+  // The io/css color-mix implementation is the in-repo CSS Color 4
+  // reference (premultiplied channels + powerless hue + shorter arc).
+  // lerp_oklch must agree with it at the midpoint.
+  const core::rgbaf_t transparent_red{1.0f, 0.0f, 0.0f, 0.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto ref = colorcpp::io::css::parse_css_color_rgbaf("color-mix(in oklch, rgba(255, 0, 0, 0), blue)");
+  ASSERT_TRUE(ref.has_value());
+  const auto mid = lerp_oklch(transparent_red, blue, 0.5f);
+  EXPECT_NEAR(mid.r(), ref->r(), 2e-3f);
+  EXPECT_NEAR(mid.g(), ref->g(), 2e-3f);
+  EXPECT_NEAR(mid.b(), ref->b(), 2e-3f);
+  EXPECT_NEAR(mid.a(), ref->a(), 2e-3f);
+}
+
+TEST(LerpPremultipliedTest, ZeroAlphaEndpointStaysExact) {
+  // A 0-alpha endpoint would evaluate 0/0 without an endpoint short-circuit.
+  const core::rgbaf_t transparent_red{1.0f, 0.0f, 0.0f, 0.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto start = lerp(transparent_red, blue, 0.0f);
+  EXPECT_FLOAT_EQ(start.r(), 1.0f);
+  EXPECT_FLOAT_EQ(start.a(), 0.0f);
+  const auto end = lerp(transparent_red, blue, 1.0f);
+  EXPECT_FLOAT_EQ(end.b(), 1.0f);
+  EXPECT_FLOAT_EQ(end.a(), 1.0f);
+}
+
+TEST(LerpPremultipliedTest, EqualAlphasKeepStraightBlend) {
+  // Identical endpoint alphas: premultiplied == straight for the colors.
+  const core::rgbaf_t a{1.0f, 0.0f, 0.0f, 0.5f};
+  const core::rgbaf_t b{0.0f, 0.0f, 1.0f, 0.5f};
+  const auto mid = lerp(a, b, 0.5f);
+  EXPECT_NEAR(mid.r(), 0.5f, 1e-4f);
+  EXPECT_NEAR(mid.b(), 0.5f, 1e-4f);
+  EXPECT_NEAR(mid.a(), 0.5f, 1e-4f);
+}
+
 }  // namespace colorcpp::operations::test
