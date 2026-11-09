@@ -875,6 +875,26 @@ TEST(MaxChromaForTest, NeverExceedsSrgbCeiling) {
   EXPECT_LT(interpolate::details::max_chroma_for(0.7f, 145.0f), 0.32f);
 }
 
+TEST(MaxChromaForTest, NearBlackHoldsNoChroma) {
+  // Issue #83: the shared absolute 1e-4 gamut tolerance is noise-calibrated
+  // for full-scale colors; near black (channels O(1e-3) or smaller) it
+  // admitted chroma as large as the tolerance itself. Black holds no chroma
+  // at all, and L = 0.001's true boundary is a fraction of a percent.
+  EXPECT_EQ(interpolate::details::max_chroma_for(0.0f, 264.0f), 0.0f);
+  EXPECT_EQ(interpolate::details::max_chroma_for(0.0f, 0.0f), 0.0f);
+  EXPECT_EQ(interpolate::details::max_chroma_for(0.0f, 150.0f), 0.0f);
+  EXPECT_LT(interpolate::details::max_chroma_for(0.001f, 264.0f), 0.01f);
+  EXPECT_LT(interpolate::details::max_chroma_for(0.001f, 0.0f), 0.01f);
+  EXPECT_LT(interpolate::details::max_chroma_for(0.001f, 150.0f), 0.01f);
+}
+
+TEST(MaxChromaForTest, NormalLightnessBoundaryUnchanged) {
+  // Issue #83 regression target: the near-black fix must not move the
+  // normal-lightness gamut boundary.
+  EXPECT_NEAR(interpolate::details::max_chroma_for(0.5f, 264.0f), 0.2810f, 0.01f);
+  EXPECT_NEAR(interpolate::details::max_chroma_for(0.5f, 0.0f), 0.2028f, 0.01f);
+}
+
 TEST(LerpChromaPreservingTest, PreserveSafeMidpointDiffersFromPreserve) {
   // red -> blue: both endpoints have chroma above the mid-lightness gamut
   // boundary, so preserve keeps the max endpoint chroma while preserve_safe
