@@ -10,7 +10,9 @@
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/interpolate/lerp.hpp>
 #include <initializer_list>
+#include <iterator>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 namespace colorcpp::operations::interpolate {
@@ -182,76 +184,113 @@ Color ease_in_out(const Color& a, const Color& b, float t) {
   return ease(a, b, t, easing::smoothstep);
 }
 
-/** @brief Piecewise @ref lerp across evenly spaced stops on @f$t \in [0,1]@f$; at least two stops required. */
-template <typename Color>
-Color multi_lerp(std::initializer_list<Color> stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp requires at least 2 colour stops");
-  t = details::sanitize_t(t);
+namespace details {
 
-  const std::size_t n = stops.size() - 1;
+// Shared blend step (issue #84): every multi-stop sampler below and every
+// two-color caller routes through the same lerp / lerp_hsl / lerp_oklab /
+// lerp_oklch entry points, so the working-space entry and the alpha-policy
+// application have exactly one implementation per space. The samplers take
+// that step as their Blend parameter instead of re-copying it.
+
+// Generic multi-stop sampling core over evenly spaced stops (issue #84).
+// Accepts any random-access range of colors (initializer_list, vector, ...)
+// plus the per-segment blend and the caller-specific error message.
+template <typename Range, typename Blend>
+auto multi_lerp_even_impl(const Range& stops, float t, Blend&& blend,
+                          const char* what) -> std::decay_t<decltype(*std::begin(stops))> {
+  if (std::size(stops) < 2) throw std::invalid_argument(what);
+  t = sanitize_t(t);
+
+  const std::size_t n = std::size(stops) - 1;
   float scaled = t * static_cast<float>(n);
   std::size_t i = std::min(static_cast<std::size_t>(scaled), n - 1);
   float local_t = scaled - static_cast<float>(i);
 
-  auto it = stops.begin();
+  auto it = std::begin(stops);
   std::advance(it, i);
-  const Color& lo = *it++;
-  const Color& hi = *it;
-  return lerp(lo, hi, local_t);
+  const auto& lo = *it++;
+  const auto& hi = *it;
+  return blend(lo, hi, local_t);
+}
+
+// Generic multi-stop sampling core over explicit stop positions (issue #84).
+// The CSS Gradient non-decreasing stop rule (issue #82) is kept verbatim:
+// this family's scan is a different position model than the evenly spaced
+// core above, so both formulas stay byte-for-byte identical.
+template <typename Color, typename Blend>
+Color multi_lerp_stops_impl(const std::vector<stop<Color>>& stops, float t, Blend&& blend, const char* what) {
+  if (stops.size() < 2) throw std::invalid_argument(what);
+  t = sanitize_t(t);
+
+  // CSS Gradient stop rule (issue #82): positions are normalized to be
+  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
+  // out-of-order input can no longer sample from arbitrary segments.
+  float prev_pos = stops.front().position;
+  float back_pos = prev_pos;
+  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
+
+  if (t <= stops.front().position) return stops.front().color;
+  if (t >= back_pos) return stops.back().color;
+
+  for (std::size_t i = 0; i < stops.size() - 1; ++i) {
+    const auto& lo = stops[i];
+    const auto& hi = stops[i + 1];
+    const float lo_pos = prev_pos;
+    const float hi_pos = std::max(hi.position, prev_pos);
+    prev_pos = hi_pos;
+    if (t >= lo_pos && t <= hi_pos) {
+      float range = hi_pos - lo_pos;
+      if (range < 1e-10f) return lo.color;
+      float local_t = (t - lo_pos) / range;
+      return blend(lo.color, hi.color, local_t);
+    }
+  }
+
+  return stops.back().color;
+}
+
+// Generic count-based sampling core (issue #84).
+template <typename Color, typename Blend>
+std::vector<Color> lerp_n_impl(const Color& a, const Color& b, std::size_t count, Blend&& blend) {
+  std::vector<Color> out;
+  if (count == 0) return out;
+  out.reserve(count);
+  if (count == 1) {
+    out.push_back(a);
+    return out;
+  }
+  for (std::size_t i = 0; i < count; ++i)
+    out.push_back(blend(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
+  return out;
+}
+
+}  // namespace details
+
+/** @brief Piecewise @ref lerp across evenly spaced stops on @f$t \in [0,1]@f$; at least two stops required. */
+template <typename Color>
+Color multi_lerp(std::initializer_list<Color> stops, float t) {
+  return details::multi_lerp_even_impl(stops, t, lerp<Color>, "colorcpp: multi_lerp requires at least 2 colour stops");
 }
 
 /** @brief Piecewise @ref lerp_hsl between adjacent stops. */
 template <typename Color>
 Color multi_lerp_hsl(std::initializer_list<Color> stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_hsl requires at least 2 colour stops");
-  t = details::sanitize_t(t);
-
-  const std::size_t n = stops.size() - 1;
-  float scaled = t * static_cast<float>(n);
-  std::size_t i = std::min(static_cast<std::size_t>(scaled), n - 1);
-  float local_t = scaled - static_cast<float>(i);
-
-  auto it = stops.begin();
-  std::advance(it, i);
-  const Color& lo = *it++;
-  const Color& hi = *it;
-  return lerp_hsl(lo, hi, local_t);
+  return details::multi_lerp_even_impl(stops, t, lerp_hsl<Color>,
+                                       "colorcpp: multi_lerp_hsl requires at least 2 colour stops");
 }
 
 /** @brief Piecewise @ref lerp_oklab between adjacent stops. */
 template <typename Color>
 Color multi_lerp_oklab(std::initializer_list<Color> stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklab requires at least 2 colour stops");
-  t = details::sanitize_t(t);
-
-  const std::size_t n = stops.size() - 1;
-  float scaled = t * static_cast<float>(n);
-  std::size_t i = std::min(static_cast<std::size_t>(scaled), n - 1);
-  float local_t = scaled - static_cast<float>(i);
-
-  auto it = stops.begin();
-  std::advance(it, i);
-  const Color& lo = *it++;
-  const Color& hi = *it;
-  return lerp_oklab(lo, hi, local_t);
+  return details::multi_lerp_even_impl(stops, t, lerp_oklab<Color>,
+                                       "colorcpp: multi_lerp_oklab requires at least 2 colour stops");
 }
 
 /** @brief Piecewise @ref lerp_oklch between adjacent stops. */
 template <typename Color>
 Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklch requires at least 2 colour stops");
-  t = details::sanitize_t(t);
-
-  const std::size_t n = stops.size() - 1;
-  float scaled = t * static_cast<float>(n);
-  std::size_t i = std::min(static_cast<std::size_t>(scaled), n - 1);
-  float local_t = scaled - static_cast<float>(i);
-
-  auto it = stops.begin();
-  std::advance(it, i);
-  const Color& lo = *it++;
-  const Color& hi = *it;
-  return lerp_oklch(lo, hi, local_t);
+  return details::multi_lerp_even_impl(stops, t, lerp_oklch<Color>,
+                                       "colorcpp: multi_lerp_oklch requires at least 2 colour stops");
 }
 
 /**
@@ -261,34 +300,7 @@ Color multi_lerp_oklch(std::initializer_list<Color> stops, float t) {
  */
 template <typename Color>
 Color multi_lerp(const std::vector<stop<Color>>& stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp requires at least 2 colour stops");
-  t = details::sanitize_t(t);
-
-  // CSS Gradient stop rule (issue #82): positions are normalized to be
-  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
-  // out-of-order input can no longer sample from arbitrary segments.
-  float prev_pos = stops.front().position;
-  float back_pos = prev_pos;
-  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
-
-  if (t <= stops.front().position) return stops.front().color;
-  if (t >= back_pos) return stops.back().color;
-
-  for (std::size_t i = 0; i < stops.size() - 1; ++i) {
-    const auto& lo = stops[i];
-    const auto& hi = stops[i + 1];
-    const float lo_pos = prev_pos;
-    const float hi_pos = std::max(hi.position, prev_pos);
-    prev_pos = hi_pos;
-    if (t >= lo_pos && t <= hi_pos) {
-      float range = hi_pos - lo_pos;
-      if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo_pos) / range;
-      return lerp(lo.color, hi.color, local_t);
-    }
-  }
-
-  return stops.back().color;
+  return details::multi_lerp_stops_impl(stops, t, lerp<Color>, "colorcpp: multi_lerp requires at least 2 colour stops");
 }
 
 /**
@@ -296,34 +308,8 @@ Color multi_lerp(const std::vector<stop<Color>>& stops, float t) {
  */
 template <typename Color>
 Color multi_lerp_hsl(const std::vector<stop<Color>>& stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_hsl requires at least 2 colour stops");
-  t = details::sanitize_t(t);
-
-  // CSS Gradient stop rule (issue #82): positions are normalized to be
-  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
-  // out-of-order input can no longer sample from arbitrary segments.
-  float prev_pos = stops.front().position;
-  float back_pos = prev_pos;
-  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
-
-  if (t <= stops.front().position) return stops.front().color;
-  if (t >= back_pos) return stops.back().color;
-
-  for (std::size_t i = 0; i < stops.size() - 1; ++i) {
-    const auto& lo = stops[i];
-    const auto& hi = stops[i + 1];
-    const float lo_pos = prev_pos;
-    const float hi_pos = std::max(hi.position, prev_pos);
-    prev_pos = hi_pos;
-    if (t >= lo_pos && t <= hi_pos) {
-      float range = hi_pos - lo_pos;
-      if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo_pos) / range;
-      return lerp_hsl(lo.color, hi.color, local_t);
-    }
-  }
-
-  return stops.back().color;
+  return details::multi_lerp_stops_impl(stops, t, lerp_hsl<Color>,
+                                        "colorcpp: multi_lerp_hsl requires at least 2 colour stops");
 }
 
 /**
@@ -331,34 +317,8 @@ Color multi_lerp_hsl(const std::vector<stop<Color>>& stops, float t) {
  */
 template <typename Color>
 Color multi_lerp_oklab(const std::vector<stop<Color>>& stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklab requires at least 2 colour stops");
-  t = details::sanitize_t(t);
-
-  // CSS Gradient stop rule (issue #82): positions are normalized to be
-  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
-  // out-of-order input can no longer sample from arbitrary segments.
-  float prev_pos = stops.front().position;
-  float back_pos = prev_pos;
-  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
-
-  if (t <= stops.front().position) return stops.front().color;
-  if (t >= back_pos) return stops.back().color;
-
-  for (std::size_t i = 0; i < stops.size() - 1; ++i) {
-    const auto& lo = stops[i];
-    const auto& hi = stops[i + 1];
-    const float lo_pos = prev_pos;
-    const float hi_pos = std::max(hi.position, prev_pos);
-    prev_pos = hi_pos;
-    if (t >= lo_pos && t <= hi_pos) {
-      float range = hi_pos - lo_pos;
-      if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo_pos) / range;
-      return lerp_oklab(lo.color, hi.color, local_t);
-    }
-  }
-
-  return stops.back().color;
+  return details::multi_lerp_stops_impl(stops, t, lerp_oklab<Color>,
+                                        "colorcpp: multi_lerp_oklab requires at least 2 colour stops");
 }
 
 /**
@@ -366,94 +326,32 @@ Color multi_lerp_oklab(const std::vector<stop<Color>>& stops, float t) {
  */
 template <typename Color>
 Color multi_lerp_oklch(const std::vector<stop<Color>>& stops, float t) {
-  if (stops.size() < 2) throw std::invalid_argument("colorcpp: multi_lerp_oklch requires at least 2 colour stops");
-  t = details::sanitize_t(t);
-
-  // CSS Gradient stop rule (issue #82): positions are normalized to be
-  // non-decreasing (pos_i = max(pos_i, pos_{i-1})) before sampling, so
-  // out-of-order input can no longer sample from arbitrary segments.
-  float prev_pos = stops.front().position;
-  float back_pos = prev_pos;
-  for (const auto& s : stops) back_pos = std::max(back_pos, s.position);
-
-  if (t <= stops.front().position) return stops.front().color;
-  if (t >= back_pos) return stops.back().color;
-
-  for (std::size_t i = 0; i < stops.size() - 1; ++i) {
-    const auto& lo = stops[i];
-    const auto& hi = stops[i + 1];
-    const float lo_pos = prev_pos;
-    const float hi_pos = std::max(hi.position, prev_pos);
-    prev_pos = hi_pos;
-    if (t >= lo_pos && t <= hi_pos) {
-      float range = hi_pos - lo_pos;
-      if (range < 1e-10f) return lo.color;
-      float local_t = (t - lo_pos) / range;
-      return lerp_oklch(lo.color, hi.color, local_t);
-    }
-  }
-
-  return stops.back().color;
+  return details::multi_lerp_stops_impl(stops, t, lerp_oklch<Color>,
+                                        "colorcpp: multi_lerp_oklch requires at least 2 colour stops");
 }
 
 /** @brief @p count evenly spaced samples from @p a to @p b via @ref lerp. */
 template <typename Color>
 std::vector<Color> lerp_n(const Color& a, const Color& b, std::size_t count) {
-  std::vector<Color> out;
-  if (count == 0) return out;
-  out.reserve(count);
-  if (count == 1) {
-    out.push_back(a);
-    return out;
-  }
-  for (std::size_t i = 0; i < count; ++i)
-    out.push_back(lerp(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
-  return out;
+  return details::lerp_n_impl(a, b, count, lerp<Color>);
 }
 
 /** @brief @p count samples via @ref lerp_hsl. */
 template <typename Color>
 std::vector<Color> lerp_hsl_n(const Color& a, const Color& b, std::size_t count) {
-  std::vector<Color> out;
-  if (count == 0) return out;
-  out.reserve(count);
-  if (count == 1) {
-    out.push_back(a);
-    return out;
-  }
-  for (std::size_t i = 0; i < count; ++i)
-    out.push_back(lerp_hsl(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
-  return out;
+  return details::lerp_n_impl(a, b, count, lerp_hsl<Color>);
 }
 
 /** @brief @p count samples via @ref lerp_oklab. */
 template <typename Color>
 std::vector<Color> lerp_oklab_n(const Color& a, const Color& b, std::size_t count) {
-  std::vector<Color> out;
-  if (count == 0) return out;
-  out.reserve(count);
-  if (count == 1) {
-    out.push_back(a);
-    return out;
-  }
-  for (std::size_t i = 0; i < count; ++i)
-    out.push_back(lerp_oklab(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
-  return out;
+  return details::lerp_n_impl(a, b, count, lerp_oklab<Color>);
 }
 
 /** @brief @p count samples via @ref lerp_oklch. */
 template <typename Color>
 std::vector<Color> lerp_oklch_n(const Color& a, const Color& b, std::size_t count) {
-  std::vector<Color> out;
-  if (count == 0) return out;
-  out.reserve(count);
-  if (count == 1) {
-    out.push_back(a);
-    return out;
-  }
-  for (std::size_t i = 0; i < count; ++i)
-    out.push_back(lerp_oklch(a, b, static_cast<float>(i) / static_cast<float>(count - 1)));
-  return out;
+  return details::lerp_n_impl(a, b, count, lerp_oklch<Color>);
 }
 
 }  // namespace colorcpp::operations::interpolate
