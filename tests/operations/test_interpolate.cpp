@@ -1225,4 +1225,35 @@ TEST(GenericLerpTest, AlphaModeHslaMatchesChannelPolicy) {
   EXPECT_NEAR(mid.a(), 1.0f, 1e-3f);
 }
 
+// --- Issue #78: hue-arc hardening --------------------------------------
+// The ±180° tie must pick a consistent arc (lerp(a,b,t) == lerp(b,a,1-t)),
+// and stored hues outside [0, 360) must wrap like CSS angles.
+
+TEST(LerpAngleDegTest, Exact180SeparationIsOrderSymmetric) {
+  const core::hsla_float_t a{0.0f, 1.0f, 0.5f, 1.0f};
+  const core::hsla_float_t b{180.0f, 1.0f, 0.5f, 1.0f};
+  const auto fwd = lerp(a, b, 0.3f);
+  const auto rev = lerp(b, a, 0.7f);
+  // On the exact ±180 tie both arcs are equally short; the function must
+  // still satisfy lerp(a,b,t) == lerp(b,a,1-t). Old code sent the forward
+  // direction through 306° and the reverse through 54°.
+  EXPECT_NEAR(fwd.h(), rev.h(), 1e-3f);
+  // Tie-break convention: keep the sign of (b - a), i.e. 0° → 180° arcs
+  // forward through 54° at t = 0.3.
+  EXPECT_NEAR(fwd.h(), 54.0f, 1e-2f);
+}
+
+TEST(LerpAngleDegTest, OutOfRangeStoredHueWraps) {
+  // Doc case: lerp_hsl(350, -700) must midpoint at 5°, not 185°
+  // (-700° ≡ 20°; the shortest arc 350° → 20° crosses 0°).
+  const core::hsla_float_t a{350.0f, 1.0f, 0.5f, 1.0f};
+  const core::hsla_float_t b{-700.0f, 1.0f, 0.5f, 1.0f};
+  const auto mid = lerp_hsl(a, b, 0.5f);
+  EXPECT_NEAR(mid.h(), 5.0f, 0.5f);
+  // Out-of-range stored hue as the *start* endpoint: -700° + delta*t drops
+  // below zero and needs the result-side wrap too (old code returned -355°).
+  const auto rev = lerp_hsl(b, a, 0.5f);
+  EXPECT_NEAR(rev.h(), 5.0f, 0.5f);
+}
+
 }  // namespace colorcpp::operations::test

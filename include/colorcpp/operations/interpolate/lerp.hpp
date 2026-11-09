@@ -22,10 +22,21 @@ namespace details {
 inline float lerp_f(float a, float b, float t) { return a + (b - a) * t; }
 
 // Shortest-path hue interpolation in degree space [0, 360).
-// Wraps delta into [-180, 180] first so the shorter arc is always taken.
+// Wraps delta into [-180, 180] first so the shorter arc is always taken;
+// an exact ±180 tie keeps the sign of (b - a) so the mapping is antisymmetric
+// and lerp_angle_deg(a, b, t) == lerp_angle_deg(b, a, 1 - t) (issue #78).
+// Inputs may hold any stored angle (e.g. -700° ≡ 20°): both the delta and the
+// result are wrapped with sign-preserving fmod, not the old "+540"/"+360"
+// tricks, which broke on the ±180 tie and on values below -360°.
 inline float lerp_angle_deg(float a, float b, float t) {
-  float delta = std::fmod(b - a + 540.0f, 360.0f) - 180.0f;
-  return std::fmod(a + delta * t + 360.0f, 360.0f);
+  float delta = std::fmod(b - a, 360.0f);
+  if (delta > 180.0f)
+    delta -= 360.0f;
+  else if (delta < -180.0f)
+    delta += 360.0f;
+  float result = std::fmod(a + delta * t, 360.0f);
+  if (result < 0.0f) result += 360.0f;
+  return result;
 }
 
 // Unit-space alpha of a source color (1.0 when the model carries no alpha).
