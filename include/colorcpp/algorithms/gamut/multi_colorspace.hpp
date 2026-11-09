@@ -8,6 +8,15 @@
 #include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/gamut/details.hpp>
+#include <colorcpp/core/adobe_rgb.hpp>
+#include <colorcpp/core/cmyk.hpp>
+#include <colorcpp/core/display_p3.hpp>
+#include <colorcpp/core/hsl.hpp>
+#include <colorcpp/core/hsv.hpp>
+#include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/prophoto_rgb.hpp>
+#include <colorcpp/core/rec2020.hpp>
+#include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::algorithms::gamut {
@@ -20,6 +29,7 @@ enum class gamut_type {
   display_p3,    ///< Display P3 (wide gamut)
   adobe_rgb,     ///< Adobe RGB (wide gamut)
   prophoto_rgb,  ///< ProPhoto RGB (widest gamut)
+  rec2020,       ///< Rec. 2020 / BT.2020 (wide gamut)
 };
 
 namespace details {
@@ -53,6 +63,13 @@ inline bool linrgb_in_prophoto_gamut(float r, float g, float b, float eps = kWid
   return linrgb_in_gamut(pprgb_r, pprgb_g, pprgb_b, eps);
 }
 
+// Check if linear RGB is in Rec.2020 gamut
+inline bool linrgb_in_rec2020_gamut(float r, float g, float b, float eps = kWideGamutEps) noexcept {
+  float r20_r, r20_g, r20_b;
+  linrgb_to_linear_rec2020(r, g, b, r20_r, r20_g, r20_b);
+  return linrgb_in_gamut(r20_r, r20_g, r20_b, eps);
+}
+
 // Generic gamut check based on gamut type
 inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float eps = -1.0f) noexcept {
   if (eps < 0.0f) {
@@ -68,6 +85,8 @@ inline bool linrgb_in_gamut(float r, float g, float b, gamut_type type, float ep
       return linrgb_in_adobergb_gamut(r, g, b, eps);
     case gamut_type::prophoto_rgb:
       return linrgb_in_prophoto_gamut(r, g, b, eps);
+    case gamut_type::rec2020:
+      return linrgb_in_rec2020_gamut(r, g, b, eps);
     default:
       return details::linrgb_in_gamut(r, g, b, eps);
   }
@@ -121,6 +140,101 @@ template <typename Color>
 bool is_in_prophoto_gamut(const Color& c) {
   return is_in_gamut(c, gamut_type::prophoto_rgb);
 }
+
+/**
+ * @brief Check if a color is in Rec.2020 gamut.
+ */
+template <typename Color>
+bool is_in_rec2020_gamut(const Color& c) {
+  return is_in_gamut(c, gamut_type::rec2020);
+}
+
+/**
+ * @brief Destination gamut of a color model (issue #79).
+ *
+ * Display-encoded models clamp to their own RGB gamut when a conversion
+ * lands on them, so an out-of-gamut working-space midpoint has to be
+ * gamut-mapped — not per-channel hard-clipped — before the cast. Unbounded
+ * working spaces (OkLab/LCh, CIELAB/LCh, Luv, Jzazbz, xyy) and
+ * extended-range intermediates (linear RGB families, XYZ — issue #76) have
+ * no target gamut and pass values through untouched.
+ */
+template <gamut_type G>
+struct bounded_gamut {
+  static constexpr bool bounded = true;
+  static constexpr gamut_type gamut = G;
+};
+
+/// Primary template: no bounded target gamut.
+template <typename Model>
+struct model_target_gamut {
+  static constexpr bool bounded = false;
+  static constexpr gamut_type gamut = gamut_type::srgb;
+};
+
+// sRGB cube — rgb8/rgba8/rgbf/rgbaf and the parametric aliases that all
+// land inside it (HSL, HSV, HWB, naive CMYK).
+template <>
+struct model_target_gamut<core::rgb::model::rgb8> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::rgb::model::rgba8> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::rgb::model::rgb_float> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::rgb::model::rgba_float> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::hsl::model::hsl> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::hsl::model::hsla> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::hsv::model::hsv> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::hsv::model::hsva> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::hwb::model::hwb> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::hwb::model::hwba> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::cmyk::model::cmyk_u8> : bounded_gamut<gamut_type::srgb> {};
+template <>
+struct model_target_gamut<core::cmyk::model::cmyk_float> : bounded_gamut<gamut_type::srgb> {};
+
+// Wide-gamut display encodings map into their own primaries, never sRGB.
+template <>
+struct model_target_gamut<core::display_p3::model::display_p3> : bounded_gamut<gamut_type::display_p3> {};
+template <>
+struct model_target_gamut<core::display_p3::model::display_p3a> : bounded_gamut<gamut_type::display_p3> {};
+template <>
+struct model_target_gamut<core::adobe_rgb::model::adobe_rgb> : bounded_gamut<gamut_type::adobe_rgb> {};
+template <>
+struct model_target_gamut<core::adobe_rgb::model::adobe_rgba> : bounded_gamut<gamut_type::adobe_rgb> {};
+template <>
+struct model_target_gamut<core::prophoto_rgb::model::prophoto_rgb> : bounded_gamut<gamut_type::prophoto_rgb> {};
+template <>
+struct model_target_gamut<core::prophoto_rgb::model::prophoto_rgba> : bounded_gamut<gamut_type::prophoto_rgb> {};
+template <>
+struct model_target_gamut<core::rec2020::model::rec2020> : bounded_gamut<gamut_type::rec2020> {};
+template <>
+struct model_target_gamut<core::rec2020::model::rec2020a> : bounded_gamut<gamut_type::rec2020> {};
+
+/// Target gamut of a color type (delegates to its model).
+template <typename Color, typename = void>
+struct target_gamut {
+  static constexpr bool bounded = false;
+  static constexpr gamut_type gamut = gamut_type::srgb;
+};
+template <typename Color>
+struct target_gamut<Color, std::void_t<::colorcpp::operations::conversion::details::extract_model_t<Color>>>
+    : model_target_gamut<::colorcpp::operations::conversion::details::extract_model_t<Color>> {};
+
+/// True when conversions into @p Color clamp to a bounded RGB gamut.
+template <typename Color>
+inline constexpr bool has_target_gamut_v = target_gamut<Color>::bounded;
+
+/// The bounded gamut @p Color clamps to (meaningful only when
+/// @ref has_target_gamut_v is true).
+template <typename Color>
+inline constexpr gamut_type target_gamut_v = target_gamut<Color>::gamut;
 
 namespace details {
 

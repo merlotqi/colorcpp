@@ -2,7 +2,9 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <colorcpp/algorithms/gamut/multi_colorspace.hpp>
 #include <colorcpp/colorcpp.hpp>
+#include <limits>
 
 namespace colorcpp::operations::test {
 
@@ -328,7 +330,11 @@ TEST(LerpCatmullRomTest, QuarterPoint) {
   auto result = lerp_catmull_rom(p0, p1, p2, p3, 0.25f);
   // At t=0.25, should be closer to p1 than p2
   EXPECT_GT(result.r(), result.g());
-  EXPECT_NEAR(result.b(), 0.0f, 1e-3f);
+  // The uniform basis overshoots the red→green segment out of sRGB (mid
+  // OkLab ≈ (0.730, 0.143, 0.157), hue 47.7°). Gamut mapping keeps that
+  // hue (issue #79); the old per-channel clip pinned b at 0 and dragged
+  // the hue to ~33°.
+  EXPECT_NEAR(color_cast<core::oklch_t>(result).h(), 47.7f, 3.0f);
 }
 
 TEST(LerpCatmullRomTest, ThreeQuarterPoint) {
@@ -638,12 +644,13 @@ TEST(LerpMonotonicSplineTest, AlphaStaysWithinSegmentRange) {
 
 // lerp_path (piecewise multi-control-point interpolation)
 
-TEST(LerpPathTest, EmptyContainerReturnsDefaultColor) {
+TEST(LerpPathTest, EmptyContainerThrows) {
+  // Issue #82: a silent Color{} (transparent black) is a footgun; align with
+  // multi_lerp's documented std::invalid_argument contract. (Replaces
+  // EmptyContainerReturnsDefaultColor, which pinned the silent behavior.)
   std::vector<core::rgbf_t> colors;
-  auto result = lerp_path(colors, 0.5f);
-  EXPECT_NEAR(result.r(), 0.0f, 1e-6f);
-  EXPECT_NEAR(result.g(), 0.0f, 1e-6f);
-  EXPECT_NEAR(result.b(), 0.0f, 1e-6f);
+  EXPECT_THROW(lerp_path(colors, 0.5f), std::invalid_argument);
+  EXPECT_THROW(lerp_path(std::initializer_list<core::rgbf_t>{}, 0.5f), std::invalid_argument);
 }
 
 TEST(LerpPathTest, SingleColorReturnsOnlyColor) {
@@ -655,6 +662,9 @@ TEST(LerpPathTest, SingleColorReturnsOnlyColor) {
 }
 
 TEST(LerpPathTest, LinearModeSelectsExpectedSegment) {
+  // Issue #82: linear segments interpolate in OkLab like every spline (the
+  // old caller-space blend pinned 0.5/0.5 here). t = 0.25 is the midpoint of
+  // red -> green in OkLab; t = 0.75 the midpoint of green -> blue.
   std::vector<core::rgbf_t> colors = {
       core::rgbf_t(1.0f, 0.0f, 0.0f),
       core::rgbf_t(0.0f, 1.0f, 0.0f),
@@ -662,14 +672,14 @@ TEST(LerpPathTest, LinearModeSelectsExpectedSegment) {
   };
 
   auto first_half = lerp_path(colors, 0.25f, path_algorithm::linear);
-  EXPECT_NEAR(first_half.r(), 0.5f, 1e-4f);
-  EXPECT_NEAR(first_half.g(), 0.5f, 1e-4f);
-  EXPECT_NEAR(first_half.b(), 0.0f, 1e-4f);
+  EXPECT_NEAR(first_half.r(), 0.816297f, 1e-3f);
+  EXPECT_NEAR(first_half.g(), 0.660363f, 1e-3f);
+  EXPECT_NEAR(first_half.b(), 0.001770f, 1e-3f);
 
   auto second_half = lerp_path(colors, 0.75f, path_algorithm::linear);
-  EXPECT_NEAR(second_half.r(), 0.0f, 1e-4f);
-  EXPECT_NEAR(second_half.g(), 0.5f, 1e-4f);
-  EXPECT_NEAR(second_half.b(), 0.5f, 1e-4f);
+  EXPECT_NEAR(second_half.r(), 0.000449f, 1e-3f);
+  EXPECT_NEAR(second_half.g(), 0.646763f, 1e-3f);
+  EXPECT_NEAR(second_half.b(), 0.706347f, 1e-3f);
 }
 
 TEST(LerpPathTest, HalfwayWithThreeStopsReturnsMiddleControlPoint) {
@@ -686,14 +696,102 @@ TEST(LerpPathTest, HalfwayWithThreeStopsReturnsMiddleControlPoint) {
 }
 
 TEST(LerpPathTest, InitializerListOverloadWorks) {
+  // Issue #82: same OkLab linear blend as LinearModeSelectsExpectedSegment.
   core::rgbf_t red(1.0f, 0.0f, 0.0f);
   core::rgbf_t green(0.0f, 1.0f, 0.0f);
   core::rgbf_t blue(0.0f, 0.0f, 1.0f);
 
   auto result = lerp_path({red, green, blue}, 0.25f, path_algorithm::linear);
-  EXPECT_NEAR(result.r(), 0.5f, 1e-4f);
-  EXPECT_NEAR(result.g(), 0.5f, 1e-4f);
-  EXPECT_NEAR(result.b(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result.r(), 0.816297f, 1e-3f);
+  EXPECT_NEAR(result.g(), 0.660363f, 1e-3f);
+  EXPECT_NEAR(result.b(), 0.001770f, 1e-3f);
+}
+
+TEST(LerpPathTest, LinearModeInterpolatesInOklabNotCallerSpace) {
+  // Issue #82: linear segments used to blend in the caller's space while
+  // every spline ran in OkLab — same API, different lightness behavior. In
+  // OkLab, black -> gray(0.5) at the quarter point sits at 0.1783, not the
+  // gamma-space 0.25.
+  std::vector<core::rgbf_t> colors = {
+      core::rgbf_t(0.0f, 0.0f, 0.0f),
+      core::rgbf_t(0.5f, 0.5f, 0.5f),
+      core::rgbf_t(1.0f, 1.0f, 1.0f),
+  };
+  auto result = lerp_path(colors, 0.25f, path_algorithm::linear);
+  EXPECT_NEAR(result.r(), 0.178349f, 1e-3f);
+  EXPECT_NEAR(result.g(), 0.178349f, 1e-3f);
+  EXPECT_NEAR(result.b(), 0.178349f, 1e-3f);
+}
+
+TEST(LerpPathTest, NaNTReturnsFirstControlPoint) {
+  // Issue #82: NaN survives std::clamp and reached static_cast<size_t> (UB).
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  std::vector<core::rgbf_t> colors = {core::rgbf_t(0.2f, 0.4f, 0.6f), core::rgbf_t(0.9f, 0.1f, 0.5f)};
+  auto result = lerp_path(colors, nan);
+  EXPECT_FLOAT_EQ(result.r(), 0.2f);
+  EXPECT_FLOAT_EQ(result.g(), 0.4f);
+  EXPECT_FLOAT_EQ(result.b(), 0.6f);
+}
+
+// NaN-t sanitization (issue #82): std::clamp(NaN, 0, 1) returns NaN (every
+// comparison is false) and the piecewise samplers then cast it to size_t —
+// undefined behavior. Policy: NaN means "the first color"; every other value
+// clamps to [0, 1] as before.
+
+TEST(LerpNanTTest, LerpFamilyReturnsFirstColor) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t first(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t second(0.9f, 0.1f, 0.5f);
+  EXPECT_NEAR(lerp(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_linear(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_hsl(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_hsv(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_oklab(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_oklch(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_lab(first, second, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(lerp_lch(first, second, nan).r(), first.r(), 1e-6f);
+}
+
+TEST(LerpNanTTest, MultiLerpReturnsFirstStop) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t first(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t second(0.9f, 0.1f, 0.5f);
+  const core::rgbf_t third(0.1f, 0.8f, 0.3f);
+  const std::vector<stop<core::rgbf_t>> stops = {{first, 0.0f}, {second, 0.5f}, {third, 1.0f}};
+
+  EXPECT_NEAR(multi_lerp({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_hsl({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklab({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklch({first, second}, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp(stops, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_hsl(stops, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklab(stops, nan).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(multi_lerp_oklch(stops, nan).r(), first.r(), 1e-6f);
+}
+
+TEST(LerpNanTTest, EaseFamilyReturnsFirstColor) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t first(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t second(0.9f, 0.1f, 0.5f);
+  EXPECT_NEAR(ease(first, second, nan, easing::in_back).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_hsl(first, second, nan, easing::smoothstep).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_oklab(first, second, nan, easing::in_cubic).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_oklch(first, second, nan, easing::out_quad).r(), first.r(), 1e-6f);
+  EXPECT_NEAR(ease_in_out(first, second, nan).r(), first.r(), 1e-6f);
+}
+
+TEST(LerpNanTTest, SplineAndPolicyEntriesReturnFirstColor) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbf_t p0(0.1f, 0.2f, 0.3f);
+  const core::rgbf_t p1(0.2f, 0.4f, 0.6f);
+  const core::rgbf_t p2(0.9f, 0.1f, 0.5f);
+  const core::rgbf_t p3(0.4f, 0.7f, 0.2f);
+  EXPECT_NEAR(lerp_catmull_rom(p0, p1, p2, p3, nan).r(), p1.r(), 1e-5f);
+  EXPECT_NEAR(lerp_cubic_hermite(p0, p1, p2, p3, nan).r(), p1.r(), 1e-5f);
+  EXPECT_NEAR(lerp_monotonic_spline(p0, p1, p2, p3, nan).r(), p1.r(), 1e-5f);
+  EXPECT_NEAR(lerp_alpha_mode(p1, p2, nan).r(), p1.r(), 1e-6f);
+  EXPECT_NEAR(lerp_chroma_preserving(p1, p2, nan).r(), p1.r(), 1e-6f);
+  EXPECT_NEAR(lerp_hue_locked(p1, p2, nan).r(), p1.r(), 1e-6f);
 }
 
 TEST(LerpPathTest, CatmullRomModeProducesFiniteColor) {
@@ -777,17 +875,37 @@ TEST(MaxChromaForTest, NeverExceedsSrgbCeiling) {
   EXPECT_LT(interpolate::details::max_chroma_for(0.7f, 145.0f), 0.32f);
 }
 
+TEST(MaxChromaForTest, NearBlackHoldsNoChroma) {
+  // Issue #83: the shared absolute 1e-4 gamut tolerance is noise-calibrated
+  // for full-scale colors; near black (channels O(1e-3) or smaller) it
+  // admitted chroma as large as the tolerance itself. Black holds no chroma
+  // at all, and L = 0.001's true boundary is a fraction of a percent.
+  EXPECT_EQ(interpolate::details::max_chroma_for(0.0f, 264.0f), 0.0f);
+  EXPECT_EQ(interpolate::details::max_chroma_for(0.0f, 0.0f), 0.0f);
+  EXPECT_EQ(interpolate::details::max_chroma_for(0.0f, 150.0f), 0.0f);
+  EXPECT_LT(interpolate::details::max_chroma_for(0.001f, 264.0f), 0.01f);
+  EXPECT_LT(interpolate::details::max_chroma_for(0.001f, 0.0f), 0.01f);
+  EXPECT_LT(interpolate::details::max_chroma_for(0.001f, 150.0f), 0.01f);
+}
+
+TEST(MaxChromaForTest, NormalLightnessBoundaryUnchanged) {
+  // Issue #83 regression target: the near-black fix must not move the
+  // normal-lightness gamut boundary.
+  EXPECT_NEAR(interpolate::details::max_chroma_for(0.5f, 264.0f), 0.2810f, 0.01f);
+  EXPECT_NEAR(interpolate::details::max_chroma_for(0.5f, 0.0f), 0.2028f, 0.01f);
+}
+
 TEST(LerpChromaPreservingTest, PreserveSafeMidpointDiffersFromPreserve) {
   // red -> blue: both endpoints have chroma above the mid-lightness gamut
-  // boundary, so preserve pins a channel at the limit while preserve_safe
-  // must reduce chroma — the two modes cannot produce the same midpoint.
-  core::rgbf_t red(1.0f, 0.0f, 0.0f);
-  core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+  // boundary, so preserve keeps the max endpoint chroma while preserve_safe
+  // must reduce it. Compared in OkLCH because a bounded target gamut-maps
+  // both onto the same boundary point (issue #79) and cannot show the
+  // difference.
+  const auto red = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 0.0f, 0.0f));
+  const auto blue = color_cast<core::oklch_t>(core::rgbf_t(0.0f, 0.0f, 1.0f));
   auto safe = lerp_chroma_preserving(red, blue, 0.5f, chroma_mode::preserve_safe);
   auto pres = lerp_chroma_preserving(red, blue, 0.5f, chroma_mode::preserve);
-  float max_diff =
-      std::max({std::fabs(safe.r() - pres.r()), std::fabs(safe.g() - pres.g()), std::fabs(safe.b() - pres.b())});
-  EXPECT_GT(max_diff, 0.01f);
+  EXPECT_GT(pres.c(), safe.c() + 0.01f);
 }
 
 TEST(LerpChromaPreservingTest, PreserveSafeMidpointChromaStaysBelowBoundary) {
@@ -933,10 +1051,23 @@ TEST(LerpAlphaModeTest, UseEndAlpha) {
 }
 
 TEST(LerpAlphaModeTest, MultiplyAlphas) {
+  // Issue #81: multiply is the geometric blend pow(aa, 1-t) * pow(ab, t) —
+  // the only "product" curve that stays t-dependent and still hits both
+  // endpoints. At t = 0.5 it equals sqrt(aa * ab). The old constant product
+  // aa * ab ignored t entirely and pinned 0.4 here.
   core::rgbaf_t a(1.0f, 0.0f, 0.0f, 0.8f);
   core::rgbaf_t b(0.0f, 0.0f, 1.0f, 0.5f);
   auto result = lerp_alpha_mode(a, b, 0.5f, alpha_mode::multiply);  // multiply alphas
-  EXPECT_NEAR(result.a(), 0.4f, 1e-3f);
+  EXPECT_NEAR(result.a(), std::sqrt(0.8f * 0.5f), 1e-3f);           // ≈ 0.6325
+}
+
+TEST(LerpAlphaModeTest, MultiplyHitsEndpointsExactly) {
+  // Issue #81: the constant product broke both endpoints — t = 0 must return
+  // the start alpha and t = 1 the end alpha.
+  core::rgbaf_t a(1.0f, 0.0f, 0.0f, 0.3f);
+  core::rgbaf_t b(0.0f, 0.0f, 1.0f, 0.5f);
+  EXPECT_NEAR(lerp_alpha_mode(a, b, 0.0f, alpha_mode::multiply).a(), 0.3f, 1e-4f);
+  EXPECT_NEAR(lerp_alpha_mode(a, b, 1.0f, alpha_mode::multiply).a(), 0.5f, 1e-4f);
 }
 
 // Issue #50: lerp_alpha_mode shared the rgbaf_t hub, clipping wide gamuts.
@@ -948,6 +1079,84 @@ TEST(LerpAlphaModeTest, WideGamutColorSurvives) {
   EXPECT_FLOAT_EQ(result.g(), 0.0f);
   EXPECT_FLOAT_EQ(result.b(), 0.0f);
   EXPECT_NEAR(result.a(), 0.5f, 1e-6f);
+}
+
+// ease* overshoot (issue #81): back easing dips below 0 / rises above 1 on
+// purpose. The blend must use the RAW eased factor — only the caller's own t
+// is a unit-interval parameter. The old ease* re-entered the clamping public
+// lerps, so lerp(a, b, in_back(0.1)) collapsed to the t = 0 endpoint and the
+// whole overshoot was erased.
+
+TEST(LerpEaseTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  const float te = easing::in_back(0.1f);  // ≈ -0.0143
+  EXPECT_LT(te, 0.0f);
+  auto e = ease(gray, light, 0.1f, easing::in_back);
+  // 0.5 + (0.7 - 0.5) * te ≈ 0.4971: slightly *before* the start color.
+  EXPECT_NEAR(e.r(), 0.5f + 0.2f * te, 1e-4f);
+  EXPECT_LT(e.r(), 0.5f);
+}
+
+TEST(LerpEaseTest, CallerTStaysClampedToUnitInterval) {
+  // Contract guard: the eased factor may overshoot, but the caller's own t
+  // is clamped — out-of-range t means "hold an endpoint".
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  EXPECT_FLOAT_EQ(ease(gray, light, -1.0f, easing::in_back).r(), 0.5f);
+  EXPECT_FLOAT_EQ(ease(gray, light, 2.0f, easing::in_back).r(), 0.7f);
+}
+
+TEST(LerpEaseHslTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  const float te = easing::in_back(0.1f);
+  auto e = ease_hsl(gray, light, 0.1f, easing::in_back);
+  EXPECT_NEAR(e.r(), 0.5f + 0.2f * te, 1e-4f);  // achromatic L blend extrapolates
+  EXPECT_LT(e.r(), 0.5f);
+}
+
+TEST(LerpEaseOklabTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  auto e = ease_oklab(gray, light, 0.1f, easing::in_back);
+  EXPECT_LT(e.r(), 0.5f);   // extrapolates before the start color
+  EXPECT_GT(e.r(), 0.45f);  // the overshoot is slight, not a huge extrapolation
+}
+
+TEST(LerpEaseOklchTest, BackOvershootIsNotClampedAway) {
+  const core::rgbaf_t gray{0.5f, 0.5f, 0.5f, 1.0f};
+  const core::rgbaf_t light{0.7f, 0.7f, 0.7f, 1.0f};
+  auto e = ease_oklch(gray, light, 0.1f, easing::in_back);
+  EXPECT_LT(e.r(), 0.5f);
+  EXPECT_GT(e.r(), 0.45f);
+}
+
+TEST(LerpChromaPreservingTest, PreserveChromaIsContinuousNearEndpoints) {
+  // Issue #81: preserve held max(Ca, Cb) at every interior t while the exact
+  // endpoints returned Ca / Cb, so chroma stepped at t -> 0 and t -> 1. The
+  // continuous form C = lerp(Ca, Cb, t) + (max(Ca,Cb) - lerp) * 4t(1 - t)
+  // keeps C(0) = Ca, C(1) = Cb, C(0.5) = max. Compared in OkLCH — unbounded
+  // target (issue #79), so no gamut mapping hides the ramp.
+  const auto dark = color_cast<core::oklch_t>(core::rgbf_t(0.2f, 0.2f, 0.2f));
+  const auto red = color_cast<core::oklch_t>(core::rgbf_t(1.0f, 0.0f, 0.0f));
+  const float peak = std::max(dark.c(), red.c());
+
+  auto c0 = lerp_chroma_preserving(dark, red, 0.0f, chroma_mode::preserve);
+  auto c001 = lerp_chroma_preserving(dark, red, 0.001f, chroma_mode::preserve);
+  EXPECT_NEAR(c0.c(), c001.c(), 0.01f);  // no step from max(Ca, Cb)
+
+  auto c1 = lerp_chroma_preserving(dark, red, 1.0f, chroma_mode::preserve);
+  auto c999 = lerp_chroma_preserving(dark, red, 0.999f, chroma_mode::preserve);
+  EXPECT_NEAR(c1.c(), c999.c(), 0.01f);
+
+  auto cm = lerp_chroma_preserving(dark, red, 0.5f, chroma_mode::preserve);
+  EXPECT_NEAR(cm.c(), peak, 1e-3f);  // midpoint still holds the peak chroma
+
+  // Exact ramp at t = 0.25: base + (peak - base) * 4t(1-t) = 0.25*Ca + 0.75*max
+  auto c25 = lerp_chroma_preserving(dark, red, 0.25f, chroma_mode::preserve);
+  const float base = 0.75f * dark.c() + 0.25f * red.c();
+  EXPECT_NEAR(c25.c(), base + (peak - base) * 4.0f * 0.25f * 0.75f, 1e-3f);
 }
 
 // Position-based multi_lerp tests
@@ -978,6 +1187,44 @@ TEST(MultiLerpPositionTest, BasicGradient) {
   EXPECT_NEAR(result100.r(), 0.0f, 1e-4f);
   EXPECT_NEAR(result100.g(), 0.0f, 1e-4f);
   EXPECT_NEAR(result100.b(), 1.0f, 1e-4f);
+}
+
+TEST(MultiLerpPositionTest, UnsortedStopsAreNormalizedNonDecreasing) {
+  // Issue #82 / CSS Gradient rule: normalize positions to be non-decreasing
+  // (pos_i = max(pos_i, pos_{i-1})) before sampling — out-of-order input used
+  // to sample from arbitrary segments.
+  using S = stop<core::rgbf_t>;
+  const core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  const core::rgbf_t green(0.0f, 1.0f, 0.0f);
+  const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
+
+  // blue's 0.2 clamps up to red's 0.5, so t = 0.7 sits halfway along
+  // blue -> green (0.5 .. 0.9): (0, 0.5, 0.5). The old raw scan sampled
+  // blue -> green from 0.2 .. 0.9 and returned (0, 0.714, 0.286).
+  std::vector<S> stops{{red, 0.5f}, {blue, 0.2f}, {green, 0.9f}};
+  auto result = multi_lerp(stops, 0.7f);
+  EXPECT_NEAR(result.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(result.g(), 0.5f, 1e-4f);
+  EXPECT_NEAR(result.b(), 0.5f, 1e-4f);
+
+  // Unsorted input behaves exactly like the normalized stop list, in every
+  // blend space.
+  std::vector<S> normalized{{red, 0.5f}, {blue, 0.5f}, {green, 0.9f}};
+  for (float t : {0.2f, 0.5f, 0.7f, 0.85f}) {
+    auto a = multi_lerp(stops, t);
+    auto b = multi_lerp(normalized, t);
+    EXPECT_NEAR(a.r(), b.r(), 1e-6f);
+    EXPECT_NEAR(a.g(), b.g(), 1e-6f);
+    EXPECT_NEAR(a.b(), b.b(), 1e-6f);
+    EXPECT_NEAR(multi_lerp_hsl(stops, t).g(), multi_lerp_hsl(normalized, t).g(), 1e-6f);
+    EXPECT_NEAR(multi_lerp_oklab(stops, t).g(), multi_lerp_oklab(normalized, t).g(), 1e-6f);
+    EXPECT_NEAR(multi_lerp_oklch(stops, t).g(), multi_lerp_oklch(normalized, t).g(), 1e-6f);
+  }
+
+  // The issue's 2-stop example: positions clamp to [0.8, 0.8] and t = 0.5
+  // still samples the first stop — red — by CSS semantics.
+  std::vector<S> pair{{red, 0.8f}, {blue, 0.2f}};
+  EXPECT_NEAR(multi_lerp(pair, 0.5f).r(), 1.0f, 1e-4f);
 }
 
 TEST(MultiLerpPositionTest, NonUniformStops) {
@@ -1099,10 +1346,16 @@ TEST(LerpOklchTest, PowerlessWhiteHueTakesBlueHue) {
   const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
   const auto mid = lerp_oklch(white, blue, 0.5f);
   // Buggy midpoint: H ≈ 175° teal rgb(0, 0.77, 0.65). White's hue is
-  // missing, so the whole arc rides blue's 264.05° — a light blue.
-  EXPECT_NEAR(mid.r(), 0.4530f, 2e-3f);
-  EXPECT_NEAR(mid.g(), 0.6381f, 2e-3f);
-  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+  // missing, so the whole arc rides blue's 264.05° — a light blue. The
+  // midpoint leaves sRGB; gamut mapping (issue #79) keeps hue and L while
+  // chroma falls to the boundary, where the old per-channel clip pinned b
+  // at 1 and dragged the hue ~10°.
+  const auto ok = color_cast<core::oklch_t>(mid);
+  const auto ok_blue = color_cast<core::oklch_t>(blue);
+  EXPECT_NEAR(ok.h(), ok_blue.h(), 1.0f);
+  EXPECT_NEAR(ok.l(), 0.5f * (1.0f + ok_blue.l()), 2e-3f);
+  EXPECT_GT(mid.b(), mid.g());  // light blue, not teal (teal has g > b)
+  EXPECT_GT(mid.g(), mid.r());
 }
 
 TEST(LerpOklchTest, PowerlessBlackHueTakesBlueHue) {
@@ -1128,10 +1381,15 @@ TEST(LerpLchTest, PowerlessWhiteHueTakesBlueHue) {
   const core::rgbf_t blue(0.0f, 0.0f, 1.0f);
   const auto mid = lerp_lch(white, blue, 0.5f);
   // Buggy midpoint: H ≈ 333°, pink. White's hue is missing, so the arc
-  // rides blue's LCH hue (306.29°) — a light blue, not pink.
-  EXPECT_NEAR(mid.r(), 0.7014f, 2e-3f);
-  EXPECT_NEAR(mid.g(), 0.5458f, 2e-3f);
-  EXPECT_NEAR(mid.b(), 1.0f, 2e-3f);
+  // rides blue's LCH hue (306.29°) — a light blue-purple, not pink. The
+  // midpoint leaves sRGB; gamut mapping (issue #79) keeps the hue (within
+  // the small OkLCH↔CIELCH drift) where the old clip dragged it away.
+  const auto ok = color_cast<core::cielch_t>(mid);
+  const auto ok_blue = color_cast<core::cielch_t>(blue);
+  EXPECT_NEAR(ok.h(), ok_blue.h(), 1.0f);
+  EXPECT_NEAR(ok.l(), 0.5f * (100.0f + ok_blue.l()), 0.5f);
+  EXPECT_GT(mid.b(), mid.r());
+  EXPECT_GT(mid.b(), mid.g());
 }
 
 TEST(LerpHslTest, PowerlessWhiteHueTakesBlueHue) {
@@ -1223,6 +1481,175 @@ TEST(GenericLerpTest, AlphaModeHslaMatchesChannelPolicy) {
   EXPECT_NEAR(mid.s(), 0.5f, 1e-3f);
   EXPECT_NEAR(mid.l(), 0.75f, 1e-3f);
   EXPECT_NEAR(mid.a(), 1.0f, 1e-3f);
+}
+
+// --- Issue #78: hue-arc hardening --------------------------------------
+// The ±180° tie must pick a consistent arc (lerp(a,b,t) == lerp(b,a,1-t)),
+// and stored hues outside [0, 360) must wrap like CSS angles.
+
+TEST(LerpAngleDegTest, Exact180SeparationIsOrderSymmetric) {
+  const core::hsla_float_t a{0.0f, 1.0f, 0.5f, 1.0f};
+  const core::hsla_float_t b{180.0f, 1.0f, 0.5f, 1.0f};
+  const auto fwd = lerp(a, b, 0.3f);
+  const auto rev = lerp(b, a, 0.7f);
+  // On the exact ±180 tie both arcs are equally short; the function must
+  // still satisfy lerp(a,b,t) == lerp(b,a,1-t). Old code sent the forward
+  // direction through 306° and the reverse through 54°.
+  EXPECT_NEAR(fwd.h(), rev.h(), 1e-3f);
+  // Tie-break convention: keep the sign of (b - a), i.e. 0° → 180° arcs
+  // forward through 54° at t = 0.3.
+  EXPECT_NEAR(fwd.h(), 54.0f, 1e-2f);
+}
+
+TEST(LerpAngleDegTest, OutOfRangeStoredHueWraps) {
+  // Doc case: lerp_hsl(350, -700) must midpoint at 5°, not 185°
+  // (-700° ≡ 20°; the shortest arc 350° → 20° crosses 0°).
+  const core::hsla_float_t a{350.0f, 1.0f, 0.5f, 1.0f};
+  const core::hsla_float_t b{-700.0f, 1.0f, 0.5f, 1.0f};
+  const auto mid = lerp_hsl(a, b, 0.5f);
+  EXPECT_NEAR(mid.h(), 5.0f, 0.5f);
+  // Out-of-range stored hue as the *start* endpoint: -700° + delta*t drops
+  // below zero and needs the result-side wrap too (old code returned -355°).
+  const auto rev = lerp_hsl(b, a, 0.5f);
+  EXPECT_NEAR(rev.h(), 5.0f, 0.5f);
+}
+
+// --- Issue #80: premultiplied alpha interpolation ----------------------
+// CSS Color 4 interpolates on premultiplied colors: each color channel is
+// weighted by its endpoint's alpha and un-premultiplied by the blended
+// alpha. A fully transparent endpoint must not tint the result.
+
+TEST(LerpPremultipliedTest, TransparentEndpointDoesNotTintMidpoint) {
+  // Doc case: the straight mix gave rgb(0.5, 0, 0.5) — a purple edge from
+  // the transparent red's hidden RGB. CSS premultiplied gives pure blue.
+  const core::rgbaf_t transparent_red{1.0f, 0.0f, 0.0f, 0.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto mid = lerp(transparent_red, blue, 0.5f);
+  EXPECT_NEAR(mid.r(), 0.0f, 1e-4f);
+  EXPECT_NEAR(mid.g(), 0.0f, 1e-4f);
+  EXPECT_NEAR(mid.b(), 1.0f, 1e-4f);
+  EXPECT_NEAR(mid.a(), 0.5f, 1e-4f);
+}
+
+TEST(LerpPremultipliedTest, NamedSpaceMatchesCssColorMixReference) {
+  // The io/css color-mix implementation is the in-repo CSS Color 4
+  // reference (premultiplied channels + powerless hue + shorter arc).
+  // The blend runs through the extended-range linear target (issue #76: no
+  // gamut mapping, no clamping) and is compared after sRGB serialization —
+  // the same clip the css output has already gone through. A bounded
+  // target would gamut-map this out-of-gamut midpoint instead (issue #79),
+  // which LerpGamutMappingTest covers.
+  const core::rgbaf_t transparent_red{1.0f, 0.0f, 0.0f, 0.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto ref = colorcpp::io::css::parse_css_color_rgbaf("color-mix(in oklch, rgba(255, 0, 0, 0), blue)");
+  ASSERT_TRUE(ref.has_value());
+  const auto mid =
+      lerp_oklch(color_cast<core::linear_rgbaf_t>(transparent_red), color_cast<core::linear_rgbaf_t>(blue), 0.5f);
+  const auto serialized = color_cast<core::rgbaf_t>(mid);
+  EXPECT_NEAR(serialized.r(), ref->r(), 2e-3f);
+  EXPECT_NEAR(serialized.g(), ref->g(), 2e-3f);
+  EXPECT_NEAR(serialized.b(), ref->b(), 2e-3f);
+  EXPECT_NEAR(mid.a(), ref->a(), 2e-3f);
+}
+
+TEST(LerpPremultipliedTest, ZeroAlphaEndpointStaysExact) {
+  // A 0-alpha endpoint would evaluate 0/0 without an endpoint short-circuit.
+  const core::rgbaf_t transparent_red{1.0f, 0.0f, 0.0f, 0.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto start = lerp(transparent_red, blue, 0.0f);
+  EXPECT_FLOAT_EQ(start.r(), 1.0f);
+  EXPECT_FLOAT_EQ(start.a(), 0.0f);
+  const auto end = lerp(transparent_red, blue, 1.0f);
+  EXPECT_FLOAT_EQ(end.b(), 1.0f);
+  EXPECT_FLOAT_EQ(end.a(), 1.0f);
+}
+
+TEST(LerpPremultipliedTest, EqualAlphasKeepStraightBlend) {
+  // Identical endpoint alphas: premultiplied == straight for the colors.
+  const core::rgbaf_t a{1.0f, 0.0f, 0.0f, 0.5f};
+  const core::rgbaf_t b{0.0f, 0.0f, 1.0f, 0.5f};
+  const auto mid = lerp(a, b, 0.5f);
+  EXPECT_NEAR(mid.r(), 0.5f, 1e-4f);
+  EXPECT_NEAR(mid.b(), 0.5f, 1e-4f);
+  EXPECT_NEAR(mid.a(), 0.5f, 1e-4f);
+}
+
+// ---- issue #79: out-of-gamut interpolation results are gamut-mapped ----
+
+TEST(LerpGamutMappingTest, OklchMidpointKeepsHueWhenMappedToSrgb) {
+  // lerp_oklch(green, blue, 0.5) sits outside sRGB (C ≈ 0.30 at H ≈ 203).
+  // Per-channel clipping used to drag the back-converted hue to 220.6°;
+  // CSS gamut mapping (chroma reduction at fixed L and hue) keeps ≈ 203°.
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 1.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto mid = lerp_oklch(green, blue, 0.5f);
+  const auto ok = color_cast<core::oklch_t>(mid);
+  EXPECT_NEAR(ok.h(), 203.3f, 3.0f);
+  EXPECT_GT(ok.c(), 0.05f);  // mapped to the sRGB boundary, not to gray
+}
+
+TEST(LerpGamutMappingTest, AlphaSurvivesGamutMapping) {
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 0.4f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 0.4f};
+  const auto mid = lerp_oklch(green, blue, 0.5f);
+  EXPECT_NEAR(mid.a(), 0.4f, 1e-3f);
+  EXPECT_NEAR(color_cast<core::oklch_t>(mid).h(), 203.3f, 3.0f);
+}
+
+TEST(LerpGamutMappingTest, InGamutMidpointMatchesStraightCast) {
+  // An in-gamut midpoint must come out of the mapping untouched: the result
+  // equals the unbounded-space midpoint cast straight to sRGB.
+  const core::rgbaf_t a{0.85f, 0.55f, 0.55f, 1.0f};
+  const core::rgbaf_t b{0.55f, 0.55f, 0.85f, 1.0f};
+  const auto unbounded = lerp_oklch(color_cast<core::oklch_t>(a), color_cast<core::oklch_t>(b), 0.5f);
+  ASSERT_TRUE(::colorcpp::algorithms::gamut::is_in_gamut(unbounded));
+  const auto expected = color_cast<core::rgbaf_t>(unbounded);
+  const auto actual = lerp_oklch(a, b, 0.5f);
+  EXPECT_NEAR(actual.r(), expected.r(), 2e-4f);
+  EXPECT_NEAR(actual.g(), expected.g(), 2e-4f);
+  EXPECT_NEAR(actual.b(), expected.b(), 2e-4f);
+}
+
+TEST(LerpGamutMappingTest, UnboundedTargetKeepsOutOfRangeMidpoint) {
+  // OkLCH is an unbounded working space (like the extended-range targets of
+  // issue #76): the out-of-gamut midpoint passes through with full chroma.
+  const auto green = color_cast<core::oklch_t>(core::rgbaf_t{0.0f, 1.0f, 0.0f, 1.0f});
+  const auto blue = color_cast<core::oklch_t>(core::rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f});
+  const auto mid = lerp_oklch(green, blue, 0.5f);
+  ASSERT_FALSE(::colorcpp::algorithms::gamut::is_in_gamut(mid));
+  EXPECT_NEAR(mid.l(), 0.5f * (green.l() + blue.l()), 1e-3f);
+  EXPECT_NEAR(mid.c(), 0.5f * (green.c() + blue.c()), 1e-3f);
+  EXPECT_NEAR(mid.h(), 203.3f, 3.0f);
+}
+
+TEST(LerpGamutMappingTest, WideGamutTargetKeepsMoreChromaThanSrgb) {
+  // Same colors, Display P3 destination: the midpoint must be mapped into
+  // P3 (not sRGB), keeping its hue and more chroma than the sRGB result.
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 1.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto srgb_mid = lerp_oklch(green, blue, 0.5f);
+  const auto p3_mid = lerp_oklch(color_cast<core::display_p3af_t>(green), color_cast<core::display_p3af_t>(blue), 0.5f);
+  const auto cs = color_cast<core::oklch_t>(srgb_mid);
+  const auto cp = color_cast<core::oklch_t>(p3_mid);
+  EXPECT_NEAR(cs.h(), 203.3f, 3.0f);
+  EXPECT_NEAR(cp.h(), 203.3f, 3.0f);
+  EXPECT_GT(cp.c(), cs.c() + 1e-3f);
+}
+
+TEST(LerpGamutMappingTest, Rec2020TargetKeepsMoreChromaThanSrgb) {
+  // Rec.2020 destination: mapped into the Rec.2020 gamut, hue kept.
+  const core::rgbaf_t green{0.0f, 1.0f, 0.0f, 1.0f};
+  const core::rgbaf_t blue{0.0f, 0.0f, 1.0f, 1.0f};
+  const auto srgb_mid = lerp_oklch(green, blue, 0.5f);
+  const auto r20_mid =
+      lerp_oklch(color_cast<core::rec2020_rgbaf_t>(green), color_cast<core::rec2020_rgbaf_t>(blue), 0.5f);
+  const auto cs = color_cast<core::oklch_t>(srgb_mid);
+  const auto cr = color_cast<core::oklch_t>(r20_mid);
+  EXPECT_NEAR(cr.h(), 203.3f, 3.0f);
+  // Rec.2020 is wider than sRGB: mapping into its own gamut keeps more
+  // chroma than the sRGB-mapped result (and per-channel clipping would
+  // drag the hue away, caught just above).
+  EXPECT_GT(cr.c(), cs.c() + 1e-3f);
 }
 
 }  // namespace colorcpp::operations::test

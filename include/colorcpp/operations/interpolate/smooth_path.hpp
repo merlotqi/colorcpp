@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <initializer_list>
 #include <iterator>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
@@ -41,15 +42,15 @@ decltype(auto) path_color_at(const Container& colors, std::size_t index) {
 }
 
 template <typename Container>
-auto lerp_path_impl(const Container& colors, float t, path_algorithm algorithm, cr_mode catmull_mode, float tension)
-    -> path_color_t<Container> {
-  using Color = path_color_t<Container>;
-
+auto lerp_path_impl(const Container& colors, float t, path_algorithm algorithm, cr_mode catmull_mode,
+                    float tension) -> path_color_t<Container> {
   const auto n = static_cast<std::size_t>(std::size(colors));
-  if (n == 0) return Color{};
+  // Issue #82: a silent Color{} (transparent black) was a footgun; align
+  // with multi_lerp's documented std::invalid_argument contract.
+  if (n == 0) throw std::invalid_argument("colorcpp: lerp_path requires at least 1 control point");
   if (n == 1) return path_color_at(colors, 0);
 
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = sanitize_t(t);
   if (t <= 0.0f) return path_color_at(colors, 0);
   if (t >= 1.0f) return path_color_at(colors, n - 1);
 
@@ -64,7 +65,10 @@ auto lerp_path_impl(const Container& colors, float t, path_algorithm algorithm, 
 
   switch (algorithm) {
     case path_algorithm::linear:
-      return lerp(p1, p2, local_t);
+      // Issue #82: linear segments interpolate in OkLab like every spline —
+      // a degenerate spline through the same perceptual path. Callers who
+      // want piecewise caller-space blending have multi_lerp.
+      return lerp_oklab(p1, p2, local_t);
     case path_algorithm::cubic_hermite:
       return lerp_cubic_hermite(p0, p1, p2, p3, local_t, tension);
     case path_algorithm::catmull_rom:

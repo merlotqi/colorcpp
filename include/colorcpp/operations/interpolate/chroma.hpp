@@ -16,7 +16,7 @@ namespace colorcpp::operations::interpolate {
 
 enum class chroma_mode {
   lerp,          ///< Interpolate chroma linearly between the two colors
-  preserve,      ///< Preserve chroma at max(Ca, Cb) throughout the interpolation
+  preserve,      ///< Ramp chroma up to max(Ca, Cb) and back (C(0)=Ca, C(0.5)=max, C(1)=Cb)
   preserve_safe  ///< Preserve chroma at max(Ca, Cb) but clamp to sRGB gamut boundary
 };
 
@@ -26,14 +26,15 @@ enum class chroma_mode {
  * @param b End color
  * @param t Interpolation factor in [0, 1] (clamped).
  * @param mode Chroma interpolation mode (lerp, preserve, or preserve_safe).
- * @note In preserve mode, C stays at max(Ca, Cb); only L and H are interpolated.
+ * @note In preserve mode, C ramps continuously: C(0)=Ca, C(1)=Cb and the
+ *       interior bulges up to max(Ca, Cb) at t = 0.5 (issue #81).
  *       In preserve_safe mode, C is clamped to the sRGB gamut boundary.
  *       At t=0, returns the first color; at t=1, returns the second color exactly.
  */
 template <typename Color>
 Color lerp_chroma_preserving(const Color& a, const Color& b, float t, chroma_mode mode = chroma_mode::preserve_safe) {
   using namespace conversion;
-  t = std::clamp(t, 0.0f, 1.0f);
+  t = details::sanitize_t(t);
 
   // Special case: return exact colors at endpoints
   if (t == 0.0f) return a;
@@ -54,9 +55,17 @@ Color lerp_chroma_preserving(const Color& a, const Color& b, float t, chroma_mod
     case chroma_mode::lerp:
       C = details::lerp_f(ca.template get_index<1>(), cb.template get_index<1>(), t);
       break;
-    case chroma_mode::preserve:
-      C = std::max(ca.template get_index<1>(), cb.template get_index<1>());
+    case chroma_mode::preserve: {
+      // Continuous peak ramp (issue #81): the old constant max(Ca, Cb)
+      // stepped at the exact endpoints, where the short-circuits return
+      // Ca / Cb. C(t) = lerp(Ca, Cb, t) + (max - lerp) * 4t(1-t) keeps
+      // C(0) = Ca, C(1) = Cb and C(0.5) = max(Ca, Cb).
+      const float ca_c = ca.template get_index<1>();
+      const float cb_c = cb.template get_index<1>();
+      const float base = details::lerp_f(ca_c, cb_c, t);
+      C = base + (std::max(ca_c, cb_c) - base) * 4.0f * t * (1.0f - t);
       break;
+    }
     case chroma_mode::preserve_safe: {
       float max_c = std::max(ca.template get_index<1>(), cb.template get_index<1>());
       float safe_c = details::max_chroma_for(L, H);

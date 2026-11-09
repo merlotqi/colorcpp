@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/gamut/details.hpp>
 #include <colorcpp/core/oklab.hpp>
@@ -34,10 +35,23 @@ inline float max_chroma_for(float L, float H) {
 
   // Unclamped OkLCH -> linear sRGB in-gamut check. color_cast would clamp the
   // RGB channels to [0, 1] on the way, making this predicate always true.
+  //
+  // Near-black-aware membership (issue #83): the shared absolute floor
+  // (linrgb_in_gamut, 1e-4) is noise-calibrated for full-scale colors; near
+  // black the candidate's channels are O(1e-3) or smaller and that floor
+  // admits chroma as large as the tolerance itself (L = 0 must hold C = 0
+  // exactly). The negative-side tolerance therefore scales with the
+  // candidate's channel magnitudes — at L = 0 every channel scales with
+  // C^3, so the comparison is scale-invariant and every C > 0 is rejected.
+  // The upper side keeps the absolute floor: full-scale matrix noise needs
+  // it (D65 white lands at 1.00012 in a neighboring gamut; see kWideGamutEps).
   auto in_gamut = [&](float C) -> bool {
     float r, g, b;
     algorithms::gamut::details::oklab_to_linrgb(L, C * std::cos(h_rad), C * std::sin(h_rad), r, g, b);
-    return algorithms::gamut::details::linrgb_in_gamut(r, g, b);
+    constexpr float kEps = 1e-4f;
+    const float scale = std::min(1.0f, std::max(std::fabs(r), std::max(std::fabs(g), std::fabs(b))));
+    const float neg_tol = kEps * scale;
+    return r >= -neg_tol && g >= -neg_tol && b >= -neg_tol && r <= 1.0f + kEps && g <= 1.0f + kEps && b <= 1.0f + kEps;
   };
 
   // 20 iterations: 0.4 / 2^20 ≈ 4e-7 precision in chroma
