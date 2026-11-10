@@ -203,6 +203,46 @@ TEST(PoissonDisk, Rgb8GenerateMaxKeepsMinDistanceAndNoDuplicates) {
 }
 
 // ============================================================
+// sRGB-reachable candidates (Issue #94)
+//
+// Candidates were drawn from the whole OkLab working box (L in [0, 1],
+// a/b in ±0.5) and accepted on OkLab distance only: 29/30 of them fall
+// outside the sRGB gamut, so the moment the palette is converted to any RGB
+// target the clipped colors collapse together. Every color the generator
+// returns must be sRGB-reachable, checked with the unclamped gamut test
+// (oklab_to_linrgb + linrgb_in_gamut — a color_cast would clamp and report
+// everything in-gamut).
+// ============================================================
+
+namespace {
+
+bool srgb_reachable(const core::oklab_t& c) {
+  float r, g, b;
+  algorithms::gamut::details::oklab_to_linrgb(c.l(), c.a(), c.b(), r, g, b);
+  return algorithms::gamut::details::linrgb_in_gamut(r, g, b);
+}
+
+}  // namespace
+
+TEST(PoissonDisk, GeneratedColorsAreSrgbReachable) {
+  poisson_disk_generator<core::oklab_t> gen(42u, 0.1f);
+  auto colors = gen.generate(30);
+  ASSERT_EQ(colors.size(), 30u);
+  for (std::size_t i = 0; i < colors.size(); ++i) {
+    EXPECT_TRUE(srgb_reachable(colors[i])) << "color " << i << " outside sRGB gamut";
+  }
+}
+
+TEST(PoissonDisk, GenerateMaxColorsAreSrgbReachable) {
+  poisson_disk_generator<core::oklab_t> gen(42u, 0.1f);
+  auto colors = gen.generate_max();
+  ASSERT_GE(colors.size(), 20u);
+  for (std::size_t i = 0; i < colors.size(); ++i) {
+    EXPECT_TRUE(srgb_reachable(colors[i])) << "color " << i << " outside sRGB gamut";
+  }
+}
+
+// ============================================================
 // Sampling domains (Issue #67)
 //
 // Channel ranges are *nominal* — deliberately wide so conversions never

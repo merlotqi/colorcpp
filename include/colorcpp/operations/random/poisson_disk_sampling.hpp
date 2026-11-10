@@ -11,12 +11,17 @@
  *       candidates are converted to the output type (which may clamp to a
  *       gamut and quantize) *before* the distance check, and the received
  *       values are what gets stored and returned (issue #69).
+ * @note Candidates are drawn from the OkLab working box but only accepted
+ *       when sRGB-reachable (issue #94): most of that box lies outside sRGB,
+ *       and clipping those at conversion time collapses distinct colors onto
+ *       the same boundary value.
  */
 
 #pragma once
 
 #include <algorithm>
 #include <colorcpp/algorithms/delta_e.hpp>
+#include <colorcpp/algorithms/gamut/details.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/random/basic.hpp>
@@ -90,7 +95,9 @@ class poisson_disk_generator {
       bool found = false;
 
       for (std::size_t attempt = 0; attempt < max_attempts; ++attempt) {
-        auto candidate = to_received(gen.next());
+        intermediate_type raw;
+        if (!draw_reachable(gen, raw)) continue;  // pathological: no reachable draw
+        auto candidate = to_received(raw);
 
         if (is_valid_candidate(candidate, samples)) {
           samples.push_back(candidate);
@@ -133,7 +140,12 @@ class poisson_disk_generator {
     std::size_t consecutive_failures = 0;
 
     while (consecutive_failures < max_attempts) {
-      auto candidate = to_received(gen.next());
+      intermediate_type raw;
+      if (!draw_reachable(gen, raw)) {
+        consecutive_failures++;
+        continue;
+      }
+      auto candidate = to_received(raw);
 
       if (is_valid_candidate(candidate, samples)) {
         samples.push_back(candidate);
@@ -188,6 +200,43 @@ class poisson_disk_generator {
    */
   static constexpr float sanitize_min_distance(float distance) noexcept {
     return distance > 0.0f ? distance : kDefaultMinDistance;
+  }
+
+  /// ~1/30 of uniform OkLab working-box draws land in sRGB (issue #94), so
+  /// 256 redraws fail with probability ~(29/30)^256 ≈ 1e-4.
+  static constexpr int kMaxGamutDraws = 256;
+
+  /**
+   * @brief True if the raw OkLab candidate lies inside the sRGB gamut (issue #94).
+   *
+   * Unclamped gamut test (oklab_to_linrgb + linrgb_in_gamut): a color_cast
+   * through an RGB type would clamp the out-of-range channels and report
+   * every candidate as in-gamut.
+   */
+  static bool is_srgb_reachable(const intermediate_type& c) noexcept {
+    float r, g, b;
+    algorithms::gamut::details::oklab_to_linrgb(c.template get_index<0>(), c.template get_index<1>(),
+                                                c.template get_index<2>(), r, g, b);
+    return algorithms::gamut::details::linrgb_in_gamut(r, g, b);
+  }
+
+  /**
+   * @brief Draw a raw candidate that is sRGB-reachable (issue #94).
+   *
+   * Out-of-gamut draws are redrawn inside this helper instead of counting
+   * against the caller's attempt budget - the budget governs the distance
+   * constraint, and burning 29 of every 30 attempts on unreachable draws
+   * would starve it.
+   *
+   * @return false if every draw fell outside sRGB (pathological; the caller
+   *         treats it as a failed attempt).
+   */
+  bool draw_reachable(basic_random_generator<intermediate_type, Engine>& gen, intermediate_type& out) const {
+    for (int draw = 0; draw < kMaxGamutDraws; ++draw) {
+      out = gen.next();
+      if (is_srgb_reachable(out)) return true;
+    }
+    return false;
   }
 
   /**
