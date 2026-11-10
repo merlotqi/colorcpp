@@ -6,9 +6,14 @@
  * Not thread-safe: the engine is `mutable` and `const` methods (`next`, `random_value`) advance it. Do not share one
  * instance across threads without synchronization.
  *
- * @par Floating-point ranges
- * `std::uniform_real_distribution` yields values in **[a, b)**; the upper bound is not included (negligible for
- * floats).
+ * @par Portable reproducibility
+ * Engine output is mapped to ranges by @ref details::portable_unit /
+ * @ref details::portable_real / @ref details::portable_int (fixed-point
+ * scaling for reals, tail-rejected modulo for integers), never by
+ * `std::uniform_*_distribution` - those leave the engine→value mapping
+ * implementation-defined, so one seed gave different colors on libstdc++,
+ * libc++ and MSVC (issue #96). A given seed now yields the same colors on
+ * every conforming standard library.
  *
  * @par Lab-like spaces
  * Independent uniform channels define a box in that space; results may lie outside common RGB display gamuts.
@@ -48,12 +53,6 @@ class basic_random_generator {
   using traits = details::color_traits<Color>;
   using T = typename traits::value_type;
   mutable Engine rng;
-
-  // uniform_int_distribution requires at least unsigned short (C++ standard §26.6.8.2)
-  // uint8_t (unsigned char) is not a valid template argument, promote to unsigned short
-  using int_dist_type = std::conditional_t<(sizeof(T) < sizeof(unsigned short)), unsigned short, T>;
-  using dist_t = std::conditional_t<std::is_floating_point_v<T>, std::uniform_real_distribution<T>,
-                                    std::uniform_int_distribution<int_dist_type>>;
 
  public:
   using color_type = Color;
@@ -96,8 +95,11 @@ class basic_random_generator {
    * @return Random value in range.
    */
   T random_value(T min, T max) const {
-    dist_t dist(static_cast<typename dist_t::result_type>(min), static_cast<typename dist_t::result_type>(max));
-    return static_cast<T>(dist(rng));
+    if constexpr (std::is_floating_point_v<T>) {
+      return details::portable_real<T>(rng, min, max);
+    } else {
+      return details::portable_int<T>(rng, min, max);
+    }
   }
 
  protected:
@@ -109,10 +111,7 @@ class basic_random_generator {
    * instead of @ref random_value for those draws, and cast to the target type only via
    * `conversion::color_cast` at the end.
    */
-  float random_float(float min, float max) const {
-    std::uniform_real_distribution<float> dist(min, max);
-    return dist(rng);
-  }
+  float random_float(float min, float max) const { return details::portable_real<float>(rng, min, max); }
 
  public:
   /**

@@ -7,15 +7,109 @@
 
 #pragma once
 
+#include <colorcpp/algorithms/gamut/preserve.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/operations/conversion.hpp>
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
 
 namespace colorcpp::operations::random::details {
+
+/**
+ * @brief Portable engine → [0, 1) mapping (issue #96).
+ *
+ * std::uniform_real_distribution leaves the engine→value mapping
+ * implementation-defined: libstdc++, libc++ and MSVC disagree, so the same
+ * seed produced different colors on different standard libraries. This maps
+ * the engine's raw draw linearly over its full range in double - x = (u -
+ * min) / range - which is exact for power-of-two engines like mt19937.
+ */
+template <typename Engine>
+double portable_unit(Engine& rng) {
+  constexpr uint64_t lo = static_cast<uint64_t>(Engine::min());
+  constexpr uint64_t hi = static_cast<uint64_t>(Engine::max());
+  const uint64_t u = static_cast<uint64_t>(rng()) - lo;
+  // 0 when the engine spans all 2^64 values. The bounds are compile-time
+  // constants (UniformRandomBitGenerator::min/max are constexpr), so this is
+  // `if constexpr` — a plain `if` trips MSVC C4127 ("conditional expression is
+  // constant"), which CI treats as an error.
+  constexpr uint64_t range = hi - lo + 1;
+  if constexpr (range == 0)
+    return static_cast<double>(u) * 0x1.0p-64;
+  else
+    return static_cast<double>(u) / static_cast<double>(range);
+}
+
+/**
+ * @brief Portable uniform real in [min, max] (issue #96).
+ *
+ * Spec: min + (max - min) * x with x from @ref portable_unit, the whole
+ * expression in double, converted to @p T once. (The std distributions
+ * compute in the result type and their rounding differs across standard
+ * libraries.)
+ */
+template <typename T, typename Engine>
+T portable_real(Engine& rng, T min, T max) {
+  const double x = portable_unit(rng);
+  return static_cast<T>(static_cast<double>(min) + (static_cast<double>(max) - static_cast<double>(min)) * x);
+}
+
+/**
+ * @brief Portable uniform integer in [min, max] (issue #96).
+ *
+ * Spec: u % span over the engine's range with the biasing tail rejected
+ * (the std distribution's engine→value mapping is implementation-defined).
+ * Channel bounds are non-negative in this library (uint8/uint16/...), which
+ * the uint64 arithmetic below assumes.
+ */
+template <typename T, typename Engine>
+T portable_int(Engine& rng, T min, T max) {
+  static_assert(std::is_integral_v<T>, "portable_int requires an integral type");
+  const uint64_t span = static_cast<uint64_t>(max) - static_cast<uint64_t>(min) + 1;
+  const uint64_t lo = static_cast<uint64_t>(Engine::min());
+  const uint64_t hi = static_cast<uint64_t>(Engine::max());
+  const uint64_t range = hi - lo + 1;
+  uint64_t u = static_cast<uint64_t>(rng()) - lo;
+  if (range != 0 && span < range) {
+    // Reject the tail beyond the largest multiple of span so u % span stays
+    // unbiased. (span >= range cannot happen for our engines/channels; fall
+    // through to plain modulo rather than rejecting every draw.)
+    const uint64_t limit = range - (range % span);
+    while (u >= limit) u = static_cast<uint64_t>(rng()) - lo;
+  }
+  return static_cast<T>(static_cast<uint64_t>(min) + u % span);
+}
+
+/**
+ * @brief Finalize a sampled OkLab candidate into Color under the contract
+ *        shared by luminance_generator and contrast_generator.
+ *
+ * With @p gamut_map the candidate is clipped to sRGB via the lightness-
+ * preserving mapper BEFORE the cast (issue #61: color_cast clamps first, so
+ * mapping afterwards would see an in-gamut color and silently discard the
+ * sampled lightness). Without it the raw cast is tried first and the mapper
+ * runs only when the received OkLab L lands outside [@p l_min, @p l_max]
+ * (issue #95: the raw cast clamps RGB-family targets and moves their L by
+ * up to ~0.09 - the bound is unconditional, gamut_map only opts into
+ * always-on clipping); wide-gamut targets never clamp, so no fallback
+ * triggers there.
+ */
+template <typename Color>
+Color finalize_oklab_candidate(const core::oklab_t& lab, float l_min, float l_max, bool gamut_map) {
+  if (gamut_map) {
+    return conversion::color_cast<Color>(algorithms::gamut::gamut_clip_preserve_lightness(lab));
+  }
+  Color out = conversion::color_cast<Color>(lab);
+  const float out_L = conversion::color_cast<core::oklab_t>(out).l();
+  if (out_L < l_min || out_L > l_max) {
+    out = conversion::color_cast<Color>(algorithms::gamut::gamut_clip_preserve_lightness(lab));
+  }
+  return out;
+}
 
 namespace impl {
 
@@ -25,6 +119,23 @@ struct has_hue_method : std::false_type {};
 
 template <typename Color>
 struct has_hue_method<Color, std::void_t<decltype(std::declval<const Color&>().h())>> : std::true_type {};
+
+// First channel whose tag is neither hue, chroma nor alpha — the model's
+// value/lightness channel (HSL's L, HSV's V, OkLCH's L, ...). Used to route
+// the generator's L/V option range (issue #97).
+template <typename Tuple, std::size_t I = 0, bool = (I < std::tuple_size_v<Tuple>)>
+struct first_plain_channel_index {
+  static constexpr std::size_t value = I;  // no plain channel found
+};
+
+template <typename Tuple, std::size_t I>
+struct first_plain_channel_index<Tuple, I, true> {
+  using tag_type = typename std::tuple_element_t<I, Tuple>::tag_type;
+  static constexpr bool is_special = std::is_same_v<tag_type, colorcpp::traits::hue_tag> ||
+                                     std::is_same_v<tag_type, colorcpp::traits::chroma_tag> ||
+                                     std::is_same_v<tag_type, colorcpp::traits::alpha_tag>;
+  static constexpr std::size_t value = is_special ? first_plain_channel_index<Tuple, I + 1>::value : I;
+};
 
 }  // namespace impl
 
@@ -159,7 +270,47 @@ struct color_traits {
     return static_cast<value_type>(sample_channel<channel_t>::max);
   }
 
-  static constexpr value_type hue_max() { return max_at<0>(); }
+  // Channel positions by tag (issue #97): hue sits at index 0 in HSL/HSV/HWB
+  // but at index 2 in OkLCH/CIELCH, so hue code must locate the channel whose
+  // tag_type is traits::hue_tag (same pattern as the compare module) instead
+  // of assuming the HSL layout. `size` marks "absent".
+  static constexpr std::size_t hue_index =
+      colorcpp::traits::details::find_channel_index_impl<channels_tuple, colorcpp::traits::hue_tag>::value;
+  static constexpr std::size_t chroma_index =
+      colorcpp::traits::details::find_channel_index_impl<channels_tuple, colorcpp::traits::chroma_tag>::value;
+  static constexpr std::size_t alpha_index =
+      colorcpp::traits::details::find_channel_index_impl<channels_tuple, colorcpp::traits::alpha_tag>::value;
+  static constexpr std::size_t value_index = impl::first_plain_channel_index<channels_tuple>::value;
+
+  static constexpr value_type hue_max() { return max_at<hue_index>(); }
+
+  static constexpr value_type chroma_max() {
+    if constexpr (chroma_index < size)
+      return max_at<chroma_index>();
+    else
+      return max_at<(size > 1 ? 1 : 0)>();
+  }
+
+  static constexpr value_type value_max() {
+    if constexpr (value_index < size)
+      return max_at<value_index>();
+    else
+      return max_at<(size > 1 ? 1 : 0)>();
+  }
 };
+
+/**
+ * @brief Write @p h into the hue-tagged channel of @p c (issue #97).
+ *
+ * Hue lives at different positions per model (index 0 in HSL/HSV/HWB, index 2
+ * in OkLCH/CIELCH), so generators that advance or replace a hue must write the
+ * model's own hue channel rather than a positional one.
+ */
+template <typename Color>
+void set_hue_channel(Color& c, float h) {
+  static_assert(color_traits<Color>::has_hue, "set_hue_channel requires a color type with hue channel");
+  constexpr std::size_t idx = color_traits<Color>::hue_index;
+  c.template get_index<idx>() = static_cast<typename Color::value_type>(h);
+}
 
 }  // namespace colorcpp::operations::random::details

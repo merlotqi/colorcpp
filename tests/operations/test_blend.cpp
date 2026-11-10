@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <colorcpp/colorcpp.hpp>
+#include <limits>
 
 namespace colorcpp::operations::test {
 
@@ -359,6 +360,51 @@ TEST(BlendTest, NonSeparableModesAlwaysUseW3CSrgbDefinition) {
   EXPECT_NEAR(lin.g(), srgb.g(), 0.0f);
   EXPECT_NEAR(lin.b(), srgb.b(), 0.0f);
   EXPECT_NEAR(lin.a(), srgb.a(), 0.0f);
+}
+
+// NaN robustness (issue #91): NaN opacity must behave exactly like opacity 0
+// (the sanitize_t policy from issue #82: a NaN coefficient contributes nothing)
+// on every path, so SIMD and scalar dispatch can never disagree.
+
+TEST(BlendTest, NanOpacityBehavesLikeZeroOpacity) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbaf_t dst(0.23f, 0.71f, 0.44f, 0.85f);
+  const core::rgbaf_t src(0.82f, 0.19f, 0.63f, 0.57f);
+  const blend_mode modes[] = {
+      blend_mode::normal,      blend_mode::multiply,    blend_mode::screen,     blend_mode::overlay,
+      blend_mode::darken,      blend_mode::lighten,     blend_mode::addition,   blend_mode::subtraction,
+      blend_mode::difference,  blend_mode::exclusion,   blend_mode::hard_light, blend_mode::soft_light,
+      blend_mode::color_dodge, blend_mode::color_burn,  blend_mode::divide,     blend_mode::hue,
+      blend_mode::saturation,  blend_mode::color_blend, blend_mode::luminosity};
+  for (blend_mode mode : modes) {
+    SCOPED_TRACE(static_cast<int>(mode));
+    const auto expected = blend::blend(dst, src, mode, 0.0f);
+    const auto actual = blend::blend(dst, src, mode, nan);
+    EXPECT_FALSE(std::isnan(actual.r()));
+    EXPECT_FALSE(std::isnan(actual.g()));
+    EXPECT_FALSE(std::isnan(actual.b()));
+    EXPECT_FALSE(std::isnan(actual.a()));
+    EXPECT_NEAR(actual.r(), expected.r(), 1e-6f);
+    EXPECT_NEAR(actual.g(), expected.g(), 1e-6f);
+    EXPECT_NEAR(actual.b(), expected.b(), 1e-6f);
+    EXPECT_NEAR(actual.a(), expected.a(), 1e-6f);
+  }
+}
+
+TEST(BlendTest, NanOpacityBehavesLikeZeroOpacityInLinearSpace) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const core::rgbaf_t dst(0.23f, 0.71f, 0.44f, 0.85f);
+  const core::rgbaf_t src(0.82f, 0.19f, 0.63f, 0.57f);
+  const auto expected = blend::blend(dst, src, blend_mode::multiply, 0.0f, blend_space::linear);
+  const auto actual = blend::blend(dst, src, blend_mode::multiply, nan, blend_space::linear);
+  EXPECT_FALSE(std::isnan(actual.r()));
+  EXPECT_FALSE(std::isnan(actual.g()));
+  EXPECT_FALSE(std::isnan(actual.b()));
+  EXPECT_FALSE(std::isnan(actual.a()));
+  EXPECT_NEAR(actual.r(), expected.r(), 1e-6f);
+  EXPECT_NEAR(actual.g(), expected.g(), 1e-6f);
+  EXPECT_NEAR(actual.b(), expected.b(), 1e-6f);
+  EXPECT_NEAR(actual.a(), expected.a(), 1e-6f);
 }
 
 }  // namespace colorcpp::operations::test

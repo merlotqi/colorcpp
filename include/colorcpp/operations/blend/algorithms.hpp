@@ -54,7 +54,7 @@ struct algorithms {
     return std::min(1.0f, a / b);
   }
 
-  // W3C soft-light formula (matches Photoshop behaviour).
+  // W3C soft-light formula (compositing-1; not the Photoshop/Pegtop variant).
   // Not constexpr: std::sqrt is not constexpr before C++23.
   static float soft_light(float a, float b) {
     if (b <= 0.5f) {

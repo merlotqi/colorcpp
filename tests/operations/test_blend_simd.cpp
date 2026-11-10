@@ -2,6 +2,7 @@
 
 #include <array>
 #include <colorcpp/colorcpp.hpp>
+#include <limits>
 #include <string>
 
 namespace colorcpp::operations::test {
@@ -95,5 +96,33 @@ TEST(BlendSimdTest, CoveredModesMatchScalarReference) {
     EXPECT_NEAR(actual.a(), expected.a(), 1e-6f);
   }
 }
+
+#if defined(COLORCPP_ENABLE_SIMD) && (defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
+
+// NaN opacity (issue #91): the SSE2 path must agree with the scalar path -
+// previously clamp01_sse2's maxps folded NaN channels to 0 while scalar kept
+// NaN, so the same call gave different colors depending on dispatch.
+
+TEST(BlendSimdTest, NanOpacityMatchesZeroOpacityOnSse2Path) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const rgbaf_t dst{0.23f, 0.71f, 0.44f, 0.85f};
+  const rgbaf_t src{0.82f, 0.19f, 0.63f, 0.57f};
+
+  for (blend_mode mode : kSimdModes) {
+    SCOPED_TRACE(std::to_string(static_cast<int>(mode)));
+    const auto expected = blend::details::blend_rgbaf(dst, src, mode, 0.0f);
+    const auto actual = blend::details::blend_rgbaf_sse2(dst, src, mode, nan);
+    EXPECT_FALSE(std::isnan(actual.r()));
+    EXPECT_FALSE(std::isnan(actual.g()));
+    EXPECT_FALSE(std::isnan(actual.b()));
+    EXPECT_FALSE(std::isnan(actual.a()));
+    EXPECT_NEAR(actual.r(), expected.r(), 1e-6f);
+    EXPECT_NEAR(actual.g(), expected.g(), 1e-6f);
+    EXPECT_NEAR(actual.b(), expected.b(), 1e-6f);
+    EXPECT_NEAR(actual.a(), expected.a(), 1e-6f);
+  }
+}
+
+#endif
 
 }  // namespace colorcpp::operations::test

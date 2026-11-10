@@ -6,10 +6,12 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <colorcpp/algorithms/accessibility/wcag.hpp>
 #include <colorcpp/colorcpp.hpp>
 #include <colorcpp/operations/palette/ios.hpp>
 #include <cstddef>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace colorcpp::operations::test {
@@ -428,6 +430,75 @@ TEST(AdvancedScalesTest, MultiScaleHSL) {
   EXPECT_EQ(p.size(), 5u);
 }
 
+TEST(AdvancedScalesTest, MultiScaleSamplesUniformGlobalParameter) {
+  // Issue #92: 3 stops over 2 segments with count=5 must sample the global
+  // parameter at 0, 0.25, 0.5, 0.75, 1. Per-segment rounding used to give
+  // 0, 1/6, 1/3, 1/2, 1 instead.
+  std::vector<rgbf_t> stops{rgbf_t{0.0f, 0.0f, 0.0f}, rgbf_t{0.5f, 0.5f, 0.5f}, rgbf_t{1.0f, 1.0f, 1.0f}};
+  auto p = multi_scale(stops, 5, lerp_method::rgb);
+  ASSERT_EQ(p.size(), 5u);
+  EXPECT_EQ(p[0].r(), 0.0f);  // exact start
+  EXPECT_NEAR(p[1].r(), 0.25f, 1e-6f);
+  EXPECT_FLOAT_EQ(p[2].r(), 0.5f);  // exact middle knot
+  EXPECT_NEAR(p[3].r(), 0.75f, 1e-6f);
+  EXPECT_EQ(p[4].r(), 1.0f);  // exact end
+}
+
+TEST(AdvancedScalesTest, SplineScaleSamplesUniformGlobalParameter) {
+  // Issue #92: uniform global positions for the Catmull-Rom scale. A collinear
+  // equal-spacing OkLab ramp makes the CR curve exactly the line wherever both
+  // segment anchors are real, so uniform samples read back as exact values:
+  // knots at 0.25/0.5/0.75 and middle-segment midpoints at 0.375/0.625. (The
+  // clamped end segments bow slightly - that is the spline's endpoint
+  // behavior, not the sampler's.)
+  std::vector<oklab_t> pts{oklab_t{0.0f, 0.0f, 0.0f}, oklab_t{0.25f, 0.0f, 0.0f}, oklab_t{0.5f, 0.0f, 0.0f},
+                           oklab_t{0.75f, 0.0f, 0.0f}, oklab_t{1.0f, 0.0f, 0.0f}};
+  auto p = spline_scale(pts, 9);
+  ASSERT_EQ(p.size(), 9u);
+  EXPECT_EQ(p[0].l(), 0.0f);          // exact start
+  EXPECT_FLOAT_EQ(p[2].l(), 0.25f);   // exact knot
+  EXPECT_FLOAT_EQ(p[3].l(), 0.375f);  // middle-segment midpoint (uniform t=0.5)
+  EXPECT_FLOAT_EQ(p[4].l(), 0.5f);    // exact knot
+  EXPECT_FLOAT_EQ(p[5].l(), 0.625f);  // middle-segment midpoint
+  EXPECT_FLOAT_EQ(p[6].l(), 0.75f);   // exact knot
+  EXPECT_EQ(p[8].l(), 1.0f);          // exact end
+}
+
+TEST(AdvancedScalesTest, MultiScaleSparseSamplesHitControlPoints) {
+  // Uniform global sampling over 2 segments with count=3 lands exactly on
+  // knots 0, 1 and the final endpoint (issue #92). Per-segment rounding used
+  // to put the middle sample at 0.25 instead of the knot at 0.5.
+  std::vector<rgbf_t> colors{rgbf_t{0.0f, 0.0f, 0.0f}, rgbf_t{0.5f, 0.5f, 0.5f}, rgbf_t{1.0f, 1.0f, 1.0f}};
+  auto p = multi_scale(colors, 3, lerp_method::rgb);
+  ASSERT_EQ(p.size(), 3u);
+  EXPECT_EQ(p[0].r(), 0.0f);
+  EXPECT_FLOAT_EQ(p[1].r(), 0.5f);
+  EXPECT_EQ(p[2].r(), 1.0f);
+}
+
+TEST(AdvancedScalesTest, MultiScaleEndpointIsExactLastStop) {
+  // Issue #92: the final sample is the exact last stop, not lerp(..., 1.0) -
+  // float x + (y-x)*1 can stray by an ulp for these values.
+  const rgbf_t a{0.0480480492f, 0.0f, 0.0f};
+  const rgbf_t b{0.893893898f, 0.0f, 0.0f};
+  auto p = multi_scale(std::vector<rgbf_t>{a, b}, 2, lerp_method::rgb);
+  ASSERT_EQ(p.size(), 2u);
+  EXPECT_EQ(p[1].r(), b.r());
+}
+
+TEST(AdvancedScalesTest, SplineScaleEndpointIsExactLastControlPoint) {
+  // Issue #92: the final sample is the exact last control point, not the
+  // Catmull-Rom evaluation at t=1 run through the OkLab round-trip.
+  const rgbf_t a{0.31f, 0.41f, 0.59f};
+  const rgbf_t b{0.26f, 0.53f, 0.58f};
+  const rgbf_t c{0.89f, 0.17f, 0.54f};
+  auto p = spline_scale(std::vector<rgbf_t>{a, b, c}, 3);
+  ASSERT_EQ(p.size(), 3u);
+  EXPECT_EQ(p[2].r(), c.r());
+  EXPECT_EQ(p[2].g(), c.g());
+  EXPECT_EQ(p[2].b(), c.b());
+}
+
 TEST(AdvancedScalesTest, EmptyInputs) {
   auto p1 = easing_scale(rgb8_t{255, 0, 0}, rgb8_t{0, 0, 255}, 0, easing_type::linear);
   EXPECT_TRUE(p1.empty());
@@ -739,13 +810,64 @@ TEST(AdvancedScalesTest, MultiScaleRgbMethodHslaKeepsHueArc) {
   const hsla_float_t red10{10.0f, 1.0f, 0.5f, 1.0f};
   auto p = multi_scale(std::vector<hsla_float_t>{red350, red10}, 3u, lerp_method::rgb);
   ASSERT_GE(p.size(), 3u);
-  // multi_scale appends the endpoint at the end, so p[1] sits at t = 1/3 of
-  // the single segment: the arc gives 350 + 20/3 ≈ 356.67° (still red),
-  // while naive numeric lerp would wrap to 236.67° (blue).
-  EXPECT_NEAR(p[1].h(), 356.667f, 0.5f);
+  // Uniform sampling (issue #92) puts p[1] at t = 1/2 of the single segment:
+  // the shortest-arc midpoint of 350° -> 10° is 0°/360° (still red), while
+  // naive numeric lerp would wrap to 180° (cyan). The arc guarantee (issue
+  // #62) is what this pins; the position moved from 1/3 to 1/2 with the fix.
+  const float h = p[1].h();
+  const float hue_err = std::min(std::fabs(h - 0.0f), std::fabs(h - 360.0f));
+  EXPECT_LE(hue_err, 0.5f);
   const auto mid_rgb = conversion::color_cast<rgbf_t>(p[1]);
   EXPECT_NEAR(mid_rgb.r(), 1.0f, 2e-3f);
-  EXPECT_NEAR(mid_rgb.b(), 0.0556f, 2e-3f);
+  EXPECT_NEAR(mid_rgb.b(), 0.0f, 2e-3f);
+}
+
+// ============================================================================
+// theme tests (issue #93: on-colors must reach WCAG AA)
+// ============================================================================
+
+TEST(ThemeTest, OnColorsMeetWcagAaAcrossSeedGrid) {
+  for (int r = 0; r < 256; r += 51) {
+    for (int g = 0; g < 256; g += 51) {
+      for (int b = 0; b < 256; b += 51) {
+        const uint32_t seed =
+            (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(b);
+        SCOPED_TRACE("seed=0x" + std::to_string(seed));
+        const auto lm = theme::from_seed(seed).light_mode();
+        const auto dm = theme::from_seed(seed).dark_mode();
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(lm.on_primary, lm.primary), 4.5f);
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(lm.on_secondary, lm.secondary), 4.5f);
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(dm.on_primary, dm.primary), 4.5f);
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(dm.on_secondary, dm.secondary), 4.5f);
+      }
+    }
+  }
+}
+
+TEST(ThemeTest, UnchangedBrandInkWhenAlreadyCompliant) {
+  // Minimal-change contract (issue #93): when the brand ink already clears
+  // AA against the background it is returned untouched.
+  const auto lm_white = theme::from_seed(0xFFFFFFu).light_mode();
+  EXPECT_EQ(lm_white.on_primary.r(), 0x1C);
+  EXPECT_EQ(lm_white.on_primary.g(), 0x1B);
+  EXPECT_EQ(lm_white.on_primary.b(), 0x1F);
+
+  const auto lm_black = theme::from_seed(0x000000u).light_mode();
+  EXPECT_EQ(lm_black.on_primary.r(), 0xFF);
+  EXPECT_EQ(lm_black.on_primary.g(), 0xFB);
+  EXPECT_EQ(lm_black.on_primary.b(), 0xFE);
+}
+
+TEST(ThemeTest, AdjustedInkStaysTintedNotPureBlackWhite) {
+  // A mid-grey background pushes both brand inks just under 4.5:1. The
+  // adjustment must nudge the better ink toward black/white minimally -
+  // not snap all the way to pure black/white (issue #93).
+  const auto lm = theme::from_seed(0x787878u).light_mode();
+  EXPECT_GE(algorithms::accessibility::contrast_ratio(lm.on_primary, lm.primary), 4.5f);
+  const bool pure_white = lm.on_primary.r() == 0xFF && lm.on_primary.g() == 0xFF && lm.on_primary.b() == 0xFF;
+  const bool pure_black = lm.on_primary.r() == 0x00 && lm.on_primary.g() == 0x00 && lm.on_primary.b() == 0x00;
+  EXPECT_FALSE(pure_white);
+  EXPECT_FALSE(pure_black);
 }
 
 }  // namespace colorcpp::operations::test

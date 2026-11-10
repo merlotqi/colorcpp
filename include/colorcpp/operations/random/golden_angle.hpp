@@ -25,7 +25,8 @@ namespace colorcpp::operations::random {
  * @brief Sequential hues separated by the golden angle on the color wheel.
  *
  * Works with any color space that has a hue channel (HSL, HSV, HWB, OkLCH, CIELCH).
- * Internally converts to HSL for hue manipulation, then converts back.
+ * The base color is built from (saturation, lightness) at a fixed reference hue in HSL, then the step hue is written to
+ * the model's own hue channel (found by `traits::hue_tag`), so consecutive samples differ only in hue on every target.
  *
  * @tparam Color Color type (must have hue channel).
  * @tparam Engine Random engine type (default: std::mt19937).
@@ -89,8 +90,14 @@ class golden_angle_generator {
     } else {
       first_next_ = false;
     }
-    core::hsl_float_t hsl{current_hue, saturation, lightness};
-    return conversion::color_cast<Color>(hsl);
+    // Build from (saturation, lightness) at a fixed reference hue, then write
+    // the step hue into the model's OWN hue channel (issue #97): OkLCH/CIELCH
+    // keep hue at index 2, and casting an HSL color built with the step hue
+    // scrambled it (oklch steps of ~118 deg instead of the golden angle).
+    core::hsl_float_t hsl{0.0f, saturation, lightness};
+    Color c = conversion::color_cast<Color>(hsl);
+    details::set_hue_channel(c, current_hue);
+    return c;
   }
 
   std::vector<Color> generate_n(std::size_t count) const {
@@ -108,8 +115,9 @@ class golden_angle_generator {
 
  private:
   float random_hue() const {
-    std::uniform_real_distribution<float> dist(0.0f, 360.0f);
-    return dist(rng);
+    // Portable engine→range mapping (issue #96), same spec as
+    // basic_random_generator::random_float.
+    return details::portable_real<float>(rng, 0.0f, 360.0f);
   }
 };
 

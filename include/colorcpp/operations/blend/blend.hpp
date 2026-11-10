@@ -38,7 +38,7 @@ inline core::rgbaf_t blend_rgbaf(const core::rgbaf_t& d, const core::rgbaf_t& s,
   }
 
   float da = d.template get_index<3>();
-  float sa = s.template get_index<3>() * std::clamp(opacity, 0.0f, 1.0f);
+  float sa = s.template get_index<3>() * sanitize_opacity(opacity);
 
   float out_a = sa + da * (1.0f - sa);
 
@@ -152,7 +152,8 @@ inline core::rgbaf_t blend_rgbaf(const core::rgbaf_t& d, const core::rgbaf_t& s,
  * @param dst Destination (bottom) color.
  * @param src Source (top) color.
  * @param mode Blend/compositing mode (W3C-style for RGB; special modes use HSL luminance/saturation decomposition).
- * @param opacity Extra multiplier on source alpha, clamped to [0, 1].
+ * @param opacity Extra multiplier on source alpha, clamped to [0, 1]; NaN is
+ *        treated as 0 (issue #91, same NaN-coefficient policy as @c sanitize_t).
  * @param space Working space for the blend formulas — @c blend_space::srgb (default,
  *        W3C/CSS parity: formulas on gamma-encoded sRGB) or @c blend_space::linear
  *        (linearize, composite, re-encode: "linear light" compositing). Ignored for

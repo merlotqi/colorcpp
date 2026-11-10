@@ -9,6 +9,7 @@
 #include <array>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/detail/simd.hpp>
+#include <colorcpp/operations/blend/details.hpp>
 #include <colorcpp/operations/blend/mode.hpp>
 
 namespace colorcpp::operations::blend::details {
@@ -86,7 +87,7 @@ inline __m128 apply_mode_sse2(blend_mode mode, __m128 dst, __m128 src) {
 inline core::rgbaf_t blend_rgbaf_sse2(const core::rgbaf_t& dst, const core::rgbaf_t& src, blend_mode mode,
                                       float opacity) {
   const float da = dst.template get_index<3>();
-  const float sa = src.template get_index<3>() * std::clamp(opacity, 0.0f, 1.0f);
+  const float sa = src.template get_index<3>() * sanitize_opacity(opacity);
   const float out_a = sa + da * (1.0f - sa);
 
   if (out_a <= 0.0f) return core::rgbaf_t{0.0f, 0.0f, 0.0f, 0.0f};
