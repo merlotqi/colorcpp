@@ -81,27 +81,30 @@ inline constexpr bool is_hue_channel_v = std::is_same_v<typename Channel::tag_ty
 /**
  * @brief Circular distance between two hue values on the ring [0, range].
  *
- * Linear for values inside one turn; wraps out-of-range inputs down first, so
- * 0 and range are distance 0 and 359.9 vs 0 is distance 0.1. Arithmetic only
- * (no fmod) to stay constexpr in C++17.
- *
- * The wrap loop is bounded (separations up to 4096 turns stay exact).
- * Beyond that — or for a non-finite separation, where the old unbounded
- * subtraction never terminated (inf - range is still inf) — the distance
- * collapses to the longest arc (range/2) so hue comparisons report
- * "not equal" instead of spinning forever.
+ * Both values fold onto the ring first (issue #88), so 0 and range are
+ * distance 0, 359.9 vs 0 is distance 0.1, multi-turn inputs wrap exactly
+ * (725.5 vs 5.5 is 0), and the result is 0 exactly when the two hues are one
+ * ring point — the same equivalence @c basic_color::operator== and @c std::hash
+ * use. Folding is bounded (separations up to 4096 turns stay exact); beyond
+ * that — or for a non-finite value, where the old unbounded subtraction never
+ * terminated (inf - range is still inf) — the raw value stands and the raw
+ * separation is returned, so such hues never compare equal or land inside a
+ * small tolerance. Arithmetic only (no fmod) to stay constexpr in C++17.
  */
 template <typename T>
 constexpr T circular_diff(T a, T b, T range) noexcept {
-  T d = (a > b) ? (a - b) : (b - a);
   if (range > T(0)) {
-    if (d > range) {
-      for (int i = 0; i < 4096 && d > range; ++i) d -= range;
-      if (d > range) d = range / T(2);  // non-finite or absurd separation
-    }
-    if (d > range - d) d = range - d;
+    const T ra = ::colorcpp::core::detail::hue_representative(a, range);
+    const T rb = ::colorcpp::core::detail::hue_representative(b, range);
+    if (ra == rb) return T(0);
+    T d = (ra > rb) ? (ra - rb) : (rb - ra);
+    // A representative outside the ring means its raw value was non-foldable
+    // (beyond 4096 turns or non-finite): keep the raw separation so such hues
+    // never compare equal or "close" (issue #55).
+    if (ra >= range || ra < T(0) || rb >= range || rb < T(0)) return d;
+    return (d > range - d) ? range - d : d;
   }
-  return d;
+  return (a > b) ? (a - b) : (b - a);
 }
 
 /**
@@ -131,8 +134,10 @@ constexpr bool is_achromatic(const Color& c) noexcept {
  * @brief Compare one channel of two colors, dispatching on hue vs linear semantics.
  *
  * Linear channels are handed to @p linear_comp as the raw value pair. Hue
- * channels are compared on the ring: both raw values and their circular
- * distance are handed to @p hue_comp. When both colors are achromatic
+ * channels are compared on the ring: both raw values, their circular distance
+ * and the ring's span (max - min, e.g. 360°) are handed to @p hue_comp — the
+ * span lets a policy scale its tolerance by the ring instead of the raw hue
+ * magnitudes (issue #89). When both colors are achromatic
  * (@ref is_achromatic), the hue pair short-circuits to true — the stored hue
  * carries no information without chroma.
  */
@@ -148,7 +153,7 @@ constexpr bool compare_one_channel(const Color& a, const Color& b, LinearComp li
     }
     using T = typename channel_t::value_type;
     constexpr T range = channel_t::max - channel_t::min;
-    return hue_comp(va, vb, circular_diff(va, vb, range));
+    return hue_comp(va, vb, circular_diff(va, vb, range), range);
   } else {
     return linear_comp(va, vb);
   }
@@ -189,7 +194,7 @@ inline constexpr bool
 /**
  * @brief Compare all channels of two colors (linear + hue-aware).
  * @param linear_comp Predicate for non-hue channels: (value_a, value_b).
- * @param hue_comp Predicate for hue channels: (value_a, value_b, circular_diff).
+ * @param hue_comp Predicate for hue channels: (value_a, value_b, circular_diff, ring_span).
  * @return True if all channels match according to the predicates.
  */
 template <typename LinearComp, typename HueComp, typename Color>

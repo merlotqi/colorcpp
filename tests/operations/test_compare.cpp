@@ -34,6 +34,50 @@ TEST(OperatorCompareTest, DifferentColorsAreNotEqual) {
   EXPECT_TRUE(a != b);
 }
 
+TEST(OperatorCompareTest, HueRingEquality) {
+  // 0° and 360° are one hue by library convention: operator== must agree
+  // with exact_equal and std::hash on the ring (issue #88).
+  hsl_float_t a{0.0f, 0.8f, 0.5f};
+  hsl_float_t b{360.0f, 0.8f, 0.5f};
+  EXPECT_TRUE(a == b);
+  EXPECT_FALSE(a != b);
+  oklch_t x{0.7f, 0.1f, 0.0f};
+  oklch_t y{0.7f, 0.1f, 360.0f};
+  EXPECT_TRUE(x == y);
+}
+
+TEST(OperatorCompareTest, PowerlessHueEquality) {
+  // Both sides achromatic: the stored hue is atan2 noise, so == must not split
+  // on it (issue #88) - the same equivalence exact_equal already has.
+  oklch_t a{0.7f, 1.2e-7f, 90.0f};
+  oklch_t b{0.7f, 1.2e-7f, 200.0f};
+  EXPECT_TRUE(a == b);
+  hsl_float_t x{0.0f, 0.0f, 0.5f};
+  hsl_float_t y{180.0f, 0.0f, 0.5f};
+  EXPECT_TRUE(x == y);
+}
+
+TEST(OperatorCompareTest, DistinctHuesStillDiffer) {
+  // Guard: the ring rule must not merge genuinely different hues.
+  hsl_float_t a{0.0f, 0.8f, 0.5f};
+  hsl_float_t b{90.0f, 0.8f, 0.5f};
+  EXPECT_FALSE(a == b);
+  EXPECT_TRUE(a != b);
+}
+
+TEST(OperatorCompareTest, EqualityAgreesWithExactEqual) {
+  // One equivalence everywhere: exact_equal(a, b) <=> a == b for same-type
+  // colors (issue #88).
+  const hsl_float_t pairs[][2] = {
+      {hsl_float_t{0.0f, 0.8f, 0.5f}, hsl_float_t{360.0f, 0.8f, 0.5f}},
+      {hsl_float_t{359.9f, 0.8f, 0.5f}, hsl_float_t{0.1f, 0.8f, 0.5f}},
+      {hsl_float_t{0.0f, 0.0f, 0.5f}, hsl_float_t{200.0f, 0.0f, 0.5f}},
+      {hsl_float_t{0.0f, 0.8f, 0.5f}, hsl_float_t{90.0f, 0.8f, 0.5f}},
+      {hsl_float_t{400.0f, 0.8f, 0.5f}, hsl_float_t{40.0f, 0.8f, 0.5f}},
+  };
+  for (const auto& p : pairs) EXPECT_EQ(p[0] == p[1], exact_equal(p[0], p[1]));
+}
+
 // ============================================================================
 // Ordering and hashing (std::map / std::unordered_map usability)
 // ============================================================================
@@ -84,6 +128,57 @@ TEST(ColorHashTest, UnorderedMapFindWorks) {
   auto it = m.find(rgb8_t{10, 20, 30});
   ASSERT_NE(it, m.end());
   EXPECT_EQ(it->second, 42);
+}
+
+TEST(ColorHashTest, HueRingHashMatches) {
+  // Ring convention (issue #88): equal keys must hash equally, including the
+  // 0° / 360° pair exact_equal already calls one hue.
+  hsl_float_t a{0.0f, 0.8f, 0.5f};
+  hsl_float_t b{360.0f, 0.8f, 0.5f};
+  EXPECT_EQ(std::hash<hsl_float_t>{}(a), std::hash<hsl_float_t>{}(b));
+  oklch_t x{0.7f, 0.1f, 0.0f};
+  oklch_t y{0.7f, 0.1f, 360.0f};
+  EXPECT_EQ(std::hash<oklch_t>{}(x), std::hash<oklch_t>{}(y));
+}
+
+TEST(ColorHashTest, PowerlessHueHashMatches) {
+  // Achromatic hue is not part of the key (issue #88).
+  oklch_t a{0.7f, 1.2e-7f, 90.0f};
+  oklch_t b{0.7f, 1.2e-7f, 200.0f};
+  EXPECT_EQ(std::hash<oklch_t>{}(a), std::hash<oklch_t>{}(b));
+}
+
+TEST(ColorHashTest, UnorderedMapFindsAcrossHueRepresentatives) {
+  struct exact_key_eq {
+    bool operator()(const hsl_float_t& a, const hsl_float_t& b) const { return exact_equal(a, b); }
+  };
+  std::unordered_map<hsl_float_t, int, std::hash<hsl_float_t>, exact_key_eq> exact_keyed;
+  exact_keyed[hsl_float_t{0.0f, 0.8f, 0.5f}] = 42;
+  auto it = exact_keyed.find(hsl_float_t{360.0f, 0.8f, 0.5f});
+  ASSERT_NE(it, exact_keyed.end());
+  EXPECT_EQ(it->second, 42);
+
+  std::unordered_map<hsl_float_t, int> defaulted;
+  defaulted[hsl_float_t{0.0f, 0.8f, 0.5f}] = 7;
+  auto it2 = defaulted.find(hsl_float_t{360.0f, 0.8f, 0.5f});
+  ASSERT_NE(it2, defaulted.end());
+  EXPECT_EQ(it2->second, 7);
+}
+
+TEST(ColorOrderingTest, HueRingOrderingTies) {
+  // std::map equivalence derives from <, so 0° and 360° must tie (issue #88).
+  hsl_float_t a{0.0f, 0.8f, 0.5f};
+  hsl_float_t b{360.0f, 0.8f, 0.5f};
+  EXPECT_FALSE(a < b);
+  EXPECT_FALSE(b < a);
+}
+
+TEST(ColorOrderingTest, OrderedMapFindsAcrossHueRepresentatives) {
+  std::map<hsl_float_t, int> m;
+  m[hsl_float_t{0.0f, 0.8f, 0.5f}] = 7;
+  auto it = m.find(hsl_float_t{360.0f, 0.8f, 0.5f});
+  ASSERT_NE(it, m.end());
+  EXPECT_EQ(it->second, 7);
 }
 
 // ============================================================================
@@ -393,6 +488,28 @@ TEST(RelativeCompareTest, HueWraparoundEqual) {
   hsl_float_t a{0.0f, 0.8f, 0.5f};
   hsl_float_t b{360.0f, 0.8f, 0.5f};
   EXPECT_TRUE(relative_equal(a, b, 1e-3f));
+}
+
+TEST(RelativeCompareTest, HueToleranceIsPositionInvariant) {
+  // Issue #89: the hue bound used to scale with the raw hue magnitudes
+  // (rel * max(|ha|, |hb|)), so the same 0.2° gap passed near 360 and failed
+  // near 0 — the verdict depended on where the pair sat on the ring. The
+  // relative part must scale with the ring span (rel * 360) instead.
+  const hsl_float_t pairs[][2] = {
+      {hsl_float_t{359.9f, 0.8f, 0.5f}, hsl_float_t{0.1f, 0.8f, 0.5f}},  // 0.2° across the seam
+      {hsl_float_t{1.0f, 0.8f, 0.5f}, hsl_float_t{1.2f, 0.8f, 0.5f}},    // 0.2° near zero
+      {hsl_float_t{90.0f, 0.8f, 0.5f}, hsl_float_t{90.2f, 0.8f, 0.5f}},  // 0.2° mid-ring
+  };
+  for (const auto& p : pairs) {
+    // rel * 360 = 0.36 covers the 0.2° gap at every ring position ...
+    EXPECT_TRUE(relative_equal(p[0], p[1], 1e-3f));
+    // ... and rel * 360 = 0.0036 covers none of it, at any position.
+    EXPECT_FALSE(relative_equal(p[0], p[1], 1e-5f));
+    // The absolute floor keeps dominating when larger (isclose-style).
+    EXPECT_TRUE(relative_equal(p[0], p[1], 0.0f, 0.3f));
+  }
+  // The 0.36 bound is tight on the top side too: a 0.5° gap must not sneak in.
+  EXPECT_FALSE(relative_equal(hsl_float_t{90.0f, 0.8f, 0.5f}, hsl_float_t{90.5f, 0.8f, 0.5f}, 1e-3f));
 }
 
 TEST(ExactCompareTest, AchromaticHueIsIgnored) {
