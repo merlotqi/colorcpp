@@ -34,7 +34,7 @@ struct epsilon_policy {
     using T = typename Color::value_type;
     return detail::compare_channels(
         a, b, [eps](T va, T vb) { return detail::channel_epsilon(va, vb, eps); },
-        [eps](T, T, T d) { return d <= eps; });
+        [eps](T, T, T d, T /*range*/) { return d <= eps; });
   }
 };
 

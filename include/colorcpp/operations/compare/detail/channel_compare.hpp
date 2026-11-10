@@ -134,8 +134,10 @@ constexpr bool is_achromatic(const Color& c) noexcept {
  * @brief Compare one channel of two colors, dispatching on hue vs linear semantics.
  *
  * Linear channels are handed to @p linear_comp as the raw value pair. Hue
- * channels are compared on the ring: both raw values and their circular
- * distance are handed to @p hue_comp. When both colors are achromatic
+ * channels are compared on the ring: both raw values, their circular distance
+ * and the ring's span (max - min, e.g. 360°) are handed to @p hue_comp — the
+ * span lets a policy scale its tolerance by the ring instead of the raw hue
+ * magnitudes (issue #89). When both colors are achromatic
  * (@ref is_achromatic), the hue pair short-circuits to true — the stored hue
  * carries no information without chroma.
  */
@@ -151,7 +153,7 @@ constexpr bool compare_one_channel(const Color& a, const Color& b, LinearComp li
     }
     using T = typename channel_t::value_type;
     constexpr T range = channel_t::max - channel_t::min;
-    return hue_comp(va, vb, circular_diff(va, vb, range));
+    return hue_comp(va, vb, circular_diff(va, vb, range), range);
   } else {
     return linear_comp(va, vb);
   }
@@ -192,7 +194,7 @@ inline constexpr bool
 /**
  * @brief Compare all channels of two colors (linear + hue-aware).
  * @param linear_comp Predicate for non-hue channels: (value_a, value_b).
- * @param hue_comp Predicate for hue channels: (value_a, value_b, circular_diff).
+ * @param hue_comp Predicate for hue channels: (value_a, value_b, circular_diff, ring_span).
  * @return True if all channels match according to the predicates.
  */
 template <typename LinearComp, typename HueComp, typename Color>

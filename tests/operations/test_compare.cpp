@@ -490,6 +490,28 @@ TEST(RelativeCompareTest, HueWraparoundEqual) {
   EXPECT_TRUE(relative_equal(a, b, 1e-3f));
 }
 
+TEST(RelativeCompareTest, HueToleranceIsPositionInvariant) {
+  // Issue #89: the hue bound used to scale with the raw hue magnitudes
+  // (rel * max(|ha|, |hb|)), so the same 0.2° gap passed near 360 and failed
+  // near 0 — the verdict depended on where the pair sat on the ring. The
+  // relative part must scale with the ring span (rel * 360) instead.
+  const hsl_float_t pairs[][2] = {
+      {hsl_float_t{359.9f, 0.8f, 0.5f}, hsl_float_t{0.1f, 0.8f, 0.5f}},  // 0.2° across the seam
+      {hsl_float_t{1.0f, 0.8f, 0.5f}, hsl_float_t{1.2f, 0.8f, 0.5f}},    // 0.2° near zero
+      {hsl_float_t{90.0f, 0.8f, 0.5f}, hsl_float_t{90.2f, 0.8f, 0.5f}},  // 0.2° mid-ring
+  };
+  for (const auto& p : pairs) {
+    // rel * 360 = 0.36 covers the 0.2° gap at every ring position ...
+    EXPECT_TRUE(relative_equal(p[0], p[1], 1e-3f));
+    // ... and rel * 360 = 0.0036 covers none of it, at any position.
+    EXPECT_FALSE(relative_equal(p[0], p[1], 1e-5f));
+    // The absolute floor keeps dominating when larger (isclose-style).
+    EXPECT_TRUE(relative_equal(p[0], p[1], 0.0f, 0.3f));
+  }
+  // The 0.36 bound is tight on the top side too: a 0.5° gap must not sneak in.
+  EXPECT_FALSE(relative_equal(hsl_float_t{90.0f, 0.8f, 0.5f}, hsl_float_t{90.5f, 0.8f, 0.5f}, 1e-3f));
+}
+
 TEST(ExactCompareTest, AchromaticHueIsIgnored) {
   // Saturation/chroma is zero on both sides: the stored hue is meaningless,
   // so a gray at h = 0 and the same gray at h = 180 must compare equal.
