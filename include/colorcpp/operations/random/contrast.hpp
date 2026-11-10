@@ -206,13 +206,10 @@ class contrast_generator : public basic_random_generator<Color, Engine> {
 
     core::oklab_t lab{L, a, b};
 
-    // Map in OkLab BEFORE the cast (issue #61): color_cast<Color> clamps to
-    // the target gamut, so mapping afterwards would see an in-gamut color,
-    // return it unchanged, and silently discard the sampled lightness.
-    if (opts_.gamut_map) {
-      lab = algorithms::gamut::gamut_clip_preserve_lightness(lab);
-    }
-    return conversion::color_cast<Color>(lab);
+    // Gamut handling and the unconditional OkLab L bound (issues #61, #95)
+    // live in the shared helper so luminance_generator and contrast_generator
+    // cannot drift apart.
+    return details::finalize_oklab_candidate<Color>(lab, opts_.l_min, opts_.l_max, opts_.gamut_map);
   }
 
   options opts_;

@@ -7,15 +7,44 @@
 
 #pragma once
 
+#include <colorcpp/algorithms/gamut/preserve.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/operations/conversion.hpp>
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
 
 namespace colorcpp::operations::random::details {
+
+/**
+ * @brief Finalize a sampled OkLab candidate into Color under the contract
+ *        shared by luminance_generator and contrast_generator.
+ *
+ * With @p gamut_map the candidate is clipped to sRGB via the lightness-
+ * preserving mapper BEFORE the cast (issue #61: color_cast clamps first, so
+ * mapping afterwards would see an in-gamut color and silently discard the
+ * sampled lightness). Without it the raw cast is tried first and the mapper
+ * runs only when the received OkLab L lands outside [@p l_min, @p l_max]
+ * (issue #95: the raw cast clamps RGB-family targets and moves their L by
+ * up to ~0.09 - the bound is unconditional, gamut_map only opts into
+ * always-on clipping); wide-gamut targets never clamp, so no fallback
+ * triggers there.
+ */
+template <typename Color>
+Color finalize_oklab_candidate(const core::oklab_t& lab, float l_min, float l_max, bool gamut_map) {
+  if (gamut_map) {
+    return conversion::color_cast<Color>(algorithms::gamut::gamut_clip_preserve_lightness(lab));
+  }
+  Color out = conversion::color_cast<Color>(lab);
+  const float out_L = conversion::color_cast<core::oklab_t>(out).l();
+  if (out_L < l_min || out_L > l_max) {
+    out = conversion::color_cast<Color>(algorithms::gamut::gamut_clip_preserve_lightness(lab));
+  }
+  return out;
+}
 
 namespace impl {
 

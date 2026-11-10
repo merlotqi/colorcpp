@@ -334,3 +334,104 @@ TEST(ContrastGenerator, TryGenerateNReportsImpossibleConstraint) {
   auto result = gen.try_generate_n(5, core::rgbf_t{1.0f, 1.0f, 1.0f});
   EXPECT_FALSE(result.has_value());
 }
+
+// --- Issue #95: with gamut_map = false the raw candidate went straight into
+//     color_cast<Color>, which clamps for RGB-family targets — the returned
+//     color's OkLab L drifted out of [l_min, l_max] by up to ~0.09 (probe:
+//     122/200 samples at chroma_max 0.4). The lightness bound is
+//     unconditional; gamut_map only opts into always-on sRGB clipping. Try
+//     the raw cast first and fall back to the lightness-preserving mapper
+//     only when the received L lands outside the bounds — wide-gamut targets
+//     never clamp, so gamut_map = false keeps its meaning there. ---
+
+TEST(LuminanceGenerator, LightnessBoundHoldsWhenGamutMapOffRgbaf) {
+  luminance_generator<core::rgbf_t>::options o;
+  o.l_min = 0.4f;
+  o.l_max = 0.6f;
+  o.chroma_max = 0.4f;
+  o.gamut_map = false;
+  luminance_generator<core::rgbf_t> gen(42u, o);
+
+  for (int i = 0; i < 200; ++i) {
+    auto c = gen.next();
+    auto oklab = conversion::color_cast<core::oklab_t>(c);
+    EXPECT_GE(oklab.l(), 0.4f - 0.01f) << "L too low at iteration " << i;
+    EXPECT_LE(oklab.l(), 0.6f + 0.01f) << "L too high at iteration " << i;
+  }
+}
+
+TEST(LuminanceGenerator, LightnessBoundHoldsWhenGamutMapOffRgb8) {
+  luminance_generator<core::rgb8_t>::options o;
+  o.l_min = 0.4f;
+  o.l_max = 0.6f;
+  o.chroma_max = 0.4f;
+  o.gamut_map = false;
+  luminance_generator<core::rgb8_t> gen(42u, o);
+
+  for (int i = 0; i < 200; ++i) {
+    auto c = gen.next();
+    auto oklab = conversion::color_cast<core::oklab_t>(c);
+    // 8-bit quantization on top of the map: a little more slack.
+    EXPECT_GE(oklab.l(), 0.4f - 0.02f) << "L too low at iteration " << i;
+    EXPECT_LE(oklab.l(), 0.6f + 0.02f) << "L too high at iteration " << i;
+  }
+}
+
+TEST(LuminanceGenerator, LightnessBoundHoldsWhenGamutMapOffOklch) {
+  // Wide-gamut target: the cast never clamps, so the bound already holds and
+  // no fallback may trigger (gamut_map = false keeps leaving out-of-sRGB
+  // chroma untouched).
+  luminance_generator<core::oklch_t>::options o;
+  o.l_min = 0.4f;
+  o.l_max = 0.6f;
+  o.chroma_max = 0.4f;
+  o.gamut_map = false;
+  luminance_generator<core::oklch_t> gen(42u, o);
+
+  for (int i = 0; i < 200; ++i) {
+    auto c = gen.next();
+    EXPECT_GE(c.l(), 0.4f - 1e-4f) << "L too low at iteration " << i;
+    EXPECT_LE(c.l(), 0.6f + 1e-4f) << "L too high at iteration " << i;
+  }
+}
+
+TEST(ContrastGenerator, LightnessBoundHoldsWhenGamutMapOffRgb8) {
+  // contrast_generator shares make_candidate: the same clamp-induced drift
+  // broke its bound too.
+  contrast_generator<core::rgb8_t>::options o;
+  o.min_ratio = 2.0f;
+  o.l_min = 0.4f;
+  o.l_max = 0.6f;
+  o.chroma_max = 0.4f;
+  o.gamut_map = false;
+  contrast_generator<core::rgb8_t> gen(42u, o);
+  const core::rgbf_t white{1.0f, 1.0f, 1.0f};
+
+  for (int i = 0; i < 200; ++i) {
+    auto c = gen.next(white);
+    auto oklab = conversion::color_cast<core::oklab_t>(c);
+    EXPECT_GE(oklab.l(), 0.4f - 0.02f) << "L too low at iteration " << i;
+    EXPECT_LE(oklab.l(), 0.6f + 0.02f) << "L too high at iteration " << i;
+  }
+}
+
+TEST(LuminanceGenerator, GamutMapTrueStaysInSrgbEvenWhenBoundWide) {
+  // gamut_map = true is always-on sRGB clipping, not "clip only when the L
+  // bound needs it" (issue #95's fallback must stay scoped to gamut_map =
+  // false). Wide-gamut target with a full L range: only the mapper can
+  // constrain the gamut, so no fallback may silently replace it.
+  luminance_generator<core::oklch_t>::options o;
+  o.l_min = 0.0f;
+  o.l_max = 1.0f;
+  o.chroma_max = 0.4f;
+  o.gamut_map = true;
+  luminance_generator<core::oklch_t> gen(42u, o);
+
+  for (int i = 0; i < 100; ++i) {
+    auto c = gen.next();
+    auto lab = conversion::color_cast<core::oklab_t>(c);
+    float r, g, b;
+    algorithms::gamut::details::oklab_to_linrgb(lab.l(), lab.a(), lab.b(), r, g, b);
+    EXPECT_TRUE(algorithms::gamut::details::linrgb_in_gamut(r, g, b)) << "outside sRGB at iteration " << i;
+  }
+}
