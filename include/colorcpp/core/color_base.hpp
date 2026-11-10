@@ -24,6 +24,98 @@ namespace colorcpp::core {
 template <typename Model, typename = void>
 struct basic_color;
 
+namespace detail {
+
+/**
+ * @brief Ring representative of a hue value: folded into [0, range).
+ *
+ * 0 and range are one hue, so equal hues must fold to one representative.
+ * @ref basic_color's operator==, operator< and @c std::hash all compare/hash
+ * this representative, giving the ring convention (issue #88) a single
+ * definition shared with the compare layer. Foldable up to 4096 turns (the
+ * same budget the old circular_diff wrap used); beyond that, or for
+ * non-finite values, the raw value stands as its own representative. NaN
+ * passes through and never compares equal to anything. Arithmetic only (no
+ * fmod) so the function stays constexpr in C++17.
+ */
+template <typename T>
+constexpr T hue_representative(T v, T range) noexcept {
+  if (!(range > T(0))) return v;
+  if (!(v == v)) return v;  // NaN passes through
+  T r = v;
+  int i = 0;
+  for (; i < 4096 && r >= range; ++i) r -= range;
+  for (; i < 4096 && r < T(0); ++i) r += range;
+  if (r >= range || r < T(0)) return v;  // > 4096 turns or non-finite
+  return r;
+}
+
+/**
+ * @brief Ring equality of two hue values: same representative (issue #88).
+ * NaN compares unequal; a hue equals itself (including ±inf).
+ */
+template <typename T>
+constexpr bool hue_equal(T a, T b, T range) noexcept {
+  return hue_representative(a, range) == hue_representative(b, range);
+}
+
+}  // namespace detail
+
+/** @brief Default tolerance for @ref is_achromatic, in the chroma channel's own units. */
+inline constexpr float kAchromaticEpsilon = 1e-3f;
+
+/**
+ * @brief Whether @p Color carries a shared chroma channel (HSL/HSV S, CIELCH/OkLCH C).
+ */
+template <typename Color>
+inline constexpr bool has_chroma_channel_v =
+    traits::details::has_channel_tag_impl<typename Color::channels_tuple, traits::chroma_tag>::value;
+
+/**
+ * @brief Whether the color's chroma/saturation is (nearly) zero — its hue is powerless.
+ *
+ * Per CSS Color 4 a hue stored next to zero chroma carries no information (a
+ * gray at h = 0 is the same gray at h = 180); interpolation must treat it as
+ * missing instead of blending the atan2 noise, and comparison may skip it.
+ * Models without a chroma channel (RGB, HWB, ...) are never achromatic.
+ * @param eps Tolerance in the chroma channel's own units (chroma min is 0 in
+ *            every model that has the channel), default @ref kAchromaticEpsilon.
+ */
+template <typename Color>
+constexpr bool is_achromatic(const Color& c, float eps = kAchromaticEpsilon) noexcept {
+  if constexpr (has_chroma_channel_v<Color>) {
+    const float v = static_cast<float>(c.template get<traits::chroma_tag>());
+    return v <= eps && v >= -eps;
+  } else {
+    return false;
+  }
+}
+
+namespace detail {
+
+/**
+ * @brief Equality/ordering/hash key for channel @p I of @p c (issue #88).
+ *
+ * A hue channel keys as its ring representative — achromatic hues key as 0
+ * (their stored hue is powerless), so all three give the hue ring one shared
+ * definition and stay mutually consistent. Every other channel keys as its
+ * raw value.
+ */
+template <std::size_t I, typename Color>
+constexpr auto channel_key(const Color& c) noexcept {
+  using channel_t = std::tuple_element_t<I, typename Color::channels_tuple>;
+  using T = typename channel_t::value_type;
+  const T v = static_cast<T>(c.template get_index<I>());
+  if constexpr (std::is_same_v<typename channel_t::tag_type, traits::hue_tag>) {
+    if (is_achromatic(c)) return T(0);
+    return hue_representative(v, static_cast<T>(channel_t::max - channel_t::min));
+  } else {
+    return v;
+  }
+}
+
+}  // namespace detail
+
 /**
  * @brief Color value as a contiguous @c std::array of channel scalars (see @ref colorcpp::traits::channels_storage_t).
  *
@@ -112,7 +204,9 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   /**
    * @brief Exact equality comparison.
    * @param other Color to compare with.
-   * @return True if all channels are exactly equal.
+   * @return True if all channels are exactly equal — except hue, which folds
+   *         on the ring (0 == 360) and is skipped when both colors are
+   *         achromatic (issue #88, matching @c exact_equal's equivalence).
    */
   constexpr bool operator==(const basic_color& other) const noexcept {
     return equal_impl(other, std::make_index_sequence<channels>{});
@@ -126,30 +220,53 @@ struct basic_color<Model, std::enable_if_t<traits::is_model_traits_v<Model>>> {
   constexpr bool operator!=(const basic_color& other) const noexcept { return !(*this == other); }
 
   /**
-   * @brief Lexicographic ordering on channel values (strict weak ordering).
+   * @brief Lexicographic ordering on channel keys (strict weak ordering).
    *
    * Enables @c std::map and sorting. The first differing channel (channel
-   * order) decides. NaN-containing channels have unspecified ordering — the
-   * usual IEEE caveat; do not use such colors as ordered-map keys.
+   * order) decides; hues order by their ring representative, so ordering ties
+   * exactly where @ref operator== does (issue #88). NaN-containing channels
+   * have unspecified ordering — the usual IEEE caveat; do not use such colors
+   * as ordered-map keys.
    */
   constexpr bool operator<(const basic_color& other) const noexcept { return less_one<0>(other); }
 
  private:
+  // Per-channel equality (issue #88): a hue channel folds on the ring
+  // (0 == 360) and is skipped entirely when both colors are achromatic
+  // (powerless hue) — the same equivalence class compare::exact_equal uses.
+  // All other channels compare raw.
+  template <std::size_t I>
+  constexpr bool channel_equal(const basic_color& other) const noexcept {
+    using channel_t = std::tuple_element_t<I, channels_tuple>;
+    if constexpr (std::is_same_v<typename channel_t::tag_type, traits::hue_tag>) {
+      if (is_achromatic(*this) && is_achromatic(other)) return true;
+      using T = channel_value_t<I>;
+      return detail::hue_equal(static_cast<T>(get_index<I>()), static_cast<T>(other.get_index<I>()),
+                               static_cast<T>(channel_t::max - channel_t::min));
+    } else {
+      return get_index<I>() == other.get_index<I>();
+    }
+  }
+
   // Helper for exact equality comparison
   template <std::size_t... Is>
   constexpr bool equal_impl(const basic_color& other, std::index_sequence<Is...>) const noexcept {
-    return ((get_index<Is>() == other.get_index<Is>()) && ...);
+    return (channel_equal<Is>(other) && ...);
   }
 
-  // Lexicographic less: at each index either the channel decides, or equality
-  // defers to the next index; no channels left to differ means "not less".
+  // Lexicographic less on normalized keys (detail::channel_key): at each
+  // index either the key pair decides, or equality defers to the next index;
+  // no channels left to differ means "not less". Keying hues through the same
+  // fold as operator== / std::hash keeps the ordering's equivalence
+  // ("neither is less") exactly equal to operator==.
   template <std::size_t I>
   constexpr bool less_one(const basic_color& other) const noexcept {
     if constexpr (I >= channels) {
       return false;
-    } else if (get_index<I>() != other.get_index<I>()) {
-      return get_index<I>() < other.get_index<I>();
     } else {
+      const auto ka = detail::channel_key<I>(*this);
+      const auto kb = detail::channel_key<I>(other);
+      if (ka != kb) return ka < kb;
       return less_one<I + 1>(other);
     }
   }
@@ -277,36 +394,6 @@ constexpr decltype(auto) get(Color&& c) {
   return c.template get_index<I>();
 }
 
-/**
- * @brief Whether @p Color carries a shared chroma channel (HSL/HSV S, CIELCH/OkLCH C).
- */
-template <typename Color>
-inline constexpr bool has_chroma_channel_v =
-    traits::details::has_channel_tag_impl<typename Color::channels_tuple, traits::chroma_tag>::value;
-
-/** @brief Default tolerance for @ref is_achromatic, in the chroma channel's own units. */
-inline constexpr float kAchromaticEpsilon = 1e-3f;
-
-/**
- * @brief Whether the color's chroma/saturation is (nearly) zero — its hue is powerless.
- *
- * Per CSS Color 4 a hue stored next to zero chroma carries no information (a
- * gray at h = 0 is the same gray at h = 180); interpolation must treat it as
- * missing instead of blending the atan2 noise, and comparison may skip it.
- * Models without a chroma channel (RGB, HWB, ...) are never achromatic.
- * @param eps Tolerance in the chroma channel's own units (chroma min is 0 in
- *            every model that has the channel), default @ref kAchromaticEpsilon.
- */
-template <typename Color>
-constexpr bool is_achromatic(const Color& c, float eps = kAchromaticEpsilon) noexcept {
-  if constexpr (has_chroma_channel_v<Color>) {
-    const float v = static_cast<float>(c.template get<traits::chroma_tag>());
-    return v <= eps && v >= -eps;
-  } else {
-    return false;
-  }
-}
-
 }  // namespace colorcpp::core
 
 namespace std {
@@ -332,8 +419,11 @@ std::size_t hash_channels(const basic_color<Model>& c, std::index_sequence<Is...
   // All channels share one scalar type (std::array storage requirement).
   using T = typename basic_color<Model>::value_type;
   std::size_t seed = 0;
-  // boost-style combine; channel order is part of the contract.
-  ((seed ^= std::hash<T>{}(static_cast<T>(c.template get_index<Is>())) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), ...);
+  // boost-style combine; channel order is part of the contract. Each channel
+  // hashes its detail::channel_key (issue #88) — the same hue-ring fold
+  // operator== and operator< use — so ring-equal hues (0 vs 360) and
+  // powerless (achromatic) hues hash alike instead of breaking the contract.
+  ((seed ^= std::hash<T>{}(static_cast<T>(detail::channel_key<Is>(c))) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), ...);
   return seed;
 }
 
@@ -344,7 +434,9 @@ namespace std {
 /**
  * @brief std::hash for @ref colorcpp::core::basic_color — enables @c std::unordered_map.
  *
- * Combines the per-channel std::hash values in channel order. Float channels
+ * Combines the per-channel key hashes in channel order. A hue channel hashes
+ * its ring representative (achromatic hues hash as 0), matching operator=='s
+ * equivalence (issue #88) so ring-equal colors hash equally. Float channels
  * inherit the standard-library contract (+0.0 and -0.0 hash equally). NaN
  * channel values hash like other values but never compare equal, so NaN colors
  * cannot be found again by key lookup — do not use them as hash-map keys.
