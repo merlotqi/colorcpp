@@ -208,27 +208,20 @@ core::palette_set<Color> spline_scale(
   }
 
   // Distribute samples across segments
-  size_t num_segments = control_points.size() - 1;
-  size_t samples_per_segment = count / num_segments;
-  size_t remainder = count % num_segments;
+  const size_t num_segments = control_points.size() - 1;
 
-  // With fewer samples than segments the per-segment split would give the
-  // last segment zero samples (seg_samples - 1 underflows). Sample the whole
-  // polyline evenly instead; Catmull-Rom is not meaningful at that density.
-  if (count < num_segments) {
-    for (size_t i = 0; i < count; ++i) {
-      float g = static_cast<float>(i) / (count - 1);
-      float pos = g * static_cast<float>(num_segments);
-      size_t seg = std::min(static_cast<size_t>(pos), num_segments - 1);
-      float local = pos - static_cast<float>(seg);
-      p.add(operations::interpolate::lerp_oklab(control_points[seg], control_points[seg + 1], local));
+  // Uniform global parameter (issue #92): g = i/(count-1) over the whole
+  // polyline, mapped onto the segment/local split. Per-segment rounding made
+  // the sample positions depend on how count split across segments.
+  for (size_t i = 0; i < count; ++i) {
+    if (i + 1 == count) {
+      p.add(control_points.back());  // exact endpoint
+      continue;
     }
-    return p;
-  }
-
-  for (size_t seg = 0; seg < num_segments; ++seg) {
-    size_t seg_samples = samples_per_segment + (seg < remainder ? 1 : 0);
-    bool is_last_segment = (seg == num_segments - 1);
+    const float g = static_cast<float>(i) / static_cast<float>(count - 1);
+    const float pos = g * static_cast<float>(num_segments);
+    const size_t seg = std::min(static_cast<size_t>(pos), num_segments - 1);
+    const float t = pos - static_cast<float>(seg);
 
     // Get control points for Catmull-Rom (need 4 points)
     size_t i0 = (seg == 0) ? 0 : seg - 1;
@@ -236,49 +229,40 @@ core::palette_set<Color> spline_scale(
     size_t i2 = seg + 1;
     size_t i3 = (seg + 2 < control_points.size()) ? seg + 2 : control_points.size() - 1;
 
-    // For the last segment, don't include the endpoint (we'll add it at the end)
-    size_t seg_count = is_last_segment ? seg_samples - 1 : seg_samples;
+    // Use OkLab interpolation with Catmull-Rom
+    using namespace operations::conversion;
+    auto c0 = color_cast<core::oklab_t>(control_points[i0]);
+    auto c1 = color_cast<core::oklab_t>(control_points[i1]);
+    auto c2 = color_cast<core::oklab_t>(control_points[i2]);
+    auto c3 = color_cast<core::oklab_t>(control_points[i3]);
 
-    for (size_t i = 0; i < seg_count; ++i) {
-      float t = static_cast<float>(i) / seg_samples;
+    // Joint knots (uniform / centripetal / chordal) and non-uniform Catmull-Rom
+    float knots[4];
+    operations::interpolate::details::cr_knots(operations::interpolate::details::cr_distance(c0, c1),
+                                               operations::interpolate::details::cr_distance(c1, c2),
+                                               operations::interpolate::details::cr_distance(c2, c3), mode, knots);
 
-      // Use OkLab interpolation with Catmull-Rom
-      using namespace operations::conversion;
-      auto c0 = color_cast<core::oklab_t>(control_points[i0]);
-      auto c1 = color_cast<core::oklab_t>(control_points[i1]);
-      auto c2 = color_cast<core::oklab_t>(control_points[i2]);
-      auto c3 = color_cast<core::oklab_t>(control_points[i3]);
+    core::oklab_t mid{
+        std::clamp(
+            operations::interpolate::details::catmull_rom(knots, c0.template get_index<0>(), c1.template get_index<0>(),
+                                                          c2.template get_index<0>(), c3.template get_index<0>(), t),
+            0.0f, 1.0f),
+        std::clamp(
+            operations::interpolate::details::catmull_rom(knots, c0.template get_index<1>(), c1.template get_index<1>(),
+                                                          c2.template get_index<1>(), c3.template get_index<1>(), t),
+            -0.5f, 0.5f),
+        std::clamp(
+            operations::interpolate::details::catmull_rom(knots, c0.template get_index<2>(), c1.template get_index<2>(),
+                                                          c2.template get_index<2>(), c3.template get_index<2>(), t),
+            -0.5f, 0.5f)};
 
-      // Joint knots (uniform / centripetal / chordal) and non-uniform Catmull-Rom
-      float knots[4];
-      operations::interpolate::details::cr_knots(operations::interpolate::details::cr_distance(c0, c1),
-                                                 operations::interpolate::details::cr_distance(c1, c2),
-                                                 operations::interpolate::details::cr_distance(c2, c3), mode, knots);
-
-      core::oklab_t mid{std::clamp(operations::interpolate::details::catmull_rom(
-                                       knots, c0.template get_index<0>(), c1.template get_index<0>(),
-                                       c2.template get_index<0>(), c3.template get_index<0>(), t),
-                                   0.0f, 1.0f),
-                        std::clamp(operations::interpolate::details::catmull_rom(
-                                       knots, c0.template get_index<1>(), c1.template get_index<1>(),
-                                       c2.template get_index<1>(), c3.template get_index<1>(), t),
-                                   -0.5f, 0.5f),
-                        std::clamp(operations::interpolate::details::catmull_rom(
-                                       knots, c0.template get_index<2>(), c1.template get_index<2>(),
-                                       c2.template get_index<2>(), c3.template get_index<2>(), t),
-                                   -0.5f, 0.5f)};
-
-      // Interpolate alpha between the segment endpoints; keep the OkLab mid
-      // out of the RGB round-trip so wide-space targets are not gamut-clamped.
-      p.add(operations::interpolate::details::lerp_result<Color>(
-          mid, operations::interpolate::details::lerp_f(operations::interpolate::details::src_alpha(control_points[i1]),
-                                                        operations::interpolate::details::src_alpha(control_points[i2]),
-                                                        t)));
-    }
+    // Interpolate alpha between the segment endpoints; keep the OkLab mid
+    // out of the RGB round-trip so wide-space targets are not gamut-clamped.
+    p.add(operations::interpolate::details::lerp_result<Color>(
+        mid,
+        operations::interpolate::details::lerp_f(operations::interpolate::details::src_alpha(control_points[i1]),
+                                                 operations::interpolate::details::src_alpha(control_points[i2]), t)));
   }
-
-  // Add the last control point
-  p.add(control_points.back());
 
   return p;
 }
@@ -308,69 +292,40 @@ core::palette_set<Color> multi_scale(const std::vector<Color>& colors, size_t co
     return p;
   }
 
-  size_t num_segments = colors.size() - 1;
-  size_t samples_per_segment = count / num_segments;
-  size_t remainder = count % num_segments;
+  const size_t num_segments = colors.size() - 1;
 
-  // With fewer samples than segments the per-segment split would give the
-  // last segment zero samples (seg_samples - 1 underflows). Sample the whole
-  // polyline evenly instead.
-  if (count < num_segments) {
-    const auto append_sample = [&](size_t seg, float local) {
-      switch (method) {
-        case lerp_method::rgb:
-          p.add(operations::interpolate::lerp(colors[seg], colors[seg + 1], local));
-          break;
-        case lerp_method::hsl:
-          p.add(operations::interpolate::lerp_hsl(colors[seg], colors[seg + 1], local));
-          break;
-        case lerp_method::hsv:
-          p.add(operations::interpolate::lerp_hsv(colors[seg], colors[seg + 1], local));
-          break;
-        case lerp_method::oklab:
-        default:
-          p.add(operations::interpolate::lerp_oklab(colors[seg], colors[seg + 1], local));
-          break;
-      }
-    };
-    for (size_t i = 0; i < count; ++i) {
-      float g = static_cast<float>(i) / (count - 1);
-      float pos = g * static_cast<float>(num_segments);
-      size_t seg = std::min(static_cast<size_t>(pos), num_segments - 1);
-      append_sample(seg, pos - static_cast<float>(seg));
+  const auto append_sample = [&](size_t seg, float local) {
+    switch (method) {
+      case lerp_method::rgb:
+        p.add(operations::interpolate::lerp(colors[seg], colors[seg + 1], local));
+        break;
+      case lerp_method::hsl:
+        p.add(operations::interpolate::lerp_hsl(colors[seg], colors[seg + 1], local));
+        break;
+      case lerp_method::hsv:
+        p.add(operations::interpolate::lerp_hsv(colors[seg], colors[seg + 1], local));
+        break;
+      case lerp_method::oklab:
+      default:
+        p.add(operations::interpolate::lerp_oklab(colors[seg], colors[seg + 1], local));
+        break;
     }
-    return p;
-  }
+  };
 
-  for (size_t seg = 0; seg < num_segments; ++seg) {
-    size_t seg_samples = samples_per_segment + (seg < remainder ? 1 : 0);
-    // For the last segment, don't add the endpoint (we'll add it at the end)
-    bool is_last_segment = (seg == num_segments - 1);
-    size_t seg_count = is_last_segment ? seg_samples - 1 : seg_samples;
-
-    for (size_t i = 0; i < seg_count; ++i) {
-      float t = static_cast<float>(i) / seg_samples;
-
-      switch (method) {
-        case lerp_method::rgb:
-          p.add(operations::interpolate::lerp(colors[seg], colors[seg + 1], t));
-          break;
-        case lerp_method::hsl:
-          p.add(operations::interpolate::lerp_hsl(colors[seg], colors[seg + 1], t));
-          break;
-        case lerp_method::hsv:
-          p.add(operations::interpolate::lerp_hsv(colors[seg], colors[seg + 1], t));
-          break;
-        case lerp_method::oklab:
-        default:
-          p.add(operations::interpolate::lerp_oklab(colors[seg], colors[seg + 1], t));
-          break;
-      }
+  // Uniform global parameter (issue #92): g = i/(count-1) over the whole
+  // polyline, mapped onto the segment/local split. Per-segment rounding made
+  // the sample positions depend on how count split across segments (3 stops,
+  // count=5 used to give 0, 1/6, 1/3, 1/2, 1 instead of 0, 1/4, 1/2, 3/4, 1).
+  for (size_t i = 0; i < count; ++i) {
+    if (i + 1 == count) {
+      p.add(colors.back());  // exact endpoint
+      continue;
     }
+    const float g = static_cast<float>(i) / static_cast<float>(count - 1);
+    const float pos = g * static_cast<float>(num_segments);
+    const size_t seg = std::min(static_cast<size_t>(pos), num_segments - 1);
+    append_sample(seg, pos - static_cast<float>(seg));
   }
-
-  // Add the last color
-  p.add(colors.back());
 
   return p;
 }
