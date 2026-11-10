@@ -88,6 +88,90 @@ TEST(GoldenAngle, SecondStepAdvancesHue) {
   EXPECT_NEAR(h1, expected, 1e-4f);
 }
 
+// --- Issue #97: golden_angle built core::hsl_float_t{current_hue, ...} and
+//     cast it to the target: for OkLCH/CIELCH (hue at channel index 2) the
+//     HSL hue is not the model's hue, so consecutive hues were ~118 deg apart
+//     instead of 137.5 and the step hue never landed on the hue channel.
+//     The step hue must be written to the channel tagged traits::hue_tag. ---
+
+TEST(GoldenAngle, OklchHueIsWrittenToHueChannel) {
+  golden_angle_generator<core::oklch_t> g(42u);
+  auto c = g.next();
+  // Initial hue is the first draw, spec bit pattern (issue #96), and must be
+  // the model's own hue channel — not the OkLCH hue of a converted HSL color.
+  const float expected =
+      static_cast<float>(static_cast<double>(0.0f) +
+                         (static_cast<double>(360.0f) - static_cast<double>(0.0f)) * (1608637542.0 / 4294967296.0));
+  EXPECT_EQ(c.h(), expected);
+}
+
+TEST(GoldenAngle, OklchStepAdvancesHueByGoldenAngle) {
+  golden_angle_generator<core::oklch_t> g(2000u);
+  float h0 = g.next().h();
+  float h1 = g.next().h();
+  float expected = std::fmod(h0 + 137.5077640500378f, 360.0f);
+  EXPECT_NEAR(h1, expected, 1e-4f) << "oklch hue step must be the golden angle on the hue channel";
+}
+
+TEST(GoldenAngle, OklchKeepsLightnessAndChromaAcrossSteps) {
+  // "Sequential hues separated by the golden angle": consecutive samples
+  // differ only in hue, on every target model.
+  golden_angle_generator<core::oklch_t> g(2000u);
+  auto a = g.next();
+  auto b = g.next();
+  EXPECT_FLOAT_EQ(a.l(), b.l());
+  EXPECT_FLOAT_EQ(a.c(), b.c());
+}
+
+// --- Issue #97 (harmony): next_harmony read the hue from index 0 and
+//     construct_from_hue replaced index 0 — HSL/HSV layout. For OkLCH that
+//     overwrote L and left the hue untouched (and hue_max() = max_at<0>() was
+//     L's max, so the harmony offsets were garbage too). ---
+
+TEST(HarmonyPoisson, OklchComplementaryRotatesHueChannel) {
+  harmony_generator<core::oklch_t> gen(400u);
+  const core::oklch_t base{0.7f, 0.15f, 40.0f};
+  auto c = gen.next_harmony(base, harmony_mode::complementary);
+  EXPECT_NEAR(c.h(), 220.0f, 1e-3f) << "complementary = base hue + 180 on the model's hue channel";
+  EXPECT_FLOAT_EQ(c.l(), 0.7f) << "lightness must be untouched";
+  EXPECT_FLOAT_EQ(c.c(), 0.15f) << "chroma must be untouched";
+}
+
+// --- Issue #97 (sampling): basic_hsl_generator's H/S/L options must reach
+//     the model's hue/chroma/value channels wherever they sit (OkLCH is
+//     L, C, H — hue at index 2), not positional indices 0/1/2. ---
+
+TEST(HslGenerator, OklchOptionsRouteByChannelRole) {
+  basic_hsl_generator<core::oklch_t> g(42u);
+  basic_hsl_generator<core::oklch_t>::options o;
+  o.h_min = 100.0f;
+  o.h_max = 120.0f;  // hue channel (index 2)
+  o.s_min = 0.1f;
+  o.s_max = 0.2f;  // chroma channel (index 1)
+  o.l_min = 0.4f;
+  o.l_max = 0.5f;  // value channel — L (index 0)
+  g.set_options(o);
+  for (int i = 0; i < 20; ++i) {
+    const auto c = g.next();
+    EXPECT_GE(c.h(), 100.0f) << "hue below hue range at iteration " << i;
+    EXPECT_LE(c.h(), 120.0f) << "hue above hue range at iteration " << i;
+    EXPECT_GE(c.c(), 0.1f) << "chroma below saturation range at iteration " << i;
+    EXPECT_LE(c.c(), 0.2f) << "chroma above saturation range at iteration " << i;
+    EXPECT_GE(c.l(), 0.4f) << "L below lightness range at iteration " << i;
+    EXPECT_LE(c.l(), 0.5f) << "L above lightness range at iteration " << i;
+  }
+}
+
+TEST(HslGenerator, OklchDefaultRangesMatchChannelRoles) {
+  // Default option bounds come from each role's channel max (issue #97), not
+  // from positional max_at<0/1/2> — which gave OkLCH (h, s, l) = (2, 2, 360):
+  // hue_max = max_at<0>() was L's max and l_max was the hue ring.
+  const basic_hsl_generator<core::oklch_t>::options o{};
+  EXPECT_FLOAT_EQ(o.h_max, 360.0f) << "hue default bound = hue channel max";
+  EXPECT_FLOAT_EQ(o.s_max, 2.0f) << "saturation default bound = chroma channel max (okc nominal)";
+  EXPECT_FLOAT_EQ(o.l_max, 2.0f) << "lightness default bound = value channel max (okl nominal)";
+}
+
 TEST(HarmonyPoisson, AppendsWhenFeasible) {
   std::mt19937 rng(300u);
   harmony_gen hgen(rng);

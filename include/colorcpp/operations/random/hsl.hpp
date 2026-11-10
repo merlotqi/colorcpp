@@ -39,14 +39,17 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
    * @brief Min/max for H, S, and V or L when generating; for 4-channel types, also @a a_min / @a a_max for alpha.
    *
    * @par Valid ranges
-   * Typical valid ranges: H [0, hue_max), S [0, max_at<1>()], L/V [0, max_at<2>()], A [0, 1].
+   * Typical valid ranges: H [0, hue_max), S [0, chroma channel max], L/V [0, value channel max], A [0, 1].
+   * Ranges route to the model's channels by tag — hue → @a h_*, chroma → @a s_*,
+   * value/lightness → @a l_* (issue #97) — so the layout may be (L, C, H) as in
+   * OkLCH/CIELCH, not only the HSL order.
    * Values outside these ranges are accepted but may produce unexpected results
    * depending on the color space conversion functions.
    */
   struct options {
     T h_min{T(0)}, h_max{traits::hue_max()};
-    T s_min{T(0)}, s_max{traits::template max_at<1>()};
-    T l_min{T(0)}, l_max{traits::template max_at<2>()};
+    T s_min{T(0)}, s_max{traits::chroma_max()};
+    T l_min{T(0)}, l_max{traits::value_max()};
     T a_min{T(0)}, a_max{T(1)};
   };
 
@@ -97,16 +100,19 @@ class basic_hsl_generator : public basic_random_generator<Color, Engine> {
 
   template <std::size_t I>
   T get_channel_val() const {
-    if constexpr (I == 0)
+    // Route each option range to the channel that plays that role, located by
+    // tag (issue #97): OkLCH/CIELCH store (L, C, H) with hue at index 2, so a
+    // positional H/S/L mapping sampled L in the hue range and H in the L range.
+    using channel_t = std::tuple_element_t<I, typename traits::channels_tuple>;
+    using tag_t = typename channel_t::tag_type;
+    if constexpr (std::is_same_v<tag_t, colorcpp::traits::hue_tag>)
       return this->random_value(opts.h_min, opts.h_max);
-    else if constexpr (I == 1)
+    else if constexpr (std::is_same_v<tag_t, colorcpp::traits::chroma_tag>)
       return this->random_value(opts.s_min, opts.s_max);
-    else if constexpr (I == 2)
-      return this->random_value(opts.l_min, opts.l_max);
-    else if constexpr (I == 3 && traits::size >= 4)
+    else if constexpr (std::is_same_v<tag_t, colorcpp::traits::alpha_tag> && traits::size >= 4)
       return this->random_value(opts.a_min, opts.a_max);
     else
-      return traits::template max_at<I>();
+      return this->random_value(opts.l_min, opts.l_max);
   }
 
   template <std::size_t... Is>

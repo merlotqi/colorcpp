@@ -60,7 +60,7 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
 
   Color next_harmony(const Color& base_c, harmony_mode mode, std::size_t index = 1) const {
     T h_max = traits::hue_max();
-    T h_base = base_c.template get_index<0>();
+    T h_base = base_c.template get_index<traits::hue_index>();
     T h_new = h_base;
 
     switch (mode) {
@@ -166,7 +166,9 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
  private:
   template <std::size_t... Is>
   Color construct_from_hue(const Color& base_c, T new_h, std::index_sequence<Is...>) const {
-    return Color{(Is == 0 ? new_h : base_c.template get_index<Is>())...};
+    // Replace the hue-tagged channel (issue #97: hue is index 0 in HSL/HSV
+    // but index 2 in OkLCH/CIELCH), keeping every other channel untouched.
+    return Color{(Is == traits::hue_index ? new_h : base_c.template get_index<Is>())...};
   }
 };
 

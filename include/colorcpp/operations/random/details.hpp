@@ -114,6 +114,23 @@ struct has_hue_method : std::false_type {};
 template <typename Color>
 struct has_hue_method<Color, std::void_t<decltype(std::declval<const Color&>().h())>> : std::true_type {};
 
+// First channel whose tag is neither hue, chroma nor alpha — the model's
+// value/lightness channel (HSL's L, HSV's V, OkLCH's L, ...). Used to route
+// the generator's L/V option range (issue #97).
+template <typename Tuple, std::size_t I = 0, bool = (I < std::tuple_size_v<Tuple>)>
+struct first_plain_channel_index {
+  static constexpr std::size_t value = I;  // no plain channel found
+};
+
+template <typename Tuple, std::size_t I>
+struct first_plain_channel_index<Tuple, I, true> {
+  using tag_type = typename std::tuple_element_t<I, Tuple>::tag_type;
+  static constexpr bool is_special = std::is_same_v<tag_type, colorcpp::traits::hue_tag> ||
+                                     std::is_same_v<tag_type, colorcpp::traits::chroma_tag> ||
+                                     std::is_same_v<tag_type, colorcpp::traits::alpha_tag>;
+  static constexpr std::size_t value = is_special ? first_plain_channel_index<Tuple, I + 1>::value : I;
+};
+
 }  // namespace impl
 
 /**
@@ -247,7 +264,47 @@ struct color_traits {
     return static_cast<value_type>(sample_channel<channel_t>::max);
   }
 
-  static constexpr value_type hue_max() { return max_at<0>(); }
+  // Channel positions by tag (issue #97): hue sits at index 0 in HSL/HSV/HWB
+  // but at index 2 in OkLCH/CIELCH, so hue code must locate the channel whose
+  // tag_type is traits::hue_tag (same pattern as the compare module) instead
+  // of assuming the HSL layout. `size` marks "absent".
+  static constexpr std::size_t hue_index =
+      colorcpp::traits::details::find_channel_index_impl<channels_tuple, colorcpp::traits::hue_tag>::value;
+  static constexpr std::size_t chroma_index =
+      colorcpp::traits::details::find_channel_index_impl<channels_tuple, colorcpp::traits::chroma_tag>::value;
+  static constexpr std::size_t alpha_index =
+      colorcpp::traits::details::find_channel_index_impl<channels_tuple, colorcpp::traits::alpha_tag>::value;
+  static constexpr std::size_t value_index = impl::first_plain_channel_index<channels_tuple>::value;
+
+  static constexpr value_type hue_max() { return max_at<hue_index>(); }
+
+  static constexpr value_type chroma_max() {
+    if constexpr (chroma_index < size)
+      return max_at<chroma_index>();
+    else
+      return max_at<(size > 1 ? 1 : 0)>();
+  }
+
+  static constexpr value_type value_max() {
+    if constexpr (value_index < size)
+      return max_at<value_index>();
+    else
+      return max_at<(size > 1 ? 1 : 0)>();
+  }
 };
+
+/**
+ * @brief Write @p h into the hue-tagged channel of @p c (issue #97).
+ *
+ * Hue lives at different positions per model (index 0 in HSL/HSV/HWB, index 2
+ * in OkLCH/CIELCH), so generators that advance or replace a hue must write the
+ * model's own hue channel rather than a positional one.
+ */
+template <typename Color>
+void set_hue_channel(Color& c, float h) {
+  static_assert(color_traits<Color>::has_hue, "set_hue_channel requires a color type with hue channel");
+  constexpr std::size_t idx = color_traits<Color>::hue_index;
+  c.template get_index<idx>() = static_cast<typename Color::value_type>(h);
+}
 
 }  // namespace colorcpp::operations::random::details
