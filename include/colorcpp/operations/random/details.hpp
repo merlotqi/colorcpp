@@ -30,12 +30,18 @@ namespace colorcpp::operations::random::details {
  */
 template <typename Engine>
 double portable_unit(Engine& rng) {
-  const uint64_t lo = static_cast<uint64_t>(Engine::min());
-  const uint64_t hi = static_cast<uint64_t>(Engine::max());
+  constexpr uint64_t lo = static_cast<uint64_t>(Engine::min());
+  constexpr uint64_t hi = static_cast<uint64_t>(Engine::max());
   const uint64_t u = static_cast<uint64_t>(rng()) - lo;
-  const uint64_t range = hi - lo + 1;  // 0 when the engine spans all 2^64 values
-  if (range == 0) return static_cast<double>(u) * 0x1.0p-64;
-  return static_cast<double>(u) / static_cast<double>(range);
+  // 0 when the engine spans all 2^64 values. The bounds are compile-time
+  // constants (UniformRandomBitGenerator::min/max are constexpr), so this is
+  // `if constexpr` — a plain `if` trips MSVC C4127 ("conditional expression is
+  // constant"), which CI treats as an error.
+  constexpr uint64_t range = hi - lo + 1;
+  if constexpr (range == 0)
+    return static_cast<double>(u) * 0x1.0p-64;
+  else
+    return static_cast<double>(u) / static_cast<double>(range);
 }
 
 /**
