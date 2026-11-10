@@ -2,6 +2,54 @@
 
 All notable changes to `colorcpp` are documented here.
 
+## [Unreleased]
+
+Patch release of correctness fixes across conversion, interpolation,
+comparison, blending, palettes and random generation (issues #72–#97).
+
+### Fixed
+
+- **Conversion**: wrap hue in `hsl_to_rgb` before `hue2rgb` so
+  out-of-range hues render (#72); normalize wide-gamut matrices to the
+  CIE tabulated whites (#73); preserve alpha through chromatic
+  adaptation (#74); portable `constexpr` pow/cbrt shims so conversion
+  paths evaluate identically outside GCC (#75); extended-range
+  intermediates keep out-of-range floats instead of clamping at every
+  hop (#76).
+- **Interpolate**: wrap hue arcs symmetrically at ±180° and across 360°
+  (#78); gamut-map out-of-gamut midpoints instead of per-channel clip
+  (#79); premultiply alpha like CSS `color-mix()` (#80); raw eased t,
+  t-independent `alpha_mode::multiply` endpoints and a continuous
+  chroma ramp (#81); stop-order normalization, NaN `t` guard and the
+  `lerp_path` empty/linear contract (#82); scale the near-black
+  tolerance in `max_chroma_for` (#83).
+- **Compare**: align `exact_equal` with `operator==` / `std::hash` on
+  the hue ring and powerless hues (#88); scale relative hue tolerance
+  by ring span, not hue position (#89).
+- **Blend**: sanitize NaN opacity to 0 on both scalar and SIMD paths
+  (#91); drop the false Photoshop parity claim from the soft-light
+  comment (#90, docs).
+- **Palette**: sample `multi_scale` / `spline_scale` on a uniform
+  global parameter (#92); pick theme on-colors by contrast and adjust
+  them to WCAG AA (#93).
+- **Random**: restrict Poisson-disk candidates to sRGB-reachable
+  colours (#94); enforce the OkLab lightness bound regardless of
+  `gamut_map` (#95); map engine output to ranges portably so one seed
+  reproduces the same colours on libstdc++, libc++ and MSVC (#96);
+  operate on the model's own hue channel — golden-angle and harmony no
+  longer hardcode the HSL layout for OkLCH/CIELCH targets (#97).
+
+### Changed
+
+- **Interpolate**: deduplicate multi-stop sampling and alpha-policy
+  blend dispatch across overloads (#84, no behavior change).
+
+### CI / Build
+
+- Use `if constexpr` for the constant engine-range check in
+  `portable_unit` so the VS2022 job (`/WX`) passes with the portable
+  random mapping.
+
 ## [1.0.6] - 2026-11-01
 
 Patch release with stability and correctness fixes across CSS parsing,
@@ -43,8 +91,6 @@ and CI.
 
 - Add ARM64 and FreeBSD build and test jobs to the CI workflow.
 - Enhance the FreeBSD build configuration with environment variables.
-
-## [Unreleased]
 
 ## [1.0.5] - 2026-10-29
 
