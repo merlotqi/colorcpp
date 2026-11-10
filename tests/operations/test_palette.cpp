@@ -6,10 +6,12 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <colorcpp/algorithms/accessibility/wcag.hpp>
 #include <colorcpp/colorcpp.hpp>
 #include <colorcpp/operations/palette/ios.hpp>
 #include <cstddef>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace colorcpp::operations::test {
@@ -818,6 +820,54 @@ TEST(AdvancedScalesTest, MultiScaleRgbMethodHslaKeepsHueArc) {
   const auto mid_rgb = conversion::color_cast<rgbf_t>(p[1]);
   EXPECT_NEAR(mid_rgb.r(), 1.0f, 2e-3f);
   EXPECT_NEAR(mid_rgb.b(), 0.0f, 2e-3f);
+}
+
+// ============================================================================
+// theme tests (issue #93: on-colors must reach WCAG AA)
+// ============================================================================
+
+TEST(ThemeTest, OnColorsMeetWcagAaAcrossSeedGrid) {
+  for (int r = 0; r < 256; r += 51) {
+    for (int g = 0; g < 256; g += 51) {
+      for (int b = 0; b < 256; b += 51) {
+        const uint32_t seed =
+            (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) | static_cast<uint32_t>(b);
+        SCOPED_TRACE("seed=0x" + std::to_string(seed));
+        const auto lm = theme::from_seed(seed).light_mode();
+        const auto dm = theme::from_seed(seed).dark_mode();
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(lm.on_primary, lm.primary), 4.5f);
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(lm.on_secondary, lm.secondary), 4.5f);
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(dm.on_primary, dm.primary), 4.5f);
+        EXPECT_GE(algorithms::accessibility::contrast_ratio(dm.on_secondary, dm.secondary), 4.5f);
+      }
+    }
+  }
+}
+
+TEST(ThemeTest, UnchangedBrandInkWhenAlreadyCompliant) {
+  // Minimal-change contract (issue #93): when the brand ink already clears
+  // AA against the background it is returned untouched.
+  const auto lm_white = theme::from_seed(0xFFFFFFu).light_mode();
+  EXPECT_EQ(lm_white.on_primary.r(), 0x1C);
+  EXPECT_EQ(lm_white.on_primary.g(), 0x1B);
+  EXPECT_EQ(lm_white.on_primary.b(), 0x1F);
+
+  const auto lm_black = theme::from_seed(0x000000u).light_mode();
+  EXPECT_EQ(lm_black.on_primary.r(), 0xFF);
+  EXPECT_EQ(lm_black.on_primary.g(), 0xFB);
+  EXPECT_EQ(lm_black.on_primary.b(), 0xFE);
+}
+
+TEST(ThemeTest, AdjustedInkStaysTintedNotPureBlackWhite) {
+  // A mid-grey background pushes both brand inks just under 4.5:1. The
+  // adjustment must nudge the better ink toward black/white minimally -
+  // not snap all the way to pure black/white (issue #93).
+  const auto lm = theme::from_seed(0x787878u).light_mode();
+  EXPECT_GE(algorithms::accessibility::contrast_ratio(lm.on_primary, lm.primary), 4.5f);
+  const bool pure_white = lm.on_primary.r() == 0xFF && lm.on_primary.g() == 0xFF && lm.on_primary.b() == 0xFF;
+  const bool pure_black = lm.on_primary.r() == 0x00 && lm.on_primary.g() == 0x00 && lm.on_primary.b() == 0x00;
+  EXPECT_FALSE(pure_white);
+  EXPECT_FALSE(pure_black);
 }
 
 }  // namespace colorcpp::operations::test
