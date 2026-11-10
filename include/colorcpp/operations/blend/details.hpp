@@ -5,11 +5,25 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::operations::blend::details {
+
+/**
+ * @brief Clamp opacity to [0, 1], mapping NaN to 0.
+ *
+ * Same policy as interpolate's @c sanitize_t (issue #82): a NaN coefficient
+ * contributes nothing. Keeps the scalar and SIMD blend paths in agreement
+ * (issue #91) — @c std::clamp(NaN, 0, 1) propagates NaN while SSE @c maxps
+ * folds it to 0, so unsanitized opacity made the two paths disagree.
+ */
+inline float sanitize_opacity(float opacity) noexcept {
+  return std::isnan(opacity) ? 0.0f : std::clamp(opacity, 0.0f, 1.0f);
+}
 
 /**
  * @brief Porter-Duff general compositing: Cs·αs·(1-αd) + Cd·αd·(1-αs) + B·αs·αd
