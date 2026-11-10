@@ -334,3 +334,64 @@ TEST(RandomSamplingDomain, XyzStaysNonNegative) {
     EXPECT_LE(c.z(), 1.0f) << "sample " << i;
   }
 }
+
+// ============================================================
+// Portable engine→range mapping (Issue #96)
+//
+// std::mt19937's raw sequence is specified by the standard, but
+// std::uniform_*_distribution leaves the engine→value mapping
+// implementation-defined: libstdc++, libc++ and MSVC disagree, so
+// "same seed → same palette" only held within one standard-library build.
+// The mapping is now part of the module's spec — integers: u % span over
+// the engine range with the biasing tail rejected; reals: u / range as a
+// double in [0, 1), then min + (max - min) * x in double — and is pinned
+// here against the standard's raw mt19937 draws for seed 42:
+//   u1 = 1608637542, u2 = 3421126067, u3 = 4083286876
+// ============================================================
+
+TEST(RandomPortability, UnitMappingIsExactFixedPointScaling) {
+  // Double-precision pin of the spec: x = (u - min) / range exactly. The
+  // float-level pins cannot see a wrong denominator (u/2^32 vs u/(2^32 - 1)
+  // differ at the 33rd bit), so the unit mapping itself is pinned here.
+  std::mt19937 rng(42u);
+  EXPECT_EQ(details::portable_unit(rng), 1608637542.0 / 4294967296.0);
+}
+
+TEST(RandomPortability, IntDrawsFollowSpecifiedMapping) {
+  rgb8_generator g(42u);
+  auto c = g.next();
+  // span 256 divides the 2^32 engine range exactly, so no rejection:
+  // channel = u % 256.
+  EXPECT_EQ(c.r(), static_cast<uint8_t>(1608637542u % 256u));
+  EXPECT_EQ(c.g(), static_cast<uint8_t>(3421126067u % 256u));
+  EXPECT_EQ(c.b(), static_cast<uint8_t>(4083286876u % 256u));
+}
+
+TEST(RandomPortability, RealDrawsFollowSpecifiedMapping) {
+  luminance_generator<core::oklab_t>::options o;
+  o.l_min = 0.4f;
+  o.l_max = 0.6f;
+  o.chroma_max = 0.0f;
+  o.gamut_map = false;
+  luminance_generator<core::oklab_t> gen(42u, o);
+  auto c = gen.next();
+  // L is the first draw, spec-mandated bit pattern: min + (max - min) * x
+  // with x = u1 / 2^32, the whole expression in double, converted to float
+  // once (std distributions compute in the result type and disagree with
+  // this across standard libraries — issue #96).
+  const float expected =
+      static_cast<float>(static_cast<double>(0.4f) +
+                         (static_cast<double>(0.6f) - static_cast<double>(0.4f)) * (1608637542.0 / 4294967296.0));
+  EXPECT_EQ(c.l(), expected);
+}
+
+TEST(RandomPortability, GoldenAngleHueFollowsSpecifiedMapping) {
+  golden_gen g(42u);
+  auto c = g.next();
+  // Initial hue is the first draw: min + (max - min) * (u1 / 2^32) in
+  // double, converted to float once (spec bit pattern, issue #96).
+  const float expected =
+      static_cast<float>(static_cast<double>(0.0f) +
+                         (static_cast<double>(360.0f) - static_cast<double>(0.0f)) * (1608637542.0 / 4294967296.0));
+  EXPECT_EQ(c.h(), expected);
+}

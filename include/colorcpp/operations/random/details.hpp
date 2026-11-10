@@ -20,6 +20,65 @@
 namespace colorcpp::operations::random::details {
 
 /**
+ * @brief Portable engine → [0, 1) mapping (issue #96).
+ *
+ * std::uniform_real_distribution leaves the engine→value mapping
+ * implementation-defined: libstdc++, libc++ and MSVC disagree, so the same
+ * seed produced different colors on different standard libraries. This maps
+ * the engine's raw draw linearly over its full range in double - x = (u -
+ * min) / range - which is exact for power-of-two engines like mt19937.
+ */
+template <typename Engine>
+double portable_unit(Engine& rng) {
+  const uint64_t lo = static_cast<uint64_t>(Engine::min());
+  const uint64_t hi = static_cast<uint64_t>(Engine::max());
+  const uint64_t u = static_cast<uint64_t>(rng()) - lo;
+  const uint64_t range = hi - lo + 1;  // 0 when the engine spans all 2^64 values
+  if (range == 0) return static_cast<double>(u) * 0x1.0p-64;
+  return static_cast<double>(u) / static_cast<double>(range);
+}
+
+/**
+ * @brief Portable uniform real in [min, max] (issue #96).
+ *
+ * Spec: min + (max - min) * x with x from @ref portable_unit, the whole
+ * expression in double, converted to @p T once. (The std distributions
+ * compute in the result type and their rounding differs across standard
+ * libraries.)
+ */
+template <typename T, typename Engine>
+T portable_real(Engine& rng, T min, T max) {
+  const double x = portable_unit(rng);
+  return static_cast<T>(static_cast<double>(min) + (static_cast<double>(max) - static_cast<double>(min)) * x);
+}
+
+/**
+ * @brief Portable uniform integer in [min, max] (issue #96).
+ *
+ * Spec: u % span over the engine's range with the biasing tail rejected
+ * (the std distribution's engine→value mapping is implementation-defined).
+ * Channel bounds are non-negative in this library (uint8/uint16/...), which
+ * the uint64 arithmetic below assumes.
+ */
+template <typename T, typename Engine>
+T portable_int(Engine& rng, T min, T max) {
+  static_assert(std::is_integral_v<T>, "portable_int requires an integral type");
+  const uint64_t span = static_cast<uint64_t>(max) - static_cast<uint64_t>(min) + 1;
+  const uint64_t lo = static_cast<uint64_t>(Engine::min());
+  const uint64_t hi = static_cast<uint64_t>(Engine::max());
+  const uint64_t range = hi - lo + 1;
+  uint64_t u = static_cast<uint64_t>(rng()) - lo;
+  if (range != 0 && span < range) {
+    // Reject the tail beyond the largest multiple of span so u % span stays
+    // unbiased. (span >= range cannot happen for our engines/channels; fall
+    // through to plain modulo rather than rejecting every draw.)
+    const uint64_t limit = range - (range % span);
+    while (u >= limit) u = static_cast<uint64_t>(rng()) - lo;
+  }
+  return static_cast<T>(static_cast<uint64_t>(min) + u % span);
+}
+
+/**
  * @brief Finalize a sampled OkLab candidate into Color under the contract
  *        shared by luminance_generator and contrast_generator.
  *

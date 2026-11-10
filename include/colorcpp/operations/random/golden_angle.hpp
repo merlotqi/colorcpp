@@ -108,8 +108,9 @@ class golden_angle_generator {
 
  private:
   float random_hue() const {
-    std::uniform_real_distribution<float> dist(0.0f, 360.0f);
-    return dist(rng);
+    // Portable engine→range mapping (issue #96), same spec as
+    // basic_random_generator::random_float.
+    return details::portable_real<float>(rng, 0.0f, 360.0f);
   }
 };
 
