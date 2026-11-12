@@ -94,12 +94,27 @@ inline cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table) {
   const float t_par = -b / (2.0f * a);
   const float d_uv_par = (a * t_par * t_par + b * t_par + c) * sign;
 
+  // Sanity guards for the parabola (issue #109). The fit divides by X built
+  // from the row spacing, so on the near-duplicate appended end rows
+  // (24996/24999/25000: 98 K / 3 K / 1 K gaps) — and on the matching start
+  // rows (1000/1001/1005) — it explodes: probes at Duv=-0.005 came back as
+  // +0.0216/+0.0407 (sign flip), and an absurd vertex extrapolated Duv=-0.93
+  // for a point above the locus. Exclude degenerate spacing (either
+  // neighbouring gap more than twice the other) and require the vertex to be
+  // the projection onto the locus, i.e. between the bracketing rows; fall
+  // back to the triangular interpolant otherwise.
+  const float gap_prev = t - t_prev;
+  const float gap_next = t_next - t;
+  const bool spacing_ok = !(gap_prev > 2.0f * gap_next) && !(gap_next > 2.0f * gap_prev);
+  const bool vertex_ok = std::isfinite(t_par) && t_par >= t_prev && t_par <= t_next;
+  const bool parabola_ok = spacing_ok && vertex_ok;
+
   // The interpolants extrapolate beyond the clamped index for samples
   // outside the table's uv range (issue #101: uv of 500 K returned 396 K,
   // uv of 1 MK returned 47513 K). Keep the result inside the table.
   const float t_min = table.temperature(0);
   const float t_max = table.temperature(table.size() - 1);
-  if (std::abs(d_uv_tri) >= details::OHNO_PARABOLIC_DUV_MIN) {
+  if (std::abs(d_uv_tri) >= details::OHNO_PARABOLIC_DUV_MIN && parabola_ok) {
     return {std::clamp(t_par, t_min, t_max), d_uv_par};
   }
   return {std::clamp(t_tri, t_min, t_max), d_uv_tri};
@@ -139,12 +154,20 @@ inline cct_duv xyz_to_cct_ohno(const core::xyz_t& xyz) {
 inline std::pair<float, float> cct_to_uv_ohno(float cct, float duv) {
   if (!std::isfinite(cct) || cct <= 0.0f) cct = 1000.0f;  // issue #101
   const auto uv0 = planck_uv(cct);
-  // Colour-science uses a 0.01 K step in double precision; in float32 the
-  // resulting uv delta (~5e-8) cancels below the mantissa, so use 1 K
-  // (direction error ~1e-7 in uv — far inside test tolerance).
-  const auto uv1 = planck_uv(cct + 1.0f);
-  const float du = uv0.first - uv1.first;
-  const float dv = uv0.second - uv1.second;
+  // Temperature-relative central difference (issue #109). The previous
+  // fixed 1 K forward step shrank to a ~5.2e-7 uv delta at 24000 K — below
+  // the ~4e-8 float noise of planck_uv — so the normal was noise-dominated:
+  // offsets drifted tangentially (8.0e-4 coordinate error vs a
+  // double-precision reference at 24000 K / Duv 0.02, and round-trips
+  // returned cct=25000, duv=+0.412). Stepping +/-0.5% of T keeps the delta
+  // ~2.6e-5 uv at 24000 K, and the central difference cancels the chord's
+  // first-order bias. Matches the issue's relative-step fix; colour-science
+  // equivalently uses a 0.01 K step in double precision.
+  const float step = cct * 0.005f;
+  const auto uv_lo = planck_uv(cct - step);
+  const auto uv_hi = planck_uv(cct + step);
+  const float du = uv_lo.first - uv_hi.first;
+  const float dv = uv_lo.second - uv_hi.second;
   const float h = std::hypot(du, dv);
   if (h == 0.0f) return uv0;
   // Normal pointing toward increasing v; Duv sign convention matches uv_to_cct.
