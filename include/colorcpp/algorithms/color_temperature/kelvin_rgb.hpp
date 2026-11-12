@@ -45,9 +45,12 @@ inline float linear_to_srgb(float v) {
 }  // namespace details
 
 /**
- * @brief Convert Kelvin temperature to linear RGB (no gamma correction).
+ * @brief Convert Kelvin temperature to linear RGB.
  *
- * Uses Tanner Helland's algorithm. Output channels are in [0, 1].
+ * Uses Tanner Helland's algorithm. Helland's channel formulas already output
+ * sRGB-encoded values, so they are decoded here — dividing by 255 alone and
+ * re-encoding in @ref kelvin_to_rgb applied the gamma twice (issue #100).
+ * Output channels are in [0, 1].
  *
  * @param kelvin Color temperature in Kelvin (1000–40000).
  * @return Linear RGB with channels clamped to [0, 1].
@@ -87,7 +90,9 @@ inline core::rgbf_t kelvin_to_linear_rgb(float kelvin) {
     b = details::clamp01(b / 255.0f);
   }
 
-  return core::rgbf_t{r, g, b};
+  // Helland's formulas yield sRGB-encoded channels; decode to linear so
+  // kelvin_to_rgb's single linear_to_srgb reproduces the reference exactly.
+  return core::rgbf_t{details::srgb_to_linear(r), details::srgb_to_linear(g), details::srgb_to_linear(b)};
 }
 
 /**
