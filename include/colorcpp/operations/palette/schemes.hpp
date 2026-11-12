@@ -96,6 +96,10 @@ core::palette_set<Color> split_complementary(const Color& base) {
 
 /**
  * @brief Generate a tetradic palette.
+ *
+ * Produces the rectangle layout (0°, 60°, 180°, 240°) — byte-identical to
+ * double_complementary(); tetradic is a generation-only alias and is never
+ * reported by scheme detection (issue #104).
  */
 template <typename Color>
 core::palette_set<Color> tetradic(const Color& base) {

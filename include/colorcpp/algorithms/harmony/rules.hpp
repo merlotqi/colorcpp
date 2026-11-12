@@ -86,6 +86,10 @@ inline harmony_rule rule_for(harmony_scheme scheme, size_t count = 0) {
             {detail::k_golden_angle, detail::k_golden_angle},
             {0.0f, detail::k_golden_angle, (2.0f * detail::k_golden_angle)}};
   }
+  // tetradic is a generation-only alias of double_complementary: the
+  // rectangle layout (two complementary pairs) has one geometry, so the
+  // rules are intentionally byte-identical and detect_scheme never claims
+  // tetradic (issue #104).
   if (scheme == harmony_scheme::tetradic && count == 4) {
     return {scheme, count, {60.0f, 120.0f, 60.0f}, {0.0f, 60.0f, 180.0f, 240.0f}};
   }
@@ -320,7 +324,8 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
                     {harmony_scheme::split_complementary, match_split_complementary},
                     {harmony_scheme::split_analogous, match_split_analogous}};
         break;
-      case 4:
+      case 4:  // tetradic intentionally absent: generation-only alias of
+               // double_complementary, which claims the rectangle (issue #104)
         patterns = {{harmony_scheme::square, match_square},
                     {harmony_scheme::analogous_wide, match_analogous_wide4},
                     {harmony_scheme::compound, match_compound},

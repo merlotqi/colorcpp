@@ -31,7 +31,8 @@ enum class harmony_scheme {
   split_analogous,      ///< Split analogous (60°, 30°)
 
   // 4-color schemes
-  tetradic,              ///< Tetradic rectangle (60°, 120°, 60°); same layout as double_complementary for assess()
+  tetradic,  ///< Tetradic rectangle (60°, 120°, 60°); generation-only alias of double_complementary — detection never
+             ///< reports it (issue #104)
   square,                ///< Square (90°, 90°, 90°)
   analogous_wide,        ///< Wide analogous (20°, 20°, 20°)
   compound,              ///< Compound in palette order (30°, 150°, 30°), e.g. 0°/30°/180°/210°

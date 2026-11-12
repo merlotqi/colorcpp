@@ -497,4 +497,65 @@ TEST(HarmonyAssessTest, ScoreIsHueRotationInvariant) {
   EXPECT_GT(rotated.score, 97.0f);
 }
 
+// ============================================================================
+// Issue #104: tetradic detection unreachable - rule_for(tetradic,4) is
+// byte-identical to double_complementary. Chosen resolution: tetradic is a
+// generation-only alias of the rectangle layout (two complementary pairs
+// 0°/60°/180°/240°); detect_scheme must never claim tetradic, and the
+// canonical rectangle always classifies as double_complementary.
+// ============================================================================
+
+TEST(HarmonyRulesTest, TetradicRuleIsExactlyDoubleComplementary) {
+  // The two names describe one geometry; the rules must stay identical so
+  // generation through either enum produces the same palette (issue #104).
+  const auto tetradic = rule_for(harmony_scheme::tetradic, 4);
+  const auto dbl = rule_for(harmony_scheme::double_complementary, 4);
+  EXPECT_EQ(canonical_color_count(harmony_scheme::tetradic), 4u);
+  EXPECT_EQ(tetradic.ideal_steps, dbl.ideal_steps);
+  EXPECT_EQ(tetradic.generation_offsets, dbl.generation_offsets);
+}
+
+TEST(HarmonyRulesTest, RectangleDetectsAsDoubleComplementaryNeverTetradic) {
+  // Detection must not distinguish what the rules cannot distinguish: the
+  // rectangle layout (at any rotation) is double_complementary, never
+  // tetradic, and an unmatched 4-hue palette falls back to the generic
+  // "tetrad" label - also not the tetradic enum (issue #104).
+  const std::vector<std::vector<float>> rectangles = {
+      {0.0f, 60.0f, 180.0f, 240.0f},
+      {13.0f, 73.0f, 193.0f, 253.0f},
+      {200.0f, 260.0f, 20.0f, 80.0f},
+  };
+  for (const auto& rect : rectangles) {
+    auto [scheme, steps] = detect_scheme_from_hues(rect);
+    EXPECT_EQ(scheme, harmony_scheme::double_complementary);
+    EXPECT_NE(scheme, harmony_scheme::tetradic);
+    EXPECT_EQ(steps, rule_for(harmony_scheme::double_complementary, 4).ideal_steps);
+  }
+  // Gaps {50, 90, 120, 100} match no 4-color pattern -> generic tetrad
+  // fallback, not the tetradic enum.
+  auto unmatched = detect_scheme_from_hues({0.0f, 50.0f, 140.0f, 260.0f});
+  EXPECT_EQ(unmatched.first, harmony_scheme::tetrad);
+  EXPECT_NE(unmatched.first, harmony_scheme::tetradic);
+}
+
+TEST(HarmonyRulesTest, TetradicGenerationUsesRectangleOffsets) {
+  // Generation through the tetradic enum must remain reachable and produce
+  // the double_complementary offsets {0, 60, 180, 240} (issue #104).
+  const auto base = color_cast<rgbaf_t>(hsla_float_t{40.0f, 1.0f, 0.5f, 1.0f});
+  auto p = schemes::tetradic(base);
+  ASSERT_EQ(p.size(), 4u);
+  const std::vector<float> expected_hues = {40.0f, 100.0f, 220.0f, 280.0f};
+  for (size_t i = 0; i < 4; ++i) {
+    auto hsl = color_cast<hsla_float_t>(p[i]);
+    EXPECT_NEAR(hsl.h(), expected_hues[i], 0.5f) << "index " << i;
+  }
+  // Round-trip: the generated palette classifies as double_complementary.
+  std::vector<float> generated_hues;
+  for (const auto& c : p) {
+    generated_hues.push_back(color_cast<hsla_float_t>(c).h());
+  }
+  auto detected = detect_scheme_from_hues(generated_hues);
+  EXPECT_EQ(detected.first, harmony_scheme::double_complementary);
+}
+
 }  // namespace colorcpp::algorithms::test
