@@ -59,6 +59,9 @@ assessment_result assess(const core::palette_set<Color>& palette) {
   // ideal_angles describes the in-circle gaps (count-1 steps); the wrap-around
   // diff has no matching ideal step, so it is excluded from both the sum and
   // the divisor (a 10°-off complementary pair scores 90, not 95).
+  // detail::aligned_deviation tries every rotation of the diff vector and
+  // keeps the best alignment, so the score no longer depends on where the
+  // palette sits on the wheel (issue #103).
   const std::size_t in_circle = diffs.size() - 1;
   float total_deviation = 0.0f;
   std::size_t deviation_count = 0;
@@ -68,12 +71,10 @@ assessment_result assess(const core::palette_set<Color>& palette) {
     total_deviation = detail::k_base_deviation_penalty;  // Base penalty for unrecognized scheme
     deviation_count = std::max<std::size_t>(1, in_circle);
   } else {
-    for (size_t i = 0; i < in_circle && i < ideal_angles.size(); ++i) {
-      total_deviation += std::abs(diffs[i] - ideal_angles[i]);
-      ++deviation_count;
-    }
+    total_deviation = detail::aligned_deviation(diffs, ideal_angles);
+    deviation_count = std::max<std::size_t>(1, std::min(ideal_angles.size(), in_circle));
   }
-  float avg_deviation = total_deviation / static_cast<float>(std::max<std::size_t>(1, deviation_count));
+  float avg_deviation = total_deviation / static_cast<float>(deviation_count);
 
   // Convert deviation to score (0 deviation = 100 score)
   float score = std::max(0.0f, 100.0f - avg_deviation);

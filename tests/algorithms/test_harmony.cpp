@@ -408,6 +408,18 @@ TEST(HarmonyWeightedTest, OutOfRangeWeightsAreClampedBeforeScoring) {
   EXPECT_FLOAT_EQ(raw.score, clamped.score);
 }
 
+TEST(HarmonyWeightedTest, WeightedAngleScoreIsHueRotationInvariant) {
+  // weights.hpp scored ideal_steps positionally just like assess(), so the
+  // rotation that scrambled assess()'s score scrambled the weighted one too
+  // (issue #103).
+  const auto base = assess_weighted(Hues({0.0f, 150.0f, 210.0f}), harmony_weights::angle_only());
+  const auto rotated = assess_weighted(Hues({200.0f, 350.0f, 50.0f}), harmony_weights::angle_only());
+  EXPECT_EQ(base.scheme, harmony_scheme::split_complementary);
+  EXPECT_EQ(rotated.scheme, harmony_scheme::split_complementary);
+  EXPECT_NEAR(base.angle_score, rotated.angle_score, 1.0f) << "issue #103: angle score must not depend on rotation";
+  EXPECT_GT(rotated.angle_score, 97.0f);
+}
+
 TEST(HarmonyCorrectTest, AutoDetectMatchesAssessOnReorderedPalette) {
   // Descending analogous palette: assess() must agree with correct()'s
   // auto-detection (both use shortest-path diffs on sorted hues).
@@ -420,6 +432,69 @@ TEST(HarmonyCorrectTest, AutoDetectMatchesAssessOnReorderedPalette) {
   EXPECT_EQ(corrected.target_scheme, harmony_scheme::analogous);
   // 0/30/60 is already a perfect analogous set — nothing to move
   EXPECT_EQ(corrected.status, correction_status::unchanged);
+}
+
+// ============================================================================
+// Issue #103: detect_scheme matched fixed patterns against diffs[0]/diffs[1]
+// and never the wrap entry, so which pattern fired depended on which gap
+// sorted first — rotating every hue by a constant cyclically shifted the
+// diff vector and changed the classification (e.g. split_complementary
+// became an accidental golden match: |150 - 137.508| = 12.49 < tol 15).
+// ============================================================================
+
+TEST(HarmonyRulesTest, SplitComplementarySurvivesRotation) {
+  // The issue probe: the same relative layout at two absolute rotations.
+  auto base = detect_scheme_from_hues({0.0f, 150.0f, 210.0f});
+  EXPECT_EQ(base.first, harmony_scheme::split_complementary);
+  auto rotated = detect_scheme_from_hues({200.0f, 350.0f, 50.0f});
+  EXPECT_EQ(rotated.first, harmony_scheme::split_complementary)
+      << "issue #103: +200 deg rotation must not fall into golden";
+}
+
+TEST(HarmonyRulesTest, DetectSchemeIsHueRotationInvariant) {
+  // Every canonical layout must classify identically at every rotation;
+  // the rotation class is exactly the cyclic shifts of the diff vector.
+  const std::vector<std::vector<float>> bases = {
+      {0.0f, 180.0f},                      // complementary
+      {0.0f, 137.5f},                      // golden pair
+      {0.0f, 120.0f, 240.0f},              // triadic
+      {0.0f, 137.5f, 275.0f},              // golden triad
+      {0.0f, 30.0f, 60.0f},                // analogous
+      {0.0f, 150.0f, 210.0f},              // split complementary
+      {0.0f, 60.0f, 90.0f},                // split analogous
+      {0.0f, 90.0f, 180.0f, 270.0f},       // square
+      {0.0f, 30.0f, 180.0f, 210.0f},       // compound
+      {0.0f, 60.0f, 180.0f, 240.0f},       // double complementary
+      {0.0f, 20.0f, 40.0f, 60.0f},         // analogous wide (4)
+      {0.0f, 15.0f, 30.0f, 45.0f},         // analogous wide (5)
+      {0.0f, 22.5f, 45.0f, 67.5f, 90.0f},  // analogous (5)
+  };
+  for (const auto& base : bases) {
+    const auto expected = detect_scheme_from_hues(base);
+    EXPECT_NE(expected.first, harmony_scheme::custom) << "base[0]=" << base[0];
+    for (float rot : {37.0f, 123.0f, 200.0f, 319.0f}) {
+      std::vector<float> rotated;
+      rotated.reserve(base.size());
+      for (float h : base) {
+        float r = h + rot;
+        if (r >= 360.0f) r -= 360.0f;
+        rotated.push_back(r);
+      }
+      const auto got = detect_scheme_from_hues(rotated);
+      EXPECT_EQ(got.first, expected.first) << "issue #103: base hue0=" << base[0] << " rot=" << rot;
+    }
+  }
+}
+
+TEST(HarmonyAssessTest, ScoreIsHueRotationInvariant) {
+  // assess() scores positionally against ideal_angles, so even a fixed
+  // detect_scheme would still report rotation-dependent scores.
+  const auto base = assess(Hues({0.0f, 150.0f, 210.0f}));
+  const auto rotated = assess(Hues({200.0f, 350.0f, 50.0f}));
+  EXPECT_EQ(base.scheme, harmony_scheme::split_complementary);
+  EXPECT_EQ(rotated.scheme, harmony_scheme::split_complementary);
+  EXPECT_NEAR(base.score, rotated.score, 1.0f) << "issue #103: score must not depend on rotation";
+  EXPECT_GT(rotated.score, 97.0f);
 }
 
 }  // namespace colorcpp::algorithms::test

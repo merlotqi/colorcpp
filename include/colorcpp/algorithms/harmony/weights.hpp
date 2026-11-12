@@ -168,15 +168,13 @@ weighted_assessment_result assess_weighted(const core::palette_set<Color>& palet
   auto [scheme, ideal_steps] = detect_scheme_from_hues(hues);
   result.scheme = scheme;
 
-  // Calculate angle score (ideal_steps covers the in-circle gaps only)
+  // Calculate angle score (ideal_steps covers the in-circle gaps only).
+  // Rotation-aligned so the score does not depend on where the palette sits
+  // on the wheel (issue #103), matching assess().
   if (!ideal_steps.empty()) {
-    float deviation = 0.0f;
-    std::size_t count = 0;
-    for (size_t i = 0; i < in_circle && i < ideal_steps.size(); ++i) {
-      deviation += std::abs(diffs[i] - ideal_steps[i]);
-      ++count;
-    }
-    deviation /= static_cast<float>(std::max<std::size_t>(1, count));
+    float deviation = detail::aligned_deviation(diffs, ideal_steps);
+    std::size_t count = std::max<std::size_t>(1, std::min(ideal_steps.size(), in_circle));
+    deviation /= static_cast<float>(count);
     result.angle_score = std::max(0.0f, 100.0f - deviation);
   } else {
     result.angle_score = std::max(0.0f, 100.0f - detail::k_base_deviation_penalty - harmonic_deviation);

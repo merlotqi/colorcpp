@@ -10,7 +10,9 @@
 #include <colorcpp/algorithms/harmony/detail/angle_utils.hpp>
 #include <colorcpp/algorithms/harmony/scheme.hpp>
 #include <cstddef>
+#include <limits>
 #include <numeric>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -128,8 +130,152 @@ inline std::vector<float> circular_hue_diffs(std::vector<float> hues) {
   return diffs;
 }
 
+namespace detail {
+
+// Rotation-invariant scheme matching for palettes of 2..5 colors (issue #103).
+//
+// circular_hue_diffs anchors the diff vector at the smallest hue, so adding
+// a constant to every hue cyclically shifts the vector; matching fixed
+// indices therefore classified the same relative layout differently depending
+// on where it sat on the wheel. Each pattern below is evaluated against every
+// cyclic rotation of the diff vector (each rotation excluding a different
+// gap as the wrap entry), and the qualifying match with the smallest total
+// deviation from the pattern's ideal steps wins; pattern order breaks ties,
+// preserving today's priority for exact ties.
+
+// Tolerance gate + deviation for one measured/ideal pair (degrees).
+inline std::optional<float> tol_match(float measured, float ideal) {
+  const float d = std::abs(measured - ideal);
+  return d < k_default_tolerance ? std::optional<float>(d) : std::nullopt;
+}
+
+// Both elements must pass the tolerance gate; deviation is the sum.
+inline std::optional<float> tol_match2(float m0, float i0, float m1, float i1) {
+  const auto d0 = tol_match(m0, i0);
+  const auto d1 = tol_match(m1, i1);
+  if (!d0 || !d1) return std::nullopt;
+  return *d0 + *d1;
+}
+
+inline std::optional<float> match_complementary(const std::vector<float>& w) { return tol_match(w[0], 180.0f); }
+
+inline std::optional<float> match_golden_pair(const std::vector<float>& w) { return tol_match(w[0], k_golden_angle); }
+
+inline std::optional<float> match_triadic(const std::vector<float>& w) {
+  return tol_match2(w[0], 120.0f, w[1], 120.0f);
+}
+
+inline std::optional<float> match_golden_triple(const std::vector<float>& w) {
+  return tol_match2(w[0], k_golden_angle, w[1], k_golden_angle);
+}
+
+// Threshold gate (both gaps under 45); deviation measured from the
+// canonical analogous steps {30, 30}.
+inline std::optional<float> match_analogous(const std::vector<float>& w) {
+  if (!(w[0] < 45.0f && w[1] < 45.0f)) return std::nullopt;
+  return std::abs(w[0] - 30.0f) + std::abs(w[1] - 30.0f);
+}
+
+// Both accepted orderings of the {150, 60} ideal; keep the better fit.
+inline std::optional<float> match_split_complementary(const std::vector<float>& w) {
+  std::optional<float> best;
+  if (const auto d = tol_match2(w[0], 150.0f, w[1], 60.0f)) best = d;
+  if (const auto d = tol_match2(w[0], 60.0f, w[1], 150.0f)) best = best ? std::min(*best, *d) : d;
+  return best;
+}
+
+// One gap within tolerance of 60 and the other under 45 (either order).
+inline std::optional<float> match_split_analogous(const std::vector<float>& w) {
+  std::optional<float> best;
+  if (const auto d0 = tol_match(w[0], 60.0f); d0 && w[1] < 45.0f) best = *d0 + std::abs(w[1] - 30.0f);
+  if (const auto d1 = tol_match(w[1], 60.0f); d1 && w[0] < 45.0f) {
+    const float d = *d1 + std::abs(w[0] - 30.0f);
+    best = best ? std::min(*best, d) : d;
+  }
+  return best;
+}
+
+inline std::optional<float> match_square(const std::vector<float>& w) {
+  const auto d01 = tol_match2(w[0], 90.0f, w[1], 90.0f);
+  const auto d2 = tol_match(w[2], 90.0f);
+  if (!d01 || !d2) return std::nullopt;
+  return *d01 + *d2;
+}
+
+// Threshold gate (all gaps under 35); ideal wide steps {20, 20, 20}.
+inline std::optional<float> match_analogous_wide4(const std::vector<float>& w) {
+  if (!(w[0] < 35.0f && w[1] < 35.0f && w[2] < 35.0f)) return std::nullopt;
+  return std::abs(w[0] - 20.0f) + std::abs(w[1] - 20.0f) + std::abs(w[2] - 20.0f);
+}
+
+// Outer gaps under 45, middle within tolerance of 150; ideal {30, 150, 30}.
+inline std::optional<float> match_compound(const std::vector<float>& w) {
+  const auto d1 = tol_match(w[1], 150.0f);
+  if (!(w[0] < 45.0f && d1 && w[2] < 45.0f)) return std::nullopt;
+  return std::abs(w[0] - 30.0f) + *d1 + std::abs(w[2] - 30.0f);
+}
+
+inline std::optional<float> match_double_complementary(const std::vector<float>& w) {
+  const auto d0 = tol_match(w[0], 60.0f);
+  const auto d1 = tol_match(w[1], 120.0f);
+  const auto d2 = tol_match(w[2], 60.0f);
+  if (!d0 || !d1 || !d2) return std::nullopt;
+  return *d0 + *d1 + *d2;
+}
+
+// Five-color thresholds: wide must beat the looser analogous bound at the
+// 18.75 midpoint, or wide is unreachable (both gates kept as before).
+inline std::optional<float> match_analogous_wide5(const std::vector<float>& w) {
+  if (!(w[0] < 18.75f && w[1] < 18.75f && w[2] < 18.75f && w[3] < 18.75f)) return std::nullopt;
+  return std::abs(w[0] - 15.0f) + std::abs(w[1] - 15.0f) + std::abs(w[2] - 15.0f) + std::abs(w[3] - 15.0f);
+}
+
+inline std::optional<float> match_analogous5(const std::vector<float>& w) {
+  if (!(w[0] < 35.0f && w[1] < 35.0f && w[2] < 35.0f && w[3] < 35.0f)) return std::nullopt;
+  return std::abs(w[0] - 22.5f) + std::abs(w[1] - 22.5f) + std::abs(w[2] - 22.5f) + std::abs(w[3] - 22.5f);
+}
+
+using pattern_matcher = std::optional<float> (*)(const std::vector<float>&);
+
+struct scheme_pattern {
+  harmony_scheme scheme;
+  pattern_matcher match;
+};
+
+// Rotation-aligned deviation between circular diffs and ideal steps.
+//
+// Tries every cyclic rotation of @p diffs (each excluding a different gap as
+// the wrap entry) and returns the smallest total |diff - ideal| over the
+// window. The result is identical for every rotation of the palette, so
+// assess()/assess_weighted() scores no longer depend on where the palette
+// sits on the wheel (issue #103).
+inline float aligned_deviation(const std::vector<float>& diffs, const std::vector<float>& ideal) {
+  const size_t n = diffs.size();
+  if (n < 2 || ideal.empty()) return 0.0f;
+  const size_t window = std::min(ideal.size(), n - 1);
+  if (window == 0) return 0.0f;
+  float best = std::numeric_limits<float>::max();
+  for (size_t r = 0; r < n; ++r) {
+    float sum = 0.0f;
+    for (size_t i = 0; i < window; ++i) {
+      sum += std::abs(diffs[(r + i) % n] - ideal[i]);
+    }
+    best = std::min(best, sum);
+  }
+  return best;
+}
+
+}  // namespace detail
+
 /**
  * @brief Detect harmony scheme based on hue differences.
+ *
+ * For 2..5 colors the match is rotation-invariant (issue #103): circular
+ * input (size == count) is tested against every cyclic rotation of the diff
+ * vector and the best-fitting qualifying pattern wins, so adding a constant
+ * to every hue cannot change the result. Linear input (size == count - 1)
+ * has no wrap entry to rotate through and is matched as a single window.
+ *
  * @param count Number of colors.
  * @param diffs Shortest-path hue differences between adjacent colors. May be
  *        linear (size == count - 1, in-circle gaps only) or circular
@@ -142,72 +288,70 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
     return {harmony_scheme::single, {}};
   }
 
-  if (count == 2) {
-    if (std::abs(diffs[0] - 180.0f) < detail::k_default_tolerance) {
-      return {harmony_scheme::complementary, rule_for(harmony_scheme::complementary, 2).ideal_steps};
+  if (count <= 5) {
+    // One window per cyclic rotation of the circular vector; linear input
+    // (or an unexpected size) keeps a single window of the first count-1
+    // entries, matching the historical anchored behavior.
+    std::vector<std::vector<float>> windows;
+    if (diffs.size() == count) {
+      windows.reserve(count);
+      for (size_t r = 0; r < count; ++r) {
+        std::vector<float> w;
+        w.reserve(count - 1);
+        for (size_t i = 0; i + 1 < count; ++i) {
+          w.push_back(diffs[(r + i) % count]);
+        }
+        windows.push_back(std::move(w));
+      }
+    } else if (diffs.size() >= count - 1) {
+      windows.emplace_back(diffs.begin(), diffs.begin() + static_cast<std::ptrdiff_t>(count - 1));
     }
-    if (std::abs(diffs[0] - detail::k_golden_angle) < detail::k_default_tolerance) {
-      return {harmony_scheme::golden, rule_for(harmony_scheme::golden, 2).ideal_steps};
-    }
-    return {harmony_scheme::pair, {}};
-  }
 
-  if (count == 3) {
-    if (std::abs(diffs[0] - 120.0f) < detail::k_default_tolerance &&
-        std::abs(diffs[1] - 120.0f) < detail::k_default_tolerance) {
-      return {harmony_scheme::triadic, rule_for(harmony_scheme::triadic, 3).ideal_steps};
+    using namespace detail;
+    std::vector<scheme_pattern> patterns;
+    switch (count) {
+      case 2:
+        patterns = {{harmony_scheme::complementary, match_complementary}, {harmony_scheme::golden, match_golden_pair}};
+        break;
+      case 3:
+        patterns = {{harmony_scheme::triadic, match_triadic},
+                    {harmony_scheme::golden, match_golden_triple},
+                    {harmony_scheme::analogous, match_analogous},
+                    {harmony_scheme::split_complementary, match_split_complementary},
+                    {harmony_scheme::split_analogous, match_split_analogous}};
+        break;
+      case 4:
+        patterns = {{harmony_scheme::square, match_square},
+                    {harmony_scheme::analogous_wide, match_analogous_wide4},
+                    {harmony_scheme::compound, match_compound},
+                    {harmony_scheme::double_complementary, match_double_complementary}};
+        break;
+      default:  // count == 5: tighter wide gate first (see match_analogous_wide5)
+        patterns = {{harmony_scheme::analogous_wide, match_analogous_wide5},
+                    {harmony_scheme::analogous, match_analogous5}};
+        break;
     }
-    if (std::abs(diffs[0] - detail::k_golden_angle) < detail::k_default_tolerance &&
-        std::abs(diffs[1] - detail::k_golden_angle) < detail::k_default_tolerance) {
-      return {harmony_scheme::golden, rule_for(harmony_scheme::golden, 3).ideal_steps};
-    }
-    if (diffs[0] < 45.0f && diffs[1] < 45.0f) {
-      return {harmony_scheme::analogous, rule_for(harmony_scheme::analogous, 3).ideal_steps};
-    }
-    if ((std::abs(diffs[0] - 150.0f) < detail::k_default_tolerance &&
-         std::abs(diffs[1] - 60.0f) < detail::k_default_tolerance) ||
-        (std::abs(diffs[0] - 60.0f) < detail::k_default_tolerance &&
-         std::abs(diffs[1] - 150.0f) < detail::k_default_tolerance)) {
-      return {harmony_scheme::split_complementary, rule_for(harmony_scheme::split_complementary, 3).ideal_steps};
-    }
-    if ((std::abs(diffs[0] - 60.0f) < detail::k_default_tolerance && diffs[1] < 45.0f) ||
-        (diffs[0] < 45.0f && std::abs(diffs[1] - 60.0f) < detail::k_default_tolerance)) {
-      return {harmony_scheme::split_analogous, rule_for(harmony_scheme::split_analogous, 3).ideal_steps};
-    }
-    return {harmony_scheme::triad, {}};
-  }
 
-  if (count == 4) {
-    if (std::abs(diffs[0] - 90.0f) < detail::k_default_tolerance &&
-        std::abs(diffs[1] - 90.0f) < detail::k_default_tolerance &&
-        std::abs(diffs[2] - 90.0f) < detail::k_default_tolerance) {
-      return {harmony_scheme::square, rule_for(harmony_scheme::square, 4).ideal_steps};
+    bool found = false;
+    float best_dev = 0.0f;
+    harmony_scheme best_scheme = harmony_scheme::custom;
+    for (const auto& pattern : patterns) {  // priority order: ties keep the earlier pattern
+      for (const auto& w : windows) {
+        if (const auto dev = pattern.match(w)) {
+          if (!found || *dev < best_dev) {
+            found = true;
+            best_dev = *dev;
+            best_scheme = pattern.scheme;
+          }
+        }
+      }
     }
-    if (diffs[0] < 35.0f && diffs[1] < 35.0f && diffs[2] < 35.0f) {
-      return {harmony_scheme::analogous_wide, rule_for(harmony_scheme::analogous_wide, 4).ideal_steps};
+    if (found) {
+      return {best_scheme, rule_for(best_scheme, count).ideal_steps};
     }
-    if (diffs[0] < 45.0f && std::abs(diffs[1] - 150.0f) < detail::k_default_tolerance && diffs[2] < 45.0f) {
-      return {harmony_scheme::compound, rule_for(harmony_scheme::compound, 4).ideal_steps};
-    }
-    if (std::abs(diffs[0] - 60.0f) < detail::k_default_tolerance &&
-        std::abs(diffs[1] - 120.0f) < detail::k_default_tolerance &&
-        std::abs(diffs[2] - 60.0f) < detail::k_default_tolerance) {
-      return {harmony_scheme::double_complementary, rule_for(harmony_scheme::double_complementary, 4).ideal_steps};
-    }
-    return {harmony_scheme::tetrad, {}};
-  }
-
-  if (count == 5) {
-    // Check the tighter analogous_wide first: canonical wide steps are 15°
-    // and canonical analogous steps 22.5°, so a shared threshold ordering
-    // must test wide against the midpoint (18.75) before the looser
-    // analogous bound, or wide is unreachable.
-    if (diffs[0] < 18.75f && diffs[1] < 18.75f && diffs[2] < 18.75f && diffs[3] < 18.75f) {
-      return {harmony_scheme::analogous_wide, rule_for(harmony_scheme::analogous_wide, 5).ideal_steps};
-    }
-    if (diffs[0] < 35.0f && diffs[1] < 35.0f && diffs[2] < 35.0f && diffs[3] < 35.0f) {
-      return {harmony_scheme::analogous, rule_for(harmony_scheme::analogous, 5).ideal_steps};
-    }
+    if (count == 2) return {harmony_scheme::pair, {}};
+    if (count == 3) return {harmony_scheme::triad, {}};
+    if (count == 4) return {harmony_scheme::tetrad, {}};
     return {harmony_scheme::custom, {}};
   }
 
