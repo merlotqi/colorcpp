@@ -12,6 +12,11 @@ namespace colorcpp::algorithms::vision {
 
 /**
  * @brief Tritanopia simulation (S-cone absence; two-plane Brettel model).
+ *
+ * Wing selection and coefficients follow coloraide's BRETTEL_TRITAN: the
+ * separator passes through the neutral axis, so the two gray-preserving
+ * wings meet exactly on it.
+ *
  * @tparam Color Any color type supported by conversion::color_cast.
  * @param c Input color.
  * @return Simulated color for tritanopia.
@@ -29,9 +34,14 @@ Color simulate_tritanopia(const Color& c) {
 
   auto lms = details::mat3_mul(details::kRGBtoLMS, lin);
 
-  const float S_sim = (0.03476f * lms[0] - 0.02797f * lms[1] >= 0.0f)
-                          ? (-0.01224f * lms[0] + 0.07203f * lms[1])  // plane 1 (red-side)
-                          : (0.00316f * lms[0] + 0.07078f * lms[1]);  // plane 2 (blue-side)
+  // coloraide BRETTEL_TRITAN: the separator runs through the neutral axis,
+  // so wing w2 (red side, L/M > 1.90) and wing w1 (green side) meet exactly
+  // on the neutral axis — both preserve gray. The previous predicate
+  // (L/M >= 0.805) was never false inside the sRGB cube, leaving plane 2
+  // unreachable, and its coefficients matched neither wing (issue #102).
+  const float S_sim = (0.344781556122f * lms[0] - 0.6551784438780001f * lms[1] > 0.0f)
+                          ? (-0.002573851092f * lms[0] + 0.053656722528f * lms[1])   // wing w2 (red-side)
+                          : (-0.060107569254f * lms[0] + 0.162986387256f * lms[1]);  // wing w1 (green-side)
 
   const vec3 lms_sim = {lms[0], lms[1], S_sim};
 
