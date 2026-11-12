@@ -253,6 +253,51 @@ TEST(GamutDistanceTest, IsNearGamutBoundary) {
   EXPECT_FALSE(is_near);
 }
 
+// gamut_distance semantics (issue #108): the returned value is the chroma
+// deficit C - C_max(L, hue) found by binary search — NOT a true ΔE_OK.
+// These tests pin the documented behavior; the doxygen in distance.hpp now
+// describes exactly what is computed.
+
+TEST(GamutDistanceTest, GamutDistanceIsChromaDeficitNotDeltaE) {
+  // oklab(0.5, 0.4, 0): chroma 0.4; binary search shrinks it to the largest
+  // in-gamut chroma (~0.2028), so the result is the deficit (~0.197), not
+  // the Euclidean OKLab distance to the boundary point (which would be the
+  // same here only by coincidence of direction — the metric never measures
+  // lightness error for chromatic colors).
+  core::oklab_t oog(0.5f, 0.4f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(oog));
+  EXPECT_NEAR(gamut_distance(oog), 0.1972f, 2e-3f);
+
+  // A second hue direction: deficit measured only along the chroma axis.
+  core::oklab_t oog2(0.5f, 0.0f, 0.4f);
+  ASSERT_FALSE(is_in_srgb_gamut(oog2));
+  EXPECT_NEAR(gamut_distance(oog2), 0.2978f, 2e-3f);
+}
+
+TEST(GamutDistanceTest, GamutDistanceAchromaticOutOfRangeUsesLightnessDeficit) {
+  // Achromatic out-of-gamut colors (C < 1e-6) cannot be fixed by reducing
+  // chroma, so the metric degrades to the lightness distance to the nearest
+  // achromatic endpoint: L - 1.0 above 0.5, -L otherwise (issue #108).
+  core::oklab_t too_light(1.2f, 0.0f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(too_light));
+  EXPECT_NEAR(gamut_distance(too_light), 0.2f, 1e-5f);
+
+  core::oklab_t too_dark(-0.1f, 0.0f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(too_dark));
+  EXPECT_NEAR(gamut_distance(too_dark), 0.1f, 1e-5f);
+}
+
+TEST(GamutDistanceTest, NearGrayShowsDeficitIsNotEuclideanDistance) {
+  // oklab(0.8, 0.143, 0): lightness error vs white would be |0.8-1| = 0.2,
+  // but the metric reports only how much chroma must shrink (~0.019) —
+  // documenting that gamut_distance is a chroma deficit, not ΔE_OK.
+  core::oklab_t near_gray(0.8f, 0.143f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(near_gray));
+  const float d = gamut_distance(near_gray);
+  EXPECT_NEAR(d, 0.019f, 3e-3f);
+  EXPECT_LT(d, 0.109f);  // well below any plausible ΔE to the boundary
+}
+
 // ============================================================================
 // Gamut mapping result tests
 // ============================================================================
