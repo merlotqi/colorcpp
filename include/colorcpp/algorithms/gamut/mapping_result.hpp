@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <colorcpp/algorithms/gamut/srgb.hpp>
 #include <colorcpp/core/color_base.hpp>
 
 namespace colorcpp::algorithms::gamut {
@@ -23,8 +24,13 @@ struct gamut_mapping_result {
 
   /**
    * @brief Check if the mapping was successful (color is now in gamut).
+   *
+   * delta_e comes from a sqrt and is therefore always >= 0, so the old
+   * `delta_e >= 0` predicate was unconditionally true and callers could
+   * never detect a failed mapping (issue #107). Reports the actual
+   * gamut status of the mapped color instead.
    */
-  bool is_valid() const { return delta_e >= 0.0f; }
+  bool is_valid() const { return is_in_srgb_gamut(mapped_color); }
 
   /**
    * @brief Get the percentage of chroma reduction.
