@@ -35,10 +35,13 @@ inline constexpr float OHNO_PARABOLIC_DUV_MIN = 0.002f;
 /**
  * @brief Estimate CCT and Duv from CIE 1960 uv chromaticity (Ohno 2013).
  *
+ * Samples outside the table's uv range clamp to the table's temperature
+ * bounds instead of extrapolating (issue #101).
+ *
  * @param u CIE 1960 UCS u chromaticity.
  * @param v CIE 1960 UCS v chromaticity (NOT CIE 1976 v').
  * @param table Planckian locus table (defaults to 1000–25000 K, spacing 1.005).
- * @return Correlated colour temperature and signed Duv.
+ * @return Correlated colour temperature (clamped to the table range) and signed Duv.
  */
 inline cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table) {
   // Nearest table row by uv distance.
@@ -91,10 +94,15 @@ inline cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table) {
   const float t_par = -b / (2.0f * a);
   const float d_uv_par = (a * t_par * t_par + b * t_par + c) * sign;
 
+  // The interpolants extrapolate beyond the clamped index for samples
+  // outside the table's uv range (issue #101: uv of 500 K returned 396 K,
+  // uv of 1 MK returned 47513 K). Keep the result inside the table.
+  const float t_min = table.temperature(0);
+  const float t_max = table.temperature(table.size() - 1);
   if (std::abs(d_uv_tri) >= details::OHNO_PARABOLIC_DUV_MIN) {
-    return {t_par, d_uv_par};
+    return {std::clamp(t_par, t_min, t_max), d_uv_par};
   }
-  return {t_tri, d_uv_tri};
+  return {std::clamp(t_tri, t_min, t_max), d_uv_tri};
 }
 
 /** @brief Estimate CCT and Duv using the default Planckian table. */
@@ -121,11 +129,15 @@ inline cct_duv xyz_to_cct_ohno(const core::xyz_t& xyz) {
  * Offsets the locus chromaticity by @p duv along the local normal,
  * estimated from the finite difference of two nearby Planckian points.
  *
- * @param cct Correlated colour temperature in kelvin.
+ * @param cct Correlated colour temperature in kelvin. Non-positive or
+ *            non-finite values clamp to the table minimum (1000 K) —
+ *            planck_uv(0) integrates to zero XYZ and negatives yield
+ *            garbage (issue #101). Physically valid T > 0 is not clamped.
  * @param duv Signed distance from the locus in CIE 1960 uv.
  * @return CIE 1960 UCS uv chromaticity.
  */
 inline std::pair<float, float> cct_to_uv_ohno(float cct, float duv) {
+  if (!std::isfinite(cct) || cct <= 0.0f) cct = 1000.0f;  // issue #101
   const auto uv0 = planck_uv(cct);
   // Colour-science uses a 0.01 K step in double precision; in float32 the
   // resulting uv delta (~5e-8) cancels below the mantissa, so use 1 K

@@ -91,4 +91,42 @@ TEST(OhnoTest, XYZConvenienceMatchesUvPath) {
   EXPECT_NEAR(r.duv, 0.003223f, 2e-5f);
 }
 
+// ===== Issue #101: out-of-table inputs silently returned garbage.
+//     The nearest-row index is clamped but the triangular/parabolic
+//     interpolants extrapolate beyond it, and cct_to_uv_ohno integrated
+//     non-positive temperatures (planck_uv(0) -> (0,0), negatives -> garbage). =====
+
+TEST(OhnoTest, SubTableUvClampsToTableMinimum) {
+  // uv of 500 K extrapolated below the table (returned 396 K).
+  const auto uv500 = planck_uv(500.0f);
+  const cct_duv r = uv_to_cct_ohno(uv500.first, uv500.second);
+  EXPECT_GE(r.cct, 1000.0f) << "issue #101: CCT must not fall below the table minimum";
+  EXPECT_NEAR(r.cct, 1000.0f, 1.0f);
+}
+
+TEST(OhnoTest, SuperTableUvClampsToTableMaximum) {
+  // uv of 1 MK extrapolated past the table (returned 47513 K).
+  const auto uv1m = planck_uv(1000000.0f);
+  const cct_duv r = uv_to_cct_ohno(uv1m.first, uv1m.second);
+  EXPECT_LE(r.cct, 25000.0f) << "issue #101: CCT must not exceed the table maximum";
+  EXPECT_NEAR(r.cct, 25000.0f, 1.0f);
+}
+
+TEST(OhnoTest, AbsurdUvStaysWithinTableRange) {
+  const cct_duv r = uv_to_cct_ohno(0.9f, 0.9f);
+  EXPECT_GE(r.cct, 1000.0f);
+  EXPECT_LE(r.cct, 25000.0f);
+}
+
+TEST(OhnoTest, NonPositiveForwardCctClampsToTableMinimum) {
+  // planck_uv(0) integrates to zero XYZ -> (0,0); negatives yield garbage.
+  const auto uv0 = cct_to_uv_ohno(0.0f, 0.0f);
+  const auto uvRef = planck_uv(1000.0f);
+  EXPECT_NEAR(uv0.first, uvRef.first, 1e-5f) << "issue #101: T=0 must clamp to the table minimum";
+  EXPECT_NEAR(uv0.second, uvRef.second, 1e-5f);
+  const auto uvn = cct_to_uv_ohno(-100.0f, 0.0f);
+  EXPECT_NEAR(uvn.first, uvRef.first, 1e-5f) << "issue #101: negative T must clamp, not return garbage";
+  EXPECT_NEAR(uvn.second, uvRef.second, 1e-5f);
+}
+
 }  // namespace colorcpp::algorithms::test

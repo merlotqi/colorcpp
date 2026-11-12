@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/color_temperature/common.hpp>
 #include <cstddef>
@@ -60,9 +61,13 @@ inline constexpr robertson_line ROBERTSON1968_LINES[] = {
 /**
  * @brief Estimate CCT and Duv from CIE 1960 uv (Robertson 1968).
  *
+ * Samples outside the table's isothermal lines clamp to the table ends
+ * (issue #101): the crossing search falls back to the first/last line, so
+ * the returned CCT always lies in [1666.7 K, 100000 K].
+ *
  * @param u CIE 1960 UCS u chromaticity.
  * @param v CIE 1960 UCS v chromaticity (NOT CIE 1976 v').
- * @return Correlated colour temperature and signed Duv.
+ * @return Correlated colour temperature (clamped to the table range) and signed Duv.
  */
 inline cct_duv uv_to_cct_robertson1968(float u, float v) {
   using namespace details;
@@ -128,7 +133,11 @@ inline cct_duv uv_to_cct_robertson1968(float u, float v) {
 /**
  * @brief Planckian-locus uv for a CCT and Duv offset (Robertson 1968).
  *
- * @param cct Correlated colour temperature in kelvin.
+ * @param cct Correlated colour temperature in kelvin. The table spans
+ *            [0, 600] mired (>= 1666.7 K); mired is clamped to that range
+ *            so sub-table CCTs never extrapolate, and non-positive/NaN
+ *            inputs clamp to the coldest row instead of producing inf/NaN
+ *            (issue #101).
  * @param duv Signed distance from the locus in CIE 1960 uv.
  * @return CIE 1960 UCS uv chromaticity.
  */
@@ -137,7 +146,12 @@ inline std::pair<float, float> cct_to_uv_robertson1968(float cct, float duv) {
 
   constexpr std::size_t n = sizeof(ROBERTSON1968_LINES) / sizeof(ROBERTSON1968_LINES[0]);
 
-  const float mired = cct_to_mired(cct);
+  // Invalid temperatures clamp to the coldest row (600 mired); everything
+  // else clamps into the table's mired range (issue #101). cct = 0 gave
+  // mired = inf -> inf/NaN uv; 1000 K (1000 mired) extrapolated past the
+  // last row by ~1.8e-2 in uv.
+  float mired = (std::isnan(cct) || cct <= 0.0f) ? 600.0f : cct_to_mired(cct);
+  mired = std::clamp(mired, 0.0f, 600.0f);
 
   // Bracketing lines: i_cur is the first row with mired >= mired(cct).
   std::size_t i_cur = n - 1;
