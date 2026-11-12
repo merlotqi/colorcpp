@@ -60,7 +60,9 @@ class angular_gradient {
     // Normalize angle to [0, 1)
     angle = angle - std::floor(angle);
     auto interpolator = [](const Color& a, const Color& b, position_type t) {
-      return operations::interpolate::lerp(a, b, t);
+      // Unclamped eased factor: cubic_bezier overshoot must propagate
+      // (issue #106); details::lerp_eased keeps the NaN -> 0 policy.
+      return details::lerp_eased(a, b, t);
     };
     return details::sample_gradient(stops_, angle, interpolator, easing_);
   }

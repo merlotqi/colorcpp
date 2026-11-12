@@ -779,3 +779,77 @@ TEST(GradientTest, ReverseMirrorIdentityOnHardStopAllGradientTypes) {
   ExpectReverseMirror(gradient::box(HardStopStops()), "box hard stop");
   ExpectReverseMirror(gradient::diamond(HardStopStops()), "diamond hard stop");
 }
+
+// ============================================================================
+// Issue #106: cubic_bezier clamped its curve output (and sample_gradient
+// clamped eased t a second time), so y1/y2 outside [0, 1] could never
+// overshoot - contradicting the constructor comment and W3C css-easing-1.
+// ============================================================================
+
+TEST(GradientTest, CubicBezierOvershootIsNotClamped) {
+  using gradient::easing::cubic_bezier;
+  // y1/y2 outside the unit interval are valid (W3C css-easing-1); the raw
+  // curve reaches about -0.097 and 1.097 for these control points (issue #106).
+  auto ease = cubic_bezier<float>(0.42f, -0.6f, 0.58f, 1.6f);
+  float min_y = 1.0f;
+  float max_y = 0.0f;
+  for (int i = 0; i <= 200; ++i) {
+    const float y = ease(static_cast<float>(i) / 200.0f);
+    min_y = std::min(min_y, y);
+    max_y = std::max(max_y, y);
+  }
+  EXPECT_LT(min_y, -0.05f) << "undershoot must survive (probe reaches ~-0.097)";
+  EXPECT_GT(max_y, 1.05f) << "overshoot must survive (probe reaches ~1.097)";
+}
+
+TEST(GradientTest, CubicBezierOvershootSurvivesBisectionFallback) {
+  using gradient::easing::cubic_bezier;
+  // x1=1, x2=0 makes x'(0.5)=0: Newton stalls on the flat region and the
+  // bisection fallback runs - the second clamp site (issue #106).
+  auto flat = cubic_bezier<float>(1.0f, -0.6f, 0.0f, 1.6f);
+  float min_y = 1.0f;
+  float max_y = 0.0f;
+  for (int i = 0; i <= 200; ++i) {
+    const float y = flat(static_cast<float>(i) / 200.0f);
+    min_y = std::min(min_y, y);
+    max_y = std::max(max_y, y);
+  }
+  EXPECT_LT(min_y, -0.01f) << "undershoot must survive the bisection path";
+  EXPECT_GT(max_y, 1.01f) << "overshoot must survive the bisection path";
+
+  // x1=x2=0 gives x(s)=s^3 (derivative ~0 near the origin): Newton's first
+  // step from the s=t guess overshoots wildly and the fallback bisection
+  // solves it. The undershoot band (t < ~0.017) is only reachable there.
+  auto cubic_x = cubic_bezier<float>(0.0f, -0.6f, 0.0f, 1.6f);
+  min_y = 1.0f;
+  max_y = 0.0f;
+  for (int i = 0; i <= 200; ++i) {
+    const float y = cubic_x(static_cast<float>(i) / 200.0f);
+    min_y = std::min(min_y, y);
+    max_y = std::max(max_y, y);
+  }
+  EXPECT_LT(min_y, -0.05f) << "undershoot in the bisection-only band must survive";
+  EXPECT_GT(max_y, 1.05f) << "overshoot must survive";
+}
+
+TEST(GradientTest, GradientSamplePropagatesBezierOvershoot) {
+  using gradient::easing::cubic_bezier;
+  // End to end: sample_gradient clamped eased t a second time (details.hpp)
+  // and the sample interpolator re-entered the clamping public lerp - both
+  // erased overshoot even when the easing itself was fixed (issue #106).
+  // Uses linear_rgbaf_t: extended-range models (issue #76) let out-of-range
+  // channels survive the channel write, while display-encoded rgbf_t clamps
+  // at that boundary by design.
+  gradient::color_stops<linear_rgbaf_t> stops = {{0.0f, linear_rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f}},
+                                                 {1.0f, linear_rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f}}};
+  auto g = gradient::linear(stops, cubic_bezier<float>(0.42f, -0.6f, 0.58f, 1.6f));
+  bool overshot = false;
+  bool undershot = false;
+  for (int i = 0; i <= 200; ++i) {
+    const auto c = g.sample(static_cast<float>(i) / 200.0f);
+    if (c.r() > 1.001f || c.g() > 1.001f || c.b() > 1.001f) overshot = true;
+    if (c.r() < -0.001f || c.g() < -0.001f || c.b() < -0.001f) undershot = true;
+  }
+  EXPECT_TRUE(overshot) << "eased t > 1 must extrapolate past the endpoint color";
+  EXPECT_TRUE(undershot) << "eased t < 0 must extrapolate before the start color";
+}

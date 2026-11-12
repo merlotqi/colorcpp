@@ -9,6 +9,7 @@
 #include <cmath>
 #include <colorcpp/algorithms/gradient/easing.hpp>
 #include <colorcpp/algorithms/gradient/stops.hpp>
+#include <colorcpp/operations/interpolate/lerp.hpp>
 #include <stdexcept>
 #include <utility>
 
@@ -87,6 +88,24 @@ gradient_position_t<Color> calculate_local_t(const color_stops<Color>& stops, st
 }
 
 /**
+ * @brief Interpolate two colors at an eased factor WITHOUT re-clamping t.
+ *
+ * The public interpolate::lerp clamps t to [0, 1] (NaN -> 0, issue #82) so
+ * callers cannot accidentally extrapolate. Inside the gradient pipeline the
+ * factor is the output of an easing function, and cubic_bezier easings with
+ * y1/y2 outside [0, 1] overshoot on purpose (W3C css-easing-1); clamping
+ * here would erase that overshoot a third time (issue #106). NaN still maps
+ * to factor 0.
+ */
+template <typename Color>
+Color lerp_eased(const Color& a, const Color& b, float t) {
+  if (std::isnan(t)) {
+    t = 0.0f;
+  }
+  return operations::interpolate::details::lerp_channels(a, b, t);
+}
+
+/**
  * @brief Clamp a value to [0, 1] range.
  * @tparam T Value type.
  * @param value Value to clamp.
@@ -133,10 +152,10 @@ Color sample_gradient(
   }
 
   auto local_t = calculate_local_t(stops, left, right, position);
+  // Eased value is deliberately NOT clamped: easings such as cubic_bezier
+  // with y1/y2 outside [0, 1] overshoot on purpose (W3C css-easing-1), and
+  // a second clamp here erased that signal (issue #106).
   auto eased_t = easing(local_t);
-
-  // Clamp eased value to [0, 1] to handle easing functions that may overshoot
-  eased_t = clamp_01(eased_t);
 
   return interpolator(stops[left].color, stops[right].color, eased_t);
 }

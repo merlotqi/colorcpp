@@ -41,7 +41,9 @@ class diamond_gradient {
 
   Color sample(position_type distance) const {
     auto interpolator = [](const Color& a, const Color& b, position_type t) {
-      return operations::interpolate::lerp(a, b, t);
+      // Unclamped eased factor: cubic_bezier overshoot must propagate
+      // (issue #106); details::lerp_eased keeps the NaN -> 0 policy.
+      return details::lerp_eased(a, b, t);
     };
     return details::sample_gradient(stops_, details::clamp_01(distance + phase_offset_), interpolator, easing_);
   }
