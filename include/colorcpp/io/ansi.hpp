@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>
@@ -69,6 +70,35 @@ struct has_data_size<T,
                      std::void_t<decltype(std::declval<const T&>().data()), decltype(std::declval<const T&>().size())>>
     : std::true_type {};
 
+// xterm 6×6×6 cube component levels (indices 16-231) and the 16 base ANSI
+// colors (xterm defaults;0-7 normal, 8-15 bright — matching the CSS named
+// colors of the dark/bright variants).
+inline constexpr std::array<uint8_t, 6> kCubeLevels = {0, 95, 135, 175, 215, 255};
+
+inline constexpr std::array<std::array<uint8_t, 3>, 16> kAnsi16 = {{
+    {{0, 0, 0}},
+    {{128, 0, 0}},
+    {{0, 128, 0}},
+    {{128, 128, 0}},
+    {{0, 0, 128}},
+    {{128, 0, 128}},
+    {{0, 128, 128}},
+    {{192, 192, 192}},
+    {{128, 128, 128}},
+    {{255, 0, 0}},
+    {{0, 255, 0}},
+    {{255, 255, 0}},
+    {{0, 0, 255}},
+    {{255, 0, 255}},
+    {{0, 255, 255}},
+    {{255, 255, 255}},
+}};
+
+inline constexpr int sq_diff(int a, int b) {
+  const int d = a - b;
+  return d * d;
+}
+
 }  // namespace details
 
 // ===== ANSI Escape Sequences =====
@@ -79,21 +109,131 @@ inline constexpr const char* reset() { return "\033[0m"; }
 /** @brief ANSI bold sequence. */
 inline constexpr const char* bold() { return "\033[1m"; }
 
-/** @brief ANSI foreground color (24-bit). */
-inline std::string fg(uint8_t r, uint8_t g, uint8_t b) {
-  return "\033[38;2;" + std::to_string(r) + ";" + std::to_string(g) + ";" + std::to_string(b) + "m";
+/**
+ * @brief Output color depth for fg()/bg() and the print writers (issue #116).
+ *
+ * The default everywhere is @ref level::truecolor, preserving the original
+ * 24-bit behaviour; pass @ref level::ansi256 or @ref level::ansi16 for
+ * terminals without truecolor support.
+ */
+enum class level {
+  truecolor,
+  ansi256,
+  ansi16
+};
+
+/**
+ * @brief Nearest xterm 256-color index for an RGB triple.
+ *
+ * Searches the 6×6×6 cube (16-231) and the 24-step gray ramp (232-255) with
+ * squared Euclidean distance; ties prefer the cube (lower index). System
+ * colors 0-15 are skipped — their RGB values depend on the terminal theme.
+ */
+inline uint8_t quantize_ansi256(uint8_t r, uint8_t g, uint8_t b) {
+  // Nearest cube entry: Euclidean distance decomposes per channel, so the
+  // per-channel nearest level is the nearest cube point.
+  auto nearest_level = [](int v) {
+    int best_i = 0;
+    int best_e = 255;
+    for (int i = 0; i < 6; ++i) {
+      const int lvl = details::kCubeLevels[i];
+      const int e = lvl > v ? lvl - v : v - lvl;
+      if (e < best_e) {
+        best_e = e;
+        best_i = i;
+      }
+    }
+    return best_i;
+  };
+  const int ri = nearest_level(r);
+  const int gi = nearest_level(g);
+  const int bi = nearest_level(b);
+  int best_idx = 16 + ri * 36 + gi * 6 + bi;
+  int best_d = details::sq_diff(details::kCubeLevels[ri], r) + details::sq_diff(details::kCubeLevels[gi], g) +
+               details::sq_diff(details::kCubeLevels[bi], b);
+
+  // Gray ramp v = 8 + 10k: the quadratic is minimized near the mean, and the
+  // discrete minimum is one of the integers bracketing (mean - 8) / 10.
+  const int mean = (static_cast<int>(r) + g + b) / 3;
+  int k0 = (mean - 8 + 5) / 10;  // rounded (truncates toward zero; window below covers it)
+  if (k0 < 0) k0 = 0;
+  if (k0 > 23) k0 = 23;
+  for (int k = k0 - 1; k <= k0 + 1; ++k) {
+    if (k < 0 || k > 23) continue;
+    const int v = 8 + 10 * k;
+    const int d = details::sq_diff(v, r) + details::sq_diff(v, g) + details::sq_diff(v, b);
+    if (d < best_d) {  // strict: cube wins ties
+      best_d = d;
+      best_idx = 232 + k;
+    }
+  }
+  return static_cast<uint8_t>(best_idx);
 }
 
-/** @brief ANSI background color (24-bit). */
-inline std::string bg(uint8_t r, uint8_t g, uint8_t b) {
-  return "\033[48;2;" + std::to_string(r) + ";" + std::to_string(g) + ";" + std::to_string(b) + "m";
+/** @brief RGB value of an xterm 256-color index (0-15 use the default system palette). */
+inline std::array<uint8_t, 3> ansi256_rgb(uint8_t index) {
+  if (index >= 16 && index <= 231) {
+    const int c = index - 16;
+    return {details::kCubeLevels[c / 36], details::kCubeLevels[(c / 6) % 6], details::kCubeLevels[c % 6]};
+  }
+  if (index >= 232) {
+    const auto v = static_cast<uint8_t>(8 + 10 * (index - 232));
+    return {v, v, v};
+  }
+  const auto& c = details::kAnsi16[index];
+  return {c[0], c[1], c[2]};
+}
+
+/** @brief Nearest of the 16 base ANSI colors (squared Euclidean distance, lower index wins ties). */
+inline uint8_t quantize_ansi16(uint8_t r, uint8_t g, uint8_t b) {
+  int best_idx = 0;
+  int best_d = 1 << 30;
+  for (int i = 0; i < 16; ++i) {
+    const auto& c = details::kAnsi16[i];
+    const int d = details::sq_diff(c[0], r) + details::sq_diff(c[1], g) + details::sq_diff(c[2], b);
+    if (d < best_d) {
+      best_d = d;
+      best_idx = i;
+    }
+  }
+  return static_cast<uint8_t>(best_idx);
+}
+
+/** @brief ANSI foreground color at the requested depth (default 24-bit). */
+inline std::string fg(uint8_t r, uint8_t g, uint8_t b, level lv = level::truecolor) {
+  switch (lv) {
+    case level::truecolor:
+      return "\033[38;2;" + std::to_string(r) + ";" + std::to_string(g) + ";" + std::to_string(b) + "m";
+    case level::ansi256:
+      return "\033[38;5;" + std::to_string(quantize_ansi256(r, g, b)) + "m";
+    case level::ansi16: {
+      const int idx = quantize_ansi16(r, g, b);
+      return "\033[" + std::to_string(idx < 8 ? 30 + idx : 82 + idx) + "m";  // 30-37 or 90-97
+    }
+  }
+  return {};
+}
+
+/** @brief ANSI background color at the requested depth (default 24-bit). */
+inline std::string bg(uint8_t r, uint8_t g, uint8_t b, level lv = level::truecolor) {
+  switch (lv) {
+    case level::truecolor:
+      return "\033[48;2;" + std::to_string(r) + ";" + std::to_string(g) + ";" + std::to_string(b) + "m";
+    case level::ansi256:
+      return "\033[48;5;" + std::to_string(quantize_ansi256(r, g, b)) + "m";
+    case level::ansi16: {
+      const int idx = quantize_ansi16(r, g, b);
+      return "\033[" + std::to_string(idx < 8 ? 40 + idx : 92 + idx) + "m";  // 40-47 or 100-107
+    }
+  }
+  return {};
 }
 
 /** @brief ANSI foreground color from rgba8_t. */
-inline std::string fg(const core::rgba8_t& c) { return fg(c.r(), c.g(), c.b()); }
+inline std::string fg(const core::rgba8_t& c, level lv = level::truecolor) { return fg(c.r(), c.g(), c.b(), lv); }
 
 /** @brief ANSI background color from rgba8_t. */
-inline std::string bg(const core::rgba8_t& c) { return bg(c.r(), c.g(), c.b()); }
+inline std::string bg(const core::rgba8_t& c, level lv = level::truecolor) { return bg(c.r(), c.g(), c.b(), lv); }
 
 // ===== Print Functions =====
 
@@ -102,11 +242,12 @@ inline std::string bg(const core::rgba8_t& c) { return bg(c.r(), c.g(), c.b()); 
  * @param os Output stream.
  * @param c Any color type.
  * @param width Number of block characters to print.
+ * @param lv Output color depth (issue #116).
  */
 template <typename Color>
-void print_swatch(std::ostream& os, const Color& c, int width = 6) {
+void print_swatch(std::ostream& os, const Color& c, int width = 6, level lv = level::truecolor) {
   auto rgba = details::to_rgba8(c);
-  os << bg(rgba) << std::string(width, ' ') << reset();
+  os << bg(rgba, lv) << std::string(width, ' ') << reset();
 }
 
 /**
@@ -114,14 +255,15 @@ void print_swatch(std::ostream& os, const Color& c, int width = 6) {
  * @param os Output stream.
  * @param c Any color type.
  * @param label Optional label.
+ * @param lv Output color depth (issue #116).
  */
 template <typename Color>
-void print_color(std::ostream& os, const Color& c, std::string_view label = "") {
+void print_color(std::ostream& os, const Color& c, std::string_view label = "", level lv = level::truecolor) {
   const details::ostream_state_guard guard(os);
   auto rgba = details::to_rgba8(c);
 
   // Swatch
-  os << bg(rgba) << "      " << reset() << " ";
+  os << bg(rgba, lv) << "      " << reset() << " ";
 
   // Label
   if (!label.empty()) {
@@ -143,14 +285,15 @@ void print_color(std::ostream& os, const Color& c, std::string_view label = "") 
  * @param os Output stream.
  * @param c Any color type (converted to rgba8 internally for display).
  * @param label Optional label.
+ * @param lv Output color depth (issue #116).
  */
 template <typename Color>
-void print_color_verbose(std::ostream& os, const Color& c, std::string_view label = "") {
+void print_color_verbose(std::ostream& os, const Color& c, std::string_view label = "", level lv = level::truecolor) {
   const details::ostream_state_guard guard(os);
   auto rgba = details::to_rgba8(c);
 
   // Swatch
-  os << bg(rgba) << "      " << reset() << " ";
+  os << bg(rgba, lv) << "      " << reset() << " ";
 
   // Label
   if (!label.empty()) {
@@ -197,12 +340,14 @@ void print_color_verbose(std::ostream& os, const Color& c, std::string_view labe
  * @param os Output stream.
  * @param colors Span of any color type.
  * @param swatch_width Width of each swatch.
+ * @param lv Output color depth (issue #116).
  */
 template <typename Color>
-void print_palette(std::ostream& os, const Color* colors, std::size_t count, int swatch_width = 6) {
+void print_palette(std::ostream& os, const Color* colors, std::size_t count, int swatch_width = 6,
+                   level lv = level::truecolor) {
   for (std::size_t i = 0; i < count; ++i) {
     auto rgba = details::to_rgba8(colors[i]);
-    os << bg(rgba) << std::string(swatch_width, ' ') << reset();
+    os << bg(rgba, lv) << std::string(swatch_width, ' ') << reset();
   }
   os << "\n";
 }
@@ -211,8 +356,8 @@ void print_palette(std::ostream& os, const Color* colors, std::size_t count, int
  * @brief Print a palette from any contiguous container exposing data() and size().
  */
 template <typename Container, typename std::enable_if_t<details::has_data_size<Container>::value, int> = 0>
-void print_palette(std::ostream& os, const Container& colors, int swatch_width = 6) {
-  print_palette(os, colors.data(), static_cast<std::size_t>(colors.size()), swatch_width);
+void print_palette(std::ostream& os, const Container& colors, int swatch_width = 6, level lv = level::truecolor) {
+  print_palette(os, colors.data(), static_cast<std::size_t>(colors.size()), swatch_width, lv);
 }
 
 /**
@@ -221,9 +366,10 @@ void print_palette(std::ostream& os, const Container& colors, int swatch_width =
  * @param a Start color.
  * @param b End color.
  * @param steps Number of gradient steps.
+ * @param lv Output color depth (issue #116).
  */
 template <typename ColorA, typename ColorB>
-void print_gradient(std::ostream& os, const ColorA& a, const ColorB& b, int steps = 16) {
+void print_gradient(std::ostream& os, const ColorA& a, const ColorB& b, int steps = 16, level lv = level::truecolor) {
   auto ra = details::to_rgba8(a);
   auto rb = details::to_rgba8(b);
 
@@ -232,7 +378,7 @@ void print_gradient(std::ostream& os, const ColorA& a, const ColorB& b, int step
     return;
   }
   if (steps == 1) {
-    os << bg(ra.r(), ra.g(), ra.b()) << "  " << reset() << "\n";
+    os << bg(ra.r(), ra.g(), ra.b(), lv) << "  " << reset() << "\n";
     return;
   }
 
@@ -241,7 +387,7 @@ void print_gradient(std::ostream& os, const ColorA& a, const ColorB& b, int step
     auto r = static_cast<uint8_t>(std::round(ra.r() + (rb.r() - ra.r()) * t));
     auto g = static_cast<uint8_t>(std::round(ra.g() + (rb.g() - ra.g()) * t));
     auto bl = static_cast<uint8_t>(std::round(ra.b() + (rb.b() - ra.b()) * t));
-    os << bg(r, g, bl) << "  " << reset();
+    os << bg(r, g, bl, lv) << "  " << reset();
   }
   os << "\n";
 }
@@ -283,18 +429,19 @@ inline std::string_view wcag_level(float ratio) {
  * @param os Output stream.
  * @param fg_color Foreground (text) color.
  * @param bg_color Background color.
+ * @param lv Output color depth for the preview swatch (issue #116).
  */
 template <typename FgColor, typename BgColor>
-void print_contrast(std::ostream& os, const FgColor& fg_color, const BgColor& bg_color) {
+void print_contrast(std::ostream& os, const FgColor& fg_color, const BgColor& bg_color, level lv = level::truecolor) {
   const details::ostream_state_guard guard(os);
   auto fg_rgba = details::to_rgba8(fg_color);
   auto bg_rgba = details::to_rgba8(bg_color);
 
   float ratio = contrast_ratio(fg_rgba, bg_rgba);
-  auto level = wcag_level(ratio);
+  auto grade = wcag_level(ratio);  // not `level`: that now names the enum
 
   // Preview: text on background
-  os << bg(bg_rgba) << fg(fg_rgba) << bold() << "  Aa  " << reset() << " ";
+  os << bg(bg_rgba, lv) << fg(fg_rgba, lv) << bold() << "  Aa  " << reset() << " ";
 
   // Info
   os << "#" << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(fg_rgba.r()) << std::setw(2)
@@ -303,7 +450,7 @@ void print_contrast(std::ostream& os, const FgColor& fg_color, const BgColor& bg
   os << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(bg_rgba.r()) << std::setw(2)
      << static_cast<int>(bg_rgba.g()) << std::setw(2) << static_cast<int>(bg_rgba.b()) << std::dec << std::setfill(' ');
 
-  os << "  contrast: " << std::fixed << std::setprecision(1) << ratio << ":1  " << level;
+  os << "  contrast: " << std::fixed << std::setprecision(1) << ratio << ":1  " << grade;
 }
 
 }  // namespace colorcpp::io::ansi
