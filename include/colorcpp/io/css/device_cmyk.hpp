@@ -41,7 +41,7 @@ inline std::optional<core::rgbaf_t> parse_device_cmyk_function_rgbaf(details::Cu
 
   float alpha = 1.0f;
   if (d.consume_char('/')) {
-    auto av = d.parse_alpha_value();
+    auto av = d.parse_alpha_value_modern();
     if (!av) return std::nullopt;
     alpha = static_cast<float>(std::clamp(*av, 0.0, 1.0));
   }

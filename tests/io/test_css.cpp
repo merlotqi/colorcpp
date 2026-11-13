@@ -432,6 +432,81 @@ TEST(Css, HwbRejectsLegacyCommaSyntax) {
   EXPECT_TRUE(parse_css_color_rgbaf("hwb(120 0 0)").has_value());
 }
 
+// ===== Issue #114: exponent numbers, none alpha, calc() in absolute colors. =====
+// CSS Syntax §4.1.1 allows scientific-notation numbers; CSS Color 4 §4.4 makes
+// a none/missing alpha component behave as 0; CSS Color 4 §11.1 allows math
+// functions (calc()) inside absolute colors, with typed calc() evaluation
+// (percent + number is a type error).
+
+TEST(Css, AcceptsExponentNumbers) {
+  // CSS Syntax §4.1.1: numbers may carry a signed exponent.
+  auto legacy = parse_css_color_rgba8("rgb(1e2, 0, 0)");
+  ASSERT_TRUE(legacy) << "issue #114: 1e2 must parse as 100";
+  expect_rgba(*legacy, 100, 0, 0, 255);
+
+  auto modern = parse_css_color_rgba8("rgb(1e2 0 0)");
+  ASSERT_TRUE(modern) << "issue #114: 1e2 must parse as 100 in modern syntax too";
+  expect_rgba(*modern, 100, 0, 0, 255);
+
+  auto hue = parse_css_color<hsla_float_t>("hsl(9e1 100% 50%)");
+  ASSERT_TRUE(hue) << "issue #114: 9e1 must parse as hue 90";
+  EXPECT_NEAR(hue->h(), 90.0f, 0.5f);
+
+  // An exponent needs at least one digit after e/E — these stay rejected.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(1e, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(1e+, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(1e 0 0)").has_value());
+}
+
+TEST(Css, ModernNoneAlphaIsZero) {
+  // CSS Color 4 §4.4: a missing/none component behaves as 0, so a none alpha
+  // after / is alpha 0 — not a parse failure.
+  auto f = parse_css_color_rgbaf("rgb(0 0 0 / none)");
+  ASSERT_TRUE(f) << "issue #114: none alpha must become 0 (CSS Color 4 §4.4)";
+  expect_rgbaf_near(*f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+  auto b = parse_css_color_rgba8("rgb(0 0 0 / none)");
+  ASSERT_TRUE(b);
+  EXPECT_EQ(b->a(), 0);
+
+  // lab() shares the modern slash-alpha path (alpha sink → rgbaf).
+  auto lab_c = parse_css_color_rgbaf("lab(0 0 0 / none)");
+  ASSERT_TRUE(lab_c) << "issue #114: none alpha in lab() is also 0";
+  EXPECT_NEAR(lab_c->a(), 0.0f, 0.001f);
+
+  // Legacy comma alpha still rejects none (CSS Color 4 §7.1).
+  EXPECT_FALSE(parse_css_color_rgba8("rgba(0, 0, 0, none)").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("rgba(0, 0, 0, none)").has_value());
+}
+
+TEST(Css, CalcInAbsoluteColors) {
+  // CSS Color 4 §11.1: calc() is allowed inside absolute color functions.
+  auto n = parse_css_color_rgba8("rgb(calc(10 + 20), 0, 0)");
+  ASSERT_TRUE(n) << "issue #114: calc() must evaluate in rgb() components";
+  expect_rgba(*n, 30, 0, 0, 255);
+
+  auto pct = parse_css_color_rgba8("rgb(calc(10% + 20%) 0 0)");
+  ASSERT_TRUE(pct) << "issue #114: percent calc() must evaluate";
+  expect_rgba(*pct, 77, 0, 0, 255);  // 30% of 255 = 76.5 → 77
+
+  auto a = parse_css_color_rgbaf("rgb(0 0 0 / calc(0.5))");
+  ASSERT_TRUE(a) << "issue #114: calc() in modern alpha position";
+  EXPECT_NEAR(a->a(), 0.5f, 0.001f);
+
+  // calc() type rules: percent + number is a type error, not a silent cast.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(calc(50% + 10) 0 0)").has_value())
+      << "issue #114: calc(50% + 10) must be rejected as a CSS type error";
+
+  // Hue position uses the angle parser too.
+  auto hue = parse_css_color<hsla_float_t>("hsl(calc(45 * 2) 100% 50%)");
+  ASSERT_TRUE(hue) << "issue #114: calc() must evaluate in hsl() hue";
+  EXPECT_NEAR(hue->h(), 90.0f, 0.5f);
+
+  // A percent-typed calc() result is a type error in the hue position.
+  EXPECT_FALSE(parse_css_color<hsla_float_t>("hsl(calc(50%) 100% 50%)").has_value())
+      << "issue #114: calc(50%) must be rejected as a hue type error";
+}
+
 TEST(Css, LabLchD50RendersCssExample) {
   // D50 lab/lch of peru (#CD853F) — CSS Color 4 worked example numbers for
   // lch(62.2532 54.0114 63.6769). Both forms must render to peru in sRGB;

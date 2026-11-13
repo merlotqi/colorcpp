@@ -51,7 +51,7 @@ inline std::optional<core::rgba8_t> parse_hwb_function(details::Cursor& c) {
     float alpha_f = 1.0f;
     d.skip_ws();
     if (d.consume_char('/')) {
-      auto av = d.parse_alpha_value();
+      auto av = d.parse_alpha_value_modern();
       if (!av) return std::nullopt;
       double a = *av;
       if (a < 0.0) a = 0.0;
@@ -109,7 +109,7 @@ inline std::optional<core::rgbaf_t> parse_hwb_function_rgbaf(details::Cursor& c)
     float alpha_f = 1.0f;
     d.skip_ws();
     if (d.consume_char('/')) {
-      auto av = d.parse_alpha_value();
+      auto av = d.parse_alpha_value_modern();
       if (!av) return std::nullopt;
       alpha_f = static_cast<float>(std::clamp(*av, 0.0, 1.0));
     }

@@ -97,7 +97,7 @@ inline std::optional<core::rgba8_t> parse_rgb_function(details::Cursor& c) {
     d.skip_ws();
     uint8_t alpha = 255;
     if (d.consume_char('/')) {
-      auto av = d.parse_alpha_value();
+      auto av = d.parse_alpha_value_modern();
       if (!av) return std::nullopt;
       alpha = d.alpha_byte_from_double(*av);
     }
@@ -172,7 +172,7 @@ inline std::optional<core::rgbaf_t> parse_rgb_function_rgbaf(details::Cursor& c)
     float alpha = 1.f;
     d.skip_ws();
     if (d.consume_char('/')) {
-      auto av = d.parse_alpha_value();
+      auto av = d.parse_alpha_value_modern();
       if (!av) return std::nullopt;
       alpha = static_cast<float>(std::clamp(*av, 0.0, 1.0));
     }

@@ -78,7 +78,7 @@ inline std::optional<core::display_p3f_t> parse_display_p3_function(details::Cur
     // the caller through alpha_out (CSS default is opaque when "/" is omitted).
     float alpha = 1.0f;
     if (d.consume_char('/')) {
-      auto av = d.parse_alpha_value();
+      auto av = d.parse_alpha_value_modern();
       if (!av) return std::nullopt;
       alpha = std::clamp(static_cast<float>(*av), 0.0f, 1.0f);
     }

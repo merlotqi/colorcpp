@@ -380,4 +380,89 @@ inline std::optional<float> evaluate_expression(const std::shared_ptr<channel_ex
 }
 
 }  // namespace relative_css_detail
+
+namespace details {
+
+// Typed evaluation of a channel-expression AST under CSS calc() type rules
+// (CSS Values 4 §9, issue #114): literals are numbers, percentages keep
+// percent type, add/sub require matching types, mul/div require exactly one
+// plain-number operand, and identifiers/var() have no value here — absolute
+// colors have no environment to resolve them against.
+inline std::optional<math_value> evaluate_math_expression(const std::shared_ptr<channel_expression>& expr) {
+  if (!expr) return std::nullopt;
+  switch (expr->operation) {
+    case channel_expression::op::literal:
+      return math_value{static_cast<double>(expr->literal), false};
+    case channel_expression::op::percentage:
+      return math_value{static_cast<double>(expr->literal), true};
+    case channel_expression::op::identifier:
+    case channel_expression::op::variable_reference:
+      return std::nullopt;
+    case channel_expression::op::add:
+    case channel_expression::op::sub: {
+      auto lhs = evaluate_math_expression(expr->left);
+      auto rhs = evaluate_math_expression(expr->right);
+      if (!lhs || !rhs || lhs->is_percent != rhs->is_percent) return std::nullopt;
+      const double v =
+          expr->operation == channel_expression::op::add ? lhs->value + rhs->value : lhs->value - rhs->value;
+      return math_value{v, lhs->is_percent};
+    }
+    case channel_expression::op::mul: {
+      auto lhs = evaluate_math_expression(expr->left);
+      auto rhs = evaluate_math_expression(expr->right);
+      if (!lhs || !rhs) return std::nullopt;
+      if (lhs->is_percent && rhs->is_percent) return std::nullopt;  // percent × percent has no type
+      return math_value{lhs->value * rhs->value, lhs->is_percent || rhs->is_percent};
+    }
+    case channel_expression::op::div: {
+      auto lhs = evaluate_math_expression(expr->left);
+      auto rhs = evaluate_math_expression(expr->right);
+      if (!lhs || !rhs || rhs->is_percent) return std::nullopt;  // divisor must be a number
+      if (std::fabs(rhs->value) <= 1e-12) return std::nullopt;
+      return math_value{lhs->value / rhs->value, lhs->is_percent};
+    }
+    case channel_expression::op::unary_minus: {
+      auto value = evaluate_math_expression(expr->left);
+      if (!value) return std::nullopt;
+      return math_value{-value->value, value->is_percent};
+    }
+  }
+  return std::nullopt;
+}
+
+/**
+ * @brief If the cursor is at a @c calc(...) expression, consume it and return
+ *        its typed value; otherwise leave the cursor untouched.
+ *
+ * On any failure (bad syntax, type error, unresolvable identifier) the cursor
+ * is restored so callers fall through to plain-number parsing and ultimately
+ * report the original input position in their own error (issue #114).
+ */
+inline std::optional<math_value> try_parse_math_value(Cursor& c) {
+  const size_t save = c.i;
+  c.skip_ws();
+  if (!c.consume_ci("calc")) {
+    c.i = save;
+    return std::nullopt;
+  }
+  if (!c.consume_char('(')) {
+    c.i = save;
+    return std::nullopt;
+  }
+  relative_css_detail::channel_expression_parser parser(c.s, c.i);
+  auto expr = parser.parse_expression();
+  if (!expr || !parser.consume_char(')')) {
+    c.i = save;
+    return std::nullopt;
+  }
+  auto mv = evaluate_math_expression(expr);
+  if (!mv) {
+    c.i = save;
+    return std::nullopt;
+  }
+  c.i = parser.position();
+  return mv;
+}
+
+}  // namespace details
 }  // namespace colorcpp::io::css
