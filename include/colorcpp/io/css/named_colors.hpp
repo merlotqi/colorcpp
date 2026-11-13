@@ -201,16 +201,23 @@ inline std::optional<core::rgba8_t> get_named_color(std::string_view name) {
       {"lavenderblush", core::rgba8_t{255, 240, 245, 255}},
       {"mistyrose", core::rgba8_t{255, 228, 225, 255}},
 
-      // Gray colors
+      // Gray colors (plus the 7 CSS "grey" spellings — issue #112: 141 + 7 = 148)
       {"gainsboro", core::rgba8_t{220, 220, 220, 255}},
       {"lightgray", core::rgba8_t{211, 211, 211, 255}},
+      {"lightgrey", core::rgba8_t{211, 211, 211, 255}},
       {"silver", core::rgba8_t{192, 192, 192, 255}},
       {"darkgray", core::rgba8_t{169, 169, 169, 255}},
+      {"darkgrey", core::rgba8_t{169, 169, 169, 255}},
       {"gray", core::rgba8_t{128, 128, 128, 255}},
+      {"grey", core::rgba8_t{128, 128, 128, 255}},
       {"dimgray", core::rgba8_t{105, 105, 105, 255}},
+      {"dimgrey", core::rgba8_t{105, 105, 105, 255}},
       {"lightslategray", core::rgba8_t{119, 136, 153, 255}},
+      {"lightslategrey", core::rgba8_t{119, 136, 153, 255}},
       {"slategray", core::rgba8_t{112, 128, 144, 255}},
+      {"slategrey", core::rgba8_t{112, 128, 144, 255}},
       {"darkslategray", core::rgba8_t{47, 79, 79, 255}},
+      {"darkslategrey", core::rgba8_t{47, 79, 79, 255}},
       {"black", core::rgba8_t{0, 0, 0, 255}},
   };
 

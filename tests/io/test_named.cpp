@@ -154,3 +154,30 @@ TEST(NamedColor, ExtendedColors) {
   EXPECT_EQ(cf.g(), 149);
   EXPECT_EQ(cf.b(), 237);
 }
+
+// ===== Issue #112: CSS Color 4 defines both spellings for 7 grey keywords. =====
+
+TEST(NamedColor, GreySpellingsMatchGrayTwins) {
+  struct {
+    const char* grey;
+    const char* gray;
+  } pairs[] = {
+      {"grey", "gray"},
+      {"dimgrey", "dimgray"},
+      {"slategrey", "slategray"},
+      {"darkgrey", "darkgray"},
+      {"lightgrey", "lightgray"},
+      {"darkslategrey", "darkslategray"},
+      {"lightslategrey", "lightslategray"},
+  };
+  for (const auto& p : pairs) {
+    auto g = get_named_color(p.grey);
+    auto y = get_named_color(p.gray);
+    ASSERT_TRUE(g.has_value()) << "issue #112: missing " << p.grey;
+    ASSERT_TRUE(y.has_value()) << p.gray << " must exist as the twin";
+    EXPECT_EQ(*g, *y) << "issue #112: " << p.grey << " must equal " << p.gray;
+  }
+  // 141 colors + 7 grey spellings = 148 named colors (docs/reference/css_color.rst).
+  EXPECT_TRUE(is_named_color("grey"));
+  EXPECT_TRUE(is_named_color("DARKSLATEGREY"));
+}
