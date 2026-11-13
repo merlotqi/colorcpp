@@ -315,6 +315,40 @@ TEST(SerializationJson, FromJsonCompactWrongArraySizeReturnsNullopt) {
   EXPECT_FALSE((from_json<fake_json, core::rgba8_t>(arr).has_value()));
 }
 
+// ===== Issue #117: from_json returns optional but used to throw on NaN. =====
+
+TEST(SerializationJson, FromJsonNaNReturnsNullopt) {
+  // Compact form: a NaN channel must be reported as nullopt like any other
+  // malformed input — not escape as std::invalid_argument.
+  fake_json arr = json_adapter<fake_json>::make_array();
+  json_adapter<fake_json>::push_back(arr, std::numeric_limits<double>::quiet_NaN());
+  json_adapter<fake_json>::push_back(arr, 0.5);
+  json_adapter<fake_json>::push_back(arr, 1.0);
+  json_adapter<fake_json>::push_back(arr, 1.0);
+
+  EXPECT_FALSE((from_json<fake_json, core::rgbaf_t>(arr).has_value()))
+      << "issue #117: NaN channel must yield nullopt, not a throw";
+  EXPECT_FALSE((from_json_compact<fake_json, core::rgbaf_t>(arr).has_value()));
+
+  // Named form: same contract.
+  fake_json obj = json_adapter<fake_json>::make_object();
+  json_adapter<fake_json>::set(obj, "ch0", 0.1);
+  json_adapter<fake_json>::set(obj, "ch1", std::numeric_limits<double>::quiet_NaN());
+  json_adapter<fake_json>::set(obj, "ch2", 0.9);
+  json_adapter<fake_json>::set(obj, "ch3", 1.0);
+  EXPECT_FALSE((from_json<fake_json, core::rgbaf_t>(obj).has_value()))
+      << "issue #117: NaN in named form must yield nullopt, not a throw";
+
+  // Finite values still round-trip.
+  fake_json ok = json_adapter<fake_json>::make_array();
+  json_adapter<fake_json>::push_back(ok, 0.25);
+  json_adapter<fake_json>::push_back(ok, 0.5);
+  json_adapter<fake_json>::push_back(ok, 0.75);
+  const auto recovered = from_json<fake_json, core::rgbf_t>(ok);
+  ASSERT_TRUE(recovered.has_value());
+  EXPECT_FLOAT_EQ(recovered->r(), 0.25f);
+}
+
 TEST(SerializationJson, ToJsonNamedNullNamesThrows) {
   const core::rgba8_t color{255, 0, 0, 255};
   EXPECT_THROW(to_json_named<fake_json>(color, nullptr), std::invalid_argument);
