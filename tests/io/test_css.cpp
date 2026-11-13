@@ -507,6 +507,17 @@ TEST(Css, CalcInAbsoluteColors) {
       << "issue #114: calc(50%) must be rejected as a hue type error";
 }
 
+// ===== Issue #115: io:: must be unambiguous after `using namespace colorcpp`. =====
+// core/core.hpp re-exports core into colorcpp, so colorcpp::core::io used to
+// collide with colorcpp::io once both are visible under the same name.
+
+TEST(IoNamespace, UnambiguousAfterUsingNamespaceColorcpp) {
+  using namespace colorcpp;
+  auto c = io::css::parse_css_color_rgba8("#fff");
+  ASSERT_TRUE(c) << "issue #115: io::css:: must resolve after using namespace colorcpp";
+  expect_rgba(*c, 255, 255, 255, 255);
+}
+
 TEST(Css, LabLchD50RendersCssExample) {
   // D50 lab/lch of peru (#CD853F) — CSS Color 4 worked example numbers for
   // lch(62.2532 54.0114 63.6769). Both forms must render to peru in sRGB;

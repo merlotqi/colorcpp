@@ -21,7 +21,7 @@
 #include <type_traits>
 
 /** @brief Stream formatting and parsing for core color types. */
-namespace colorcpp::core::io {
+namespace colorcpp::core::stream_io {
 
 namespace details {
 
@@ -196,4 +196,4 @@ std::istream& operator>>(std::istream& is, core::basic_color<Model>& c) {
   return is;
 }
 
-}  // namespace colorcpp::core::io
+}  // namespace colorcpp::core::stream_io

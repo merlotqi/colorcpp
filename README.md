@@ -399,7 +399,7 @@ auto luminance_sample = luminance_gen.next();
 
 ```cpp
 using namespace colorcpp::core;
-using namespace colorcpp::core::io;
+using namespace colorcpp::core::stream_io;
 
 // Output formatting
 std::cout << rgba_color << "\n";          // "255 99 71 255"

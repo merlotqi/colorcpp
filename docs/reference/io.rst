@@ -7,7 +7,7 @@ In colorcpp
 ------------
 
 * Header: ``include/colorcpp/core/io.hpp``
-* Namespace: ``colorcpp::core::io``
+* Namespace: ``colorcpp::core::stream_io``
 
 Notes
 -----
