@@ -347,6 +347,58 @@ TEST(Css, LChInvalid) {
   EXPECT_FALSE(parse_css_color<cielch_t>("lch(50, 30, 180)").has_value());
 }
 
+// ===== Issue #111: parse-time clamps must match CSS Color 4 §9.3/§9.4. =====
+// lab a/b are signed and theoretically unbounded (no ±125 clamp); lch C is
+// clamped to >= 0 only (no 150 upper bound). L keeps its spec-required
+// parsed-value clamp to [0,100]. Expected values are the D50→D65 adapted
+// channels computed independently (double precision) — tolerance 0.5 absorbs
+// the float32 pipeline.
+
+TEST(Css, LabOutOfRangeABIsNotClamped) {
+  // number syntax: a=200, b=-150 must survive (previously clamped to ±125)
+  auto wide = parse_css_color<cielab_t>("lab(50 200 -150)");
+  ASSERT_TRUE(wide.has_value());
+  EXPECT_NEAR(wide->l(), 51.948f, 0.5f);
+  EXPECT_NEAR(wide->a(), 207.669f, 0.5f) << "issue #111: a=200 must not be clamped to 125";
+  EXPECT_NEAR(wide->b(), -147.582f, 0.5f) << "issue #111: b=-150 must not be clamped to -125";
+
+  // percent syntax: 150% = 187.5 (100% is 125) — must not clamp at 100%
+  auto pct = parse_css_color<cielab_t>("lab(50 150% -150%)");
+  ASSERT_TRUE(pct.has_value());
+  EXPECT_NEAR(pct->a(), 196.830f, 0.5f) << "issue #111: 150% must not pre-clamp to 100%";
+  EXPECT_NEAR(pct->b(), -181.090f, 0.5f);
+
+  // in-range control: values inside ±125 are unchanged by removing the clamp
+  auto tight = parse_css_color<cielab_t>("lab(50 125 -125)");
+  ASSERT_TRUE(tight.has_value());
+  EXPECT_NEAR(tight->a(), 133.995f, 0.5f);
+  EXPECT_NEAR(tight->b(), -122.473f, 0.5f);
+
+  // L IS clamped to [0,100] at parsed-value time (CSS Color 4 §9.3) — keep.
+  auto l = parse_css_color<cielab_t>("lab(150 0 0)");
+  ASSERT_TRUE(l.has_value());
+  EXPECT_NEAR(l->l(), 100.0f, 0.5f) << "spec requires the L clamp to [0,100]";
+}
+
+TEST(Css, LChOutOfRangeCIsNotClampedAbove) {
+  // number syntax: C=300 must survive (previously clamped to 150)
+  auto wide = parse_css_color<cielch_t>("lch(50 300 30)");
+  ASSERT_TRUE(wide.has_value());
+  EXPECT_NEAR(wide->l(), 45.651f, 0.5f);
+  EXPECT_NEAR(wide->c(), 299.969f, 0.5f) << "issue #111: C upper bound is unbounded per spec";
+  EXPECT_NEAR(wide->h(), 24.947f, 1.0f);
+
+  // percent syntax: 150% = 225 (100% is 150) — must not pre-clamp at 100%
+  auto pct = parse_css_color<cielch_t>("lch(50 150% 30)");
+  ASSERT_TRUE(pct.has_value());
+  EXPECT_NEAR(pct->c(), 223.764f, 0.5f) << "issue #111: 150% must not pre-clamp to 100%";
+
+  // negative C still clamps to 0 at parsed-value time (CSS Color 4 §9.4)
+  auto neg = parse_css_color<cielch_t>("lch(50 -20 30)");
+  ASSERT_TRUE(neg.has_value());
+  EXPECT_NEAR(neg->c(), 0.0f, 0.01f) << "spec requires C >= 0 at parsed-value time";
+}
+
 TEST(Css, LabLchD50RendersCssExample) {
   // D50 lab/lch of peru (#CD853F) — CSS Color 4 worked example numbers for
   // lch(62.2532 54.0114 63.6769). Both forms must render to peru in sRGB;

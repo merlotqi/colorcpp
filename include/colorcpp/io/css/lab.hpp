@@ -101,9 +101,10 @@ inline core::cielab_t lab_d65_to_d50(const core::cielab_t& lab) {
  * CSS lab() uses the D50 white point; the result is Bradford-adapted to the
  * D65-based core::cielab_t.
  *
- * L: 0-100% or 0-100 (lightness)
- * a: -125 to 125 (green-red axis)
- * b: -125 to 125 (blue-yellow axis)
+ * L: 0-100% or 0-100 (lightness), clamped to [0,100] at parsed-value time
+ *    (CSS Color 4 §9.3 requires the L clamp).
+ * a: signed, theoretically unbounded (100% = 125; issue #111 — no ±125 clamp)
+ * b: signed, theoretically unbounded (100% = 125; issue #111 — no ±125 clamp)
  * Optional alpha with /
  *
  * @param alpha_out Optional sink for the parsed alpha in [0,1]; written only on
@@ -140,9 +141,7 @@ inline std::optional<core::cielab_t> parse_lab_function(details::Cursor& c, floa
       if (!a_cv) return std::nullopt;
       A = static_cast<float>(a_cv->first);
       if (a_cv->second) {
-        A = std::clamp(A, -100.0f, 100.0f) * 1.25f;
-      } else {
-        A = std::clamp(A, -125.0f, 125.0f);
+        A *= 1.25f;  // 100% = 125 (CSS Color 4 §9.3); no pre-clamp — issue #111
       }
     }
 
@@ -154,9 +153,7 @@ inline std::optional<core::cielab_t> parse_lab_function(details::Cursor& c, floa
       if (!b_cv) return std::nullopt;
       B = static_cast<float>(b_cv->first);
       if (b_cv->second) {
-        B = std::clamp(B, -100.0f, 100.0f) * 1.25f;
-      } else {
-        B = std::clamp(B, -125.0f, 125.0f);
+        B *= 1.25f;  // 100% = 125 (CSS Color 4 §9.3); no pre-clamp — issue #111
       }
     }
 

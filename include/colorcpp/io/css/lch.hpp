@@ -21,8 +21,10 @@ namespace colorcpp::io::css {
  * CSS lch() uses the D50 white point (like lab()); the result is
  * Bradford-adapted to the D65-based core::cielch_t.
  *
- * L: 0-100% or 0-100 (lightness)
- * C: 0-150 or 0-150% (chroma)
+ * L: 0-100% or 0-100 (lightness), clamped to [0,100] at parsed-value time
+ *    (CSS Color 4 §9.4 requires the L clamp).
+ * C: >= 0 (100% = 150); negative clamps to 0 at parsed-value time, no upper
+ *    bound (CSS Color 4 §9.4; issue #111 — no 150 clamp)
  * H: hue angle with units (deg, grad, rad, turn)
  * Optional alpha with /
  *
@@ -56,11 +58,8 @@ inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c, floa
       auto c_cv = d.parse_component_value();
       if (!c_cv) return std::nullopt;
       C = static_cast<float>(c_cv->first);
-      if (c_cv->second) {
-        C = std::clamp(C, 0.0f, 100.0f) * 1.5f;
-      } else {
-        C = std::clamp(C, 0.0f, 150.0f);
-      }
+      // Spec (CSS Color 4 §9.4): clamp to >= 0 only, no upper bound — issue #111.
+      C = std::max(C, 0.0f) * (c_cv->second ? 1.5f : 1.0f);  // 100% = 150
     }
 
     d.skip_ws();
@@ -98,7 +97,11 @@ inline std::optional<core::cielch_t> parse_lch_function(details::Cursor& c, floa
     const float c_out = std::sqrt(lab_d65.a() * lab_d65.a() + lab_d65.b() * lab_d65.b());
     float h_out = std::atan2(lab_d65.b(), lab_d65.a()) * (180.0f / 3.14159265358979323846f);
     if (h_out < 0.0f) h_out += 360.0f;
-    return core::cielch_t{lab_d65.l(), std::clamp(c_out, 0.0f, 200.0f), h_out};
+    // c_out >= 0 by construction; upper bound is the lab_c channel max so
+    // construction never throws (issue #111 — the old 200 bound clipped valid
+    // out-of-range-by-150 colors).
+    using c_ch = core::lab::channel::lab_c;
+    return core::cielch_t{lab_d65.l(), std::clamp(c_out, 0.0f, static_cast<float>(c_ch::max)), h_out};
   };
 
   if (auto r = try_space()) return r;
