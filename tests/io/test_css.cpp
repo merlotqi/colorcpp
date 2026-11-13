@@ -399,6 +399,39 @@ TEST(Css, LChOutOfRangeCIsNotClampedAbove) {
   EXPECT_NEAR(neg->c(), 0.0f, 0.01f) << "spec requires C >= 0 at parsed-value time";
 }
 
+// ===== Issue #113: legacy comma syntax restrictions (CSS Color 4 §7.1, §4.1.2). =====
+
+TEST(Css, LegacyRgbRejectsMixedTypesAndNone) {
+  // §7.1: legacy color components must be all-<percentage> or all-<number>.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(10%, 20, 30)").has_value())
+      << "issue #113: mixing % and number is invalid in legacy syntax";
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(10%, 20, 30)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(26, 20%, 30)").has_value());
+
+  // §7.1: none is not allowed in legacy syntax.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(none, 0, 0)").has_value()) << "issue #113: none is invalid in legacy syntax";
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(none, 0, 0)").has_value());
+
+  // Valid counterparts stay accepted.
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(100%, 0%, 0%)").has_value());    // all-% legacy
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(255, 0, 0)").has_value());       // all-number legacy
+  EXPECT_TRUE(parse_css_color_rgbaf("rgb(255, 0, 0)").has_value());       // rgbaf legacy too
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(255, 0, 0, 50%)").has_value());  // alpha may differ
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(10% 20 30)").has_value());       // modern mixed
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(none 0 0)").has_value());        // modern none
+  EXPECT_TRUE(parse_css_color_rgbaf("rgb(none 0 0)").has_value());
+}
+
+TEST(Css, HwbRejectsLegacyCommaSyntax) {
+  // §4.1.2: only rgb()/rgba()/hsl()/hsla() support legacy comma syntax.
+  EXPECT_FALSE(parse_css_color_rgba8("hwb(120, 0%, 0%)").has_value()) << "issue #113: hwb() has no legacy comma syntax";
+  EXPECT_FALSE(parse_css_color_rgbaf("hwb(120, 0%, 0%)").has_value());
+
+  // Modern hwb stays accepted.
+  EXPECT_TRUE(parse_css_color_rgba8("hwb(120 0% 0%)").has_value());
+  EXPECT_TRUE(parse_css_color_rgbaf("hwb(120 0 0)").has_value());
+}
+
 TEST(Css, LabLchD50RendersCssExample) {
   // D50 lab/lch of peru (#CD853F) — CSS Color 4 worked example numbers for
   // lch(62.2532 54.0114 63.6769). Both forms must render to peru in sRGB;

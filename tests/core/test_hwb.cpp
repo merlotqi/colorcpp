@@ -141,12 +141,9 @@ TEST(HWBTest, AlphaHandling) {
 }
 
 TEST(HWBTest, CSSParsing) {
-  // hwb() with comma syntax
-  auto color1 = parse_css_color<hwb_float_t>("hwb(120, 30%, 20%)");
-  ASSERT_TRUE(color1.has_value());
-  EXPECT_NEAR(color1->h(), 120.0f, 0.01f);
-  EXPECT_NEAR(color1->w(), 0.3f, 0.01f);
-  EXPECT_NEAR(color1->b(), 0.2f, 0.01f);
+  // hwb() has no legacy comma syntax (CSS Color 4 §4.1.2 — issue #113)
+  EXPECT_FALSE(parse_css_color<hwb_float_t>("hwb(120, 30%, 20%)").has_value());
+  EXPECT_FALSE(parse_css_color<hwba_float_t>("hwb(90, 20%, 30%, 0.5)").has_value());
 
   // hwb() with space syntax
   auto color2 = parse_css_color<hwb_float_t>("hwb(180 40% 10%)");
@@ -155,15 +152,13 @@ TEST(HWBTest, CSSParsing) {
   EXPECT_NEAR(color2->w(), 0.4f, 0.01f);
   EXPECT_NEAR(color2->b(), 0.1f, 0.01f);
 
-  // hwb() with alpha (comma syntax)
-  auto color3 = parse_css_color<hwba_float_t>("hwb(90, 20%, 30%, 0.5)");
+  // hwb() with alpha (space syntax)
+  auto color3 = parse_css_color<hwba_float_t>("hwb(90 20% 30% / 0.5)");
   ASSERT_TRUE(color3.has_value());
   EXPECT_NEAR(color3->h(), 90.0f, 0.01f);
   EXPECT_NEAR(color3->w(), 0.2f, 0.01f);
   EXPECT_NEAR(color3->b(), 0.3f, 0.01f);
   EXPECT_NEAR(color3->a(), 0.5f, 0.01f);
-
-  // hwb() with alpha (space syntax)
   auto color4 = parse_css_color<hwba_float_t>("hwb(270 15% 25% / 0.8)");
   ASSERT_TRUE(color4.has_value());
   EXPECT_NEAR(color4->h(), 270.0f, 0.5f);  // Relaxed tolerance due to rgba8_t precision
