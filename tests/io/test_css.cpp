@@ -1164,6 +1164,42 @@ TEST(Css, ColorMixNestedAndInvalidForms) {
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in oklch longer, red, blue)").has_value());
 }
 
+TEST(Css, ColorMixInDisplayP3KeepsWideGamutItems) {
+  // Issue #110 / CSS Color 4 §13.2: color-mix() converts each item straight
+  // into the interpolation space — an intermediate sRGB gamut clamp would
+  // collapse p3 green (sRGB has R<0, G>1) before the mix runs.
+  auto mixed = parse_css_color_rgba8("color-mix(in display-p3, color(display-p3 0 1 0), color(display-p3 0 0 1))");
+  ASSERT_TRUE(mixed);
+  auto expected = parse_css_color_rgba8("color(display-p3 0 0.5 0.5)");
+  ASSERT_TRUE(expected);
+  expect_rgba(*mixed, expected->r(), expected->g(), expected->b(), expected->a());
+  expect_rgba(*mixed, 0, 130, 129, 255);  // equal mix must match the midpoint
+
+  // Mixed gamut items: sRGB red reaches display-p3 without an sRGB detour.
+  // sRGB red in (encoded) p3 = (0.91754, 0.20032, 0.13859); equal-weight
+  // midpoint with p3 green (0,1,0) = (0.45877, 0.60016, 0.06930) -> sRGB
+  // (107,154,0). Interpolation happens in the encoded space, matching the
+  // color() function's own values.
+  auto cross = parse_css_color_rgba8("color-mix(in display-p3, red, color(display-p3 0 1 0))");
+  ASSERT_TRUE(cross);
+  auto cross_expected = parse_css_color_rgba8("color(display-p3 0.45877 0.60016 0.0693)");
+  ASSERT_TRUE(cross_expected);
+  expect_rgba(*cross, cross_expected->r(), cross_expected->g(), cross_expected->b(), 255);
+  expect_rgba(*cross, 107, 154, 0, 255);
+
+  // Alpha is independent of the space conversion and must survive the fix.
+  auto with_alpha =
+      parse_css_color_rgba8("color-mix(in display-p3, color(display-p3 0 1 0 / 0.4), color(display-p3 0 0 1))");
+  ASSERT_TRUE(with_alpha);
+  EXPECT_EQ(with_alpha->a(), 179);  // 0.4*0.5 + 1*0.5 = 0.7 -> 179
+
+  // Single-item color-mix still converts at the final boundary: red must come
+  // back as sRGB red, not its raw p3 channels (0.9175, 0.2003, 0.1386).
+  auto single = parse_css_color_rgba8("color-mix(in display-p3, red)");
+  ASSERT_TRUE(single);
+  expect_rgba(*single, 255, 0, 0, 255);
+}
+
 TEST(Css, ColorMixPowerlessHueTakesOtherEndpoint) {
   // Issue #51: white's OkLCH hue is atan2 noise (H = 90°, C = 6e-8). Without
   // powerless-hue substitution, color-mix(in oklch, white, blue) blended that
