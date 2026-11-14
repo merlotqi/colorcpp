@@ -124,13 +124,73 @@ TEST(DeuteranopiaTest, RedBecomesDarkYellow) {
 // Tritanopia tests
 // ============================================================================
 
+// ===== Issue #102: the plane predicate (0.03476·L − 0.02797·M >= 0 ⇔
+//     L/M >= 0.805) is never false inside the sRGB cube (its minimum L/M is
+//     ≈ 1.065 for pure blue), so the second plane was unreachable, and
+//     neither plane matched the coloraide/Brettel wings. Reference values
+//     below come from coloraide's BRETTEL_TRITAN: separator
+//     [0.344781556122, −0.6551784438780001, 0] on linear sRGB, wing w2 when
+//     dot(LMS, sep) > 0 else w1 — both wings preserve the neutral axis. =====
+
 TEST(TritanopiaTest, BlueBecomesTeal) {
   rgb8_t blue{0, 0, 255};
   auto result = simulate_tritanopia(blue);
-  // Reference value: pure blue becomes a teal/cyan under tritanopia.
+  // coloraide/Brettel reference: blue (L/M ≈ 1.07, green side of the
+  // separator) uses wing w1 -> (0, 98, 136). The previous pin (0, 105, 105)
+  // was produced by the broken plane coefficients (issue #102).
   EXPECT_NEAR(result.r(), 0, 3);
-  EXPECT_NEAR(result.g(), 105, 3);
-  EXPECT_NEAR(result.b(), 105, 3);
+  EXPECT_NEAR(result.g(), 98, 3);
+  EXPECT_NEAR(result.b(), 136, 3);
+}
+
+TEST(TritanopiaTest, RedPicksRedSidePlane) {
+  rgb8_t red{255, 0, 0};
+  auto result = simulate_tritanopia(red);
+  // coloraide/Brettel reference: red (L/M ≈ 5.17, red side of the
+  // separator) uses wing w2 -> (255, 0, 78). The broken predicate always
+  // selected plane 1, which returned (255, 0, 0) — proof the second plane
+  // was unreachable (issue #102).
+  EXPECT_NEAR(result.r(), 255, 3);
+  EXPECT_NEAR(result.g(), 0, 3);
+  EXPECT_NEAR(result.b(), 78, 3);
+}
+
+// Float-level pins: the 8-bit outputs round away ±0.001 perturbations of a
+// wing's coefficients (e.g. blue's b stays 136), so pin the gamma-encoded
+// floats directly against coloraide's BRETTEL_TRITAN (issue #102).
+TEST(TritanopiaTest, BlueWingMatchesColoraidePrecisely) {
+  const rgbaf_t blue(0.0f, 0.0f, 1.0f, 1.0f);
+  auto result = simulate_tritanopia(blue);
+  EXPECT_NEAR(result.r(), 0.0f, 0.001f);
+  EXPECT_NEAR(result.g(), 0.3859f, 0.001f);
+  EXPECT_NEAR(result.b(), 0.5351f, 0.001f);
+}
+
+TEST(TritanopiaTest, RedWingMatchesColoraidePrecisely) {
+  const rgbaf_t red(1.0f, 0.0f, 0.0f, 1.0f);
+  auto result = simulate_tritanopia(red);
+  EXPECT_NEAR(result.r(), 1.0f, 0.001f);
+  EXPECT_NEAR(result.g(), 0.0f, 0.001f);
+  EXPECT_NEAR(result.b(), 0.3053f, 0.001f);
+}
+
+// The separator passes through the neutral axis (L/M = 1.9003), so colors
+// within a few percent of it must follow the correct wing; far colors
+// (blue, red) tolerate separator-coefficient drift that these pins catch
+// (issue #102).
+TEST(TritanopiaTest, NearNeutralColorsPickCorrectWing) {
+  // L/M ≈ 1.859, green side of the separator -> wing w1.
+  const rgbaf_t greenSide(182.0f / 255.0f, 198.0f / 255.0f, 182.0f / 255.0f, 1.0f);
+  auto g = simulate_tritanopia(greenSide);
+  EXPECT_NEAR(g.r(), 0.7262f, 0.001f);
+  EXPECT_NEAR(g.g(), 0.7654f, 0.001f);
+  EXPECT_NEAR(g.b(), 0.7840f, 0.001f);
+  // L/M ≈ 1.924, red side of the separator -> wing w2.
+  const rgbaf_t redSide(198.0f / 255.0f, 198.0f / 255.0f, 174.0f / 255.0f, 1.0f);
+  auto r = simulate_tritanopia(redSide);
+  EXPECT_NEAR(r.r(), 0.7892f, 0.001f);
+  EXPECT_NEAR(r.g(), 0.7638f, 0.001f);
+  EXPECT_NEAR(r.b(), 0.7660f, 0.001f);
 }
 
 TEST(TritanopiaTest, GrayStaysGray) {

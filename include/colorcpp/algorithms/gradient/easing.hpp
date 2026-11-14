@@ -313,7 +313,9 @@ T ease_in_out_circ(T t) noexcept {
  * @param y1 Y coordinate of first control point
  * @param x2 X coordinate of second control point [0, 1]
  * @param y2 Y coordinate of second control point
- * @return Easing function that maps [0, 1] to [0, 1]
+ * @return Easing function that maps [0, 1] to an eased progress value; the
+ *         output may fall outside [0, 1] (overshoot/undershoot) when y1/y2
+ *         are outside the unit interval (W3C css-easing-1)
  */
 template <typename T = float>
 easing_function<T> cubic_bezier(T x1, T y1, T x2, T y2) {
@@ -356,8 +358,9 @@ easing_function<T> cubic_bezier(T x1, T y1, T x2, T y2) {
     for (int i = 0; i < 8; ++i) {
       const T x_error = sample_curve_x(s) - t;
       if (std::abs(x_error) <= epsilon) {
-        // Found solution within tolerance
-        return std::clamp(sample_curve_y(s), zero, one);
+        // Found solution within tolerance. Raw curve value: y1/y2 outside
+        // [0, 1] must be able to overshoot (issue #106).
+        return sample_curve_y(s);
       }
 
       const T derivative = sample_derivative_x(s);
@@ -390,8 +393,8 @@ easing_function<T> cubic_bezier(T x1, T y1, T x2, T y2) {
       s = (low + high) / two;
     }
 
-    // Final result
-    return std::clamp(sample_curve_y(s), zero, one);
+    // Final result - unclamped like the Newton path (issue #106)
+    return sample_curve_y(s);
   };
 }
 

@@ -408,6 +408,18 @@ TEST(HarmonyWeightedTest, OutOfRangeWeightsAreClampedBeforeScoring) {
   EXPECT_FLOAT_EQ(raw.score, clamped.score);
 }
 
+TEST(HarmonyWeightedTest, WeightedAngleScoreIsHueRotationInvariant) {
+  // weights.hpp scored ideal_steps positionally just like assess(), so the
+  // rotation that scrambled assess()'s score scrambled the weighted one too
+  // (issue #103).
+  const auto base = assess_weighted(Hues({0.0f, 150.0f, 210.0f}), harmony_weights::angle_only());
+  const auto rotated = assess_weighted(Hues({200.0f, 350.0f, 50.0f}), harmony_weights::angle_only());
+  EXPECT_EQ(base.scheme, harmony_scheme::split_complementary);
+  EXPECT_EQ(rotated.scheme, harmony_scheme::split_complementary);
+  EXPECT_NEAR(base.angle_score, rotated.angle_score, 1.0f) << "issue #103: angle score must not depend on rotation";
+  EXPECT_GT(rotated.angle_score, 97.0f);
+}
+
 TEST(HarmonyCorrectTest, AutoDetectMatchesAssessOnReorderedPalette) {
   // Descending analogous palette: assess() must agree with correct()'s
   // auto-detection (both use shortest-path diffs on sorted hues).
@@ -420,6 +432,130 @@ TEST(HarmonyCorrectTest, AutoDetectMatchesAssessOnReorderedPalette) {
   EXPECT_EQ(corrected.target_scheme, harmony_scheme::analogous);
   // 0/30/60 is already a perfect analogous set — nothing to move
   EXPECT_EQ(corrected.status, correction_status::unchanged);
+}
+
+// ============================================================================
+// Issue #103: detect_scheme matched fixed patterns against diffs[0]/diffs[1]
+// and never the wrap entry, so which pattern fired depended on which gap
+// sorted first — rotating every hue by a constant cyclically shifted the
+// diff vector and changed the classification (e.g. split_complementary
+// became an accidental golden match: |150 - 137.508| = 12.49 < tol 15).
+// ============================================================================
+
+TEST(HarmonyRulesTest, SplitComplementarySurvivesRotation) {
+  // The issue probe: the same relative layout at two absolute rotations.
+  auto base = detect_scheme_from_hues({0.0f, 150.0f, 210.0f});
+  EXPECT_EQ(base.first, harmony_scheme::split_complementary);
+  auto rotated = detect_scheme_from_hues({200.0f, 350.0f, 50.0f});
+  EXPECT_EQ(rotated.first, harmony_scheme::split_complementary)
+      << "issue #103: +200 deg rotation must not fall into golden";
+}
+
+TEST(HarmonyRulesTest, DetectSchemeIsHueRotationInvariant) {
+  // Every canonical layout must classify identically at every rotation;
+  // the rotation class is exactly the cyclic shifts of the diff vector.
+  const std::vector<std::vector<float>> bases = {
+      {0.0f, 180.0f},                      // complementary
+      {0.0f, 137.5f},                      // golden pair
+      {0.0f, 120.0f, 240.0f},              // triadic
+      {0.0f, 137.5f, 275.0f},              // golden triad
+      {0.0f, 30.0f, 60.0f},                // analogous
+      {0.0f, 150.0f, 210.0f},              // split complementary
+      {0.0f, 60.0f, 90.0f},                // split analogous
+      {0.0f, 90.0f, 180.0f, 270.0f},       // square
+      {0.0f, 30.0f, 180.0f, 210.0f},       // compound
+      {0.0f, 60.0f, 180.0f, 240.0f},       // double complementary
+      {0.0f, 20.0f, 40.0f, 60.0f},         // analogous wide (4)
+      {0.0f, 15.0f, 30.0f, 45.0f},         // analogous wide (5)
+      {0.0f, 22.5f, 45.0f, 67.5f, 90.0f},  // analogous (5)
+  };
+  for (const auto& base : bases) {
+    const auto expected = detect_scheme_from_hues(base);
+    EXPECT_NE(expected.first, harmony_scheme::custom) << "base[0]=" << base[0];
+    for (float rot : {37.0f, 123.0f, 200.0f, 319.0f}) {
+      std::vector<float> rotated;
+      rotated.reserve(base.size());
+      for (float h : base) {
+        float r = h + rot;
+        if (r >= 360.0f) r -= 360.0f;
+        rotated.push_back(r);
+      }
+      const auto got = detect_scheme_from_hues(rotated);
+      EXPECT_EQ(got.first, expected.first) << "issue #103: base hue0=" << base[0] << " rot=" << rot;
+    }
+  }
+}
+
+TEST(HarmonyAssessTest, ScoreIsHueRotationInvariant) {
+  // assess() scores positionally against ideal_angles, so even a fixed
+  // detect_scheme would still report rotation-dependent scores.
+  const auto base = assess(Hues({0.0f, 150.0f, 210.0f}));
+  const auto rotated = assess(Hues({200.0f, 350.0f, 50.0f}));
+  EXPECT_EQ(base.scheme, harmony_scheme::split_complementary);
+  EXPECT_EQ(rotated.scheme, harmony_scheme::split_complementary);
+  EXPECT_NEAR(base.score, rotated.score, 1.0f) << "issue #103: score must not depend on rotation";
+  EXPECT_GT(rotated.score, 97.0f);
+}
+
+// ============================================================================
+// Issue #104: tetradic detection unreachable - rule_for(tetradic,4) is
+// byte-identical to double_complementary. Chosen resolution: tetradic is a
+// generation-only alias of the rectangle layout (two complementary pairs
+// 0°/60°/180°/240°); detect_scheme must never claim tetradic, and the
+// canonical rectangle always classifies as double_complementary.
+// ============================================================================
+
+TEST(HarmonyRulesTest, TetradicRuleIsExactlyDoubleComplementary) {
+  // The two names describe one geometry; the rules must stay identical so
+  // generation through either enum produces the same palette (issue #104).
+  const auto tetradic = rule_for(harmony_scheme::tetradic, 4);
+  const auto dbl = rule_for(harmony_scheme::double_complementary, 4);
+  EXPECT_EQ(canonical_color_count(harmony_scheme::tetradic), 4u);
+  EXPECT_EQ(tetradic.ideal_steps, dbl.ideal_steps);
+  EXPECT_EQ(tetradic.generation_offsets, dbl.generation_offsets);
+}
+
+TEST(HarmonyRulesTest, RectangleDetectsAsDoubleComplementaryNeverTetradic) {
+  // Detection must not distinguish what the rules cannot distinguish: the
+  // rectangle layout (at any rotation) is double_complementary, never
+  // tetradic, and an unmatched 4-hue palette falls back to the generic
+  // "tetrad" label - also not the tetradic enum (issue #104).
+  const std::vector<std::vector<float>> rectangles = {
+      {0.0f, 60.0f, 180.0f, 240.0f},
+      {13.0f, 73.0f, 193.0f, 253.0f},
+      {200.0f, 260.0f, 20.0f, 80.0f},
+  };
+  for (const auto& rect : rectangles) {
+    auto [scheme, steps] = detect_scheme_from_hues(rect);
+    EXPECT_EQ(scheme, harmony_scheme::double_complementary);
+    EXPECT_NE(scheme, harmony_scheme::tetradic);
+    EXPECT_EQ(steps, rule_for(harmony_scheme::double_complementary, 4).ideal_steps);
+  }
+  // Gaps {50, 90, 120, 100} match no 4-color pattern -> generic tetrad
+  // fallback, not the tetradic enum.
+  auto unmatched = detect_scheme_from_hues({0.0f, 50.0f, 140.0f, 260.0f});
+  EXPECT_EQ(unmatched.first, harmony_scheme::tetrad);
+  EXPECT_NE(unmatched.first, harmony_scheme::tetradic);
+}
+
+TEST(HarmonyRulesTest, TetradicGenerationUsesRectangleOffsets) {
+  // Generation through the tetradic enum must remain reachable and produce
+  // the double_complementary offsets {0, 60, 180, 240} (issue #104).
+  const auto base = color_cast<rgbaf_t>(hsla_float_t{40.0f, 1.0f, 0.5f, 1.0f});
+  auto p = schemes::tetradic(base);
+  ASSERT_EQ(p.size(), 4u);
+  const std::vector<float> expected_hues = {40.0f, 100.0f, 220.0f, 280.0f};
+  for (size_t i = 0; i < 4; ++i) {
+    auto hsl = color_cast<hsla_float_t>(p[i]);
+    EXPECT_NEAR(hsl.h(), expected_hues[i], 0.5f) << "index " << i;
+  }
+  // Round-trip: the generated palette classifies as double_complementary.
+  std::vector<float> generated_hues;
+  for (const auto& c : p) {
+    generated_hues.push_back(color_cast<hsla_float_t>(c).h());
+  }
+  auto detected = detect_scheme_from_hues(generated_hues);
+  EXPECT_EQ(detected.first, harmony_scheme::double_complementary);
 }
 
 }  // namespace colorcpp::algorithms::test

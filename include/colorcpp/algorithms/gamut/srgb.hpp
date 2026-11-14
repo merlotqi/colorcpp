@@ -89,7 +89,7 @@ Color gamut_clip(const Color& c, clip_method method = clip_method::css_color4) {
   }
 
   // Method: css_color4
-  // CSS Color Level 4 §14.2: find the largest C for which channel-clipping
+  // CSS Color Level 4 §13.1 (issue #108): find the largest C for which channel-clipping
   // the candidate produces a ΔE_OK ≤ JND perceptual error.
   {
     constexpr float kJND = 0.02f;

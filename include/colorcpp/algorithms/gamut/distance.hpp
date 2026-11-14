@@ -12,10 +12,20 @@
 namespace colorcpp::algorithms::gamut {
 
 /**
- * @brief Calculate the distance from a color to the gamut boundary.
+ * @brief Calculate the chroma deficit from a color to the gamut boundary.
+ *
+ * NOT a true ΔE_OK (issue #108): for chromatic out-of-gamut colors the
+ * result is C - C_max(L, hue), the amount of chroma that must be removed at
+ * the color's lightness and hue to re-enter the gamut, found by binary
+ * search (tolerance 1e-4). Lightness error is never measured for chromatic
+ * colors. For achromatic out-of-gamut colors (C < 1e-6), which cannot be
+ * repaired by reducing chroma, the metric degrades to the lightness
+ * distance to the nearest achromatic endpoint: L - 1.0 when L > 0.5
+ * (distance to white), otherwise -L (distance to black).
+ *
  * @tparam Color Input color type.
  * @param c The color to check.
- * @return Distance to gamut boundary in OKLab space (ΔE_OK).
+ * @return Chroma deficit to the gamut boundary (see above).
  *         Returns 0.0 if the color is already in gamut.
  */
 template <typename Color>
@@ -73,8 +83,9 @@ float gamut_distance(const Color& c) {
  * @brief Check if a color is near the gamut boundary.
  * @tparam Color Input color type.
  * @param c The color to check.
- * @param threshold Distance threshold (default: 0.02 in OKLab space).
- * @return True if the color is within threshold distance of the gamut boundary.
+ * @param threshold Chroma-deficit threshold (default: 0.02 — the same metric
+ *        gamut_distance() returns, i.e. chroma to shed, not ΔE; issue #108).
+ * @return True if the color's chroma deficit is positive and below threshold.
  */
 template <typename Color>
 bool is_near_gamut_boundary(const Color& c, float threshold = 0.02f) {

@@ -41,7 +41,9 @@ class box_gradient {
 
   Color sample(position_type distance) const {
     auto interpolator = [](const Color& a, const Color& b, position_type t) {
-      return operations::interpolate::lerp(a, b, t);
+      // Unclamped eased factor: cubic_bezier overshoot must propagate
+      // (issue #106); details::lerp_eased keeps the NaN -> 0 policy.
+      return details::lerp_eased(a, b, t);
     };
     return details::sample_gradient(stops_, details::clamp_01(distance + phase_offset_), interpolator, easing_);
   }
@@ -77,8 +79,11 @@ class box_gradient {
   box_gradient<Color> reverse() const {
     typename stops_type::container_type reversed_stops;
     reversed_stops.reserve(stops_.size());
-    for (const auto& stop : stops_) {
-      reversed_stops.emplace_back(1.0f - stop.position, stop.color);
+    // Iterate in reverse so equal-position (hard-stop) pairs flip their
+    // color order too: stable_sort keeps insertion order for ties, so a
+    // forward loop would leave the jump on the wrong side (issue #105).
+    for (std::size_t i = stops_.size(); i-- > 0;) {
+      reversed_stops.emplace_back(1.0f - stops_[i].position, stops_[i].color);
     }
     return box_gradient<Color>(stops_type(reversed_stops), easing_);
   }

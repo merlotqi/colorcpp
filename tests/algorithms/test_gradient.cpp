@@ -722,3 +722,134 @@ TEST(GradientTest, BlendConcatQuantizeDoNotReapplyEasing) {
     ExpectNoDoubleEasing(g, h, "diamond");
   }
 }
+
+// ============================================================================
+// Issue #105: reverse() mapped positions to 1-p but iterated the stops
+// forward, so color_stops' stable_sort kept equal-position (hard-stop) pairs
+// in their original color order - after reversal the jump landed on the
+// wrong side. Mirror identity: reverse(g).sample(t) == g.sample(1-t).
+// ============================================================================
+
+namespace {
+
+// Hard stop at 0.5: black->red then blue->white. The 0.5 pair carries two
+// distinct colors at one position, which only stable order can distinguish.
+gradient::color_stops<rgbf_t> HardStopStops() {
+  return {{0.0f, rgbf_t{0.0f, 0.0f, 0.0f}},
+          {0.5f, rgbf_t{1.0f, 0.0f, 0.0f}},
+          {0.5f, rgbf_t{0.0f, 0.0f, 1.0f}},
+          {1.0f, rgbf_t{1.0f, 1.0f, 1.0f}}};
+}
+
+// reverse(g).sample(t) must equal g.sample(1-t) on both sides of the jump.
+template <typename G>
+void ExpectReverseMirror(const G& g, const char* label) {
+  SCOPED_TRACE(label);
+  auto rev = g.reverse();
+  for (float t : {0.1f, 0.3f, 0.49f, 0.51f, 0.7f, 0.9f}) {
+    const auto a = rev.sample(t);
+    const auto b = g.sample(1.0f - t);
+    EXPECT_NEAR(a.r(), b.r(), 1e-3f) << "t=" << t;
+    EXPECT_NEAR(a.g(), b.g(), 1e-3f) << "t=" << t;
+    EXPECT_NEAR(a.b(), b.b(), 1e-3f) << "t=" << t;
+  }
+}
+
+}  // namespace
+
+TEST(GradientTest, ReverseMirrorIdentityOnLinearRamp) {
+  // Distinct positions already mirrored by construction; pinned so the fix
+  // cannot regress it (issue #105 asks for the ramp identity explicitly).
+  gradient::color_stops<rgbf_t> stops = {
+      {0.0f, rgbf_t{1.0f, 0.0f, 0.0f}}, {0.4f, rgbf_t{0.0f, 1.0f, 0.0f}}, {1.0f, rgbf_t{0.0f, 0.0f, 1.0f}}};
+  ExpectReverseMirror(gradient::linear(stops), "linear ramp");
+}
+
+TEST(GradientTest, ReverseMirrorIdentityOnHardStopLinear) {
+  // The issue probe: with a hard stop at 0.5, the jump must flip sides -
+  // black/red/blue/white reversed to white/blue/red/black (issue #105).
+  ExpectReverseMirror(gradient::linear(HardStopStops()), "linear hard stop");
+}
+
+TEST(GradientTest, ReverseMirrorIdentityOnHardStopAllGradientTypes) {
+  // All five gradient types share the identical reverse() loop, so the
+  // hard-stop mirror must hold for every one of them (issue #105).
+  ExpectReverseMirror(gradient::radial(HardStopStops()), "radial hard stop");
+  ExpectReverseMirror(gradient::angular(HardStopStops()), "angular hard stop");
+  ExpectReverseMirror(gradient::box(HardStopStops()), "box hard stop");
+  ExpectReverseMirror(gradient::diamond(HardStopStops()), "diamond hard stop");
+}
+
+// ============================================================================
+// Issue #106: cubic_bezier clamped its curve output (and sample_gradient
+// clamped eased t a second time), so y1/y2 outside [0, 1] could never
+// overshoot - contradicting the constructor comment and W3C css-easing-1.
+// ============================================================================
+
+TEST(GradientTest, CubicBezierOvershootIsNotClamped) {
+  using gradient::easing::cubic_bezier;
+  // y1/y2 outside the unit interval are valid (W3C css-easing-1); the raw
+  // curve reaches about -0.097 and 1.097 for these control points (issue #106).
+  auto ease = cubic_bezier<float>(0.42f, -0.6f, 0.58f, 1.6f);
+  float min_y = 1.0f;
+  float max_y = 0.0f;
+  for (int i = 0; i <= 200; ++i) {
+    const float y = ease(static_cast<float>(i) / 200.0f);
+    min_y = std::min(min_y, y);
+    max_y = std::max(max_y, y);
+  }
+  EXPECT_LT(min_y, -0.05f) << "undershoot must survive (probe reaches ~-0.097)";
+  EXPECT_GT(max_y, 1.05f) << "overshoot must survive (probe reaches ~1.097)";
+}
+
+TEST(GradientTest, CubicBezierOvershootSurvivesBisectionFallback) {
+  using gradient::easing::cubic_bezier;
+  // x1=1, x2=0 makes x'(0.5)=0: Newton stalls on the flat region and the
+  // bisection fallback runs - the second clamp site (issue #106).
+  auto flat = cubic_bezier<float>(1.0f, -0.6f, 0.0f, 1.6f);
+  float min_y = 1.0f;
+  float max_y = 0.0f;
+  for (int i = 0; i <= 200; ++i) {
+    const float y = flat(static_cast<float>(i) / 200.0f);
+    min_y = std::min(min_y, y);
+    max_y = std::max(max_y, y);
+  }
+  EXPECT_LT(min_y, -0.01f) << "undershoot must survive the bisection path";
+  EXPECT_GT(max_y, 1.01f) << "overshoot must survive the bisection path";
+
+  // x1=x2=0 gives x(s)=s^3 (derivative ~0 near the origin): Newton's first
+  // step from the s=t guess overshoots wildly and the fallback bisection
+  // solves it. The undershoot band (t < ~0.017) is only reachable there.
+  auto cubic_x = cubic_bezier<float>(0.0f, -0.6f, 0.0f, 1.6f);
+  min_y = 1.0f;
+  max_y = 0.0f;
+  for (int i = 0; i <= 200; ++i) {
+    const float y = cubic_x(static_cast<float>(i) / 200.0f);
+    min_y = std::min(min_y, y);
+    max_y = std::max(max_y, y);
+  }
+  EXPECT_LT(min_y, -0.05f) << "undershoot in the bisection-only band must survive";
+  EXPECT_GT(max_y, 1.05f) << "overshoot must survive";
+}
+
+TEST(GradientTest, GradientSamplePropagatesBezierOvershoot) {
+  using gradient::easing::cubic_bezier;
+  // End to end: sample_gradient clamped eased t a second time (details.hpp)
+  // and the sample interpolator re-entered the clamping public lerp - both
+  // erased overshoot even when the easing itself was fixed (issue #106).
+  // Uses linear_rgbaf_t: extended-range models (issue #76) let out-of-range
+  // channels survive the channel write, while display-encoded rgbf_t clamps
+  // at that boundary by design.
+  gradient::color_stops<linear_rgbaf_t> stops = {{0.0f, linear_rgbaf_t{1.0f, 0.0f, 0.0f, 1.0f}},
+                                                 {1.0f, linear_rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f}}};
+  auto g = gradient::linear(stops, cubic_bezier<float>(0.42f, -0.6f, 0.58f, 1.6f));
+  bool overshot = false;
+  bool undershot = false;
+  for (int i = 0; i <= 200; ++i) {
+    const auto c = g.sample(static_cast<float>(i) / 200.0f);
+    if (c.r() > 1.001f || c.g() > 1.001f || c.b() > 1.001f) overshot = true;
+    if (c.r() < -0.001f || c.g() < -0.001f || c.b() < -0.001f) undershot = true;
+  }
+  EXPECT_TRUE(overshot) << "eased t > 1 must extrapolate past the endpoint color";
+  EXPECT_TRUE(undershot) << "eased t < 0 must extrapolate before the start color";
+}

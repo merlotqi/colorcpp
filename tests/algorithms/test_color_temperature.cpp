@@ -147,3 +147,38 @@ TEST(ColorTemperature, LinearRgbToKelvinConsistent) {
   EXPECT_GT(k_est, 4000.0f);
   EXPECT_LT(k_est, 7000.0f);
 }
+
+// ===== Issue #100: Helland's channel formulas already output sRGB-encoded
+//     values; kelvin_to_linear_rgb only divided by 255 and kelvin_to_rgb
+//     then applied linear_to_srgb again (double gamma). Outputs washed out
+//     vs the reference (1000K: 255,141,0 instead of 255,68,0) and
+//     rgb_to_kelvin_estimate was biased for reference-correct sRGB colors. =====
+
+TEST(ColorTemperature, KelvinToRgba8MatchesHellandReference) {
+  // Reference values from Tanner Helland's algorithm (already sRGB-encoded).
+  auto c1000 = kelvin_to_rgba8(1000.0f);
+  EXPECT_EQ(c1000.r(), 255) << "issue #100: double gamma washed out R";
+  EXPECT_EQ(c1000.g(), 68) << "issue #100: 1000K G must be the Helland 68, not 141";
+  EXPECT_EQ(c1000.b(), 0);
+  auto c3000 = kelvin_to_rgba8(3000.0f);
+  EXPECT_EQ(c3000.r(), 255);
+  EXPECT_EQ(c3000.g(), 177) << "issue #100: 3000K G must be the Helland 177, not 217";
+  EXPECT_EQ(c3000.b(), 110) << "issue #100: 3000K B must be the Helland 110, not 175";
+}
+
+TEST(ColorTemperature, RgbToKelvinEstimateMatchesHellandCurve) {
+  // An external reference-correct sRGB color must map back to its
+  // temperature; the double-gamma build returned ~2111K for 3000K.
+  const colorcpp::core::rgbf_t ref3000{1.0f, 177.0f / 255.0f, 110.0f / 255.0f};
+  const float k = rgb_to_kelvin_estimate(ref3000);
+  EXPECT_NEAR(k, 3000.0f, 30.0f) << "issue #100: reverse estimator biased by double gamma";
+}
+
+TEST(ColorTemperature, KelvinToLinearRgbIsDecodedToLinear) {
+  // Helland 1000K G = 68/255 encoded; linear must be srgb_to_linear(68/255)
+  // ~ 0.0577, not the raw 0.2664.
+  const auto lin = kelvin_to_linear_rgb(1000.0f);
+  EXPECT_NEAR(lin.g(), 0.0577f, 0.002f) << "issue #100: output must be linearized, not encoded";
+  EXPECT_NEAR(lin.r(), 1.0f, 1e-6f);
+  EXPECT_NEAR(lin.b(), 0.0f, 1e-6f);
+}

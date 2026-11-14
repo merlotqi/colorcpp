@@ -253,6 +253,51 @@ TEST(GamutDistanceTest, IsNearGamutBoundary) {
   EXPECT_FALSE(is_near);
 }
 
+// gamut_distance semantics (issue #108): the returned value is the chroma
+// deficit C - C_max(L, hue) found by binary search — NOT a true ΔE_OK.
+// These tests pin the documented behavior; the doxygen in distance.hpp now
+// describes exactly what is computed.
+
+TEST(GamutDistanceTest, GamutDistanceIsChromaDeficitNotDeltaE) {
+  // oklab(0.5, 0.4, 0): chroma 0.4; binary search shrinks it to the largest
+  // in-gamut chroma (~0.2028), so the result is the deficit (~0.197), not
+  // the Euclidean OKLab distance to the boundary point (which would be the
+  // same here only by coincidence of direction — the metric never measures
+  // lightness error for chromatic colors).
+  core::oklab_t oog(0.5f, 0.4f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(oog));
+  EXPECT_NEAR(gamut_distance(oog), 0.1972f, 2e-3f);
+
+  // A second hue direction: deficit measured only along the chroma axis.
+  core::oklab_t oog2(0.5f, 0.0f, 0.4f);
+  ASSERT_FALSE(is_in_srgb_gamut(oog2));
+  EXPECT_NEAR(gamut_distance(oog2), 0.2978f, 2e-3f);
+}
+
+TEST(GamutDistanceTest, GamutDistanceAchromaticOutOfRangeUsesLightnessDeficit) {
+  // Achromatic out-of-gamut colors (C < 1e-6) cannot be fixed by reducing
+  // chroma, so the metric degrades to the lightness distance to the nearest
+  // achromatic endpoint: L - 1.0 above 0.5, -L otherwise (issue #108).
+  core::oklab_t too_light(1.2f, 0.0f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(too_light));
+  EXPECT_NEAR(gamut_distance(too_light), 0.2f, 1e-5f);
+
+  core::oklab_t too_dark(-0.1f, 0.0f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(too_dark));
+  EXPECT_NEAR(gamut_distance(too_dark), 0.1f, 1e-5f);
+}
+
+TEST(GamutDistanceTest, NearGrayShowsDeficitIsNotEuclideanDistance) {
+  // oklab(0.8, 0.143, 0): lightness error vs white would be |0.8-1| = 0.2,
+  // but the metric reports only how much chroma must shrink (~0.019) —
+  // documenting that gamut_distance is a chroma deficit, not ΔE_OK.
+  core::oklab_t near_gray(0.8f, 0.143f, 0.0f);
+  ASSERT_FALSE(is_in_srgb_gamut(near_gray));
+  const float d = gamut_distance(near_gray);
+  EXPECT_NEAR(d, 0.019f, 3e-3f);
+  EXPECT_LT(d, 0.109f);  // well below any plausible ΔE to the boundary
+}
+
 // ============================================================================
 // Gamut mapping result tests
 // ============================================================================
@@ -277,6 +322,36 @@ TEST(GamutMappingResultTest, OutOfGamutColorResult) {
   EXPECT_LT(result.mapped_chroma, result.original_chroma);
   EXPECT_TRUE(result.is_valid());
   EXPECT_GT(result.chroma_reduction_percent(), 0.0f);
+}
+
+// ===== Issue #107: is_valid() was `delta_e >= 0`, and delta_e comes from a
+//     sqrt, so it was unconditionally true - callers could never detect a
+//     failed mapping. is_valid() must report whether the mapped color is
+//     actually in gamut (its documented contract). =====
+
+TEST(GamutMappingResultTest, IsValidFalseWhenMappedColorIsOutOfGamut) {
+  // A failed mapping leaves an out-of-gamut color in the result; is_valid()
+  // must report false regardless of delta_e (issue #107).
+  gamut_mapping_result<core::oklab_t> failed{core::oklab_t{0.5f, 0.4f, 0.0f},
+                                             /*delta_e=*/0.5f,
+                                             /*original_chroma=*/0.4f,
+                                             /*mapped_chroma=*/0.4f,
+                                             /*was_in_gamut=*/false};
+  EXPECT_FALSE(is_in_srgb_gamut(failed.mapped_color));  // premise: the color really is out of gamut
+  EXPECT_FALSE(failed.is_valid()) << "issue #107: out-of-gamut mapped color is a failed mapping";
+}
+
+TEST(GamutMappingResultTest, IsValidTrueWhenMappingSucceeds) {
+  // Successful mappings (original out of gamut, result inside) are valid -
+  // pinned so is_valid() cannot be inverted while fixing #107.
+  core::oklab_t out_of_gamut(0.5f, 0.4f, 0.0f);
+  auto result = gamut_clip_with_info(out_of_gamut, preserve_mode::perceptual);
+  EXPECT_TRUE(is_in_srgb_gamut(result.mapped_color));  // premise
+  EXPECT_TRUE(result.is_valid());
+
+  rgbf_t in_gamut(0.5f, 0.3f, 0.7f);
+  auto already = gamut_clip_with_info(in_gamut, preserve_mode::perceptual);
+  EXPECT_TRUE(already.is_valid());
 }
 
 // ============================================================================
