@@ -2,10 +2,12 @@
 
 All notable changes to `colorcpp` are documented here.
 
-## [Unreleased]
+## [1.0.7] - 2026-11-16
 
 Patch release of correctness fixes across conversion, interpolation,
-comparison, blending, palettes and random generation (issues #72–#97).
+comparison, blending, palettes, random generation, colour temperature,
+colour-vision simulation, harmony, gradients, gamut mapping, CSS parsing,
+ANSI output and JSON serialization (issues #72–#117).
 
 ### Fixed
 
@@ -38,17 +40,91 @@ comparison, blending, palettes and random generation (issues #72–#97).
   reproduces the same colours on libstdc++, libc++ and MSVC (#96);
   operate on the model's own hue channel — golden-angle and harmony no
   longer hardcode the HSL layout for OkLCH/CIELCH targets (#97).
+- **Colour temperature**: decode Helland's sRGB-encoded output to linear
+  so `kelvin_to_rgb` no longer applies gamma twice (1000 K now gives
+  `255,68,0`, matching the reference) and `rgb_to_kelvin_estimate` is
+  unbiased (#100); clamp out-of-table Ohno / Robertson inputs to the table
+  range and guard non-positive / non-finite CCTs instead of extrapolating
+  to garbage or inf/NaN (#101); estimate the Ohno locus normal with a
+  temperature-relative central difference and guard the parabolic fit
+  against uneven row spacing near the table end, fixing high-CCT
+  round-trips and Duv sign flips (#109); integrate `planck_uv` and store
+  `planckian_table` rows in double so Ohno results agree across x86,
+  ARM64, macOS and MSVC.
+- **Vision**: recover the Brettel tritanopia plane separator and wing
+  coefficients (coloraide `BRETTEL_TRITAN`); the second plane was
+  unreachable and grays were not preserved (#102).
+- **Harmony**: `detect_scheme`, `assess()` and `assess_weighted()` are
+  invariant under hue rotation — patterns are matched against every
+  cyclic rotation of the hue-difference vector (#103).
+- **Gradient**: `reverse()` walks stops backwards so hard (equal-position)
+  stops mirror and `reverse(g).sample(t) == g.sample(1 - t)` for all five
+  gradient types (#105); `cubic_bezier` overshoot / undershoot is no longer
+  clamped by the easing, the sampler or the interpolator (#106).
+- **Gamut**: `gamut_mapping_result::is_valid()` reports whether the mapped
+  colour is actually in sRGB gamut; it was unconditionally true (#107).
+- **CSS**:
+  - accept exponent numbers (`1e2`, `1.5E-3`), `none` as modern slash
+    alpha, and `calc()` in absolute colours with typed CSS calc()
+    arithmetic (#114; `min()` / `max()` / `clamp()` are not yet supported);
+  - stop clamping `lab()` a/b and `lch()` chroma at parse time — only L
+    keeps its spec-required `[0, 100]` clamp (#111);
+  - keep `color-mix()` items unclamped until the interpolation space, so
+    wide-gamut inputs such as `color(display-p3 …)` mix correctly (#110);
+  - add the seven `grey` spellings (`grey`, `dimgrey`, `slategrey`,
+    `darkgrey`, `darkslategrey`, `lightgrey`, `lightslategrey`) — 148
+    named colours (#112);
+  - limit `calc()` / parenthesized nesting to 64 levels in the
+    channel-expression parser, so deep nesting fails cleanly instead of
+    overflowing the 1 MB default stack in MSVC Debug builds.
+- **Serialization**: `from_json` / `from_json_compact` / `from_json_named`
+  return `nullopt` for NaN channels instead of throwing
+  `std::invalid_argument` (#117).
+- **Legacy CSS syntax (breaking fix)**: reject legacy comma `rgb()` /
+  `rgba()` that mixes `<percentage>` and `<number>` components or uses
+  `none`, and drop the comma form of `hwb()` (CSS Color 4 §7.1 / §4.1.2).
+  `rgb(10%,20,30)`, `rgb(none,0,0)` and `hwb(120,0%,0%)` no longer parse;
+  the modern space-separated forms are unaffected (#113).
+
+### Added
+
+- **ANSI**: `io::ansi::level` (`truecolor` / `ansi256` / `ansi16`, default
+  `truecolor`) with `quantize_ansi256` (xterm 6×6×6 cube + gray ramp) and
+  `quantize_ansi16`; the level is threaded through `fg` / `bg` and every
+  print writer (swatch, color, verbose, palette, gradient, contrast) (#116).
 
 ### Changed
 
+- **`core::io` renamed to `core::stream_io` (breaking)**: after
+  `using namespace colorcpp;`, `colorcpp::core::io` and `colorcpp::io`
+  made unqualified `io::` ambiguous. The stream-operator namespace is now
+  `colorcpp::core::stream_io`; `colorcpp::io` (CSS / ANSI / …) and the
+  `core/io.hpp` header name are unchanged (#115).
 - **Interpolate**: deduplicate multi-stop sampling and alpha-policy
   blend dispatch across overloads (#84, no behavior change).
+- **CSS**: move the channel-expression parser and evaluator into
+  `io/css/expression.hpp` (no behavior change); the `parse_css_color<Color>`
+  templates moved into `parse_public.hpp`, and `parse_templates.hpp` is
+  kept as an include shim.
+- **Docs**: document `tetradic` as a generation-only alias of
+  `double_complementary` (#104); describe `gamut_distance()` /
+  `is_near_gamut_boundary()` as a chroma deficit rather than ΔE_OK and fix
+  the CSS Color 4 section reference (§13.1) (#108).
 
 ### CI / Build
 
 - Use `if constexpr` for the constant engine-range check in
   `portable_unit` so the VS2022 job (`/WX`) passes with the portable
   random mapping.
+- Tests: run gtest discovery in `PRE_TEST` mode on every platform
+  (CMake ≥ 3.18), avoiding the parallel MSBuild race on the shared
+  discovery JSON; require CMake ≥ 3.14 for tests; fix the coverage option
+  name (`COLORCPP_ENABLE_COVERAGE`); `run_all_tests` passes `-C <config>`
+  for multi-config generators.
+- Compile-fail harness: forward platform, toolset, compiler, make program,
+  toolchain file and macOS sysroot to the nested configure, and configure
+  each case with `--fresh` (CMake ≥ 3.24) so a stale cache from a
+  different toolset no longer fails the test.
 
 ## [1.0.6] - 2026-11-01
 
