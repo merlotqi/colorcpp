@@ -179,10 +179,10 @@ class channel_expression_parser {
 
   std::shared_ptr<channel_expression> parse_unary() {
     // Every operand passes through here — including one per calc()/paren
-    // nesting level and one per +/- operator — so a single budget bounds both
-    // parser recursion depth and the AST depth the recursive evaluator walks.
-    // Without it, ~20000 nesting levels or a ~50000-term additive chain
-    // overflow the stack. 1024 is far above any real-world CSS expression.
+    // nesting level and one per +/- operator — so this budget bounds the AST
+    // depth the recursive evaluator walks (a ~50000-term additive chain would
+    // otherwise overflow the stack). calc()/paren nesting has its own, tighter
+    // limit in parse_group_body. 1024 is far above any real-world CSS expression.
     if (budget_-- <= 0) return nullptr;
     skip_ws();
     if (consume_char('+')) return parse_unary();
@@ -200,25 +200,11 @@ class channel_expression_parser {
 
     if (consume_ci("calc")) {
       if (!consume_char('(')) return nullptr;
-      const bool saved = channel_list_mode_;
-      channel_list_mode_ = false;  // calc() keeps lenient tight arithmetic (calc(h+180))
-      auto inner = parse_expression();
-      channel_list_mode_ = saved;
-      if (!inner) return nullptr;
-      if (!consume_char(')')) return nullptr;
-      return inner;
+      return parse_group_body();  // calc() keeps lenient tight arithmetic (calc(h+180))
     }
 
     pos_ = save;
-    if (consume_char('(')) {
-      const bool saved = channel_list_mode_;
-      channel_list_mode_ = false;
-      auto inner = parse_expression();
-      channel_list_mode_ = saved;
-      if (!inner) return nullptr;
-      if (!consume_char(')')) return nullptr;
-      return inner;
-    }
+    if (consume_char('(')) return parse_group_body();
 
     pos_ = save;
     if (consume_ci("none")) return make_literal_expr(0.0f, channel_expression::op::literal);
@@ -294,11 +280,31 @@ class channel_expression_parser {
     return nullptr;
   }
 
+  // Body of calc(...) or (...) after the opening parenthesis. Each nesting
+  // level costs ~5 recursive frames (unary -> primary -> additive ->
+  // multiplicative -> unary); the operand budget alone still allows ~1000
+  // levels, which overflows the 1 MB default stack under MSVC /Od /RTC1.
+  std::shared_ptr<channel_expression> parse_group_body() {
+    if (group_depth_ >= kMaxGroupDepth) return nullptr;
+    ++group_depth_;
+    const bool saved = channel_list_mode_;
+    channel_list_mode_ = false;
+    auto inner = parse_expression();
+    channel_list_mode_ = saved;
+    --group_depth_;
+    if (!inner) return nullptr;
+    if (!consume_char(')')) return nullptr;
+    return inner;
+  }
+
+  static constexpr int kMaxGroupDepth = 64;
+
   std::string_view text_;
   size_t pos_ = 0;
   bool channel_list_mode_ = false;
-  // Shared operand/nesting budget; see parse_unary.
+  // Shared operand budget; see parse_unary.
   int budget_ = 1024;
+  int group_depth_ = 0;
 };
 
 struct channel_binding {

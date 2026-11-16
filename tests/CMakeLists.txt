@@ -59,6 +59,12 @@ if(COLORCPP_BUILD_TESTS)
     # Forward the toolchain so the nested configure uses the same compiler and
     # generator as this build (e.g. Ninja/clang-cl on Windows, AppleClang).
     set(COMPILE_FAIL_GENERATOR_ARGS -G "${CMAKE_GENERATOR}")
+    # Each case reuses its binary dir across runs; a cache from an earlier
+    # configure with a different generator/platform/toolset makes the nested
+    # configure abort ("Does not match the toolset used previously").
+    if(NOT CMAKE_VERSION VERSION_LESS 3.24)
+        list(APPEND COMPILE_FAIL_GENERATOR_ARGS --fresh)
+    endif()
     if(CMAKE_GENERATOR_PLATFORM)
         list(APPEND COMPILE_FAIL_GENERATOR_ARGS -A "${CMAKE_GENERATOR_PLATFORM}")
     endif()
