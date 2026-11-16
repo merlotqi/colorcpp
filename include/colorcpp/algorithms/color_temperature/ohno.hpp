@@ -43,14 +43,25 @@ inline constexpr float OHNO_PARABOLIC_DUV_MIN = 0.002f;
  * @param table Planckian locus table (defaults to 1000–25000 K, spacing 1.005).
  * @return Correlated colour temperature (clamped to the table range) and signed Duv.
  */
-inline cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table) {
+inline cct_duv uv_to_cct_ohno(float u_in, float v_in, const planckian_table& table) {
+  // Evaluated in double against the table's double rows: at |Duv| ~ 0.05 the
+  // distances to neighbouring rows differ by only ~1e-8, at the level of
+  // float32 rounding, so a float evaluation returned FMA/libm-dependent
+  // results (parabola pinned at Duv 0.050512 on x86 vs 0.050146 on ARM64 for
+  // a true 0.05; triangular CCT 24665 instead of ~24996 at the table end).
+  const double u = u_in;
+  const double v = v_in;
+  const auto& T = table.t_;
+  const auto& U = table.u_;
+  const auto& V = table.v_;
+
   // Nearest table row by uv distance.
   std::size_t index = 0;
-  float min_dist2 = 3.0f;  // any real sample is far closer than this
+  double min_dist2 = 3.0;  // any real sample is far closer than this
   for (std::size_t i = 0; i < table.size(); ++i) {
-    const float du = u - table.u(i);
-    const float dv = v - table.v(i);
-    const float dist2 = du * du + dv * dv;
+    const double du = u - U[i];
+    const double dv = v - V[i];
+    const double dist2 = du * du + dv * dv;
     if (dist2 < min_dist2) {
       min_dist2 = dist2;
       index = i;
@@ -61,38 +72,38 @@ inline cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table) {
 
   const std::size_t i_prev = index - 1;
   const std::size_t i_next = index + 1;
-  const float t_prev = table.temperature(i_prev);
-  const float t = table.temperature(index);
-  const float t_next = table.temperature(i_next);
-  const float u_prev = table.u(i_prev);
-  const float v_prev = table.v(i_prev);
-  const float u_cur = table.u(index);
-  const float v_cur = table.v(index);
-  const float u_next = table.u(i_next);
-  const float v_next = table.v(i_next);
-  const float d_prev = std::hypot(u - u_prev, v - v_prev);
-  const float d_cur = std::hypot(u - u_cur, v - v_cur);
-  const float d_next = std::hypot(u - u_next, v - v_next);
+  const double t_prev = T[i_prev];
+  const double t = T[index];
+  const double t_next = T[i_next];
+  const double u_prev = U[i_prev];
+  const double v_prev = V[i_prev];
+  const double u_cur = U[index];
+  const double v_cur = V[index];
+  const double u_next = U[i_next];
+  const double v_next = V[i_next];
+  const double d_prev = std::hypot(u - u_prev, v - v_prev);
+  const double d_cur = std::hypot(u - u_cur, v - v_cur);
+  const double d_next = std::hypot(u - u_next, v - v_next);
 
   // Triangular interpolation (Ohno 2013, eq. 4–6).
-  const float l = std::hypot(u_next - u_prev, v_next - v_prev);
-  const float x = (d_prev * d_prev - d_next * d_next + l * l) / (2.0f * l);
-  const float t_tri = t_prev + (t_next - t_prev) * (x / l);
-  const float v_vertex = v_prev + (v_next - v_prev) * (x / l);
-  const float sign = (v < v_vertex) ? -1.0f : 1.0f;
-  const float d_uv_tri = std::sqrt(std::max(d_prev * d_prev - x * x, 0.0f)) * sign;
+  const double l = std::hypot(u_next - u_prev, v_next - v_prev);
+  const double x = (d_prev * d_prev - d_next * d_next + l * l) / (2.0 * l);
+  const double t_tri = t_prev + (t_next - t_prev) * (x / l);
+  const double v_vertex = v_prev + (v_next - v_prev) * (x / l);
+  const double sign = (v < v_vertex) ? -1.0 : 1.0;
+  const double d_uv_tri = std::sqrt(std::max(d_prev * d_prev - x * x, 0.0)) * sign;
 
   // Parabolic interpolation through the three table points
   // (Ohno 2014, eqs. 26-28; signs per colour-science).
-  const float X = (t_next - t) * (t_prev - t_next) * (t - t_prev);
-  const float a = (t_prev * (d_next - d_cur) + t * (d_prev - d_next) + t_next * (d_cur - d_prev)) / X;
-  const float b =
+  const double X = (t_next - t) * (t_prev - t_next) * (t - t_prev);
+  const double a = (t_prev * (d_next - d_cur) + t * (d_prev - d_next) + t_next * (d_cur - d_prev)) / X;
+  const double b =
       ((t_prev * t_prev) * (d_cur - d_next) + (t * t) * (d_next - d_prev) + (t_next * t_next) * (d_prev - d_cur)) / X;
-  const float c = -(d_prev * (t_next - t) * t * t_next + d_cur * (t_prev - t_next) * t_prev * t_next +
-                    d_next * (t - t_prev) * t_prev * t) /
-                  X;
-  const float t_par = -b / (2.0f * a);
-  const float d_uv_par = (a * t_par * t_par + b * t_par + c) * sign;
+  const double c = -(d_prev * (t_next - t) * t * t_next + d_cur * (t_prev - t_next) * t_prev * t_next +
+                     d_next * (t - t_prev) * t_prev * t) /
+                   X;
+  const double t_par = -b / (2.0 * a);
+  const double d_uv_par = (a * t_par * t_par + b * t_par + c) * sign;
 
   // Sanity guards for the parabola (issue #109). The fit divides by X built
   // from the row spacing, so on the near-duplicate appended end rows
@@ -103,21 +114,21 @@ inline cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table) {
   // neighbouring gap more than twice the other) and require the vertex to be
   // the projection onto the locus, i.e. between the bracketing rows; fall
   // back to the triangular interpolant otherwise.
-  const float gap_prev = t - t_prev;
-  const float gap_next = t_next - t;
-  const bool spacing_ok = !(gap_prev > 2.0f * gap_next) && !(gap_next > 2.0f * gap_prev);
+  const double gap_prev = t - t_prev;
+  const double gap_next = t_next - t;
+  const bool spacing_ok = !(gap_prev > 2.0 * gap_next) && !(gap_next > 2.0 * gap_prev);
   const bool vertex_ok = std::isfinite(t_par) && t_par >= t_prev && t_par <= t_next;
   const bool parabola_ok = spacing_ok && vertex_ok;
 
   // The interpolants extrapolate beyond the clamped index for samples
   // outside the table's uv range (issue #101: uv of 500 K returned 396 K,
   // uv of 1 MK returned 47513 K). Keep the result inside the table.
-  const float t_min = table.temperature(0);
-  const float t_max = table.temperature(table.size() - 1);
+  const double t_min = T.front();
+  const double t_max = T.back();
   if (std::abs(d_uv_tri) >= details::OHNO_PARABOLIC_DUV_MIN && parabola_ok) {
-    return {std::clamp(t_par, t_min, t_max), d_uv_par};
+    return {static_cast<float>(std::clamp(t_par, t_min, t_max)), static_cast<float>(d_uv_par)};
   }
-  return {std::clamp(t_tri, t_min, t_max), d_uv_tri};
+  return {static_cast<float>(std::clamp(t_tri, t_min, t_max)), static_cast<float>(d_uv_tri)};
 }
 
 /** @brief Estimate CCT and Duv using the default Planckian table. */
@@ -153,7 +164,8 @@ inline cct_duv xyz_to_cct_ohno(const core::xyz_t& xyz) {
  */
 inline std::pair<float, float> cct_to_uv_ohno(float cct, float duv) {
   if (!std::isfinite(cct) || cct <= 0.0f) cct = 1000.0f;  // issue #101
-  const auto uv0 = planck_uv(cct);
+  const double T = cct;
+  const auto uv0 = details::planck_uv_precise(T);
   // Temperature-relative central difference (issue #109). The previous
   // fixed 1 K forward step shrank to a ~5.2e-7 uv delta at 24000 K — below
   // the ~4e-8 float noise of planck_uv — so the normal was noise-dominated:
@@ -163,15 +175,16 @@ inline std::pair<float, float> cct_to_uv_ohno(float cct, float duv) {
   // ~2.6e-5 uv at 24000 K, and the central difference cancels the chord's
   // first-order bias. Matches the issue's relative-step fix; colour-science
   // equivalently uses a 0.01 K step in double precision.
-  const float step = cct * 0.005f;
-  const auto uv_lo = planck_uv(cct - step);
-  const auto uv_hi = planck_uv(cct + step);
-  const float du = uv_lo.first - uv_hi.first;
-  const float dv = uv_lo.second - uv_hi.second;
-  const float h = std::hypot(du, dv);
-  if (h == 0.0f) return uv0;
+  const double step = T * 0.005;
+  const auto uv_lo = details::planck_uv_precise(T - step);
+  const auto uv_hi = details::planck_uv_precise(T + step);
+  const double du = uv_lo.first - uv_hi.first;
+  const double dv = uv_lo.second - uv_hi.second;
+  const double h = std::hypot(du, dv);
+  if (h == 0.0) return {static_cast<float>(uv0.first), static_cast<float>(uv0.second)};
   // Normal pointing toward increasing v; Duv sign convention matches uv_to_cct.
-  return {uv0.first - duv * dv / h, uv0.second + duv * du / h};
+  const double D = duv;
+  return {static_cast<float>(uv0.first - D * dv / h), static_cast<float>(uv0.second + D * du / h)};
 }
 
 }  // namespace colorcpp::algorithms::color_temperature

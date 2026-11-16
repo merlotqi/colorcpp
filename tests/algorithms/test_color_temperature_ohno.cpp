@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/color_temperature/ohno.hpp>
 #include <colorcpp/algorithms/color_temperature/planckian.hpp>
@@ -242,34 +243,28 @@ TEST(OhnoTest, TableEndProbesPreserveDuvSign) {
   }
 }
 
-// (2b) Pin: the parabolic branch stays ACTIVE for non-degenerate mid-table
-// rows (pass-immediately pin of current Ohno 2014 behavior — the guards must
-// not disable the parabola everywhere). Row ~19792 has ~190 K spacing on both
-// sides; at Duv=+0.05 the parabola returns 0.050512 where the triangular
-// fallback alone would give ~0.05000 (5.1e-4 apart).
+// (2b) The parabolic branch stays ACTIVE for non-degenerate rows (the guards
+// must not disable it everywhere). On the default table the triangular and
+// parabolic results agree to ~1e-8 at Duv 0.05, so use a coarse table
+// (spacing 1.05, ~260 K gaps at the middle row) where the triangular
+// interpolant alone is 4.6e-5 off in Duv and the parabola recovers it to
+// ~3e-7.
 TEST(OhnoTest, ParabolicBranchActiveAtLargeDuvOnNormalRows) {
   using namespace ohno_test_detail;
-  const planckian_table table;
-  // Row nearest 19792 K (deterministic table build: geometric temperatures).
-  std::size_t row = 0;
-  float best = 1e9f;
-  for (std::size_t i = 1; i + 1 < table.size(); ++i) {
-    const float d = std::abs(table.temperature(i) - 19791.6f);
-    if (d < best) {
-      best = d;
-      row = i;
-    }
-  }
-  const float t = table.temperature(row);
-  EXPECT_NEAR(t, 19791.6f, 1.0f);
+  const planckian_table table(1000.0f, 25000.0f, 1.05f);
+  const std::size_t row = table.size() / 2;
+  const double t_prev = table.temperature(row - 1);
+  const double t = table.temperature(row);
+  const double t_next = table.temperature(row + 1);
+  ASSERT_LE(std::max(t - t_prev, t_next - t), 2.0 * std::min(t - t_prev, t_next - t)) << "row must be well spaced";
   const auto uv_ref = PlanckUvReference(t);
   const auto n = LocusNormalReference(t);
   const float u = static_cast<float>(uv_ref.first - 0.05 * n.second);
   const float v = static_cast<float>(uv_ref.second + 0.05 * n.first);
-  const cct_duv r = uv_to_cct_ohno(u, v);
-  EXPECT_NEAR(r.duv, 0.0505120f, 1e-4f)
-      << "issue #109: parabola must remain the active branch when rows are well spaced";
-  EXPECT_NEAR(r.cct, 19805.6f, 5.0f);
+  const cct_duv r = uv_to_cct_ohno(u, v, table);
+  EXPECT_NEAR(r.duv, 0.05, 5e-6) << "issue #109: parabola must remain the active branch when rows are well spaced"
+                                 << " (triangular alone is ~4.6e-5 off)";
+  EXPECT_NEAR(r.cct, t, 20.0);
 }
 
 }  // namespace colorcpp::algorithms::test

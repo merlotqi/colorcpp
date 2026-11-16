@@ -86,8 +86,36 @@ inline constexpr cmf_sample CMF_1931_2DEG[] = {
 
 // Planck's law spectral radiance (CIE 15:2004 constants, n = 1);
 // absolute scale cancels in chromaticity so only the shape matters.
-inline constexpr float PLANCK_C1 = 3.741771e-16f;
-inline constexpr float PLANCK_C2 = 1.4388e-2f;
+inline constexpr double PLANCK_C1 = 3.741771e-16;
+inline constexpr double PLANCK_C2 = 1.4388e-2;
+
+// Integrated in double: a float32 integration carries ~4e-8 uv noise that
+// varies with FMA contraction and libm, which is the same order as the
+// sub-step curvature signal Ohno's parabolic fit and the forward normal
+// depend on at high CCT (issue #109 follow-up: ARM64/macOS/MSVC results
+// diverged from x86 by >300 K at the table end).
+inline std::pair<double, double> planck_uv_precise(double cct) {
+  constexpr std::size_t n = sizeof(CMF_1931_2DEG) / sizeof(CMF_1931_2DEG[0]);
+
+  double s_prev = 0.0;
+  double lambda_prev = 0.0;
+  double X = 0.0, Y = 0.0, Z = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    const double lambda = static_cast<double>(CMF_1931_2DEG[i].nm) * 1e-9;
+    const double s = PLANCK_C1 * std::pow(lambda, -5.0) / std::expm1(PLANCK_C2 / (lambda * cct));
+    if (i > 0) {
+      const double dl = lambda - lambda_prev;
+      X += 0.5 * (s * CMF_1931_2DEG[i].x_bar + s_prev * CMF_1931_2DEG[i - 1].x_bar) * dl;
+      Y += 0.5 * (s * CMF_1931_2DEG[i].y_bar + s_prev * CMF_1931_2DEG[i - 1].y_bar) * dl;
+      Z += 0.5 * (s * CMF_1931_2DEG[i].z_bar + s_prev * CMF_1931_2DEG[i - 1].z_bar) * dl;
+    }
+    s_prev = s;
+    lambda_prev = lambda;
+  }
+  const double d = X + 15.0 * Y + 3.0 * Z;
+  if (!(d > 0.0)) return {0.0, 0.0};
+  return {4.0 * X / d, 6.0 * Y / d};
+}
 
 }  // namespace details
 
@@ -102,26 +130,8 @@ inline constexpr float PLANCK_C2 = 1.4388e-2f;
  * @return CIE 1960 UCS uv chromaticity of the blackbody at @p cct.
  */
 inline std::pair<float, float> planck_uv(float cct) {
-  using namespace details;
-
-  constexpr std::size_t n = sizeof(CMF_1931_2DEG) / sizeof(CMF_1931_2DEG[0]);
-
-  float s_prev = 0.0f;
-  float lambda_prev = 0.0f;
-  float X = 0.0f, Y = 0.0f, Z = 0.0f;
-  for (std::size_t i = 0; i < n; ++i) {
-    const float lambda = CMF_1931_2DEG[i].nm * 1e-9f;
-    const float s = PLANCK_C1 * std::pow(lambda, -5.0f) / std::expm1(PLANCK_C2 / (lambda * cct));
-    if (i > 0) {
-      const float dl = lambda - lambda_prev;
-      X += 0.5f * (s * CMF_1931_2DEG[i].x_bar + s_prev * CMF_1931_2DEG[i - 1].x_bar) * dl;
-      Y += 0.5f * (s * CMF_1931_2DEG[i].y_bar + s_prev * CMF_1931_2DEG[i - 1].y_bar) * dl;
-      Z += 0.5f * (s * CMF_1931_2DEG[i].z_bar + s_prev * CMF_1931_2DEG[i - 1].z_bar) * dl;
-    }
-    s_prev = s;
-    lambda_prev = lambda;
-  }
-  return xyz_to_uv1960(core::xyz_t{X, Y, Z});
+  const auto uv = details::planck_uv_precise(cct);
+  return {static_cast<float>(uv.first), static_cast<float>(uv.second)};
 }
 
 /**
@@ -132,6 +142,8 @@ inline std::pair<float, float> planck_uv(float cct) {
  * linearly from @p spacing toward 1 + (spacing - 1) / 10 at high CCT, so
  * density increases where the locus curves most. Rows @c end - 1 and
  * @c end are always appended.
+ *
+ * Rows are stored in double precision; the accessors round to float.
  */
 class planckian_table {
  public:
@@ -146,38 +158,46 @@ class planckian_table {
     u_.reserve(1024);
     v_.reserve(1024);
 
-    auto push = [this](float t) {
-      const auto uv = planck_uv(t);
+    auto push = [this](double t) {
+      const auto uv = details::planck_uv_precise(t);
       t_.push_back(t);
       u_.push_back(uv.first);
       v_.push_back(uv.second);
     };
 
-    push(start);
-    push(start + 1.0f);
+    const double t_start = start;
+    const double t_end = end;
+    const double k = spacing;
 
-    float next_t = start + 1.0f;
-    float next_spacing = spacing;
+    push(t_start);
+    push(t_start + 1.0);
+
+    double next_t = t_start + 1.0;
+    double next_spacing = k;
     while (true) {
       next_t *= next_spacing;
-      if (next_t >= end) break;
+      if (next_t >= t_end) break;
       push(next_t);
       // Slightly decrease step-size for higher CCT (Ohno 2014).
-      float D = (next_t - 1000.0f) / 99000.0f;
-      D = D < 0.0f ? 0.0f : (D > 1.0f ? 1.0f : D);
-      next_spacing = spacing * (1.0f - D) + (1.0f + (spacing - 1.0f) / 10.0f) * D;
+      double D = (next_t - 1000.0) / 99000.0;
+      D = D < 0.0 ? 0.0 : (D > 1.0 ? 1.0 : D);
+      next_spacing = k * (1.0 - D) + (1.0 + (k - 1.0) / 10.0) * D;
     }
-    push(end - 1.0f);
-    push(end);
+    push(t_end - 1.0);
+    push(t_end);
   }
 
   std::size_t size() const { return t_.size(); }
-  float temperature(std::size_t i) const { return t_[i]; }
-  float u(std::size_t i) const { return u_[i]; }
-  float v(std::size_t i) const { return v_[i]; }
+  float temperature(std::size_t i) const { return static_cast<float>(t_[i]); }
+  float u(std::size_t i) const { return static_cast<float>(u_[i]); }
+  float v(std::size_t i) const { return static_cast<float>(v_[i]); }
 
  private:
-  std::vector<float> t_, u_, v_;
+  // Ohno's parabolic fit resolves ~1e-8 uv curvature differences between
+  // neighbouring rows; float-rounded rows (~7e-9 ulp) would swamp it.
+  friend cct_duv uv_to_cct_ohno(float u, float v, const planckian_table& table);
+
+  std::vector<double> t_, u_, v_;
 };
 
 }  // namespace colorcpp::algorithms::color_temperature
