@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/io/serialization/traits.hpp>
@@ -82,6 +83,21 @@ Color apply_channels_impl(const double* vals, std::index_sequence<Is...>) {
 template <typename Color>
 Color apply_channels(const double* vals) {
   return apply_channels_impl<Color>(vals, std::make_index_sequence<Color::channels>{});
+}
+
+/**
+ * @brief Whether any channel value is NaN (issue #117).
+ *
+ * Optional-returning deserializers use this to report NaN as std::nullopt
+ * instead of letting from_double's throw escape their optional contract.
+ * Inf is intentionally not rejected here (float channels propagate Inf).
+ */
+template <std::size_t N>
+inline bool any_nan(const std::array<double, N>& vals) {
+  for (double v : vals) {
+    if (std::isnan(v)) return true;
+  }
+  return false;
 }
 
 /**

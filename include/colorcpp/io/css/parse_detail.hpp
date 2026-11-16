@@ -6,6 +6,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <colorcpp/core/adobe_rgb.hpp>
@@ -74,6 +75,14 @@ enum class color_mix_space {
   prophoto_rgb_linear,
 };
 
+// Item parsed straight into the interpolation space (issue #110): the typed
+// parse keeps wide-gamut inputs unclamped on the way in. Declared here,
+// defined in parse_public.hpp next to parse_css_color<Color> — that template
+// lives above this header in the include graph. Returns [r, g, b, a] with the
+// channels already in @p space.
+std::optional<std::array<float, 4>> parse_color_mix_item_space(std::string_view str, color_mix_space space,
+                                                               const parse_css_color_context& context);
+
 struct color_mix_interpolation_method {
   color_mix_space space;
   color_mix_hue_method hue_method = color_mix_hue_method::shorter;
@@ -96,7 +105,10 @@ struct color_mix_progress_header {
 };
 
 struct resolved_color_mix_item {
-  core::rgbaf_t color;
+  // [r, g, b, a] already in resolved_color_mix::method.space — not sRGB.
+  // Keeping items in the interpolation space is what stops a wide-gamut
+  // input from being gamut-clamped to sRGB before the mix (issue #110).
+  std::array<float, 4> color{};
   float weight = 0.0f;
 };
 
@@ -377,15 +389,20 @@ inline void adjust_hues_for_interpolation(float& first, float& second, color_mix
   }
 }
 
+// Item values arrive as [r, g, b, a] already living in Color3's space
+// (issue #110): construct the typed values directly — a color_cast from sRGB
+// here is exactly the gamut clamp this pipeline must avoid — and return the
+// mixed channels unclamped so multi-item chains keep out-of-gamut values
+// until the final output conversion.
 template <typename Color3>
-inline core::rgbaf_t mix_in_rectangular_space(const core::rgbaf_t& a, const core::rgbaf_t& b,
-                                              const color_mix_weights& weights) {
-  const float alpha_a = std::clamp(a.a(), 0.0f, 1.0f);
-  const float alpha_b = std::clamp(b.a(), 0.0f, 1.0f);
+inline std::array<float, 4> mix_in_rectangular_space(const std::array<float, 4>& a, const std::array<float, 4>& b,
+                                                     const color_mix_weights& weights) {
+  const float alpha_a = std::clamp(a[3], 0.0f, 1.0f);
+  const float alpha_b = std::clamp(b[3], 0.0f, 1.0f);
   const float mixed_alpha = alpha_a * weights.first + alpha_b * weights.second;
 
-  auto ca = operations::conversion::color_cast<Color3>(a);
-  auto cb = operations::conversion::color_cast<Color3>(b);
+  const Color3 ca{a[0], a[1], a[2]};
+  const Color3 cb{b[0], b[1], b[2]};
 
   float c0 =
       ca.template get_index<0>() * alpha_a * weights.first + cb.template get_index<0>() * alpha_b * weights.second;
@@ -400,20 +417,18 @@ inline core::rgbaf_t mix_in_rectangular_space(const core::rgbaf_t& a, const core
     c2 /= mixed_alpha;
   }
 
-  auto out = operations::conversion::color_cast<core::rgbaf_t>(Color3{c0, c1, c2});
-  out.a() = std::clamp(mixed_alpha * weights.alpha_multiplier, 0.0f, 1.0f);
-  return out;
+  return {c0, c1, c2, std::clamp(mixed_alpha * weights.alpha_multiplier, 0.0f, 1.0f)};
 }
 
 template <typename Color3>
-inline core::rgbaf_t mix_in_polar_space(const core::rgbaf_t& a, const core::rgbaf_t& b,
-                                        const color_mix_weights& weights, color_mix_hue_method hue_method) {
-  const float alpha_a = std::clamp(a.a(), 0.0f, 1.0f);
-  const float alpha_b = std::clamp(b.a(), 0.0f, 1.0f);
+inline std::array<float, 4> mix_in_polar_space(const std::array<float, 4>& a, const std::array<float, 4>& b,
+                                               const color_mix_weights& weights, color_mix_hue_method hue_method) {
+  const float alpha_a = std::clamp(a[3], 0.0f, 1.0f);
+  const float alpha_b = std::clamp(b[3], 0.0f, 1.0f);
   const float mixed_alpha = alpha_a * weights.first + alpha_b * weights.second;
 
-  auto ca = operations::conversion::color_cast<Color3>(a);
-  auto cb = operations::conversion::color_cast<Color3>(b);
+  const Color3 ca{a[0], a[1], a[2]};
+  const Color3 cb{b[0], b[1], b[2]};
 
   float hue_a = ca.template get_index<2>();
   float hue_b = cb.template get_index<2>();
@@ -433,14 +448,13 @@ inline core::rgbaf_t mix_in_polar_space(const core::rgbaf_t& a, const core::rgba
     c1 /= mixed_alpha;
   }
 
-  auto out = operations::conversion::color_cast<core::rgbaf_t>(
-      Color3{c0, c1, normalize_hue_degrees(hue_a * weights.first + hue_b * weights.second)});
-  out.a() = std::clamp(mixed_alpha * weights.alpha_multiplier, 0.0f, 1.0f);
-  return out;
+  return {c0, c1, normalize_hue_degrees(hue_a * weights.first + hue_b * weights.second),
+          std::clamp(mixed_alpha * weights.alpha_multiplier, 0.0f, 1.0f)};
 }
 
-inline core::rgbaf_t mix_colors_in_space(const color_mix_interpolation_method& method, const core::rgbaf_t& a,
-                                         const core::rgbaf_t& b, const color_mix_weights& weights) {
+inline std::array<float, 4> mix_colors_in_space(const color_mix_interpolation_method& method,
+                                                const std::array<float, 4>& a, const std::array<float, 4>& b,
+                                                const color_mix_weights& weights) {
   switch (method.space) {
     case color_mix_space::srgb:
       return mix_in_rectangular_space<core::rgbf_t>(a, b, weights);
@@ -473,6 +487,60 @@ inline core::rgbaf_t mix_colors_in_space(const color_mix_interpolation_method& m
   return mix_in_rectangular_space<core::rgbf_t>(a, b, weights);
 }
 
+/**
+ * @brief Mixed-space [r, g, b, a] to the pipeline's sRGB float output.
+ *
+ * This is the single gamut-clamp boundary of color-mix() (issue #110): the
+ * mixed value may legitimately sit outside sRGB — conversion clamps it here
+ * and nowhere earlier.
+ */
+inline core::rgbaf_t color_mix_space_to_rgbaf(const std::array<float, 4>& v, color_mix_space space) {
+  core::rgbaf_t out{};
+  switch (space) {
+    case color_mix_space::srgb:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::rgbf_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::srgb_linear:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::linear_rgbf_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::lab:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::cielab_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::lch:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::cielch_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::oklab:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::oklab_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::oklch:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::oklch_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::xyz:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::xyz_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::display_p3:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::display_p3f_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::display_p3_linear:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::linear_display_p3f_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::a98_rgb:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::adobe_rgbf_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::a98_rgb_linear:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::linear_adobe_rgbf_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::prophoto_rgb:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::prophoto_rgbf_t{v[0], v[1], v[2]});
+      break;
+    case color_mix_space::prophoto_rgb_linear:
+      out = operations::conversion::color_cast<core::rgbaf_t>(core::linear_prophoto_rgbf_t{v[0], v[1], v[2]});
+      break;
+  }
+  out.a() = std::clamp(v[3], 0.0f, 1.0f);
+  return out;
+}
+
 inline std::optional<resolved_color_mix> resolve_color_mix_items(const parsed_color_mix& parsed,
                                                                  const parse_css_color_context& context) {
   if (parsed.items.empty()) return std::nullopt;
@@ -498,7 +566,8 @@ inline std::optional<resolved_color_mix> resolve_color_mix_items(const parsed_co
 
   float total = 0.0f;
   for (const auto& item : parsed.items) {
-    auto color = parse_color_mix_item_rgbaf(item.color, context);
+    // Typed into the mix space — no sRGB detour (issue #110).
+    auto color = parse_color_mix_item_space(item.color, resolved.method.space, context);
     if (!color) return std::nullopt;
     const float weight = item.weight ? std::clamp(*item.weight, 0.0f, 1.0f) : fill_weight;
     resolved.items.push_back(resolved_color_mix_item{*color, weight});
@@ -517,11 +586,11 @@ inline std::optional<resolved_color_mix> resolve_color_mix_items(const parsed_co
 inline core::rgbaf_t evaluate_color_mix(const resolved_color_mix& resolved) {
   if (resolved.items.size() == 1) {
     auto out = resolved.items.front().color;
-    out.a() = std::clamp(out.a() * resolved.alpha_multiplier, 0.0f, 1.0f);
-    return out;
+    out[3] = std::clamp(out[3] * resolved.alpha_multiplier, 0.0f, 1.0f);
+    return color_mix_space_to_rgbaf(out, resolved.method.space);
   }
 
-  core::rgbaf_t mixed = resolved.items.front().color;
+  std::array<float, 4> mixed = resolved.items.front().color;
   float accumulated_weight = resolved.items.front().weight;
   for (size_t index = 1; index < resolved.items.size(); ++index) {
     const float combined = accumulated_weight + resolved.items[index].weight;
@@ -533,8 +602,8 @@ inline core::rgbaf_t evaluate_color_mix(const resolved_color_mix& resolved) {
     accumulated_weight = combined;
   }
 
-  mixed.a() = std::clamp(mixed.a() * resolved.alpha_multiplier, 0.0f, 1.0f);
-  return mixed;
+  mixed[3] = std::clamp(mixed[3] * resolved.alpha_multiplier, 0.0f, 1.0f);
+  return color_mix_space_to_rgbaf(mixed, resolved.method.space);
 }
 
 inline std::optional<core::rgbaf_t> parse_color_mix_rgbaf(details::Cursor& c, const parse_css_color_context& context) {

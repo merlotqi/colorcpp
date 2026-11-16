@@ -44,6 +44,20 @@ inline uint8_t hex_expand(char c) {
   return static_cast<uint8_t>((static_cast<unsigned>(v) << 4) | static_cast<unsigned>(v));
 }
 
+struct Cursor;
+
+// calc() bridge (issue #114): a component/alpha/hue value produced by a
+// calc() expression, with its CSS type so callers can apply the right
+// percentage scale. Defined in expression.hpp, which this header includes at
+// its bottom — both include orders resolve via pragma once, and the in-class
+// Cursor methods below need only this declaration.
+struct math_value {
+  double value = 0.0;
+  bool is_percent = false;
+};
+
+inline std::optional<math_value> try_parse_math_value(Cursor& c);
+
 struct Cursor {
   std::string_view s;
   size_t i = 0;
@@ -95,6 +109,17 @@ struct Cursor {
       }
     }
     if (!has_digit) return std::nullopt;
+    // CSS Syntax §4.1.1: numbers may carry a signed exponent (1e2, 1.5E-3).
+    // When the exponent is incomplete ("1e", "1e+"), leave i before the 'e'
+    // so the caller sees the stray characters and fails the parse (issue #114).
+    if (i < s.size() && (s[i] == 'e' || s[i] == 'E')) {
+      size_t j = i + 1;
+      if (j < s.size() && (s[j] == '+' || s[j] == '-')) ++j;
+      if (j < s.size() && std::isdigit(static_cast<unsigned char>(s[j]))) {
+        while (j < s.size() && std::isdigit(static_cast<unsigned char>(s[j]))) ++j;
+        i = j;
+      }
+    }
     std::string buf(s.substr(start, i - start));
     char* end = nullptr;
     double v = std::strtod(buf.c_str(), &end);
@@ -103,8 +128,11 @@ struct Cursor {
     return v;
   }
 
-  /** Parse rgb/hsl component: number [optional %] */
+  /** Parse rgb/hsl component: number [optional %], or calc() (CSS Color 4 §11.1, issue #114). */
   std::optional<std::pair<double, bool>> parse_component_value() {
+    if (auto mv = try_parse_math_value(*this)) {
+      return std::pair<double, bool>{mv->value, mv->is_percent};
+    }
     auto num = parse_number();
     if (!num) return std::nullopt;
     skip_ws();
@@ -126,6 +154,16 @@ struct Cursor {
       return v / 100.0;
     }
     return v;
+  }
+
+  /**
+   * Modern-syntax alpha after '/': a none component behaves as 0
+   * (CSS Color 4 §4.4, issue #114). Legacy comma alpha and color-mix
+   * progress keep the strict parse_alpha_value.
+   */
+  std::optional<double> parse_alpha_value_modern() {
+    if (try_consume_none()) return 0.0;
+    return parse_alpha_value();
   }
 
   int channel_from_component(const std::pair<double, bool>& cv) {
@@ -170,6 +208,16 @@ struct Cursor {
   }
 
   std::optional<double> parse_hue_angle() {
+    // calc() in hue position (CSS Color 4 §11.1, issue #114): the result must
+    // be a plain number/angle — a percent-typed result is a type error here.
+    // Angle units inside the calc() were already resolved to degrees by the
+    // channel-expression parser.
+    if (auto mv = try_parse_math_value(*this)) {
+      if (mv->is_percent) return std::nullopt;
+      double deg = std::fmod(mv->value, 360.0);
+      if (deg < 0.0) deg += 360.0;
+      return deg;
+    }
     auto num = parse_number();
     if (!num) return std::nullopt;
     skip_ws();
@@ -283,3 +331,8 @@ struct css_nesting_guard {
 inline bool css_nesting_exceeded() { return css_nesting_depth() > kMaxCssNestingDepth; }
 
 }  // namespace colorcpp::io::css::details
+
+// The calc() bridge definition lives in expression.hpp, which includes this
+// header at its top; including it here (after Cursor is complete) closes the
+// loop for both include orders under pragma once — issue #114.
+#include <colorcpp/io/css/expression.hpp>

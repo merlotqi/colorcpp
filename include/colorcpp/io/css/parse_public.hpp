@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <colorcpp/algorithms/accessibility/wcag.hpp>
+#include <colorcpp/io/css/display_p3.hpp>
 #include <colorcpp/io/css/parse_detail.hpp>
 #include <colorcpp/io/css/relative_color.hpp>
 #include <optional>
@@ -177,5 +178,234 @@ inline std::optional<core::rgba8_t> parse_css_color_light_dark_rgba8(std::string
   context.dark_theme = dark_theme;
   return parse_css_color_light_dark_rgba8(str, context);
 }
+
+// ===== parse_css_color<Color> template API =====
+// Lives here (was parse_templates.hpp) so parse_color_mix_item_space below
+// can see it: color-mix() resolves its items into the interpolation space
+// (issue #110), and this header is where that helper must be defined for
+// every translation unit that reaches resolve_color_mix_items.
+
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str);
+
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str, const parse_css_color_context& context);
+
+namespace parse_templates_detail {
+
+template <typename Color>
+inline std::optional<Color> parse_exact_css_color(std::string_view) {
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<core::cielab_t> parse_exact_css_color<core::cielab_t>(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  details::Cursor c{str, 0};
+  if (auto r = parse_lab_function(c)) return r;
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<core::cielch_t> parse_exact_css_color<core::cielch_t>(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  details::Cursor c{str, 0};
+  if (auto r = parse_lch_function(c)) return r;
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<core::oklab_t> parse_exact_css_color<core::oklab_t>(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  details::Cursor c{str, 0};
+  if (auto r = parse_oklab_function(c)) return r;
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<core::oklch_t> parse_exact_css_color<core::oklch_t>(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  details::Cursor c{str, 0};
+  if (auto r = parse_oklch_function(c)) return r;
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<core::display_p3f_t> parse_exact_css_color<core::display_p3f_t>(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  details::Cursor c{str, 0};
+  if (auto r = parse_display_p3_function(c)) return r;
+  return std::nullopt;
+}
+
+template <typename Color>
+inline std::optional<Color> parse_css_color_impl(std::string_view str) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  if (auto exact = parse_exact_css_color<Color>(str)) return exact;
+  details::Cursor c{str, 0};
+  if (auto typed = parse_color_function_as<Color>(c)) return typed;
+  if (auto ast = relative_css_detail::parse_relative_css_color(str)) {
+    auto evaluated = evaluate<Color>(parsed_css_color{std::move(*ast)}, parse_css_color_context{});
+    if (evaluated) return evaluated;
+  }
+  auto parsed = parse_css_color_rgbaf(str);
+  if (!parsed) return std::nullopt;
+  return operations::conversion::color_cast<Color>(*parsed);
+}
+
+template <typename Color>
+inline std::optional<Color> parse_css_color_impl(std::string_view str, const parse_css_color_context& context) {
+  details::trim(str);
+  if (str.empty()) return std::nullopt;
+  if (auto exact = parse_exact_css_color<Color>(str)) return exact;
+  details::Cursor c{str, 0};
+  if (auto typed = parse_color_function_as<Color>(c)) return typed;
+  if (auto ast = relative_css_detail::parse_relative_css_color(str)) {
+    auto evaluated = evaluate<Color>(parsed_css_color{std::move(*ast)}, context);
+    if (evaluated) return evaluated;
+  }
+  auto parsed = parse_css_color_rgbaf(str, context);
+  if (!parsed) return std::nullopt;
+  return operations::conversion::color_cast<Color>(*parsed);
+}
+
+}  // namespace parse_templates_detail
+
+template <>
+inline std::optional<core::rgbaf_t> parse_css_color<core::rgbaf_t>(std::string_view str) {
+  return parse_css_color_rgbaf(str);
+}
+
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str) {
+  return parse_templates_detail::parse_css_color_impl<Color>(str);
+}
+
+template <>
+inline std::optional<core::rgbaf_t> parse_css_color<core::rgbaf_t>(std::string_view str,
+                                                                   const parse_css_color_context& context) {
+  return parse_css_color_rgbaf(str, context);
+}
+
+template <typename Color>
+inline std::optional<Color> parse_css_color(std::string_view str, const parse_css_color_context& context) {
+  return parse_templates_detail::parse_css_color_impl<Color>(str, context);
+}
+
+namespace css_parse_detail {
+
+/**
+ * @brief Parse a color-mix() item straight into @p space (issue #110).
+ *
+ * Two passes over the same string: the typed parse carries the channels into
+ * the interpolation space without an intermediate sRGB gamut clamp (wide-gamut
+ * inputs like display-p3 green keep R<0/G>1 on the way in), and the rgbaf pass
+ * supplies alpha — its gamut clamp never touches alpha — and rejects
+ * light-dark()/contrast-color() (CSS Color 5), which the typed parse would
+ * otherwise resolve. Returns [r, g, b, a] in @p space.
+ */
+inline std::optional<std::array<float, 4>> parse_color_mix_item_space(std::string_view str, color_mix_space space,
+                                                                      const parse_css_color_context& context) {
+  auto full = parse_color_mix_item_rgbaf(str, context);
+  if (!full) return std::nullopt;
+
+  std::array<float, 4> out{};
+  const auto assign = [&](const auto& c) {
+    out[0] = c.template get_index<0>();
+    out[1] = c.template get_index<1>();
+    out[2] = c.template get_index<2>();
+    out[3] = full->a();
+  };
+
+  switch (space) {
+    case color_mix_space::srgb: {
+      auto c = parse_css_color<core::rgbf_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::srgb_linear: {
+      auto c = parse_css_color<core::linear_rgbf_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::lab: {
+      auto c = parse_css_color<core::cielab_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::lch: {
+      auto c = parse_css_color<core::cielch_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::oklab: {
+      auto c = parse_css_color<core::oklab_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::oklch: {
+      auto c = parse_css_color<core::oklch_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::xyz: {
+      auto c = parse_css_color<core::xyz_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::display_p3: {
+      auto c = parse_css_color<core::display_p3f_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::display_p3_linear: {
+      auto c = parse_css_color<core::linear_display_p3f_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::a98_rgb: {
+      auto c = parse_css_color<core::adobe_rgbf_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::a98_rgb_linear: {
+      auto c = parse_css_color<core::linear_adobe_rgbf_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::prophoto_rgb: {
+      auto c = parse_css_color<core::prophoto_rgbf_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+    case color_mix_space::prophoto_rgb_linear: {
+      auto c = parse_css_color<core::linear_prophoto_rgbf_t>(str, context);
+      if (!c) return std::nullopt;
+      assign(*c);
+      break;
+    }
+  }
+  return out;
+}
+
+}  // namespace css_parse_detail
 
 }  // namespace colorcpp::io::css

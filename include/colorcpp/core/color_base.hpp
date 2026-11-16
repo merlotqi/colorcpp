@@ -523,7 +523,7 @@ struct hash<colorcpp::core::basic_color<Model>> {
 
 /**
  * @brief Declares stream insertion/extraction for a family class, forwarding to the
- * format-agnostic operators on the @c basic_color base (see @ref colorcpp::io).
+ * format-agnostic operators on the @c basic_color base (see @ref colorcpp::core::stream_io).
  *
  * Invoke once per family at namespace scope inside @c colorcpp::core (the header
  * must already include @c colorcpp/core/io.hpp):
@@ -533,12 +533,12 @@ struct hash<colorcpp::core::basic_color<Model>> {
  *
  * @param Family Family class template, fully qualified (e.g. @c colorcpp::core::basic_rgba).
  */
-#define COLORCPP_STREAM_OPERATORS(Family)                                                                     \
-  template <typename Model>                                                                                   \
-  std::ostream& operator<<(std::ostream& os, const Family<Model>& c) {                                        \
-    return ::colorcpp::core::io::operator<<(os, static_cast<const ::colorcpp::core::basic_color<Model>&>(c)); \
-  }                                                                                                           \
-  template <typename Model>                                                                                   \
-  std::istream& operator>>(std::istream& is, Family<Model>& c) {                                              \
-    return ::colorcpp::core::io::operator>>(is, static_cast<::colorcpp::core::basic_color<Model>&>(c));       \
+#define COLORCPP_STREAM_OPERATORS(Family)                                                                            \
+  template <typename Model>                                                                                          \
+  std::ostream& operator<<(std::ostream& os, const Family<Model>& c) {                                               \
+    return ::colorcpp::core::stream_io::operator<<(os, static_cast<const ::colorcpp::core::basic_color<Model>&>(c)); \
+  }                                                                                                                  \
+  template <typename Model>                                                                                          \
+  std::istream& operator>>(std::istream& is, Family<Model>& c) {                                                     \
+    return ::colorcpp::core::stream_io::operator>>(is, static_cast<::colorcpp::core::basic_color<Model>&>(c));       \
   }

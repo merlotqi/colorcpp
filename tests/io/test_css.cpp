@@ -347,6 +347,177 @@ TEST(Css, LChInvalid) {
   EXPECT_FALSE(parse_css_color<cielch_t>("lch(50, 30, 180)").has_value());
 }
 
+// ===== Issue #111: parse-time clamps must match CSS Color 4 §9.3/§9.4. =====
+// lab a/b are signed and theoretically unbounded (no ±125 clamp); lch C is
+// clamped to >= 0 only (no 150 upper bound). L keeps its spec-required
+// parsed-value clamp to [0,100]. Expected values are the D50→D65 adapted
+// channels computed independently (double precision) — tolerance 0.5 absorbs
+// the float32 pipeline.
+
+TEST(Css, LabOutOfRangeABIsNotClamped) {
+  // number syntax: a=200, b=-150 must survive (previously clamped to ±125)
+  auto wide = parse_css_color<cielab_t>("lab(50 200 -150)");
+  ASSERT_TRUE(wide.has_value());
+  EXPECT_NEAR(wide->l(), 51.948f, 0.5f);
+  EXPECT_NEAR(wide->a(), 207.669f, 0.5f) << "issue #111: a=200 must not be clamped to 125";
+  EXPECT_NEAR(wide->b(), -147.582f, 0.5f) << "issue #111: b=-150 must not be clamped to -125";
+
+  // percent syntax: 150% = 187.5 (100% is 125) — must not clamp at 100%
+  auto pct = parse_css_color<cielab_t>("lab(50 150% -150%)");
+  ASSERT_TRUE(pct.has_value());
+  EXPECT_NEAR(pct->a(), 196.830f, 0.5f) << "issue #111: 150% must not pre-clamp to 100%";
+  EXPECT_NEAR(pct->b(), -181.090f, 0.5f);
+
+  // in-range control: values inside ±125 are unchanged by removing the clamp
+  auto tight = parse_css_color<cielab_t>("lab(50 125 -125)");
+  ASSERT_TRUE(tight.has_value());
+  EXPECT_NEAR(tight->a(), 133.995f, 0.5f);
+  EXPECT_NEAR(tight->b(), -122.473f, 0.5f);
+
+  // L IS clamped to [0,100] at parsed-value time (CSS Color 4 §9.3) — keep.
+  auto l = parse_css_color<cielab_t>("lab(150 0 0)");
+  ASSERT_TRUE(l.has_value());
+  EXPECT_NEAR(l->l(), 100.0f, 0.5f) << "spec requires the L clamp to [0,100]";
+}
+
+TEST(Css, LChOutOfRangeCIsNotClampedAbove) {
+  // number syntax: C=300 must survive (previously clamped to 150)
+  auto wide = parse_css_color<cielch_t>("lch(50 300 30)");
+  ASSERT_TRUE(wide.has_value());
+  EXPECT_NEAR(wide->l(), 45.651f, 0.5f);
+  EXPECT_NEAR(wide->c(), 299.969f, 0.5f) << "issue #111: C upper bound is unbounded per spec";
+  EXPECT_NEAR(wide->h(), 24.947f, 1.0f);
+
+  // percent syntax: 150% = 225 (100% is 150) — must not pre-clamp at 100%
+  auto pct = parse_css_color<cielch_t>("lch(50 150% 30)");
+  ASSERT_TRUE(pct.has_value());
+  EXPECT_NEAR(pct->c(), 223.764f, 0.5f) << "issue #111: 150% must not pre-clamp to 100%";
+
+  // negative C still clamps to 0 at parsed-value time (CSS Color 4 §9.4)
+  auto neg = parse_css_color<cielch_t>("lch(50 -20 30)");
+  ASSERT_TRUE(neg.has_value());
+  EXPECT_NEAR(neg->c(), 0.0f, 0.01f) << "spec requires C >= 0 at parsed-value time";
+}
+
+// ===== Issue #113: legacy comma syntax restrictions (CSS Color 4 §7.1, §4.1.2). =====
+
+TEST(Css, LegacyRgbRejectsMixedTypesAndNone) {
+  // §7.1: legacy color components must be all-<percentage> or all-<number>.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(10%, 20, 30)").has_value())
+      << "issue #113: mixing % and number is invalid in legacy syntax";
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(10%, 20, 30)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(26, 20%, 30)").has_value());
+
+  // §7.1: none is not allowed in legacy syntax.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(none, 0, 0)").has_value()) << "issue #113: none is invalid in legacy syntax";
+  EXPECT_FALSE(parse_css_color_rgbaf("rgb(none, 0, 0)").has_value());
+
+  // Valid counterparts stay accepted.
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(100%, 0%, 0%)").has_value());    // all-% legacy
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(255, 0, 0)").has_value());       // all-number legacy
+  EXPECT_TRUE(parse_css_color_rgbaf("rgb(255, 0, 0)").has_value());       // rgbaf legacy too
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(255, 0, 0, 50%)").has_value());  // alpha may differ
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(10% 20 30)").has_value());       // modern mixed
+  EXPECT_TRUE(parse_css_color_rgba8("rgb(none 0 0)").has_value());        // modern none
+  EXPECT_TRUE(parse_css_color_rgbaf("rgb(none 0 0)").has_value());
+}
+
+TEST(Css, HwbRejectsLegacyCommaSyntax) {
+  // §4.1.2: only rgb()/rgba()/hsl()/hsla() support legacy comma syntax.
+  EXPECT_FALSE(parse_css_color_rgba8("hwb(120, 0%, 0%)").has_value()) << "issue #113: hwb() has no legacy comma syntax";
+  EXPECT_FALSE(parse_css_color_rgbaf("hwb(120, 0%, 0%)").has_value());
+
+  // Modern hwb stays accepted.
+  EXPECT_TRUE(parse_css_color_rgba8("hwb(120 0% 0%)").has_value());
+  EXPECT_TRUE(parse_css_color_rgbaf("hwb(120 0 0)").has_value());
+}
+
+// ===== Issue #114: exponent numbers, none alpha, calc() in absolute colors. =====
+// CSS Syntax §4.1.1 allows scientific-notation numbers; CSS Color 4 §4.4 makes
+// a none/missing alpha component behave as 0; CSS Color 4 §11.1 allows math
+// functions (calc()) inside absolute colors, with typed calc() evaluation
+// (percent + number is a type error).
+
+TEST(Css, AcceptsExponentNumbers) {
+  // CSS Syntax §4.1.1: numbers may carry a signed exponent.
+  auto legacy = parse_css_color_rgba8("rgb(1e2, 0, 0)");
+  ASSERT_TRUE(legacy) << "issue #114: 1e2 must parse as 100";
+  expect_rgba(*legacy, 100, 0, 0, 255);
+
+  auto modern = parse_css_color_rgba8("rgb(1e2 0 0)");
+  ASSERT_TRUE(modern) << "issue #114: 1e2 must parse as 100 in modern syntax too";
+  expect_rgba(*modern, 100, 0, 0, 255);
+
+  auto hue = parse_css_color<hsla_float_t>("hsl(9e1 100% 50%)");
+  ASSERT_TRUE(hue) << "issue #114: 9e1 must parse as hue 90";
+  EXPECT_NEAR(hue->h(), 90.0f, 0.5f);
+
+  // An exponent needs at least one digit after e/E — these stay rejected.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(1e, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(1e+, 0, 0)").has_value());
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(1e 0 0)").has_value());
+}
+
+TEST(Css, ModernNoneAlphaIsZero) {
+  // CSS Color 4 §4.4: a missing/none component behaves as 0, so a none alpha
+  // after / is alpha 0 — not a parse failure.
+  auto f = parse_css_color_rgbaf("rgb(0 0 0 / none)");
+  ASSERT_TRUE(f) << "issue #114: none alpha must become 0 (CSS Color 4 §4.4)";
+  expect_rgbaf_near(*f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+  auto b = parse_css_color_rgba8("rgb(0 0 0 / none)");
+  ASSERT_TRUE(b);
+  EXPECT_EQ(b->a(), 0);
+
+  // lab() shares the modern slash-alpha path (alpha sink → rgbaf).
+  auto lab_c = parse_css_color_rgbaf("lab(0 0 0 / none)");
+  ASSERT_TRUE(lab_c) << "issue #114: none alpha in lab() is also 0";
+  EXPECT_NEAR(lab_c->a(), 0.0f, 0.001f);
+
+  // Legacy comma alpha still rejects none (CSS Color 4 §7.1).
+  EXPECT_FALSE(parse_css_color_rgba8("rgba(0, 0, 0, none)").has_value());
+  EXPECT_FALSE(parse_css_color_rgbaf("rgba(0, 0, 0, none)").has_value());
+}
+
+TEST(Css, CalcInAbsoluteColors) {
+  // CSS Color 4 §11.1: calc() is allowed inside absolute color functions.
+  auto n = parse_css_color_rgba8("rgb(calc(10 + 20), 0, 0)");
+  ASSERT_TRUE(n) << "issue #114: calc() must evaluate in rgb() components";
+  expect_rgba(*n, 30, 0, 0, 255);
+
+  auto pct = parse_css_color_rgba8("rgb(calc(10% + 20%) 0 0)");
+  ASSERT_TRUE(pct) << "issue #114: percent calc() must evaluate";
+  expect_rgba(*pct, 77, 0, 0, 255);  // 30% of 255 = 76.5 → 77
+
+  auto a = parse_css_color_rgbaf("rgb(0 0 0 / calc(0.5))");
+  ASSERT_TRUE(a) << "issue #114: calc() in modern alpha position";
+  EXPECT_NEAR(a->a(), 0.5f, 0.001f);
+
+  // calc() type rules: percent + number is a type error, not a silent cast.
+  EXPECT_FALSE(parse_css_color_rgba8("rgb(calc(50% + 10) 0 0)").has_value())
+      << "issue #114: calc(50% + 10) must be rejected as a CSS type error";
+
+  // Hue position uses the angle parser too.
+  auto hue = parse_css_color<hsla_float_t>("hsl(calc(45 * 2) 100% 50%)");
+  ASSERT_TRUE(hue) << "issue #114: calc() must evaluate in hsl() hue";
+  EXPECT_NEAR(hue->h(), 90.0f, 0.5f);
+
+  // A percent-typed calc() result is a type error in the hue position.
+  EXPECT_FALSE(parse_css_color<hsla_float_t>("hsl(calc(50%) 100% 50%)").has_value())
+      << "issue #114: calc(50%) must be rejected as a hue type error";
+}
+
+// ===== Issue #115: io:: must be unambiguous after `using namespace colorcpp`. =====
+// core/core.hpp re-exports core into colorcpp, so colorcpp::core::io used to
+// collide with colorcpp::io once both are visible under the same name.
+
+TEST(IoNamespace, UnambiguousAfterUsingNamespaceColorcpp) {
+  using namespace colorcpp;
+  auto c = io::css::parse_css_color_rgba8("#fff");
+  ASSERT_TRUE(c) << "issue #115: io::css:: must resolve after using namespace colorcpp";
+  expect_rgba(*c, 255, 255, 255, 255);
+}
+
 TEST(Css, LabLchD50RendersCssExample) {
   // D50 lab/lch of peru (#CD853F) — CSS Color 4 worked example numbers for
   // lch(62.2532 54.0114 63.6769). Both forms must render to peru in sRGB;
@@ -991,6 +1162,42 @@ TEST(Css, ColorMixNestedAndInvalidForms) {
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb, red 0%, blue 0%)").has_value());
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in srgb longer hue, red, blue)").has_value());
   EXPECT_FALSE(parse_css_color_rgba8("color-mix(in oklch longer, red, blue)").has_value());
+}
+
+TEST(Css, ColorMixInDisplayP3KeepsWideGamutItems) {
+  // Issue #110 / CSS Color 4 §13.2: color-mix() converts each item straight
+  // into the interpolation space — an intermediate sRGB gamut clamp would
+  // collapse p3 green (sRGB has R<0, G>1) before the mix runs.
+  auto mixed = parse_css_color_rgba8("color-mix(in display-p3, color(display-p3 0 1 0), color(display-p3 0 0 1))");
+  ASSERT_TRUE(mixed);
+  auto expected = parse_css_color_rgba8("color(display-p3 0 0.5 0.5)");
+  ASSERT_TRUE(expected);
+  expect_rgba(*mixed, expected->r(), expected->g(), expected->b(), expected->a());
+  expect_rgba(*mixed, 0, 130, 129, 255);  // equal mix must match the midpoint
+
+  // Mixed gamut items: sRGB red reaches display-p3 without an sRGB detour.
+  // sRGB red in (encoded) p3 = (0.91754, 0.20032, 0.13859); equal-weight
+  // midpoint with p3 green (0,1,0) = (0.45877, 0.60016, 0.06930) -> sRGB
+  // (107,154,0). Interpolation happens in the encoded space, matching the
+  // color() function's own values.
+  auto cross = parse_css_color_rgba8("color-mix(in display-p3, red, color(display-p3 0 1 0))");
+  ASSERT_TRUE(cross);
+  auto cross_expected = parse_css_color_rgba8("color(display-p3 0.45877 0.60016 0.0693)");
+  ASSERT_TRUE(cross_expected);
+  expect_rgba(*cross, cross_expected->r(), cross_expected->g(), cross_expected->b(), 255);
+  expect_rgba(*cross, 107, 154, 0, 255);
+
+  // Alpha is independent of the space conversion and must survive the fix.
+  auto with_alpha =
+      parse_css_color_rgba8("color-mix(in display-p3, color(display-p3 0 1 0 / 0.4), color(display-p3 0 0 1))");
+  ASSERT_TRUE(with_alpha);
+  EXPECT_EQ(with_alpha->a(), 179);  // 0.4*0.5 + 1*0.5 = 0.7 -> 179
+
+  // Single-item color-mix still converts at the final boundary: red must come
+  // back as sRGB red, not its raw p3 channels (0.9175, 0.2003, 0.1386).
+  auto single = parse_css_color_rgba8("color-mix(in display-p3, red)");
+  ASSERT_TRUE(single);
+  expect_rgba(*single, 255, 0, 0, 255);
 }
 
 TEST(Css, ColorMixPowerlessHueTakesOtherEndpoint) {

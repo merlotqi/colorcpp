@@ -160,6 +160,7 @@ std::optional<Color> from_json_compact(const Json& j) {
   for (std::size_t i = 0; i < N; ++i) {
     vals[i] = Adapter::get_double(j, i);
   }
+  if (details::any_nan(vals)) return std::nullopt;  // issue #117: optional contract
   return details::apply_channels<Color>(vals.data());
 }
 
@@ -178,6 +179,7 @@ std::optional<Color> from_json_named(const Json& j, const std::string* names) {
     if (!Adapter::has_key(j, names[i])) return std::nullopt;
     vals[i] = Adapter::get_double(j, names[i]);
   }
+  if (details::any_nan(vals)) return std::nullopt;  // issue #117: optional contract
   return details::apply_channels<Color>(vals.data());
 }
 

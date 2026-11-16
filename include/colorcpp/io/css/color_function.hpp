@@ -169,7 +169,7 @@ inline bool parse_triplet_xyz(details::Cursor& d, float& x, float& y, float& z) 
 
 inline std::optional<float> parse_optional_slash_alpha(details::Cursor& d) {
   if (!d.consume_char('/')) return 1.0f;
-  auto av = d.parse_alpha_value();
+  auto av = d.parse_alpha_value_modern();
   if (!av) return std::nullopt;
   return static_cast<float>(std::clamp(*av, 0.0, 1.0));
 }
