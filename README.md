@@ -83,13 +83,13 @@ using namespace colorcpp::operations::blend;
 using namespace colorcpp::operations::conversion;
 // Create colors using type aliases
 constexpr auto red = rgba8_t{255, 0, 0, 255};
-constexpr auto blue = rgbaf_t{0.0f, 0.0f, 1.0f, 1.0f};
+constexpr auto blue = rgba8_t{0, 0, 255, 255};
 
 // Convert between color spaces
 auto hsv_red = color_cast<hsv_float_t>(red);
 auto lab_red = color_cast<cielab_t>(red);
 
-// Color operations
+// Color operations (both operands must be the same color type)
 auto blended = blend(red, blue, blend_mode::multiply);
 ```
 
@@ -499,7 +499,7 @@ print_gradient(std::cout, "red"_color, "blue"_color);
 
 // Print WCAG contrast check
 print_contrast(std::cout, "white"_color, "navy"_color);
-// Output:  Aa  #fff on #000080  contrast: 14.4:1  AAA
+// Output:  Aa  #ffffff on #000080  contrast: 16.0:1  AAA
 
 // Notes:
 // - ANSI output is a terminal preview from rgba8 conversion.

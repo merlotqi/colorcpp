@@ -23,7 +23,7 @@ core::palette_set<Color> rainbow(size_t count = 7) {
   if (count == 0) return p;
 
   for (size_t i = 0; i < count; ++i) {
-    float hue = (360.0f * i) / count;
+    float hue = (360.0f * static_cast<float>(i)) / static_cast<float>(count);
     core::hsla_float_t hsl{hue, 1.0f, 0.5f, 1.0f};
     p.add(color_cast<Color>(hsl));
   }
@@ -48,7 +48,7 @@ core::palette_set<Color> rainbow_custom(size_t count, float saturation, float li
   lightness = std::max(0.0f, std::min(1.0f, lightness));
 
   for (size_t i = 0; i < count; ++i) {
-    float hue = (360.0f * i) / count;
+    float hue = (360.0f * static_cast<float>(i)) / static_cast<float>(count);
     core::hsla_float_t hsl{hue, saturation, lightness, 1.0f};
     p.add(color_cast<Color>(hsl));
   }

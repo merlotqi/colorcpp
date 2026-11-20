@@ -166,6 +166,29 @@ TEST(ColorTemperature, KelvinToRgba8MatchesHellandReference) {
   EXPECT_EQ(c3000.b(), 110) << "issue #100: 3000K B must be the Helland 110, not 175";
 }
 
+TEST(ColorTemperature, HellandReferenceVectors) {
+  // Full reference vector across the 1000-40000 K range. Values come from an
+  // independent double-precision evaluation of Helland's published formulas
+  // (Python), not from this implementation: they pin the post-#100 single
+  // gamma decode and Helland's blue = 255 for temp >= 6600 K.
+  struct Sample {
+    float k;
+    uint8_t r, g, b;
+  };
+  const Sample refs[] = {
+      {1000.0f, 255, 68, 0},    {1500.0f, 255, 108, 0},   {2000.0f, 255, 137, 14},
+      {3000.0f, 255, 177, 110}, {4000.0f, 255, 206, 166}, {5500.0f, 255, 237, 222},
+      {6500.0f, 255, 254, 250}, {8000.0f, 221, 230, 255}, {10000.0f, 202, 218, 255},
+      {20000.0f, 171, 198, 255}, {40000.0f, 152, 186, 255},
+  };
+  for (const auto& s : refs) {
+    const auto c = kelvin_to_rgba8(s.k);
+    EXPECT_EQ(c.r(), s.r) << "K=" << s.k;
+    EXPECT_EQ(c.g(), s.g) << "K=" << s.k;
+    EXPECT_EQ(c.b(), s.b) << "K=" << s.k;
+  }
+}
+
 TEST(ColorTemperature, RgbToKelvinEstimateMatchesHellandCurve) {
   // An external reference-correct sRGB color must map back to its
   // temperature; the double-gamma build returned ~2111K for 3000K.

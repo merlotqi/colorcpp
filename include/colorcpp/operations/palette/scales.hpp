@@ -23,7 +23,7 @@ core::palette_set<Color> linear_scale(const Color& start, const Color& end, size
   }
 
   for (size_t i = 0; i < count; ++i) {
-    float t = static_cast<float>(i) / (count - 1);
+    float t = static_cast<float>(i) / static_cast<float>(count - 1);
     p.add(operations::interpolate::lerp(start, end, t));
   }
   return p;
@@ -42,7 +42,7 @@ core::palette_set<Color> visual_scale(const Color& start, const Color& end, size
   }
 
   for (size_t i = 0; i < count; ++i) {
-    float t = static_cast<float>(i) / (count - 1);
+    float t = static_cast<float>(i) / static_cast<float>(count - 1);
     p.add(operations::interpolate::lerp_hsl(start, end, t));
   }
   return p;
@@ -61,7 +61,7 @@ core::palette_set<Color> perceptual_scale(const Color& start, const Color& end, 
   }
 
   for (size_t i = 0; i < count; ++i) {
-    float t = static_cast<float>(i) / (count - 1);
+    float t = static_cast<float>(i) / static_cast<float>(count - 1);
     p.add(operations::interpolate::lerp_oklab(start, end, t));
   }
   return p;

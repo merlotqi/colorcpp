@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10...3.24)
 
 project(colorcpp
-  VERSION 1.0.7
+  VERSION 1.0.8
   DESCRIPTION "Compile-time color library for C++"
   HOMEPAGE_URL "https://github.com/merlotqi/colorcpp"
   LANGUAGES CXX)
@@ -79,9 +79,8 @@ if(MSVC)
   target_compile_options(colorcpp_warnings INTERFACE /W4 /WX)
 else()
   target_compile_options(colorcpp_warnings INTERFACE
-    -Wall -Wextra -Wpedantic -Werror
+    -Wall -Wextra -Wpedantic -Wconversion -Werror
     -Wno-unused-parameter
-    -Wno-unused-variable
   )
 endif()
 add_library(colorcpp::colorcpp ALIAS colorcpp)
@@ -102,37 +101,48 @@ if(COLORCPP_BUILD_FUZZERS)
 endif()
 
 if(COLORCPP_INSTALL_HEADERS)
+  include(GNUInstallDirs)
+  include(CMakePackageConfigHelpers)
+
   install(DIRECTORY include/
-    DESTINATION include
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.hpp"
   )
-  
+
   install(TARGETS colorcpp
     EXPORT colorcppTargets
-    INCLUDES DESTINATION include
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
-  
-  include(CMakePackageConfigHelpers)
+
+  set(_colorcpp_cmake_dir "${CMAKE_INSTALL_LIBDIR}/cmake/colorcpp")
+
+  # ARCH_INDEPENDENT (CMake >= 3.14): this is a header-only library, so the
+  # package version must not be gated on CMAKE_SIZEOF_VOID_P — otherwise
+  # 32-bit consumers fail find_package() against an 8-byte-only version file.
+  set(_colorcpp_version_args COMPATIBILITY SameMajorVersion)
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
+    list(APPEND _colorcpp_version_args ARCH_INDEPENDENT)
+  endif()
   write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/colorcppConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
+    ${_colorcpp_version_args}
   )
-  
+
   configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/colorcppConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/colorcppConfig.cmake"
-    INSTALL_DESTINATION lib/cmake/colorcpp
+    INSTALL_DESTINATION ${_colorcpp_cmake_dir}
   )
-  
+
   install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/colorcppConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/colorcppConfigVersion.cmake"
-    DESTINATION lib/cmake/colorcpp
+    DESTINATION ${_colorcpp_cmake_dir}
   )
-  
+
   install(EXPORT colorcppTargets
-    DESTINATION lib/cmake/colorcpp
+    DESTINATION ${_colorcpp_cmake_dir}
     NAMESPACE colorcpp::
   )
 endif()
@@ -183,6 +193,6 @@ if(COLORCPP_INSTALL_HEADERS)
   )
   
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/colorcpp.pc"
-    DESTINATION lib/pkgconfig
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
   )
 endif()

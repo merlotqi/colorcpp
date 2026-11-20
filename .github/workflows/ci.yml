@@ -35,6 +35,46 @@ jobs:
             cxx: clang++
             std: 20
 
+  # Documented minimum compilers (CONTRIBUTING: GCC 11+ / Clang 14+):
+  # floating-point std::from_chars needs libstdc++ 11, so ubuntu-22.04's
+  # stock gcc-11/clang-14 is the floor that must keep building.
+  build-test-min:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC 11 (minimum)
+            cc: gcc-11
+            cxx: g++-11
+          - name: Clang 14 (minimum)
+            cc: clang-14
+            cxx: clang++-14
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build g++-11 clang-14
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
@@ -81,7 +121,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCOLORCPP_BUILD_TESTS=ON \
             -DCOLORCPP_BUILD_EXAMPLES=ON \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined,float-cast-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer"
 
       - name: Build
         run: cmake --build build --parallel
@@ -118,8 +158,12 @@ jobs:
           ./build-fuzz/fuzz/fuzz_read_cube -max_total_time=60 -timeout=10
 
   build-test-windows:
-    name: MSVC + Ninja (Windows)
+    name: MSVC + Ninja (Windows, C++${{ matrix.std }})
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        std: [17, 20]
     defaults:
       run:
         shell: bash
@@ -138,6 +182,7 @@ jobs:
         run: |
           cmake -G Ninja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
             -DCOLORCPP_BUILD_TESTS=ON \
             -DCOLORCPP_BUILD_EXAMPLES=ON
 
@@ -174,8 +219,12 @@ jobs:
         run: ctest --test-dir build-vs2022 --build-config Release --output-on-failure --no-tests=error
 
   build-test-macos:
-    name: Clang + Ninja (macOS)
+    name: Clang + Ninja (macOS, C++${{ matrix.std }})
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        std: [17, 20]
     steps:
       - uses: actions/checkout@v4
 
@@ -186,6 +235,7 @@ jobs:
         run: |
           cmake -G Ninja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
             -DCOLORCPP_BUILD_TESTS=ON \
             -DCOLORCPP_BUILD_EXAMPLES=ON
 

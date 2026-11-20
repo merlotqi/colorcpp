@@ -190,6 +190,46 @@ TEST(LerpOklabTest, BlackToWhiteMidpointIsGray) {
   EXPECT_NEAR(mid.g(), mid.b(), 5e-3f);
 }
 
+TEST(LerpPolarTest, AchromaticEndpointsStayFinite) {
+  // Achromatic endpoints carry no hue (C = 0 in OkLCH / L = S = 0 in HSL),
+  // so atan2-style hue extraction is meaningless there. The powerless-hue
+  // rule (issue #51) must keep every sample finite and both endpoints exact.
+  const core::rgbf_t white(1.0f, 1.0f, 1.0f);
+  const core::rgbf_t red(1.0f, 0.0f, 0.0f);
+  const core::rgbf_t gray_a(0.5f, 0.5f, 0.5f);
+  const core::rgbf_t gray_b(0.9f, 0.9f, 0.9f);
+
+  // OkLCH: white -> red. Endpoints exact, midpoint strictly between.
+  const auto ok0 = lerp_oklch(white, red, 0.0f);
+  const auto ok1 = lerp_oklch(white, red, 1.0f);
+  expect_rgb_near(ok0, white.r(), white.g(), white.b());
+  expect_rgb_near(ok1, red.r(), red.g(), red.b());
+  const auto okm = lerp_oklch(white, red, 0.5f);
+  EXPECT_TRUE(std::isfinite(okm.r()) && std::isfinite(okm.g()) && std::isfinite(okm.b()));
+  const auto okml = color_cast<core::oklch_t>(okm);
+  const auto okw = color_cast<core::oklch_t>(white);
+  const auto okr = color_cast<core::oklch_t>(red);
+  EXPECT_LT(okml.l(), okw.l());  // 1.0 -> 0.628: midpoint is lighter than red
+  EXPECT_GT(okml.l(), okr.l());
+  EXPECT_GT(okml.c(), 0.0f);     // chroma ramps up from the powerless start
+  EXPECT_LT(okml.c(), okr.c());
+
+  // OkLCH: gray -> gray. The whole segment must stay achromatic.
+  const auto gm = lerp_oklch(gray_a, gray_b, 0.5f);
+  EXPECT_TRUE(std::isfinite(gm.r()) && std::isfinite(gm.g()) && std::isfinite(gm.b()));
+  EXPECT_NEAR(gm.r(), gm.g(), 1e-3f);
+  EXPECT_NEAR(gm.g(), gm.b(), 1e-3f);
+  EXPECT_LT(color_cast<core::oklch_t>(gm).c(), 1e-3f);
+  expect_rgb_near(lerp_oklch(gray_a, gray_b, 0.0f), gray_a.r(), gray_a.g(), gray_a.b());
+  expect_rgb_near(lerp_oklch(gray_a, gray_b, 1.0f), gray_b.r(), gray_b.g(), gray_b.b());
+
+  // HSL: achromatic start (white) must not poison the hue either.
+  const auto hm = lerp_hsl(white, red, 0.5f);
+  EXPECT_TRUE(std::isfinite(hm.r()) && std::isfinite(hm.g()) && std::isfinite(hm.b()));
+  expect_rgb_near(lerp_hsl(white, red, 0.0f), white.r(), white.g(), white.b());
+  expect_rgb_near(lerp_hsl(white, red, 1.0f), red.r(), red.g(), red.b());
+}
+
 // lerp_hsv (HSV space)
 
 TEST(LerpHsvTest, TZeroReturnsFirst) {

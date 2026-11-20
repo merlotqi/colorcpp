@@ -33,7 +33,9 @@ There are many ways to contribute to colorcpp:
 
 ### Prerequisites
 
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- C++17 compatible compiler (GCC 11+, Clang 14+, MSVC 2017+). Floating-point
+  `std::from_chars` is used on non-Apple platforms and needs libstdc++ 11+
+  (GCC 11) or libc++ 14+; Apple Clang uses a `strtof` fallback.
 - CMake 3.15 or later
 - Git
 

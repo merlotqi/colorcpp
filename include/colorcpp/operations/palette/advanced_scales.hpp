@@ -151,7 +151,7 @@ core::palette_set<Color> easing_scale(const Color& start, const Color& end, size
   }
 
   for (size_t i = 0; i < count; ++i) {
-    float t_linear = static_cast<float>(i) / (count - 1);
+    float t_linear = static_cast<float>(i) / static_cast<float>(count - 1);
     float t_eased = details::apply_easing(t_linear, easing);
 
     switch (method) {
@@ -201,7 +201,7 @@ core::palette_set<Color> spline_scale(
   // For 2 points, fall back to linear interpolation
   if (control_points.size() == 2) {
     for (size_t i = 0; i < count; ++i) {
-      float t = static_cast<float>(i) / (count - 1);
+      float t = static_cast<float>(i) / static_cast<float>(count - 1);
       p.add(operations::interpolate::lerp_oklab(control_points[0], control_points[1], t));
     }
     return p;

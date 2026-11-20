@@ -33,7 +33,7 @@ In colorcpp
   * **Hex notation**:
     * Short forms: ``#rgb``, ``#rgba``
     * Long forms: ``#rrggbb``, ``#rrggbbaa``
-    * Case insensitive, with or without leading hash
+    * Case insensitive; a leading ``#`` is required (matching CSS)
 
   * **Color functions**:
     * ``rgb()`` / ``rgba()`` - legacy and modern comma-less syntax

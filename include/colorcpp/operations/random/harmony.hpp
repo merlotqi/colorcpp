@@ -74,7 +74,7 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
         h_new = h_base + (index % 2 == 0 ? h_max * 5 / 12 : h_max * 7 / 12);
         break;
       case harmony_mode::triadic:
-        h_new = h_base + (h_max * index / 3);
+        h_new = h_base + (h_max * static_cast<T>(index) / 3);
         break;
       case harmony_mode::tetradic:
         h_new = h_base + (index % 4 == 0   ? T(0)
@@ -83,7 +83,7 @@ class harmony_generator : public basic_hsl_generator<Color, Engine> {
                                            : h_max * 2 / 3);
         break;
       case harmony_mode::square:
-        h_new = h_base + (h_max * index / 4);
+        h_new = h_base + (h_max * static_cast<T>(index) / 4);
         break;
     }
 
