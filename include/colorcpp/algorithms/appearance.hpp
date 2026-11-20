@@ -10,3 +10,4 @@
 
 #include <colorcpp/algorithms/appearance/cam16.hpp>
 #include <colorcpp/algorithms/appearance/cam16_ucs.hpp>
+#include <colorcpp/algorithms/appearance/hct.hpp>
