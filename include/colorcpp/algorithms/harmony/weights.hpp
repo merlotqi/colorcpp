@@ -161,7 +161,7 @@ weighted_assessment_result assess_weighted(const core::palette_set<Color>& palet
 
   // Calculate angle harmonic deviation over the in-circle gaps
   const std::size_t in_circle = diffs.size() - 1;
-  auto minmax = std::minmax_element(diffs.begin(), diffs.begin() + in_circle);
+  auto minmax = std::minmax_element(diffs.begin(), diffs.begin() + static_cast<std::ptrdiff_t>(in_circle));
   float harmonic_deviation = *minmax.second - *minmax.first;
 
   // Detect scheme

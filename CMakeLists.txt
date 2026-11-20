@@ -79,7 +79,7 @@ if(MSVC)
   target_compile_options(colorcpp_warnings INTERFACE /W4 /WX)
 else()
   target_compile_options(colorcpp_warnings INTERFACE
-    -Wall -Wextra -Wpedantic -Wconversion -Werror
+    -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror
     -Wno-unused-parameter
   )
 endif()

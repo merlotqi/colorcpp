@@ -136,7 +136,7 @@ inline uint8_t quantize_ansi256(uint8_t r, uint8_t g, uint8_t b) {
     int best_i = 0;
     int best_e = 255;
     for (int i = 0; i < 6; ++i) {
-      const int lvl = details::kCubeLevels[i];
+      const int lvl = details::kCubeLevels[static_cast<std::size_t>(i)];
       const int e = lvl > v ? lvl - v : v - lvl;
       if (e < best_e) {
         best_e = e;
@@ -149,8 +149,9 @@ inline uint8_t quantize_ansi256(uint8_t r, uint8_t g, uint8_t b) {
   const int gi = nearest_level(g);
   const int bi = nearest_level(b);
   int best_idx = 16 + ri * 36 + gi * 6 + bi;
-  int best_d = details::sq_diff(details::kCubeLevels[ri], r) + details::sq_diff(details::kCubeLevels[gi], g) +
-               details::sq_diff(details::kCubeLevels[bi], b);
+  int best_d = details::sq_diff(details::kCubeLevels[static_cast<std::size_t>(ri)], r) +
+               details::sq_diff(details::kCubeLevels[static_cast<std::size_t>(gi)], g) +
+               details::sq_diff(details::kCubeLevels[static_cast<std::size_t>(bi)], b);
 
   // Gray ramp v = 8 + 10k: the quadratic is minimized near the mean, and the
   // discrete minimum is one of the integers bracketing (mean - 8) / 10.
@@ -174,7 +175,9 @@ inline uint8_t quantize_ansi256(uint8_t r, uint8_t g, uint8_t b) {
 inline std::array<uint8_t, 3> ansi256_rgb(uint8_t index) {
   if (index >= 16 && index <= 231) {
     const int c = index - 16;
-    return {details::kCubeLevels[c / 36], details::kCubeLevels[(c / 6) % 6], details::kCubeLevels[c % 6]};
+    return {details::kCubeLevels[static_cast<std::size_t>(c / 36)],
+            details::kCubeLevels[static_cast<std::size_t>((c / 6) % 6)],
+            details::kCubeLevels[static_cast<std::size_t>(c % 6)]};
   }
   if (index >= 232) {
     const auto v = static_cast<uint8_t>(8 + 10 * (index - 232));
@@ -189,7 +192,7 @@ inline uint8_t quantize_ansi16(uint8_t r, uint8_t g, uint8_t b) {
   int best_idx = 0;
   int best_d = 1 << 30;
   for (int i = 0; i < 16; ++i) {
-    const auto& c = details::kAnsi16[i];
+    const auto& c = details::kAnsi16[static_cast<std::size_t>(i)];
     const int d = details::sq_diff(c[0], r) + details::sq_diff(c[1], g) + details::sq_diff(c[2], b);
     if (d < best_d) {
       best_d = d;
@@ -247,7 +250,7 @@ inline std::string bg(const core::rgba8_t& c, level lv = level::truecolor) { ret
 template <typename Color>
 void print_swatch(std::ostream& os, const Color& c, int width = 6, level lv = level::truecolor) {
   auto rgba = details::to_rgba8(c);
-  os << bg(rgba, lv) << std::string(width, ' ') << reset();
+  os << bg(rgba, lv) << std::string(static_cast<std::size_t>(width), ' ') << reset();
 }
 
 /**
@@ -347,7 +350,7 @@ void print_palette(std::ostream& os, const Color* colors, std::size_t count, int
                    level lv = level::truecolor) {
   for (std::size_t i = 0; i < count; ++i) {
     auto rgba = details::to_rgba8(colors[i]);
-    os << bg(rgba, lv) << std::string(swatch_width, ' ') << reset();
+    os << bg(rgba, lv) << std::string(static_cast<std::size_t>(swatch_width), ' ') << reset();
   }
   os << "\n";
 }

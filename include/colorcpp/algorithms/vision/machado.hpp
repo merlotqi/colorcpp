@@ -87,11 +87,11 @@ inline mat3 severity_matrix(const std::array<mat3, 11>& table, float severity) n
   if (!(severity > 0.0f)) return table[0];
   severity = std::min(severity, 1.0f);
   const float pos = severity * 10.0f;
-  const int lo = std::min(static_cast<int>(pos), 9);
+  const std::size_t lo = std::min(static_cast<std::size_t>(pos), std::size_t{9});
   const float t = pos - static_cast<float>(lo);
   mat3 m{};
-  for (int r = 0; r < 3; ++r) {
-    for (int c = 0; c < 3; ++c) {
+  for (std::size_t r = 0; r < 3; ++r) {
+    for (std::size_t c = 0; c < 3; ++c) {
       m[r][c] = table[lo][r][c] + t * (table[lo + 1][r][c] - table[lo][r][c]);
     }
   }

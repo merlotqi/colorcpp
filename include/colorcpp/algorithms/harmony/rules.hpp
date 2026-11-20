@@ -391,8 +391,9 @@ inline std::pair<harmony_scheme, std::vector<float>> detect_scheme(size_t count,
       size_t group_b_size = count - split_idx - 1;
 
       // Build diffs for each group (both exclude the boundary gap and the wrap)
-      std::vector<float> diffs_a(diffs.begin(), diffs.begin() + split_idx);
-      std::vector<float> diffs_b(diffs.begin() + split_idx + 1, diffs.begin() + wrap_idx);
+      std::vector<float> diffs_a(diffs.begin(), diffs.begin() + static_cast<std::ptrdiff_t>(split_idx));
+      std::vector<float> diffs_b(diffs.begin() + static_cast<std::ptrdiff_t>(split_idx) + 1,
+                                 diffs.begin() + static_cast<std::ptrdiff_t>(wrap_idx));
 
       // Detect scheme for each group
       auto [scheme_a, steps_a] = detect_scheme(group_a_size, diffs_a);

@@ -18,9 +18,9 @@ namespace colorcpp::io::literals::details {
  * @return Hexadecimal value (0-15) or 0 for invalid characters
  */
 constexpr uint32_t char_to_hex(char c) {
-  if (c >= '0' && c <= '9') return c - '0';
-  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= '0' && c <= '9') return static_cast<uint32_t>(c - '0');
+  if (c >= 'a' && c <= 'f') return static_cast<uint32_t>(c - 'a' + 10);
+  if (c >= 'A' && c <= 'F') return static_cast<uint32_t>(c - 'A' + 10);
   return 0;
 }
 

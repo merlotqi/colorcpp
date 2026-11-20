@@ -130,7 +130,7 @@ inline bool consume_prefix(std::istream& is, std::string_view prefix, bool& has_
     if (std::tolower(static_cast<unsigned char>(is.peek())) == std::tolower(static_cast<unsigned char>(c))) {
       found += (char)is.get();
     } else {
-      for (int i = (int)found.size() - 1; i >= 0; --i) is.putback(found[i]);
+      for (int i = (int)found.size() - 1; i >= 0; --i) is.putback(found[static_cast<std::size_t>(i)]);
       return true;
     }
   }

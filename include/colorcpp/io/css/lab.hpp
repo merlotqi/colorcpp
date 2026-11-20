@@ -71,7 +71,7 @@ inline std::array<float, 3> bradford_adapt(const std::array<float, 3>& xyz, cons
   const auto lms_src = mul(&ca::details::M_BFD[0], src_wp.x(), src_wp.y(), src_wp.z());
   const auto lms_dst = mul(&ca::details::M_BFD[0], dst_wp.x(), dst_wp.y(), dst_wp.z());
   auto lms = mul(&ca::details::M_BFD[0], xyz[0], xyz[1], xyz[2]);
-  for (int i = 0; i < 3; ++i) {
+  for (std::size_t i = 0; i < 3; ++i) {
     if (lms_src[i] != 0.0f) lms[i] *= lms_dst[i] / lms_src[i];
   }
   return mul(&ca::details::M_BFD_inv[0], lms[0], lms[1], lms[2]);

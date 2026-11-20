@@ -117,9 +117,11 @@ TEST(CssColor4Reference, ConversionVectors) {
           // the hue channel regardless of the case's value tolerance.
           float channel_tol = tol;
           if (is_hue_space(it_to.key()) && i == 2) channel_tol = std::max(tol, 0.25f);
-          const float diff = channel_diff(it_to.key(), i, actual[i], expected[i]);
+          const float diff =
+              channel_diff(it_to.key(), i, actual[static_cast<std::size_t>(i)], expected[static_cast<std::size_t>(i)]);
           EXPECT_LE(diff, channel_tol) << "case=" << name << " route=" << it_from.key() << "->" << it_to.key()
-                                       << " channel=" << i << " actual=" << actual[i] << " expected=" << expected[i];
+                                       << " channel=" << i << " actual=" << actual[static_cast<std::size_t>(i)]
+                                       << " expected=" << expected[static_cast<std::size_t>(i)];
         }
       }
     }

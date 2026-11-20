@@ -127,7 +127,7 @@ constexpr std::array<float, 9> MakeBradfordD65ToD50() {
       for (int k = 0; k < 3; ++k) {
         sum += mi[3 * i + k] * (cone_dst[k] / cone_src[k]) * m[3 * k + j];
       }
-      out[3 * i + j] = sum;
+      out[static_cast<std::size_t>(3 * i + j)] = sum;
     }
   }
   return out;

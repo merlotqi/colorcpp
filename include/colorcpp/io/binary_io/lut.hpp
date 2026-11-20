@@ -215,7 +215,7 @@ inline std::array<float, 3> apply(const lut3d& lut, float r, float g, float b) {
   const auto& c111 = lut.at(r1, g1, b1);
 
   std::array<float, 3> result{};
-  for (int ch = 0; ch < 3; ++ch) {
+  for (std::size_t ch = 0; ch < 3; ++ch) {
     float c00 = details::lerp(c000[ch], c100[ch], fr);
     float c01 = details::lerp(c001[ch], c101[ch], fr);
     float c10 = details::lerp(c010[ch], c110[ch], fr);

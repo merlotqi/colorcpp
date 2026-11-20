@@ -95,7 +95,7 @@ class color_stops {
     if (index >= stops_.size()) {
       throw std::out_of_range("colorcpp: stop index out of range");
     }
-    stops_.erase(stops_.begin() + index);
+    stops_.erase(stops_.begin() + static_cast<std::ptrdiff_t>(index));
   }
 
   /**
@@ -108,7 +108,7 @@ class color_stops {
     auto it = std::remove_if(stops_.begin(), stops_.end(), [position, epsilon](const stop_type& stop) {
       return std::abs(stop.position - position) < epsilon;
     });
-    std::size_t count = std::distance(it, stops_.end());
+    std::size_t count = static_cast<std::size_t>(std::distance(it, stops_.end()));
     stops_.erase(it, stops_.end());
     return count;
   }
