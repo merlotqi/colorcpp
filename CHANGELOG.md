@@ -11,6 +11,8 @@ Engineering, packaging, CI and documentation maintenance release.
 - **Palette / Random**: explicit `size_t` → `float` casts in the scale,
   rainbow and harmony generators so the codebase builds warning-free
   under `-Wconversion`.
+- **Examples**: `msgpack_example` `read_u16()` casts the widened shift
+  result back to `uint16_t` instead of narrowing implicitly.
 - **Documentation**: README Basic Usage `blend` example compiles (both
   operands are `rgba8_t`); ANSI `print_contrast` sample output corrected
   to `#ffffff on #000080  contrast: 16.0:1`; CSS hex requires a leading
@@ -24,12 +26,16 @@ Engineering, packaging, CI and documentation maintenance release.
   pointer-width check in the header-only package version file; install
   paths (headers, CMake package files, pkg-config) use `GNUInstallDirs`
   instead of hardcoded `include` / `lib`.
-- **Warnings**: first-party code compiles with `-Wconversion` and without
-  `-Wno-unused-variable` under `-Werror`.
+- **Warnings**: first-party code compiles with the full warning set
+  (`-Wall -Wextra -Wpedantic -Wconversion`, sign-conversion noise
+  suppressed via `-Wno-sign-conversion`); warnings are reported but no
+  longer fail the build — `-Werror` / `/WX` removed, and with them
+  `-Wno-unused-variable`.
 
 ### CI
 
-- New minimum-compiler job on ubuntu-22.04 (GCC 11, Clang 14).
+- New minimum-compiler job on ubuntu-22.04 (GCC 11, Clang 14) using the
+  runner's preinstalled toolchain — no package install step.
 - C++20 matrix entries for macOS and Windows; `float-cast-overflow` made
   explicit in the sanitizer job.
 
