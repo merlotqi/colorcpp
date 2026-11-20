@@ -11,7 +11,6 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <cmath>
 #include <colorcpp/algorithms/appearance.hpp>
 #include <colorcpp/colorcpp.hpp>
@@ -143,6 +142,30 @@ TEST(Hct, LowToneLinearRegion) {
     const auto back = xyz_to_hct(colorcpp::operations::conversion::color_cast<xyz_t>(gray));
     EXPECT_NEAR(back.tone, tone, 0.5f) << "tone=" << tone;
   }
+}
+
+// Tonal palette contract: count tones evenly spaced across L* 0..100 —
+// tone 0 is black, tone 100 is white, the interior steps are monotone in
+// tone and hold the seed hue (chroma clamps near the endpoints, but the
+// solver bisects at fixed hue so the hue itself never drifts).
+TEST(Hct, TonalPaletteEndpointsAndMonotoneTone) {
+  const auto p = colorcpp::algorithms::appearance::hct_tonal_palette<rgba8_t>(300.0f, 80.0f, 11);
+  ASSERT_EQ(p.size(), 11u);
+  EXPECT_EQ(p.at(0).r(), 0);
+  EXPECT_EQ(p.at(0).g(), 0);
+  EXPECT_EQ(p.at(0).b(), 0);
+  EXPECT_EQ(p.at(10).r(), 255);
+  EXPECT_EQ(p.at(10).g(), 255);
+  EXPECT_EQ(p.at(10).b(), 255);
+
+  float prev_tone = -1.0f;
+  for (std::size_t i = 1; i <= 9; ++i) {
+    const auto h = xyz_to_hct(colorcpp::operations::conversion::color_cast<xyz_t>(p.at(i)));
+    EXPECT_GE(h.tone, prev_tone - 0.6f) << "tone step i=" << i;
+    prev_tone = h.tone;
+    EXPECT_LE(hue_dist(h.hue, 300.0f), 4.0f) << "hue drift i=" << i;
+  }
+  EXPECT_NEAR(prev_tone, 90.0f, 1.0f);
 }
 
 }  // namespace colorcpp::algorithms::test

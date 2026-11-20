@@ -19,6 +19,7 @@
 #include <cmath>
 #include <colorcpp/algorithms/appearance/cam16.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
+#include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
 
 namespace colorcpp::algorithms::appearance {
@@ -152,6 +153,23 @@ inline core::xyz_t hct_to_xyz(const hct& c) {
 
   // Unreachable for valid input: achromatic fallback at the target luminance.
   return core::xyz_t{static_cast<float>(Y) * 0.95047f, static_cast<float>(Y), static_cast<float>(Y) * 1.08883f};
+}
+
+/**
+ * @brief Material tonal palette: @p count tones evenly spaced over L* 0..100.
+ *
+ * Tone 0 is black, tone 100 is white; interior tones run the solver at the
+ * fixed (hue, chroma) so chroma clamps near the endpoints without hue drift.
+ */
+template <typename Color>
+core::palette_set<Color> hct_tonal_palette(float hue, float chroma, std::size_t count) {
+  core::palette_set<Color> p;
+  if (count == 0) return p;
+  for (std::size_t i = 0; i < count; ++i) {
+    const float tone = count == 1 ? 50.0f : 100.0f * static_cast<float>(i) / static_cast<float>(count - 1);
+    p.add(operations::conversion::color_cast<Color>(hct_to_xyz(hct{hue, chroma, tone})));
+  }
+  return p;
 }
 
 }  // namespace colorcpp::algorithms::appearance

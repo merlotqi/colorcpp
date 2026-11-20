@@ -346,6 +346,54 @@ TEST(MaterialTest, Error) {
   EXPECT_EQ(p.size(), 10u);
 }
 
+TEST(MaterialTest, RolesAreHctTonalPalettes) {
+  // HCT rewiring (appearance module): every role palette spans the full
+  // tone ramp — tone 0 is black, tone 100 is white — which the old HSL
+  // lightness ramps did not guarantee.
+  rgb8_t base{100, 50, 200};
+  const auto check = [](const auto& palette) {
+    ASSERT_EQ(palette.size(), 11u);
+    EXPECT_EQ(palette.at(0), (rgb8_t{0, 0, 0})) << "first tone must be black";
+    EXPECT_EQ(palette.at(10), (rgb8_t{255, 255, 255})) << "last tone must be white";
+  };
+  check(material_primary(base, 11));
+  check(material_secondary(base, 11));
+  check(material_tertiary(base, 11));
+  check(material_neutral(base, 11));
+}
+
+TEST(MaterialTest, TertiaryShiftsHueSixtyDegrees) {
+  // Material 3: tertiary sits 60 deg from the key hue (the old heuristic
+  // used 120).
+  rgb8_t base{100, 50, 200};
+  const auto key =
+      colorcpp::algorithms::appearance::xyz_to_hct(colorcpp::operations::conversion::color_cast<core::xyz_t>(base));
+  const auto tertiary = colorcpp::algorithms::appearance::xyz_to_hct(
+      colorcpp::operations::conversion::color_cast<core::xyz_t>(material_tertiary(base, 11).at(5)));
+  float d = std::fmod(std::abs(tertiary.hue - key.hue), 360.0f);
+  if (d > 180.0f) d = 360.0f - d;
+  EXPECT_NEAR(d, 60.0f, 4.0f);
+}
+
+TEST(MaterialTest, RoleChromaRelationships) {
+  // Role semantics of the HCT rewiring: secondary is half the key chroma,
+  // neutral a tenth, error is seeded from Material's #B3261E (reddish).
+  rgb8_t base{100, 50, 200};
+  const auto hct_of_mid = [](const core::palette_set<rgb8_t>& palette) {
+    return colorcpp::algorithms::appearance::xyz_to_hct(
+        colorcpp::operations::conversion::color_cast<core::xyz_t>(palette.at(5)));
+  };
+  const auto primary = hct_of_mid(material_primary(base, 11));
+  const auto secondary = hct_of_mid(material_secondary(base, 11));
+  const auto neutral = hct_of_mid(material_neutral(base, 11));
+  EXPECT_NEAR(secondary.chroma, primary.chroma * 0.5f, 2.0f);
+  EXPECT_LT(neutral.chroma, primary.chroma * 0.25f);
+
+  const auto error_mid = material_error<rgb8_t>(11).at(5);
+  EXPECT_GT(error_mid.r(), error_mid.g());
+  EXPECT_GT(error_mid.r(), error_mid.b());
+}
+
 TEST(MaterialTest, DesignSystem) {
   rgb8_t base{100, 50, 200};
   // Test individual components instead of full system
