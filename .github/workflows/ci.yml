@@ -60,8 +60,9 @@ jobs:
         run: ctest --test-dir build --output-on-failure --no-tests=error
 
   # Documented minimum compilers (CONTRIBUTING: GCC 11+ / Clang 14+):
-  # floating-point std::from_chars needs libstdc++ 11, so ubuntu-22.04's
-  # stock gcc-11/clang-14 is the floor that must keep building.
+  # floating-point std::from_chars needs libstdc++ 11, so gcc-11/clang-14 is
+  # the floor that must keep building. ubuntu-22.04 runners ship gcc-11,
+  # clang-14, CMake and Ninja preinstalled — no package install step.
   build-test-min:
     name: ${{ matrix.name }}
     runs-on: ubuntu-22.04
@@ -80,11 +81,6 @@ jobs:
       CXX: ${{ matrix.cxx }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build g++-11 clang-14
 
       - name: Configure
         run: |
