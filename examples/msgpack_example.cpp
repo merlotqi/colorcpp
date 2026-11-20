@@ -86,7 +86,7 @@ struct simple_unpacker {
   uint8_t read_u8() { return data[pos++]; }
 
   uint16_t read_u16() {
-    uint16_t v = (static_cast<uint16_t>(data[pos]) << 8) | data[pos + 1];
+    uint16_t v = static_cast<uint16_t>((static_cast<uint16_t>(data[pos]) << 8) | data[pos + 1]);
     pos += 2;
     return v;
   }

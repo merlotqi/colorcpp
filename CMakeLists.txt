@@ -71,15 +71,17 @@ if(MSVC)
   target_compile_options(colorcpp INTERFACE /utf-8)
 endif()
 
-# Strict warnings for first-party code (tests/examples/benchmarks) only.
+# Warnings (not errors) for first-party code (tests/examples/benchmarks) only.
 # Deliberately NOT part of the exported `colorcpp` INTERFACE: consumers must
-# not inherit -Werror / /WX from a header-only dependency.
+# not inherit these flags from a header-only dependency. Warnings are reported
+# but do not fail the build; -Wno-sign-conversion keeps Clang (whose
+# -Wconversion implies it) from flooding the log — GCC never enabled it.
 add_library(colorcpp_warnings INTERFACE)
 if(MSVC)
-  target_compile_options(colorcpp_warnings INTERFACE /W4 /WX)
+  target_compile_options(colorcpp_warnings INTERFACE /W4)
 else()
   target_compile_options(colorcpp_warnings INTERFACE
-    -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Werror
+    -Wall -Wextra -Wpedantic -Wconversion -Wno-sign-conversion
     -Wno-unused-parameter
   )
 endif()
