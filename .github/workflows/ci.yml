@@ -34,6 +34,30 @@ jobs:
             cc: clang
             cxx: clang++
             std: 20
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build g++ clang
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
+            -DCOLORCPP_BUILD_TESTS=ON \
+            -DCOLORCPP_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
 
   # Documented minimum compilers (CONTRIBUTING: GCC 11+ / Clang 14+):
   # floating-point std::from_chars needs libstdc++ 11, so ubuntu-22.04's
@@ -66,32 +90,6 @@ jobs:
         run: |
           cmake -G Ninja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCOLORCPP_BUILD_TESTS=ON \
-            -DCOLORCPP_BUILD_EXAMPLES=ON
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure --no-tests=error
-
-    env:
-      CC: ${{ matrix.cc }}
-      CXX: ${{ matrix.cxx }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build g++ clang
-
-      - name: Configure
-        run: |
-          cmake -G Ninja -B build -S . \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
             -DCOLORCPP_BUILD_TESTS=ON \
             -DCOLORCPP_BUILD_EXAMPLES=ON
 
