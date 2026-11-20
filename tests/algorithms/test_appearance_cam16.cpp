@@ -108,4 +108,55 @@ TEST(Cam16, SaturatedInputKeepsChroma) {
   EXPECT_LT(m.J, 80.0f);
 }
 
+// colour-science TestCAM16_to_XYZ: the same five cases round-tripped through
+// the inverse transform (J, C, h + conditions -> XYZ).
+TEST(Cam16, InverseReferenceVectors) {
+  using colorcpp::algorithms::appearance::cam16_to_xyz;
+  struct InvSample {
+    float la;
+    xyz_t white;
+    float J, C, h;
+    xyz_t xyz;  // expected
+  };
+  const InvSample refs[] = {
+      {318.31f, XYZ(0.9505f, 1.0000f, 1.0888f), 41.73120791f, 0.10335574f, 217.06795977f,
+       XYZ(0.1901f, 0.2000f, 0.2178f)},
+      {31.83f, XYZ(0.9505f, 1.0000f, 1.0888f), 65.42828069f, 49.67956420f, 17.48659243f,
+       XYZ(0.5706f, 0.4306f, 0.3196f)},
+      {318.31f, XYZ(1.0985f, 1.0000f, 0.3558f), 21.36052893f, 50.99381895f, 178.86724266f,
+       XYZ(0.0353f, 0.0656f, 0.0214f)},
+      {318.31f, XYZ(1.0985f, 1.0000f, 0.3558f), 41.36326063f, 52.81154022f, 258.88676291f,
+       XYZ(0.1901f, 0.2000f, 0.2178f)},
+      {4.074366543152521f, XYZ(0.9505f, 1.0000f, 1.0888f), 21.03801957f, 457.78881613f, 350.06445098f,
+       XYZ(0.6145276998f, 0.0700421901f, 0.822406738f)},
+  };
+  for (const auto& r : refs) {
+    const auto vc = viewing_conditions::create(r.white, r.la, 0.20f, surround::average);
+    const auto got = cam16_to_xyz(r.J, r.C, r.h, vc);
+    // Measured inverse-vs-reference maxima: 1.8e-7 (x), 1.5e-8 (y),
+    // 5.4e-7 (z) — bounds sit ~200x above to absorb float32 inputs and
+    // libm drift.
+    EXPECT_NEAR(got.x(), r.xyz.x(), 1e-4f) << "x";
+    EXPECT_NEAR(got.y(), r.xyz.y(), 1e-4f) << "y";
+    EXPECT_NEAR(got.z(), r.xyz.z(), 1e-4f) << "z";
+  }
+}
+
+// The |sin h| vs |cos h| branch in the inverse exists only to keep the
+// reciprocal away from zero: at h = 0/90/180/270 exactly one of sin/cos
+// vanishes, so a swapped condition divides by ~0 and the round trip
+// collapses. Well-conditioned hues cannot tell the branches apart.
+TEST(Cam16, InverseSingularHueRoundTrip) {
+  using colorcpp::algorithms::appearance::cam16_to_xyz;
+  const xyz_t white = XYZ(0.9505f, 1.0f, 1.0888f);
+  const auto vc = viewing_conditions::create(white, 318.31f, 0.20f, surround::average);
+  for (float h : {0.0f, 90.0f, 180.0f, 270.0f}) {
+    const auto back = cam16_to_xyz(50.0f, 20.0f, h, vc);
+    const auto fwd = xyz_to_cam16(back, vc);
+    EXPECT_NEAR(fwd.J, 50.0f, 0.5f) << "h=" << h;
+    EXPECT_NEAR(fwd.C, 20.0f, 0.5f) << "h=" << h;
+    EXPECT_NEAR(fwd.h, h, 0.5f) << "h=" << h;
+  }
+}
+
 }  // namespace colorcpp::algorithms::test

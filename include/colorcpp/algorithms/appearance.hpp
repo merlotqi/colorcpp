@@ -1,11 +1,12 @@
 /**
  * @file appearance.hpp
- * @brief Colour appearance models: CAM16 (forward transform, viewing conditions).
+ * @brief Colour appearance models: CAM16 (forward/inverse, viewing conditions) and CAM16-UCS.
  *
- * Planned increments: CAM16 inverse + CAM16-UCS (J'a'b', ΔE), HCT
- * (Material You tone/chroma/hue), later CIECAM02 / Hellwig 2022 / ZCAM.
+ * Planned increments: HCT (Material You tone/chroma/hue), later CIECAM02 /
+ * Hellwig 2022 / ZCAM.
  */
 
 #pragma once
 
 #include <colorcpp/algorithms/appearance/cam16.hpp>
+#include <colorcpp/algorithms/appearance/cam16_ucs.hpp>

@@ -227,13 +227,89 @@ inline cam16_spec xyz_to_cam16(const core::xyz_t& xyz, const viewing_conditions&
   const double M = C * std::pow(vc.F_L, 0.25);
   const double s = 100.0 * std::pow(M / Q, 0.5);
 
+  float h_f = static_cast<float>(h);
+  // atan2 can return a hair below 0 (e.g. b = -1e-20); after +360 the
+  // double is 360-eps, which float32 rounds up to exactly 360.
+  if (h_f >= 360.0f) h_f = 0.0f;
   return cam16_spec{static_cast<float>(J),
                     static_cast<float>(C),
-                    static_cast<float>(h),
+                    h_f,
                     static_cast<float>(s),
                     static_cast<float>(Q),
                     static_cast<float>(M),
                     static_cast<float>(details::hue_quadrature_d(h))};
+}
+
+/**
+ * @brief Inverse CAM16 transform: appearance correlates back to relative XYZ.
+ *
+ * Recovers the opponent a/b pair from (J, C, h) with the standard
+ * singularity guards (t = 0 collapses to the achromatic axis; the
+ * |sin h| vs |cos h| branch avoids dividing by a near-zero component),
+ * inverts the nonlinear compression, undoes the cone adaptation and
+ * applies the inverse CAT16 matrix.
+ *
+ * @param J Lightness (0-100).
+ * @param C Chroma.
+ * @param h Hue angle in degrees (0-360).
+ * @param vc Viewing conditions from @ref viewing_conditions::create.
+ * @return Colour in this library's Y = 1 relative XYZ scale.
+ */
+inline core::xyz_t cam16_to_xyz(float J, float C, float h, const viewing_conditions& vc) {
+  using chromatic_adaptation::details::M_CAT16_inv;
+
+  const double Jd = static_cast<double>(J);
+  const double Cd = static_cast<double>(C);
+  const double hd = static_cast<double>(h);
+
+  const double J_prime = std::max(Jd, 1e-6);
+  const double chroma_factor = std::pow(1.64 - std::pow(0.29, vc.n), 0.73);
+  const double t = std::pow(Cd / (std::sqrt(J_prime / 100.0) * chroma_factor), 1.0 / 0.9);
+  const double A = vc.A_w * std::pow(Jd / 100.0, 1.0 / (vc.c * vc.z));
+
+  const double h_rad = hd * details::kPi / 180.0;
+  const double e_t = (std::cos(h_rad + 2.0) + 3.8) / 4.0;
+  const double sin_h = std::sin(h_rad);
+  const double cos_h = std::cos(h_rad);
+
+  double a = 0.0;
+  double b = 0.0;
+  const double P2 = A / vc.N_bb + 0.305;
+  if (t > 0.0) {
+    const double P1 = (50000.0 / 13.0) * vc.N_c * vc.N_cb * e_t / t;
+    constexpr double P3 = 21.0 / 20.0;
+    const double n_ab = P2 * (2.0 + P3) * (460.0 / 1403.0);
+    if (std::abs(sin_h) >= std::abs(cos_h)) {
+      const double P4 = P1 / sin_h;
+      const double cot_h = cos_h / sin_h;
+      b = n_ab / (P4 + (2.0 + P3) * (220.0 / 1403.0) * cot_h - 27.0 / 1403.0 + P3 * (6300.0 / 1403.0));
+      a = b * cot_h;
+    } else {
+      const double P5 = P1 / cos_h;
+      const double tan_h = sin_h / cos_h;
+      a = n_ab / (P5 + (2.0 + P3) * (220.0 / 1403.0) - (27.0 / 1403.0 - P3 * (6300.0 / 1403.0)) * tan_h);
+      b = a * tan_h;
+    }
+  }
+
+  const std::array<double, 3> RGB_a{(460.0 * P2 + 451.0 * a + 288.0 * b) / 1403.0,
+                                    (460.0 * P2 - 891.0 * a - 261.0 * b) / 1403.0,
+                                    (460.0 * P2 - 220.0 * a - 6300.0 * b) / 1403.0};
+
+  std::array<double, 3> RGB_c{};
+  for (std::size_t i = 0; i < 3; ++i) {
+    const double d = RGB_a[i] - 0.1;
+    const double m = std::abs(d);
+    const double sign = d == 0.0 ? 0.0 : (d < 0.0 ? -1.0 : 1.0);
+    // Inverse of y = 400 x / (27.13 + x): x = 27.13 y / (400 - y) with
+    // x = (F_L |RGB_c| / 100)^0.42 — the sign scales the result, not |y|.
+    RGB_c[i] = sign * (100.0 / vc.F_L) * std::pow((27.13 * m) / (400.0 - m), 1.0 / 0.42);
+  }
+
+  const std::array<double, 3> RGB{RGB_c[0] / vc.D_RGB[0], RGB_c[1] / vc.D_RGB[1], RGB_c[2] / vc.D_RGB[2]};
+  const auto XYZ100 = details::mul3(M_CAT16_inv, RGB);
+  return core::xyz_t(static_cast<float>(XYZ100[0] / 100.0), static_cast<float>(XYZ100[1] / 100.0),
+                     static_cast<float>(XYZ100[2] / 100.0));
 }
 
 }  // namespace colorcpp::algorithms::appearance
