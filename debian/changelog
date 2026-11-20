@@ -1,3 +1,14 @@
+colorcpp (1.0.8-1) unstable; urgency=medium
+
+  * Align packaging version with upstream 1.0.8 (was 0.3.0).
+  * Use GNUInstallDirs and ARCH_INDEPENDENT CMake package version.
+  * Enable -Wconversion; fix size_t->float conversions in palette/random.
+  * CI: minimum GCC 11 / Clang 14 job, C++20 on macOS and Windows.
+  * Documentation corrections (README examples, CSS hex, compiler matrix).
+  * Add Helland Kelvin reference vectors and achromatic polar lerp tests.
+
+ -- Merlot Qi <merlotrain.mc@gmail.com>  Fri, 20 Nov 2026 02:17:42 +0000
+
 colorcpp (0.3.0-1) unstable; urgency=medium
 
   * Initial Debian package.

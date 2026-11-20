@@ -4,7 +4,7 @@
 project = "colorcpp"
 copyright = "colorcpp contributors"
 author = "colorcpp contributors"
-release = "1.0.1"
+release = "1.0.8"
 
 extensions: list[str] = []
 
