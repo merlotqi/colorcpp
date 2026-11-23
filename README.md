@@ -10,6 +10,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 - **Multiple color spaces**: RGB, HSV, HSL, HWB, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ, Display P3, Adobe RGB, ProPhoto RGB, Rec.2020
 - **Perceptually uniform**: Built-in support for CIELAB and OkLab for perceptual operations
 - **Color operations**: Blending, interpolation, palette generation, accessibility checking, color temperature
+- **Appearance models**: CAM16 (forward/inverse transform, viewing conditions), CAM16-UCS (J'a'b' uniform space, delta E), and HCT (Material You hue/chroma/tone)
 - **I/O support**: CSS Color 4 parsing (hex, rgb, hsl, oklab, oklch, display-p3, lab, lch, hwb, named colors)
 - **Serialization**: JSON and MessagePack adapters for network/config integration
 - **Binary IO**: Read/write DaVinci Resolve .cube LUT files (1D and 3D)
@@ -66,7 +67,7 @@ Canonical public namespaces:
 
 - `colorcpp::core` for color types, constants, and stream I/O
 - `colorcpp::operations::{conversion, blend, interpolate, palette, random, compare}`
-- `colorcpp::algorithms::{accessibility, chromatic_adaptation, color_temperature, delta_e, gamut, gradient, harmony, vision}`
+- `colorcpp::algorithms::{accessibility, appearance, chromatic_adaptation, color_temperature, delta_e, gamut, gradient, harmony, vision}`
 - `colorcpp::io::{css, literals, serialization, binary_io, ansi}`
 
 When you include [`colorcpp/colorcpp.hpp`](include/colorcpp/colorcpp.hpp), `core`, `operations`, and `algorithms`
@@ -365,6 +366,36 @@ bool imperceptible = delta_e_2000(c1, c2) < 1.0f;
 bool acceptable = delta_e_2000(c1, c2) < 3.0f;
 ```
 
+### Appearance Models (CAM16, CAM16-UCS, HCT)
+
+```cpp
+#include <colorcpp/algorithms/appearance.hpp>
+
+using namespace colorcpp::algorithms::appearance;
+using namespace colorcpp::core;
+
+// CAM16: build viewing conditions once per scene, then transform colors
+auto vc = viewing_conditions::create(d65_white, 318.31f, 0.20f, surround::average);
+auto spec = xyz_to_cam16(xyz_color, vc);  // J, C, h, s, Q, M, H
+
+// Round-trip back to XYZ
+auto back = cam16_to_xyz(spec.J, spec.C, spec.h, vc);
+
+// Hue quadrature on the 0-400 scale
+auto H = cam16_hue_quadrature(spec.h);
+
+// CAM16-UCS: uniform J'a'b' coordinates and delta E
+auto ucs = cam16_to_ucs(spec);
+auto de = delta_e_cam16_ucs(ucs_a, ucs_b);
+
+// HCT: Material You hue/chroma/tone
+auto hct = xyz_to_hct(xyz_color);        // hue, CAM16 chroma, CIE L* tone
+auto xyz_back = hct_to_xyz(hct{220.0f, 40.0f, 50.0f});  // sRGB-limited inverse
+
+// Material tonal palette at fixed hue/chroma
+auto palette = hct_tonal_palette<rgbf_t>(220.0f, 40.0f, 11);
+```
+
 ### Random Colors
 
 ```cpp
@@ -654,3 +685,7 @@ GPL-3.0 License - see LICENSE file for details.
 - OkLab by [Björn Ottosson](https://bottosson.github.io/posts/oklab/)
 - sRGB gamma per IEC 61966-2-1
 - W3C blend mode specifications
+- Li, Li, Wang, Zu, Luo, Melgosa, Brill, Pointer (2017). *Comprehensive colour solutions: CAM16, CAT16 and CAM16-UCS*. Color Research & Application 42(6).
+- Luo, M. R. (2006). CAM02-UCS coefficients, adopted by CAM16-UCS (Li et al. 2017).
+- CIE 159:2004 — induction factors shared by CIECAM02 and CAM16.
+- Google `material-color-utilities` — HCT viewing-condition constants (numeric values only).

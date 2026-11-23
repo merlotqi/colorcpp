@@ -14,6 +14,7 @@ These pages summarize **what** each part of colorcpp implements, **where** it li
    :maxdepth: 1
    :caption: Topics
 
+   appearance
    api_conventions
    color_spaces
    conversion

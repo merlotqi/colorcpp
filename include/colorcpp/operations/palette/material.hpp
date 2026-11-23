@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <colorcpp/algorithms/appearance.hpp>
 #include <colorcpp/core/palette_set.hpp>
 #include <colorcpp/operations/conversion.hpp>
 #include <colorcpp/operations/palette/scales.hpp>
@@ -32,16 +33,10 @@ struct material_palette {
 template <typename Color>
 core::palette_set<Color> material_primary(const Color& base, size_t count = 10) {
   using namespace conversion;
-  auto hsl = color_cast<core::hsla_float_t>(base);
-
-  float hue = hsl.template get_index<0>();
-  float sat = hsl.template get_index<1>();
-
-  // Material primary: high saturation, varying lightness
-  core::hsla_float_t primary_start{hue, sat, 0.1f, 1.0f};  // 10
-  core::hsla_float_t primary_end{hue, sat, 0.99f, 1.0f};   // 99
-
-  return visual_scale(color_cast<Color>(primary_start), color_cast<Color>(primary_end), count);
+  // Material 3: the primary tonal palette is the key colour's own HCT
+  // hue and chroma across the full tone ramp (HCT rewiring).
+  const auto key = algorithms::appearance::xyz_to_hct(color_cast<core::xyz_t>(base));
+  return algorithms::appearance::hct_tonal_palette<Color>(key.hue, key.chroma, count);
 }
 
 /**
@@ -53,15 +48,9 @@ core::palette_set<Color> material_primary(const Color& base, size_t count = 10) 
 template <typename Color>
 core::palette_set<Color> material_secondary(const Color& base, size_t count = 10) {
   using namespace conversion;
-  auto hsl = color_cast<core::hsla_float_t>(base);
-
-  // Secondary: shifted hue by 60°, lower saturation
-  float secondary_hue = std::fmod(hsl.template get_index<0>() + 60.0f, 360.0f);
-
-  core::hsla_float_t secondary_start{secondary_hue, 0.4f, 0.1f, 1.0f};
-  core::hsla_float_t secondary_end{secondary_hue, 0.4f, 0.99f, 1.0f};
-
-  return visual_scale(color_cast<Color>(secondary_start), color_cast<Color>(secondary_end), count);
+  // Material 3: secondary keeps the key hue at reduced chroma.
+  const auto key = algorithms::appearance::xyz_to_hct(color_cast<core::xyz_t>(base));
+  return algorithms::appearance::hct_tonal_palette<Color>(key.hue, key.chroma * 0.5f, count);
 }
 
 /**
@@ -73,15 +62,11 @@ core::palette_set<Color> material_secondary(const Color& base, size_t count = 10
 template <typename Color>
 core::palette_set<Color> material_tertiary(const Color& base, size_t count = 10) {
   using namespace conversion;
-  auto hsl = color_cast<core::hsla_float_t>(base);
-
-  // Tertiary: shifted hue by 120°, moderate saturation
-  float tertiary_hue = std::fmod(hsl.template get_index<0>() + 120.0f, 360.0f);
-
-  core::hsla_float_t tertiary_start{tertiary_hue, 0.5f, 0.1f, 1.0f};
-  core::hsla_float_t tertiary_end{tertiary_hue, 0.5f, 0.99f, 1.0f};
-
-  return visual_scale(color_cast<Color>(tertiary_start), color_cast<Color>(tertiary_end), count);
+  // Material 3: tertiary sits 60 degrees from the key hue at key chroma
+  // (the old HSL heuristic used 120 degrees).
+  const auto key = algorithms::appearance::xyz_to_hct(color_cast<core::xyz_t>(base));
+  const float tertiary_hue = std::fmod(key.hue + 60.0f, 360.0f);
+  return algorithms::appearance::hct_tonal_palette<Color>(tertiary_hue, key.chroma, count);
 }
 
 /**
@@ -93,13 +78,9 @@ core::palette_set<Color> material_tertiary(const Color& base, size_t count = 10)
 template <typename Color>
 core::palette_set<Color> material_neutral(const Color& base, size_t count = 10) {
   using namespace conversion;
-  auto hsl = color_cast<core::hsla_float_t>(base);
-
-  // Neutral: very low saturation
-  core::hsla_float_t neutral_start{hsl.template get_index<0>(), 0.05f, 0.1f, 1.0f};
-  core::hsla_float_t neutral_end{hsl.template get_index<0>(), 0.05f, 0.99f, 1.0f};
-
-  return visual_scale(color_cast<Color>(neutral_start), color_cast<Color>(neutral_end), count);
+  // Neutral: the key hue at a tenth of its chroma (near-gray tones).
+  const auto key = algorithms::appearance::xyz_to_hct(color_cast<core::xyz_t>(base));
+  return algorithms::appearance::hct_tonal_palette<Color>(key.hue, key.chroma * 0.1f, count);
 }
 
 /**
@@ -110,12 +91,10 @@ core::palette_set<Color> material_neutral(const Color& base, size_t count = 10) 
 template <typename Color>
 core::palette_set<Color> material_error(size_t count = 10) {
   using namespace conversion;
-
-  // Error: pure red with high saturation
-  core::hsla_float_t error_start{0.0f, 0.9f, 0.1f, 1.0f};
-  core::hsla_float_t error_end{0.0f, 0.9f, 0.99f, 1.0f};
-
-  return visual_scale(color_cast<Color>(error_start), color_cast<Color>(error_end), count);
+  // Error: Material's baseline #B3261E as the HCT seed.
+  const core::rgba8_t seed{179, 38, 30, 255};
+  const auto key = algorithms::appearance::xyz_to_hct(color_cast<core::xyz_t>(seed));
+  return algorithms::appearance::hct_tonal_palette<Color>(key.hue, key.chroma, count);
 }
 
 /**
