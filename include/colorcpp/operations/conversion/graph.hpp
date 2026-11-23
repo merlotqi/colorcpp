@@ -217,7 +217,7 @@ using builtin_color_nodes =
               core::linear_adobe_rgbaf_t, core::prophoto_rgbf_t, core::prophoto_rgbaf_t, core::linear_prophoto_rgbf_t,
               core::linear_prophoto_rgbaf_t, core::rec2020_rgbf_t, core::rec2020_rgbaf_t, core::linear_rec2020_rgbf_t,
               core::linear_rec2020_rgbaf_t, core::xyy_t, core::luv_t, core::jzazbz_t, core::ycbcr601_t,
-              core::ycbcr709_t, core::ycbcr2020_t>;
+              core::ycbcr709_t, core::ycbcr2020_t, core::ictcp_t>;
 
 /**
  * @brief Global color graph node set including user extensions.
@@ -345,6 +345,9 @@ template <>
 struct device_independent<core::xyy_t> : std::true_type {};
 template <>
 struct device_independent<core::jzazbz_t> : std::true_type {};
+
+template <>
+struct device_independent<core::ictcp_t> : std::true_type {};
 
 template <typename T>
 inline constexpr bool device_independent_v = device_independent<T>::value;

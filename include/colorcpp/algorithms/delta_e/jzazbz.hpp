@@ -3,10 +3,12 @@
  * @brief Euclidean color difference in Jzazbz (Safdar et al. 2017).
  *
  * Jzazbz is designed for HDR / wide-gamut content; its Euclidean distance is
- * the natural companion metric for @ref core::jzazbz_t pipelines. Typical
- * SDR-scale differences land in the 0.01–0.05 range (Jz spans [0, 1]) —
- * there is no community-standard JND constant, so compare against your own
- * content statistics rather than reusing ΔE2000 or Oklab thresholds.
+ * the natural companion metric for @ref core::jzazbz_t pipelines. Under the
+ * library's scale (relative Y = 1 maps to the 100 cd/m^2 reference white)
+ * the diffuse white sits at Jz ≈ 0.167 and SDR differences land in the
+ * 0.01–0.15 range (Jz spans [0, 1]) — there is no community-standard JND
+ * constant, so compare against your own content statistics rather than
+ * reusing ΔE2000 or Oklab thresholds.
  */
 
 #pragma once

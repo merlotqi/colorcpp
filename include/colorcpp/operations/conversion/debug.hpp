@@ -14,6 +14,7 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/ictcp.hpp>
 #include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/luv.hpp>
@@ -192,6 +193,11 @@ struct color_type_name<core::luv_t> {
 template <>
 struct color_type_name<core::jzazbz_t> {
   static constexpr std::string_view value = "jzazbz";
+};
+
+template <>
+struct color_type_name<core::ictcp_t> {
+  static constexpr std::string_view value = "ictcp";
 };
 
 template <>

@@ -17,6 +17,7 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/ictcp.hpp>
 #include <colorcpp/core/io.hpp>
 #include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>

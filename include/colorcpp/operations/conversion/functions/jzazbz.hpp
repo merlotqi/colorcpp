@@ -28,6 +28,9 @@ inline constexpr float c1 = 3424.0f / 4096.0f;
 inline constexpr float c2 = 2413.0f / 128.0f;
 inline constexpr float c3 = 2392.0f / 128.0f;
 inline constexpr float peak = 10000.0f;
+// Relative-to-absolute scale: XYZ is relative (Y = 1 = diffuse white), PQ is
+// absolute (cd/m^2); the SDR reference white is 100 cd/m^2 (see itp.hpp).
+inline constexpr float white_nits = 100.0f;
 
 // XYZ' -> LMS cone matrix.
 inline constexpr float M1[9] = {0.41478972f, 0.579999f,   0.0146480f, -0.2015100f, 1.120649f,
@@ -73,9 +76,10 @@ template <typename To, typename From>
 constexpr To xyz_to_jzazbz(const From& src) {
   using namespace jzazbz_constants;
 
-  float X = static_cast<float>(src.template get_index<0>());
-  float Y = static_cast<float>(src.template get_index<1>());
-  float Z = static_cast<float>(src.template get_index<2>());
+  // Scale into absolute nits before the absolute PQ step (Y = 1 -> 100 nits).
+  float X = static_cast<float>(src.template get_index<0>()) * white_nits;
+  float Y = static_cast<float>(src.template get_index<1>()) * white_nits;
+  float Z = static_cast<float>(src.template get_index<2>()) * white_nits;
 
   float Xp = b * X - (b - 1.0f) * Z;
   float Yp = g * Y - (g - 1.0f) * X;
@@ -128,7 +132,10 @@ constexpr To jzazbz_to_xyz(const From& src) {
   float X = (Xp + (b - 1.0f) * Zp) / b;
   float Y = (Yp + (g - 1.0f) * X) / g;
 
-  return pack_to<To>(from_value<To, 0>(X), from_value<To, 1>(Y), from_value<To, 2>(Zp));
+  // Back to the relative XYZ convention (divide out the nits scale before
+  // from_value clamps into the channel range).
+  return pack_to<To>(from_value<To, 0>(X / white_nits), from_value<To, 1>(Y / white_nits),
+                     from_value<To, 2>(Zp / white_nits));
 }
 
 }  // namespace colorcpp::operations::conversion::details

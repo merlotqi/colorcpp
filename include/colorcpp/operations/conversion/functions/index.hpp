@@ -13,6 +13,7 @@
 #include <colorcpp/operations/conversion/functions/hsl.hpp>
 #include <colorcpp/operations/conversion/functions/hsv.hpp>
 #include <colorcpp/operations/conversion/functions/hwb.hpp>
+#include <colorcpp/operations/conversion/functions/ictcp.hpp>
 #include <colorcpp/operations/conversion/functions/jzazbz.hpp>
 #include <colorcpp/operations/conversion/functions/lab.hpp>
 #include <colorcpp/operations/conversion/functions/linear_rgb.hpp>
@@ -33,6 +34,7 @@
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/ictcp.hpp>
 #include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/luv.hpp>
@@ -288,3 +290,8 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(
     colorcpp::core::rgbf_t, colorcpp::core::ycbcr2020_t,
     colorcpp::operations::conversion::details::rgb_to_ycbcr2020<colorcpp::core::ycbcr2020_t>,
     colorcpp::operations::conversion::details::ycbcr2020_to_rgb<colorcpp::core::rgbf_t>)
+
+// XYZ <-> ICtCp (BT.2100 PQ)
+COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::xyz_t, colorcpp::core::ictcp_t,
+                                   colorcpp::operations::conversion::details::xyz_to_ictcp_reg,
+                                   colorcpp::operations::conversion::details::ictcp_to_xyz_reg)
