@@ -24,6 +24,7 @@
 #include <colorcpp/operations/conversion/functions/srgb8_cast.hpp>
 #include <colorcpp/operations/conversion/functions/xyy.hpp>
 #include <colorcpp/operations/conversion/functions/xyz.hpp>
+#include <colorcpp/operations/conversion/functions/ycbcr.hpp>
 
 // Register conversions
 #include <colorcpp/core/cielab.hpp>
@@ -39,6 +40,7 @@
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/core/ycbcr.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 
 // 8-bit sRGB ↔ float sRGB (hub alignment for rgb8 / rgba8; wrappers avoid macro comma issues)
@@ -270,3 +272,19 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(
     colorcpp::core::linear_rec2020_rgbaf_t, colorcpp::core::xyz_t,
     colorcpp::operations::conversion::details::linear_rec2020_to_xyz<colorcpp::core::xyz_t>,
     colorcpp::operations::conversion::details::xyz_to_linear_rec2020<colorcpp::core::linear_rec2020_rgbaf_t>)
+
+// sRGB float <-> YCbCr (per ITU-R luma matrix)
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::rgbf_t, colorcpp::core::ycbcr601_t,
+    colorcpp::operations::conversion::details::rgb_to_ycbcr601<colorcpp::core::ycbcr601_t>,
+    colorcpp::operations::conversion::details::ycbcr601_to_rgb<colorcpp::core::rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::rgbf_t, colorcpp::core::ycbcr709_t,
+    colorcpp::operations::conversion::details::rgb_to_ycbcr709<colorcpp::core::ycbcr709_t>,
+    colorcpp::operations::conversion::details::ycbcr709_to_rgb<colorcpp::core::rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::rgbf_t, colorcpp::core::ycbcr2020_t,
+    colorcpp::operations::conversion::details::rgb_to_ycbcr2020<colorcpp::core::ycbcr2020_t>,
+    colorcpp::operations::conversion::details::ycbcr2020_to_rgb<colorcpp::core::rgbf_t>)

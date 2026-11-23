@@ -22,6 +22,7 @@
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/core/ycbcr.hpp>
 #include <colorcpp/operations/conversion/graph.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 #include <string_view>
@@ -191,6 +192,21 @@ struct color_type_name<core::luv_t> {
 template <>
 struct color_type_name<core::jzazbz_t> {
   static constexpr std::string_view value = "jzazbz";
+};
+
+template <>
+struct color_type_name<core::ycbcr601_t> {
+  static constexpr std::string_view value = "ycbcr601";
+};
+
+template <>
+struct color_type_name<core::ycbcr709_t> {
+  static constexpr std::string_view value = "ycbcr709";
+};
+
+template <>
+struct color_type_name<core::ycbcr2020_t> {
+  static constexpr std::string_view value = "ycbcr2020";
 };
 
 /**

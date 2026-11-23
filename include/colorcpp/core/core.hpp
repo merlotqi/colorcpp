@@ -27,6 +27,7 @@
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/core/ycbcr.hpp>
 
 /** @brief Re-exports @c colorcpp::core into @c colorcpp when this header is included from the umbrella. */
 namespace colorcpp {
