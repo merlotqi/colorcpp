@@ -42,8 +42,8 @@ decltype(auto) path_color_at(const Container& colors, std::size_t index) {
 }
 
 template <typename Container>
-auto lerp_path_impl(const Container& colors, float t, path_algorithm algorithm, cr_mode catmull_mode,
-                    float tension) -> path_color_t<Container> {
+auto lerp_path_impl(const Container& colors, float t, path_algorithm algorithm, cr_mode catmull_mode, float tension)
+    -> path_color_t<Container> {
   const auto n = static_cast<std::size_t>(std::size(colors));
   // Issue #82: a silent Color{} (transparent black) was a footgun; align
   // with multi_lerp's documented std::invalid_argument contract.

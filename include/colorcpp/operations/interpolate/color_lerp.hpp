@@ -196,8 +196,8 @@ namespace details {
 // Accepts any random-access range of colors (initializer_list, vector, ...)
 // plus the per-segment blend and the caller-specific error message.
 template <typename Range, typename Blend>
-auto multi_lerp_even_impl(const Range& stops, float t, Blend&& blend,
-                          const char* what) -> std::decay_t<decltype(*std::begin(stops))> {
+auto multi_lerp_even_impl(const Range& stops, float t, Blend&& blend, const char* what)
+    -> std::decay_t<decltype(*std::begin(stops))> {
   if (std::size(stops) < 2) throw std::invalid_argument(what);
   t = sanitize_t(t);
 
