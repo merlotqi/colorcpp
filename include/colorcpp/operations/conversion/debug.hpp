@@ -20,6 +20,7 @@
 #include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rec2020.hpp>
+#include <colorcpp/core/rec2100.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
@@ -193,6 +194,26 @@ struct color_type_name<core::luv_t> {
 template <>
 struct color_type_name<core::jzazbz_t> {
   static constexpr std::string_view value = "jzazbz";
+};
+
+template <>
+struct color_type_name<core::rec2100_pq_rgbf_t> {
+  static constexpr std::string_view value = "rec2100-pq";
+};
+
+template <>
+struct color_type_name<core::rec2100_pqa_rgbaf_t> {
+  static constexpr std::string_view value = "rec2100-pqa";
+};
+
+template <>
+struct color_type_name<core::rec2100_hlg_rgbf_t> {
+  static constexpr std::string_view value = "rec2100-hlg";
+};
+
+template <>
+struct color_type_name<core::rec2100_hlga_rgbaf_t> {
+  static constexpr std::string_view value = "rec2100-hlga";
 };
 
 template <>

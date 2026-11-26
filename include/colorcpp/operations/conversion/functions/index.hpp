@@ -21,6 +21,7 @@
 #include <colorcpp/operations/conversion/functions/oklab.hpp>
 #include <colorcpp/operations/conversion/functions/prophoto_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/rec2020.hpp>
+#include <colorcpp/operations/conversion/functions/rec2100.hpp>
 #include <colorcpp/operations/conversion/functions/rgbf_oklab_reg.hpp>
 #include <colorcpp/operations/conversion/functions/srgb8_cast.hpp>
 #include <colorcpp/operations/conversion/functions/xyy.hpp>
@@ -39,6 +40,7 @@
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
+#include <colorcpp/core/rec2100.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
@@ -295,3 +297,24 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(
 COLORCPP_REGISTER_CONVERSION_BIDIR(colorcpp::core::xyz_t, colorcpp::core::ictcp_t,
                                    colorcpp::operations::conversion::details::xyz_to_ictcp_reg,
                                    colorcpp::operations::conversion::details::ictcp_to_xyz_reg)
+
+// Linear Rec.2020 <-> BT.2100 signal encodings (same primaries, PQ/HLG TF)
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::linear_rec2020_rgbf_t, colorcpp::core::rec2100_pq_rgbf_t,
+    colorcpp::operations::conversion::details::linear_rec2020_to_rec2100_pq<colorcpp::core::rec2100_pq_rgbf_t>,
+    colorcpp::operations::conversion::details::rec2100_pq_to_linear_rec2020<colorcpp::core::linear_rec2020_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::linear_rec2020_rgbaf_t, colorcpp::core::rec2100_pqa_rgbaf_t,
+    colorcpp::operations::conversion::details::linear_rec2020_to_rec2100_pq<colorcpp::core::rec2100_pqa_rgbaf_t>,
+    colorcpp::operations::conversion::details::rec2100_pq_to_linear_rec2020<colorcpp::core::linear_rec2020_rgbaf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::linear_rec2020_rgbf_t, colorcpp::core::rec2100_hlg_rgbf_t,
+    colorcpp::operations::conversion::details::linear_rec2020_to_rec2100_hlg<colorcpp::core::rec2100_hlg_rgbf_t>,
+    colorcpp::operations::conversion::details::rec2100_hlg_to_linear_rec2020<colorcpp::core::linear_rec2020_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::linear_rec2020_rgbaf_t, colorcpp::core::rec2100_hlga_rgbaf_t,
+    colorcpp::operations::conversion::details::linear_rec2020_to_rec2100_hlg<colorcpp::core::rec2100_hlga_rgbaf_t>,
+    colorcpp::operations::conversion::details::rec2100_hlg_to_linear_rec2020<colorcpp::core::linear_rec2020_rgbaf_t>)

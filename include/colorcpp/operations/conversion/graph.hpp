@@ -217,7 +217,8 @@ using builtin_color_nodes =
               core::linear_adobe_rgbaf_t, core::prophoto_rgbf_t, core::prophoto_rgbaf_t, core::linear_prophoto_rgbf_t,
               core::linear_prophoto_rgbaf_t, core::rec2020_rgbf_t, core::rec2020_rgbaf_t, core::linear_rec2020_rgbf_t,
               core::linear_rec2020_rgbaf_t, core::xyy_t, core::luv_t, core::jzazbz_t, core::ycbcr601_t,
-              core::ycbcr709_t, core::ycbcr2020_t, core::ictcp_t>;
+              core::ycbcr709_t, core::ycbcr2020_t, core::ictcp_t, core::rec2100_pq_rgbf_t, core::rec2100_pqa_rgbaf_t,
+              core::rec2100_hlg_rgbf_t, core::rec2100_hlga_rgbaf_t>;
 
 /**
  * @brief Global color graph node set including user extensions.

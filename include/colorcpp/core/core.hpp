@@ -25,6 +25,7 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rec2020.hpp>
+#include <colorcpp/core/rec2100.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>

@@ -30,11 +30,6 @@ inline constexpr float ITP_C1 = 3424.0f / 4096.0f;
 inline constexpr float ITP_C2 = 2413.0f / 128.0f;
 inline constexpr float ITP_C3 = 2392.0f / 128.0f;
 inline constexpr float ITP_PEAK = 10000.0f;
-// Relative-to-absolute luminance scale: this library's XYZ is relative
-// (Y = 1 is the diffuse white) while PQ is absolute (cd/m^2). The SDR
-// reference white is 100 cd/m^2, so Y = 1 maps to 100 nits and white
-// encodes to PQ(100) = 0.5080784 — the ITU-R BT.2100 practice.
-inline constexpr float kRelativeWhiteNits = 100.0f;
 
 // Linear BT.2020 RGB -> LMS' (ITU-R BT.2100-1).
 inline constexpr float M_RGB_TO_LMS[9] = {1688.0f / 4096.0f, 2146.0f / 4096.0f, 262.0f / 4096.0f,
