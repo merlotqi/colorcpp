@@ -6,6 +6,7 @@
 #pragma once
 
 // Include all conversion function files
+#include <colorcpp/operations/conversion/functions/aces.hpp>
 #include <colorcpp/operations/conversion/functions/adobe_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/cmyk.hpp>
 #include <colorcpp/operations/conversion/functions/cmyk8_reg.hpp>
@@ -31,6 +32,7 @@
 #include <colorcpp/operations/conversion/functions/ycbcr.hpp>
 
 // Register conversions
+#include <colorcpp/core/aces.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/dci_p3.hpp>
@@ -356,3 +358,36 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(
     colorcpp::core::xyz_t, colorcpp::core::dci_p3_rgbaf_t,
     colorcpp::operations::conversion::details::xyz_to_dci_p3<colorcpp::core::dci_p3_rgbaf_t>,
     colorcpp::operations::conversion::details::dci_p3_to_xyz<colorcpp::core::xyz_t>)
+
+// ACES2065-1 (AP0) <-> XYZ(D65 hub)
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::aces2065_rgbf_t,
+    colorcpp::operations::conversion::details::xyz_to_aces2065<colorcpp::core::aces2065_rgbf_t>,
+    colorcpp::operations::conversion::details::aces2065_to_xyz<colorcpp::core::xyz_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::aces2065_rgbaf_t,
+    colorcpp::operations::conversion::details::xyz_to_aces2065<colorcpp::core::aces2065_rgbaf_t>,
+    colorcpp::operations::conversion::details::aces2065_to_xyz<colorcpp::core::xyz_t>)
+
+// ACEScg (AP1) <-> XYZ(D65 hub)
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::acescg_rgbf_t,
+    colorcpp::operations::conversion::details::xyz_to_acescg<colorcpp::core::acescg_rgbf_t>,
+    colorcpp::operations::conversion::details::acescg_to_xyz<colorcpp::core::xyz_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::acescg_rgbaf_t,
+    colorcpp::operations::conversion::details::xyz_to_acescg<colorcpp::core::acescg_rgbaf_t>,
+    colorcpp::operations::conversion::details::acescg_to_xyz<colorcpp::core::xyz_t>)
+
+// ACEScg (AP1 linear) <-> ACEScct (S-2016-003 log signal)
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::acescg_rgbf_t, colorcpp::core::acescct_rgbf_t,
+    colorcpp::operations::conversion::details::acescg_to_acescct<colorcpp::core::acescct_rgbf_t>,
+    colorcpp::operations::conversion::details::acescct_to_acescg<colorcpp::core::acescg_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::acescg_rgbaf_t, colorcpp::core::acescct_rgbaf_t,
+    colorcpp::operations::conversion::details::acescg_to_acescct<colorcpp::core::acescct_rgbaf_t>,
+    colorcpp::operations::conversion::details::acescct_to_acescg<colorcpp::core::acescg_rgbaf_t>)

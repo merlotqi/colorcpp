@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <colorcpp/core/aces.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/dci_p3.hpp>
@@ -197,6 +198,36 @@ struct color_type_name<core::luv_t> {
 template <>
 struct color_type_name<core::jzazbz_t> {
   static constexpr std::string_view value = "jzazbz";
+};
+
+template <>
+struct color_type_name<core::aces2065_rgbf_t> {
+  static constexpr std::string_view value = "aces2065";
+};
+
+template <>
+struct color_type_name<core::aces2065_rgbaf_t> {
+  static constexpr std::string_view value = "aces2065a";
+};
+
+template <>
+struct color_type_name<core::acescg_rgbf_t> {
+  static constexpr std::string_view value = "acescg";
+};
+
+template <>
+struct color_type_name<core::acescg_rgbaf_t> {
+  static constexpr std::string_view value = "acescga";
+};
+
+template <>
+struct color_type_name<core::acescct_rgbf_t> {
+  static constexpr std::string_view value = "acescct";
+};
+
+template <>
+struct color_type_name<core::acescct_rgbaf_t> {
+  static constexpr std::string_view value = "acesccta";
 };
 
 template <>

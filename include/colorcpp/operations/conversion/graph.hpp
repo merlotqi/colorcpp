@@ -219,7 +219,9 @@ using builtin_color_nodes =
               core::linear_rec2020_rgbaf_t, core::xyy_t, core::luv_t, core::jzazbz_t, core::ycbcr601_t,
               core::ycbcr709_t, core::ycbcr2020_t, core::ictcp_t, core::rec2100_pq_rgbf_t, core::rec2100_pqa_rgbaf_t,
               core::rec2100_hlg_rgbf_t, core::rec2100_hlga_rgbaf_t, core::scrgb_rgbf_t, core::scrgb_rgbaf_t,
-              core::rec709_rgbf_t, core::rec709_rgbaf_t, core::dci_p3_rgbf_t, core::dci_p3_rgbaf_t>;
+              core::rec709_rgbf_t, core::rec709_rgbaf_t, core::dci_p3_rgbf_t, core::dci_p3_rgbaf_t,
+              core::aces2065_rgbf_t, core::aces2065_rgbaf_t, core::acescg_rgbf_t, core::acescg_rgbaf_t,
+              core::acescct_rgbf_t, core::acescct_rgbaf_t>;
 
 /**
  * @brief Global color graph node set including user extensions.
