@@ -13,6 +13,7 @@
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/constants.hpp>
+#include <colorcpp/core/dci_p3.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
@@ -26,7 +27,9 @@
 #include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rec2100.hpp>
+#include <colorcpp/core/rec709.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/scrgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/core/ycbcr.hpp>

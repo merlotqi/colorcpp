@@ -10,6 +10,7 @@
 
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
+#include <colorcpp/core/dci_p3.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
@@ -21,7 +22,9 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rec2020.hpp>
 #include <colorcpp/core/rec2100.hpp>
+#include <colorcpp/core/rec709.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/scrgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/core/ycbcr.hpp>
@@ -194,6 +197,36 @@ struct color_type_name<core::luv_t> {
 template <>
 struct color_type_name<core::jzazbz_t> {
   static constexpr std::string_view value = "jzazbz";
+};
+
+template <>
+struct color_type_name<core::scrgb_rgbf_t> {
+  static constexpr std::string_view value = "scrgb";
+};
+
+template <>
+struct color_type_name<core::scrgb_rgbaf_t> {
+  static constexpr std::string_view value = "scrgba";
+};
+
+template <>
+struct color_type_name<core::rec709_rgbf_t> {
+  static constexpr std::string_view value = "rec709";
+};
+
+template <>
+struct color_type_name<core::rec709_rgbaf_t> {
+  static constexpr std::string_view value = "rec709a";
+};
+
+template <>
+struct color_type_name<core::dci_p3_rgbf_t> {
+  static constexpr std::string_view value = "dci-p3";
+};
+
+template <>
+struct color_type_name<core::dci_p3_rgbaf_t> {
+  static constexpr std::string_view value = "dci-p3a";
 };
 
 template <>

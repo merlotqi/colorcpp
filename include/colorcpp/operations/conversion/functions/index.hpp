@@ -9,6 +9,7 @@
 #include <colorcpp/operations/conversion/functions/adobe_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/cmyk.hpp>
 #include <colorcpp/operations/conversion/functions/cmyk8_reg.hpp>
+#include <colorcpp/operations/conversion/functions/dci_p3.hpp>
 #include <colorcpp/operations/conversion/functions/display_p3.hpp>
 #include <colorcpp/operations/conversion/functions/hsl.hpp>
 #include <colorcpp/operations/conversion/functions/hsv.hpp>
@@ -22,6 +23,7 @@
 #include <colorcpp/operations/conversion/functions/prophoto_rgb.hpp>
 #include <colorcpp/operations/conversion/functions/rec2020.hpp>
 #include <colorcpp/operations/conversion/functions/rec2100.hpp>
+#include <colorcpp/operations/conversion/functions/rec709.hpp>
 #include <colorcpp/operations/conversion/functions/rgbf_oklab_reg.hpp>
 #include <colorcpp/operations/conversion/functions/srgb8_cast.hpp>
 #include <colorcpp/operations/conversion/functions/xyy.hpp>
@@ -31,6 +33,7 @@
 // Register conversions
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
+#include <colorcpp/core/dci_p3.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
@@ -41,7 +44,9 @@
 #include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rec2100.hpp>
+#include <colorcpp/core/rec709.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/scrgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
 #include <colorcpp/core/ycbcr.hpp>
@@ -318,3 +323,36 @@ COLORCPP_REGISTER_CONVERSION_BIDIR(
     colorcpp::core::linear_rec2020_rgbaf_t, colorcpp::core::rec2100_hlga_rgbaf_t,
     colorcpp::operations::conversion::details::linear_rec2020_to_rec2100_hlg<colorcpp::core::rec2100_hlga_rgbaf_t>,
     colorcpp::operations::conversion::details::rec2100_hlg_to_linear_rec2020<colorcpp::core::linear_rec2020_rgbaf_t>)
+
+// scRGB (linear sRGB matrix with extended range — same maths as linear RGB)
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::scrgb_rgbf_t,
+    colorcpp::operations::conversion::details::xyz_to_linear_rgb<colorcpp::core::scrgb_rgbf_t>,
+    colorcpp::operations::conversion::details::linear_rgb_to_xyz<colorcpp::core::xyz_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::scrgb_rgbaf_t,
+    colorcpp::operations::conversion::details::xyz_to_linear_rgb<colorcpp::core::scrgb_rgbaf_t>,
+    colorcpp::operations::conversion::details::linear_rgb_to_xyz<colorcpp::core::xyz_t>)
+
+// Rec.709 (sRGB primaries, BT.1886 gamma 2.4) <-> linear sRGB
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::linear_rgbf_t, colorcpp::core::rec709_rgbf_t,
+    colorcpp::operations::conversion::details::linear_rgb_to_rec709<colorcpp::core::rec709_rgbf_t>,
+    colorcpp::operations::conversion::details::rec709_to_linear_rgb<colorcpp::core::linear_rgbf_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::linear_rgbaf_t, colorcpp::core::rec709_rgbaf_t,
+    colorcpp::operations::conversion::details::linear_rgb_to_rec709<colorcpp::core::rec709_rgbaf_t>,
+    colorcpp::operations::conversion::details::rec709_to_linear_rgb<colorcpp::core::linear_rgbaf_t>)
+
+// DCI-P3 (P3 primaries, D62 white, gamma 2.6) <-> XYZ(D65 hub)
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::dci_p3_rgbf_t,
+    colorcpp::operations::conversion::details::xyz_to_dci_p3<colorcpp::core::dci_p3_rgbf_t>,
+    colorcpp::operations::conversion::details::dci_p3_to_xyz<colorcpp::core::xyz_t>)
+
+COLORCPP_REGISTER_CONVERSION_BIDIR(
+    colorcpp::core::xyz_t, colorcpp::core::dci_p3_rgbaf_t,
+    colorcpp::operations::conversion::details::xyz_to_dci_p3<colorcpp::core::dci_p3_rgbaf_t>,
+    colorcpp::operations::conversion::details::dci_p3_to_xyz<colorcpp::core::xyz_t>)
