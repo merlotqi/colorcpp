@@ -38,6 +38,20 @@ Aggregated includes: ``include/colorcpp/core/core.hpp``.
      - ``jzazbz.hpp``
    * - OkLab / OkLCH
      - ``oklab.hpp``
+   * - Rec.709 / BT.1886
+      - ``rec709.hpp``
+   * - Rec.2100 PQ / HLG
+      - ``rec2100.hpp``
+   * - DCI-P3 (theatrical)
+      - ``dci_p3.hpp``
+   * - scRGB (extended range)
+      - ``scrgb.hpp``
+   * - ACES2065-1 / ACEScg / ACEScct
+      - ``aces.hpp``
+   * - ICtCp
+      - ``ictcp.hpp``
+   * - YCbCr (BT.601 / 709 / 2020)
+      - ``ycbcr.hpp``
    * - Named constants
      - ``constants.hpp``
 
@@ -109,6 +123,48 @@ Color space properties
      - [0, ~1]
      - Conversion hub space
 
+   * - Rec.709 / BT.1886
+      - Gamma 2.4 (BT.1886)
+      - D65
+      - R G B [A]
+      - [0, 1]
+      - Broadcast HDTV
+   * - Rec.2100 PQ / HLG
+      - ST 2084 PQ / ARIB B-67 HLG
+      - D65
+      - R G B [A]
+      - [0, 1]
+      - HDR video, broadcast UHD
+   * - DCI-P3 (theatrical)
+      - Gamma 2.6
+      - D62 (Bradford-adapted to D65 hub)
+      - R G B [A]
+      - [0, 1]
+      - Digital cinema projection
+   * - scRGB
+      - Linear 1.0 (extended)
+      - D65
+      - R G B [A]
+      - (-inf, +inf) extended
+      - Compositing headroom, rendering
+   * - ACES2065-1 / ACEScg / ACEScct
+      - Linear / S-2016-003 log
+      - ACES D60 (Bradford-adapted)
+      - R G B [A]
+      - Extended (AP0/AP1 negatives allowed)
+      - Academy color pipeline, VFX, grading
+   * - ICtCp
+      - PQ intensity + opponent chroma
+      - D65
+      - I Ct Cp
+      - I: [0,1] Ct,Cp: [-1,1]
+      - HDR perceptual coding, BT.2124
+   * - YCbCr (BT.601 / 709 / 2020)
+      - Matrix + quantization
+      - D65
+      - Y Cb Cr
+      - Y: [0,1] Cb/Cr: [-0.5, 0.5]
+      - SD/HD/UHD video, limited/full range 8/10-bit
 
 Notes
 -----
@@ -127,3 +183,9 @@ References (specs and overviews)
 * `CIE 015:2018 — Colorimetry, 4th Edition <https://www.cie.co.at/publications/cie-0152018-colorimetry-4th-edition>`__ (XYZ, LAB, Luv, xyY context)
 * `OkLab — Björn Ottosson (2020) <https://bottosson.github.io/posts/oklab/>`__
 * `Safdar et al. (2017). Perceptually uniform color space for image signals of higher dynamic range and wider gamut <https://doi.org/10.1364/OE.25.016325>`__ (Jzazbz)
+* `Recommendation ITU-R BT.2100 — Image parameter values for high dynamic range television <https://www.itu.int/rec/R-REC-BT.2100>`__ (PQ/HLG)
+* `Recommendation ITU-R BT.709 — Image parameter values for high-definition television <https://www.itu.int/rec/R-REC-BT.709>`__ (Rec.709/BT.1886)
+* `SMPTE ST 2065-1 — ACES2065-1 (AP0) <https://www.smpte.org/standboards/standards/ST-2065-1>`__ (ACES archive space)
+* `Academy S-2016-003 — ACEScct <https://www.oscars.org/science-technology/cast/aces>`__ (ACEScct grading)
+* `Recommendation ITU-R BT.601 — Studio encoding parameters of digital television <https://www.itu.int/rec/R-REC-BT.601>`__ (YCbCr SD)
+* `Lu et al. (2016). A Perceptual EOTF for High Dynamic Range Content <https://doi.org/10.1371/journal.pone.0154262>`__ (ICtCp)

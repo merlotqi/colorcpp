@@ -2,6 +2,16 @@
 
 All notable changes to `colorcpp` are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **HDR video colour spaces**: Rec.2100 PQ/HLG (ST 2084 / ARIB B-67 on BT.2020), Rec.709/BT.1886, DCI-P3 (D62 white, gamma 2.6), scRGB (extended range), ACES2065-1/ACEScg/ACEScct (Academy colour encoding system), ICtCp (BT.2100 perceptual encoding), YCbCr (BT.601/709/2020 with limited/full range and 8/10-bit quantisation)
+- **Core types**: `rec2100_pq`, `rec2100_pqa`, `rec2100_hlg`, `rec2100_hlga`, `rec709`, `rec709a`, `dci_p3`, `dci_p3a`, `scrgb`, `scrgba`, `aces2065`, `aces2065a`, `acescg`, `acescga`, `acescct`, `acesccta`, `ictcp_t`, `ycbcr601_t`, `ycbcr709_t`, `ycbcr2020_t`
+- **Conversion edges**: `linear_rec2020 ⇄ rec2100_pq`, `linear_rec2020 ⇄ rec2100_hlg`, `aces2065 ⇄ XYZ`, `acescg ⇄ XYZ`, `acescg ⇄ acescct`, plus graph-routed paths to all existing spaces
+- **YCbCr quantisation**: `ycbcr::quantize()` / `dequantize()` with explicit range (full/limited) and bit-depth (8/10-bit) parameters
+- **Tests**: new core test suites for ACES, DCI-P3, ICtCp, Rec.2100, Rec.709, scRGB, YCbCr; updated Delta E ITP/Jzazbz tests
+
 ## [1.0.8] - 2026-11-20
 
 Engineering, packaging, CI and documentation maintenance release.
