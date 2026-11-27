@@ -15,5 +15,8 @@
 #pragma once
 
 #include <colorcpp/algorithms/spectral/cmf.hpp>
+#include <colorcpp/algorithms/spectral/fluorescent.hpp>
+#include <colorcpp/algorithms/spectral/illuminants.hpp>
+#include <colorcpp/algorithms/spectral/led.hpp>
 #include <colorcpp/algorithms/spectral/integrate.hpp>
 #include <colorcpp/algorithms/spectral/spd.hpp>
