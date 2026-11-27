@@ -1,7 +1,7 @@
 /**
  * @file illuminants.hpp
- * @brief CIE standard illuminants A and D series, plus the CIE daylight
- *        locus chromaticity.
+ * @brief CIE standard illuminants A and D series, the CIE daylight locus
+ *        and the S0/S1/S2 daylight SPD synthesizer.
  *
  * Spectral distributions transcribed from the colour-science
  * colour/colorimetry/datasets/illuminants/sds.py (BSD-3-Clause), which
@@ -10,13 +10,19 @@
  * in 1/T for x (<= 7000 K / > 7000 K) and the quadratic y(x). F series
  * and typical LED spectra live in fluorescent.hpp / led.hpp.
  *
- * @see CIE 15:2004, Section 7 (daylight locus)
+ * The D-series synthesizer follows CIE 15:2004 Appendix C: the daylight
+ * basis functions S0/S1/S2 are combined as S = S0 + M1*S1 + M2*S2, with
+ * M1/M2 rounded to three decimals as the standard recommends.
+ *
+ * @see CIE 15:2004, Section 7 (daylight locus) and Appendix C (D series)
  */
 
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <colorcpp/algorithms/spectral/spd.hpp>
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -161,6 +167,110 @@ inline std::pair<float, float> cie_d_xy(float cct) {
   }
   const double y = -3.0 * x * x + 2.870 * x - 0.275;
   return {static_cast<float>(x), static_cast<float>(y)};
+}
+
+namespace details {
+
+/** @brief One sample of the CIE daylight basis functions S0/S1/S2. */
+struct daylight_basis_sample {
+  float nm;
+  float s0;
+  float s1;
+  float s2;
+};
+
+/**
+ * @brief CIE daylight basis functions S0/S1/S2, 300-830 nm at 5 nm.
+ *
+ * Transcribed from colour-science's
+ * datasets/illuminants/sds_d_illuminant_series.py (BSD-3-Clause), which
+ * reproduces CIE 15:2004 Table T.2. S0(560) = 100 and S1(560) = S2(560) = 0,
+ * so every synthesized spectrum is normalized to S(560) = 100.
+ */
+inline constexpr daylight_basis_sample DAYLIGHT_BASIS[] = {
+  {300.0f, 0.04f, 0.02f, 0.0f}, {305.0f, 3.02f, 2.26f, 1.0f}, {310.0f, 6.0f, 4.5f, 2.0f},
+  {315.0f, 17.8f, 13.45f, 3.0f}, {320.0f, 29.6f, 22.4f, 4.0f}, {325.0f, 42.45f, 32.2f, 6.25f},
+  {330.0f, 55.3f, 42.0f, 8.5f}, {335.0f, 56.3f, 41.3f, 8.15f}, {340.0f, 57.3f, 40.6f, 7.8f},
+  {345.0f, 59.55f, 41.1f, 7.25f}, {350.0f, 61.8f, 41.6f, 6.7f}, {355.0f, 61.65f, 39.8f, 6.0f},
+  {360.0f, 61.5f, 38.0f, 5.3f}, {365.0f, 65.15f, 40.2f, 5.7f}, {370.0f, 68.8f, 42.4f, 6.1f},
+  {375.0f, 66.1f, 40.45f, 4.55f}, {380.0f, 63.4f, 38.5f, 3.0f}, {385.0f, 64.6f, 36.75f, 2.1f},
+  {390.0f, 65.8f, 35.0f, 1.2f}, {395.0f, 80.3f, 39.2f, 0.05f}, {400.0f, 94.8f, 43.4f, -1.1f},
+  {405.0f, 99.8f, 44.85f, -0.8f}, {410.0f, 104.8f, 46.3f, -0.5f}, {415.0f, 105.35f, 45.1f, -0.6f},
+  {420.0f, 105.9f, 43.9f, -0.7f}, {425.0f, 101.35f, 40.5f, -0.95f}, {430.0f, 96.8f, 37.1f, -1.2f},
+  {435.0f, 105.35f, 36.9f, -1.9f}, {440.0f, 113.9f, 36.7f, -2.6f}, {445.0f, 119.75f, 36.3f, -2.75f},
+  {450.0f, 125.6f, 35.9f, -2.9f}, {455.0f, 125.55f, 34.25f, -2.85f}, {460.0f, 125.5f, 32.6f, -2.8f},
+  {465.0f, 123.4f, 30.25f, -2.7f}, {470.0f, 121.3f, 27.9f, -2.6f}, {475.0f, 121.3f, 26.1f, -2.6f},
+  {480.0f, 121.3f, 24.3f, -2.6f}, {485.0f, 117.4f, 22.2f, -2.2f}, {490.0f, 113.5f, 20.1f, -1.8f},
+  {495.0f, 113.3f, 18.15f, -1.65f}, {500.0f, 113.1f, 16.2f, -1.5f}, {505.0f, 111.95f, 14.7f, -1.4f},
+  {510.0f, 110.8f, 13.2f, -1.3f}, {515.0f, 108.65f, 10.9f, -1.25f}, {520.0f, 106.5f, 8.6f, -1.2f},
+  {525.0f, 107.65f, 7.35f, -1.1f}, {530.0f, 108.8f, 6.1f, -1.0f}, {535.0f, 107.05f, 5.15f, -0.75f},
+  {540.0f, 105.3f, 4.2f, -0.5f}, {545.0f, 104.85f, 3.05f, -0.4f}, {550.0f, 104.4f, 1.9f, -0.3f},
+  {555.0f, 102.2f, 0.95f, -0.15f}, {560.0f, 100.0f, 0.0f, 0.0f}, {565.0f, 98.0f, -0.8f, 0.1f},
+  {570.0f, 96.0f, -1.6f, 0.2f}, {575.0f, 95.55f, -2.55f, 0.35f}, {580.0f, 95.1f, -3.5f, 0.5f},
+  {585.0f, 92.1f, -3.5f, 1.3f}, {590.0f, 89.1f, -3.5f, 2.1f}, {595.0f, 89.8f, -4.65f, 2.65f},
+  {600.0f, 90.5f, -5.8f, 3.2f}, {605.0f, 90.4f, -6.5f, 3.65f}, {610.0f, 90.3f, -7.2f, 4.1f},
+  {615.0f, 89.35f, -7.9f, 4.4f}, {620.0f, 88.4f, -8.6f, 4.7f}, {625.0f, 86.2f, -9.05f, 4.9f},
+  {630.0f, 84.0f, -9.5f, 5.1f}, {635.0f, 84.55f, -10.2f, 5.9f}, {640.0f, 85.1f, -10.9f, 6.7f},
+  {645.0f, 83.5f, -10.8f, 7.0f}, {650.0f, 81.9f, -10.7f, 7.3f}, {655.0f, 82.25f, -11.35f, 7.95f},
+  {660.0f, 82.6f, -12.0f, 8.6f}, {665.0f, 83.75f, -13.0f, 9.2f}, {670.0f, 84.9f, -14.0f, 9.8f},
+  {675.0f, 83.1f, -13.8f, 10.0f}, {680.0f, 81.3f, -13.6f, 10.2f}, {685.0f, 76.6f, -12.8f, 9.25f},
+  {690.0f, 71.9f, -12.0f, 8.3f}, {695.0f, 73.1f, -12.65f, 8.95f}, {700.0f, 74.3f, -13.3f, 9.6f},
+  {705.0f, 75.35f, -13.1f, 9.05f}, {710.0f, 76.4f, -12.9f, 8.5f}, {715.0f, 69.85f, -11.75f, 7.75f},
+  {720.0f, 63.3f, -10.6f, 7.0f}, {725.0f, 67.5f, -11.1f, 7.3f}, {730.0f, 71.7f, -11.6f, 7.6f},
+  {735.0f, 74.35f, -11.9f, 7.8f}, {740.0f, 77.0f, -12.2f, 8.0f}, {745.0f, 71.1f, -11.2f, 7.35f},
+  {750.0f, 65.2f, -10.2f, 6.7f}, {755.0f, 56.45f, -9.0f, 5.95f}, {760.0f, 47.7f, -7.8f, 5.2f},
+  {765.0f, 58.15f, -9.5f, 6.3f}, {770.0f, 68.6f, -11.2f, 7.4f}, {775.0f, 66.8f, -10.8f, 7.1f},
+  {780.0f, 65.0f, -10.4f, 6.8f}, {785.0f, 65.5f, -10.5f, 6.9f}, {790.0f, 66.0f, -10.6f, 7.0f},
+  {795.0f, 63.5f, -10.15f, 6.7f}, {800.0f, 61.0f, -9.7f, 6.4f}, {805.0f, 57.15f, -9.0f, 5.95f},
+  {810.0f, 53.3f, -8.3f, 5.5f}, {815.0f, 56.1f, -8.8f, 5.8f}, {820.0f, 58.9f, -9.3f, 6.1f},
+  {825.0f, 60.4f, -9.55f, 6.3f}, {830.0f, 61.9f, -9.8f, 6.5f},
+};
+
+/**
+ * @brief CIE daylight coefficients M1/M2 for chromaticity (x, y).
+ *
+ * Rounded to three decimals, as CIE 15:2004 recommends for the
+ * internationally agreed D-series spectra.
+ */
+inline std::pair<float, float> daylight_coefficients(float x, float y) {
+  const double M = 0.0241 + 0.2562 * x - 0.7341 * y;
+  const double m1 = (-1.3515 - 1.7703 * x + 5.9114 * y) / M;
+  const double m2 = (0.0300 - 31.4424 * x + 30.0717 * y) / M;
+  const auto round3 = [](double v) { return static_cast<float>(std::round(v * 1000.0) / 1000.0); };
+  return {round3(m1), round3(m2)};
+}
+
+}  // namespace details
+
+/**
+ * @brief CIE D-series daylight SPD for chromaticity (x, y).
+ *
+ * S(λ) = S0(λ) + M1·S1(λ) + M2·S2(λ) on the 300-830 nm / 5 nm basis
+ * grid. The result satisfies S(560) = 100; it is not scaled to a
+ * particular luminance.
+ */
+inline spd d_series_xy(float x, float y) {
+  const auto [m1, m2] = details::daylight_coefficients(x, y);
+  const double d1 = m1;
+  const double d2 = m2;
+  std::vector<float> values;
+  values.reserve(std::size(details::DAYLIGHT_BASIS));
+  for (const auto& sample : details::DAYLIGHT_BASIS) {
+    values.push_back(static_cast<float>(sample.s0 + d1 * sample.s1 + d2 * sample.s2));
+  }
+  return spd(300.0f, 5.0f, std::move(values));
+}
+
+/**
+ * @brief CIE D-series daylight SPD for a correlated colour temperature.
+ *
+ * The chromaticity comes from cie_d_xy(cct), so the input is clamped to
+ * [4000, 25000] K. Use d_series_xy() when the daylight chromaticity is
+ * known directly instead of derived from a CCT.
+ */
+inline spd d_series(float cct) {
+  const auto xy = cie_d_xy(cct);
+  return d_series_xy(xy.first, xy.second);
 }
 
 }  // namespace colorcpp::algorithms::spectral::illuminants

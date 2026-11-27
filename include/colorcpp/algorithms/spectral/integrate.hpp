@@ -1,10 +1,10 @@
 /**
  * @file integrate.hpp
- * @brief Trapezoidal spectrum integration against the CIE 1931 2° CMFs.
+ * @brief Trapezoidal spectrum integration against the CIE observer CMFs.
  *
  * The integrator is the generic core of the spectral module: the spectral
  * value is supplied by a callable f(λ_nm), so analytic sources (Planck's
- * law), sampled SPDs and (later) reflectance products all share one
+ * law), sampled SPDs and reflectance products all share one
  * accumulation path. Double accumulation is deliberate — a float32
  * integration carries ~4e-8 chromaticity noise that matters downstream
  * (issue #109: the Ohno parabolic fit resolves sub-step curvature).
@@ -33,7 +33,7 @@ struct spectrum_xyz {
 };
 
 /**
- * @brief Trapezoidal-rule ∫ f(λ)·x̄(λ) dλ over the CIE 1931 2° CMF grid.
+ * @brief Trapezoidal-rule ∫ f(λ)·x̄(λ) dλ over the CIE observer CMF grid.
  *
  * @param f Spectral value at a wavelength in nm (e.g. radiance, relative
  *          power); invoked once per CMF node in ascending order.
@@ -77,7 +77,7 @@ inline spectrum_xyz integrate_spectrum(F&& f, observer obs = observer::cie_1931_
 }
 
 /**
- * @brief Emissive SPD to raw XYZ (trapezoidal rule, 2° observer).
+ * @brief Emissive SPD to raw XYZ (trapezoidal rule, selected observer).
  *
  * The spd is linearly interpolated at the CMF nodes (edge-clamped outside
  * its grid). Output follows the spd's magnitude — normalize externally

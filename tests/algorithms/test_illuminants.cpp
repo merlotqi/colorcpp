@@ -89,4 +89,49 @@ TEST(Illuminants, AllFactoriesProduceData) {
   }
 }
 
+// CIE 15:2004 Appendix C: S(λ) = S0(λ) + M1·S1(λ) + M2·S2(λ), with M1/M2
+// derived from the daylight locus and rounded to 3 decimals. The synthesized
+// spectra approximate the tabulated D-series datasets (those are the CIE's
+// tabulated values, the formula is a fit) and hit S(560) = 100 exactly.
+TEST(Illuminants, DaylightSeriesSynthesis) {
+  const spd d65 = illuminants::d_series(6504.38938305f);
+  ASSERT_EQ(d65.size(), 107u);
+  EXPECT_FLOAT_EQ(d65.start_nm, 300.0f);
+  EXPECT_FLOAT_EQ(d65.step_nm, 5.0f);
+  EXPECT_FLOAT_EQ(d65.nm_at(d65.size() - 1), 830.0f);
+  EXPECT_NEAR(d65.sample(560.0f), 100.0f, 1e-4f);
+
+  auto max_diff = [](const spd& a, const spd& b) {
+    float m = 0.0f;
+    const std::size_t n = std::min(a.size(), b.size());
+    for (std::size_t i = 0; i < n; ++i) {
+      m = std::max(m, std::abs(a.values[i] - b.values[i]));
+    }
+    return m;
+  };
+  EXPECT_LT(max_diff(d65, illuminants::d65()), 0.06f);
+  EXPECT_LT(max_diff(illuminants::d_series(5003.0f), illuminants::d50()), 0.02f);
+  EXPECT_LT(max_diff(illuminants::d_series(7504.0f), illuminants::d75()), 0.01f);
+}
+
+// The synthesized SPD's integrated chromaticity lands near the requested
+// daylight point; the residual (~1e-4) is the CIE basis-fit error.
+TEST(Illuminants, DaylightSeriesChromaticity) {
+  const auto xyz = spd_to_xyz(illuminants::d_series_xy(0.31271f, 0.32902f));
+  const float sum = xyz.x() + xyz.y() + xyz.z();
+  EXPECT_NEAR(xyz.x() / sum, 0.31271f, 3e-4f);
+  EXPECT_NEAR(xyz.y() / sum, 0.32902f, 3e-4f);
+}
+
+// CCT outside [4000, 25000] clamps to the nearest daylight point.
+TEST(Illuminants, DaylightSeriesClampsCct) {
+  const spd low = illuminants::d_series(1000.0f);
+  const spd at_min = illuminants::d_series(4000.0f);
+  ASSERT_EQ(low.size(), at_min.size());
+  for (std::size_t i = 0; i < low.size(); ++i) {
+    EXPECT_FLOAT_EQ(low.values[i], at_min.values[i]);
+  }
+  EXPECT_NEAR(low.sample(560.0f), 100.0f, 1e-4f);
+}
+
 }  // namespace colorcpp::algorithms::test
