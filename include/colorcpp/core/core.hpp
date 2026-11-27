@@ -8,15 +8,18 @@
 
 #pragma once
 
+#include <colorcpp/core/aces.hpp>
 #include <colorcpp/core/adobe_rgb.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
 #include <colorcpp/core/color_base.hpp>
 #include <colorcpp/core/constants.hpp>
+#include <colorcpp/core/dci_p3.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/ictcp.hpp>
 #include <colorcpp/core/io.hpp>
 #include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
@@ -24,9 +27,13 @@
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/prophoto_rgb.hpp>
 #include <colorcpp/core/rec2020.hpp>
+#include <colorcpp/core/rec2100.hpp>
+#include <colorcpp/core/rec709.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/scrgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/core/ycbcr.hpp>
 
 /** @brief Re-exports @c colorcpp::core into @c colorcpp when this header is included from the umbrella. */
 namespace colorcpp {

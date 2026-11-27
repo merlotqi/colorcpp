@@ -7,7 +7,7 @@ A modern, header-only C++ library for color manipulation and conversion between 
 ## ✨ Features
 
 - **Header-only**: No build required, just include and use
-- **Multiple color spaces**: RGB, HSV, HSL, HWB, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ, Display P3, Adobe RGB, ProPhoto RGB, Rec.2020
+- **Multiple color spaces**: RGB, HSV, HSL, HWB, CMYK, Linear RGB, CIELAB, CIELCH, OkLab, OkLCH, CIE XYZ, Display P3, Adobe RGB, ProPhoto RGB, Rec.2020, Rec.709/BT.1886, Rec.2100 (PQ/HLG), DCI-P3, scRGB, ACES2065-1 / ACEScg / ACEScct, ICtCp, YCbCr (BT.601/709/2020)
 - **Perceptually uniform**: Built-in support for CIELAB and OkLab for perceptual operations
 - **Color operations**: Blending, interpolation, palette generation, accessibility checking, color temperature
 - **Appearance models**: CAM16 (forward/inverse transform, viewing conditions), CAM16-UCS (J'a'b' uniform space, delta E), and HCT (Material You hue/chroma/tone)
@@ -38,6 +38,13 @@ A modern, header-only C++ library for color manipulation and conversion between 
 | **Adobe RGB** | Adobe RGB (1998), gamma 2.2 (wide gamut, print) |
 | **ProPhoto RGB** | ProPhoto RGB, D50 white point (ultra-wide gamut) |
 | **Rec.2020** | ITU-R BT.2020 UHDTV primaries (wide gamut) |
+| **Rec.709 / BT.1886** | ITU-R BT.709 signal, pure gamma 2.4 (D65) — broadcast HD |
+| **Rec.2100 PQ / HLG** | ITU-R BT.2100 HDR: ST 2084 PQ and ARIB B-67 HLG on BT.2020 primaries |
+| **DCI-P3** | Digital Cinema Initiatives P3, D62 white, gamma 2.6 (theatrical) |
+| **scRGB** | IEC 61966-2-1 linear sRGB with extended range (compositing headroom) |
+| **ACES2065-1 / ACEScg / ACEScct** | Academy Color Encoding System: AP0 linear, AP1 linear, S-2016-003 log grading |
+| **ICtCp** | ITU-R BT.2100 perceptual encoding (PQ intensity + opponent chroma) |
+| **YCbCr** | ITU-R BT.601 / BT.709 / BT.2020 luma matrices, studio/full range, 8/10-bit |
 
 Chromatic adaptation between white points (Bradford, Von Kries) is available via
 `colorcpp::algorithms::chromatic_adaptation`.
@@ -195,6 +202,31 @@ auto polar = color_cast<oklch_t>(oklab_color);
 
 // Cross-space conversions (graph-routed)
 auto lab_to_ok = color_cast<oklab_t>(lab_color);  // uses the lowest-cost registered route via XYZ
+```
+
+### HDR video conversions
+
+```cpp
+using namespace colorcpp::core;
+using namespace colorcpp::operations::conversion;
+
+// BT.2100 PQ / HLG on BT.2020 primaries
+auto rec2100_pq = color_cast<rec2100_pq_rgbf_t>(linear_rec2020_color);
+auto rec2100_hlg = color_cast<rec2100_hlg_rgbf_t>(linear_rec2020_color);
+auto back_to_linear = color_cast<linear_rec2020_rgbf_t>(rec2100_pq);
+
+// ACES: AP0 (archive), AP1 (rendering), ACEScct (grading)
+auto aces2065 = color_cast<aces2065_rgbf_t>(xyz_color);
+auto acescg = color_cast<acescg_rgbf_t>(xyz_color);
+auto acescct = color_cast<acescct_rgbf_t>(acescg_color);
+
+// ICtCp (perceptual, PQ-encoded)
+auto ictcp_color = color_cast<ictcp_t>(rec2100_pq_color);
+
+// YCbCr with explicit range/bit-depth quantization
+auto ycbcr709 = color_cast<ycbcr709_t>(rgb_color);
+auto codes = ycbcr::quantize(ycbcr709, ycbcr::range::limited, ycbcr::bit_depth::depth10);
+auto decoded = ycbcr::dequantize<ycbcr709_t>(codes, ycbcr::range::limited, ycbcr::bit_depth::depth10);
 ```
 
 ### Extended range (scRGB/HDR intermediates)

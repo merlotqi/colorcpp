@@ -16,12 +16,12 @@ namespace colorcpp::algorithms::test {
 using namespace delta_e;
 
 // Euclidean distance in Jzazbz. Anchors computed from the Safdar 2017
-// transform in double precision (peak-scaled modified PQ), matching the
-// pinned XYZ->Jzazbz reference values in test_jzazbz.cpp.
+// transform in double precision at the library's 100 cd/m^2 white scale,
+// matching the pinned XYZ->Jzazbz reference values in test_jzazbz.cpp.
 TEST(DeltaEJzTest, XYPairMatchesEquationDerivedReference) {
   const core::xyz_t sample(0.2065401f, 0.1219723f, 0.0513695f);
   const core::xyz_t white(0.95047f, 1.0f, 1.08883f);
-  EXPECT_NEAR(delta_e_jz(sample, white), 0.016229080f, 1e-4f);
+  EXPECT_NEAR(delta_e_jz(sample, white), 0.125758914f, 1e-4f);
 }
 
 TEST(DeltaEJzTest, DirectJzazbzInputs) {
@@ -34,8 +34,8 @@ TEST(DeltaEJzTest, SaturatedPrimaries) {
   const core::xyz_t red(0.4124564f, 0.3575761f, 0.1804375f);
   const core::xyz_t green(0.3575761f, 0.7151522f, 0.1191920f);
   const core::xyz_t blue(0.1804375f, 0.0721750f, 0.9503041f);
-  EXPECT_NEAR(delta_e_jz(red, blue), 0.033613329f, 1e-4f);
-  EXPECT_NEAR(delta_e_jz(red, green), 0.023770039f, 1e-4f);
+  EXPECT_NEAR(delta_e_jz(red, blue), 0.220322639f, 1e-4f);
+  EXPECT_NEAR(delta_e_jz(red, green), 0.136370865f, 1e-4f);
 }
 
 TEST(DeltaEJzTest, SameColorIsZero) {

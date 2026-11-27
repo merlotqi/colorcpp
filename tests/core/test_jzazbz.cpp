@@ -28,21 +28,25 @@ TEST(JzazbzTest, ParameterizedConstruction) {
   EXPECT_FLOAT_EQ(c.bz(), 0.0052601f);
 }
 
-// Reference: colour-science XYZ_to_Jzazbz doctest (Safdar 2017 method).
-TEST(JzazbzTest, XYZToJzazbzMatchesColorScienceReference) {
+// Reference: independent double-precision evaluation of the Safdar 2017
+// equations with the library's scale convention (relative Y = 1 maps to the
+// 100 cd/m^2 reference white before the absolute PQ step; the old raw-feed
+// anchors corresponded to Y = 1 meaning 1 cd/m^2, which squeezed all of SDR
+// into Jz < 0.02).
+TEST(JzazbzTest, XYZToJzazbzMatchesAbsoluteScaleReference) {
   const xyz_t xyz(0.20654008f, 0.12197225f, 0.05136952f);
   const auto jzazbz = color_cast<jzazbz_t>(xyz);
-  EXPECT_NEAR(jzazbz.jz(), 0.0053505f, 1e-5f);
-  EXPECT_NEAR(jzazbz.az(), 0.0092430f, 1e-5f);
-  EXPECT_NEAR(jzazbz.bz(), 0.0052601f, 1e-5f);
+  EXPECT_NEAR(jzazbz.jz(), 0.0746747f, 1e-5f);
+  EXPECT_NEAR(jzazbz.az(), 0.0707401f, 1e-5f);
+  EXPECT_NEAR(jzazbz.bz(), 0.0472053f, 1e-5f);
 }
 
-// Reference: colour-science Jzazbz_to_XYZ doctest.
-TEST(JzazbzTest, JzazbzToXYZMatchesColorScienceReference) {
-  const jzazbz_t jzazbz(0.0053505f, 0.0092430f, 0.0052601f);
+// Inverse of the reference pair above (self-consistent forward/inverse pair).
+TEST(JzazbzTest, JzazbzToXYZMatchesAbsoluteScaleReference) {
+  const jzazbz_t jzazbz(0.0746747f, 0.0707401f, 0.0472053f);
   const auto xyz = color_cast<xyz_t>(jzazbz);
   EXPECT_NEAR(xyz.x(), 0.2065401f, 1e-5f);
-  EXPECT_NEAR(xyz.y(), 0.1219723f, 1e-5f);
+  EXPECT_NEAR(xyz.y(), 0.1219722f, 1e-5f);
   EXPECT_NEAR(xyz.z(), 0.0513695f, 1e-5f);
 }
 
@@ -57,10 +61,11 @@ TEST(JzazbzTest, RoundTripXYZJzazbzXYZ) {
 }
 
 TEST(JzazbzTest, D65WhiteLightness) {
-  // Jz of the D65 reference white is ~0.01758; a*, b* are achromatic.
+  // Jz of the D65 reference white at the 100 cd/m^2 scale is ~0.16717;
+  // a*, b* are achromatic.
   const xyz_t d65(0.95047f, 1.0f, 1.08883f);
   const auto jzazbz = color_cast<jzazbz_t>(d65);
-  EXPECT_NEAR(jzazbz.jz(), 0.0175800f, 1e-4f);
+  EXPECT_NEAR(jzazbz.jz(), 0.1671735f, 1e-4f);
   EXPECT_NEAR(jzazbz.az(), 0.0f, 1e-3f);
   EXPECT_NEAR(jzazbz.bz(), 0.0f, 1e-3f);
 }

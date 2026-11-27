@@ -2,7 +2,6 @@
 
 #include <array>
 #include <colorcpp/colorcpp.hpp>
-#include <limits>
 #include <string>
 
 namespace colorcpp::operations::test {

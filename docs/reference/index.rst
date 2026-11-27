@@ -38,3 +38,4 @@ These pages summarize **what** each part of colorcpp implements, **where** it li
    binary_io
    ansi
    color_temperature
+   hdr_video

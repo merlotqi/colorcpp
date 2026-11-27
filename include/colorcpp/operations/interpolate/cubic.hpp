@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rgb.hpp>
 #include <colorcpp/operations/conversion.hpp>

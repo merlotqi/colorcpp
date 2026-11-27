@@ -14,14 +14,26 @@ namespace colorcpp::algorithms::test {
 
 using namespace delta_e;
 
-// XYZ -> ICtCp (Dolby 2016 / ITU-R BT.2100 PQ). Reference: colour-science
-// XYZ_to_ICtCp doctest.
-TEST(ICTCPTest, XYZMatchesColorScienceReference) {
+// XYZ -> ICtCp (Dolby 2016 / ITU-R BT.2100 PQ). Reference: independent
+// double-precision evaluation of the BT.2100 equations with the library's
+// scale convention (relative Y = 1 maps to the 100 cd/m^2 reference white,
+// so PQ receives absolute nits — white encodes to PQ(100) exactly).
+TEST(ICTCPTest, XYZMatchesAbsoluteScaleReference) {
   const core::xyz_t xyz(0.20654008f, 0.12197225f, 0.05136952f);
   const auto ictcp = xyz_to_ictcp(xyz);
-  EXPECT_NEAR(ictcp.i, 0.0685809f, 1e-5f);
-  EXPECT_NEAR(ictcp.ct, -0.0028384f, 1e-5f);
-  EXPECT_NEAR(ictcp.cp, 0.0602098f, 1e-5f);
+  EXPECT_NEAR(ictcp.i(), 0.3175477f, 1e-5f);
+  EXPECT_NEAR(ictcp.ct(), -0.0157026f, 1e-5f);
+  EXPECT_NEAR(ictcp.cp(), 0.1732075f, 1e-5f);
+}
+
+// The scale anchor: D65 white (Y = 1) must land on the ST 2084 code value
+// for 100 cd/m^2 — PQ(100) = 0.5080784 — with achromatic chroma.
+TEST(ICTCPTest, WhiteEncodesToPq100Nits) {
+  const core::xyz_t white(0.95047f, 1.0f, 1.08883f);
+  const auto ictcp = xyz_to_ictcp(white);
+  EXPECT_NEAR(ictcp.i(), 0.5080784f, 1e-5f);
+  EXPECT_NEAR(ictcp.ct(), 0.0f, 1e-5f);
+  EXPECT_NEAR(ictcp.cp(), 0.0f, 1e-5f);
 }
 
 TEST(ICTCPTest, RoundTripXYZ) {
@@ -34,9 +46,9 @@ TEST(ICTCPTest, RoundTripXYZ) {
 
 TEST(ICTCPTest, BlackEncodesToZero) {
   const auto ictcp = xyz_to_ictcp(core::xyz_t(0.0f, 0.0f, 0.0f));
-  EXPECT_NEAR(ictcp.i, 0.0f, 1e-9f);
-  EXPECT_NEAR(ictcp.ct, 0.0f, 1e-9f);
-  EXPECT_NEAR(ictcp.cp, 0.0f, 1e-9f);
+  EXPECT_NEAR(ictcp.i(), 0.0f, 1e-9f);
+  EXPECT_NEAR(ictcp.ct(), 0.0f, 1e-9f);
+  EXPECT_NEAR(ictcp.cp(), 0.0f, 1e-9f);
 }
 
 // ΔE_ITP (ITU-R BT.2124). Reference: colour-science delta_E_ITP doctest.

@@ -8,20 +8,27 @@
 
 #pragma once
 
+#include <colorcpp/core/aces.hpp>
 #include <colorcpp/core/cielab.hpp>
 #include <colorcpp/core/cmyk.hpp>
+#include <colorcpp/core/dci_p3.hpp>
 #include <colorcpp/core/display_p3.hpp>
 #include <colorcpp/core/hsl.hpp>
 #include <colorcpp/core/hsv.hpp>
 #include <colorcpp/core/hwb.hpp>
+#include <colorcpp/core/ictcp.hpp>
 #include <colorcpp/core/jzazbz.hpp>
 #include <colorcpp/core/linear_rgb.hpp>
 #include <colorcpp/core/luv.hpp>
 #include <colorcpp/core/oklab.hpp>
 #include <colorcpp/core/rec2020.hpp>
+#include <colorcpp/core/rec2100.hpp>
+#include <colorcpp/core/rec709.hpp>
 #include <colorcpp/core/rgb.hpp>
+#include <colorcpp/core/scrgb.hpp>
 #include <colorcpp/core/xyy.hpp>
 #include <colorcpp/core/xyz.hpp>
+#include <colorcpp/core/ycbcr.hpp>
 #include <colorcpp/operations/conversion/graph.hpp>
 #include <colorcpp/operations/conversion/registry.hpp>
 #include <string_view>
@@ -191,6 +198,106 @@ struct color_type_name<core::luv_t> {
 template <>
 struct color_type_name<core::jzazbz_t> {
   static constexpr std::string_view value = "jzazbz";
+};
+
+template <>
+struct color_type_name<core::aces2065_rgbf_t> {
+  static constexpr std::string_view value = "aces2065";
+};
+
+template <>
+struct color_type_name<core::aces2065_rgbaf_t> {
+  static constexpr std::string_view value = "aces2065a";
+};
+
+template <>
+struct color_type_name<core::acescg_rgbf_t> {
+  static constexpr std::string_view value = "acescg";
+};
+
+template <>
+struct color_type_name<core::acescg_rgbaf_t> {
+  static constexpr std::string_view value = "acescga";
+};
+
+template <>
+struct color_type_name<core::acescct_rgbf_t> {
+  static constexpr std::string_view value = "acescct";
+};
+
+template <>
+struct color_type_name<core::acescct_rgbaf_t> {
+  static constexpr std::string_view value = "acesccta";
+};
+
+template <>
+struct color_type_name<core::scrgb_rgbf_t> {
+  static constexpr std::string_view value = "scrgb";
+};
+
+template <>
+struct color_type_name<core::scrgb_rgbaf_t> {
+  static constexpr std::string_view value = "scrgba";
+};
+
+template <>
+struct color_type_name<core::rec709_rgbf_t> {
+  static constexpr std::string_view value = "rec709";
+};
+
+template <>
+struct color_type_name<core::rec709_rgbaf_t> {
+  static constexpr std::string_view value = "rec709a";
+};
+
+template <>
+struct color_type_name<core::dci_p3_rgbf_t> {
+  static constexpr std::string_view value = "dci-p3";
+};
+
+template <>
+struct color_type_name<core::dci_p3_rgbaf_t> {
+  static constexpr std::string_view value = "dci-p3a";
+};
+
+template <>
+struct color_type_name<core::rec2100_pq_rgbf_t> {
+  static constexpr std::string_view value = "rec2100-pq";
+};
+
+template <>
+struct color_type_name<core::rec2100_pqa_rgbaf_t> {
+  static constexpr std::string_view value = "rec2100-pqa";
+};
+
+template <>
+struct color_type_name<core::rec2100_hlg_rgbf_t> {
+  static constexpr std::string_view value = "rec2100-hlg";
+};
+
+template <>
+struct color_type_name<core::rec2100_hlga_rgbaf_t> {
+  static constexpr std::string_view value = "rec2100-hlga";
+};
+
+template <>
+struct color_type_name<core::ictcp_t> {
+  static constexpr std::string_view value = "ictcp";
+};
+
+template <>
+struct color_type_name<core::ycbcr601_t> {
+  static constexpr std::string_view value = "ycbcr601";
+};
+
+template <>
+struct color_type_name<core::ycbcr709_t> {
+  static constexpr std::string_view value = "ycbcr709";
+};
+
+template <>
+struct color_type_name<core::ycbcr2020_t> {
+  static constexpr std::string_view value = "ycbcr2020";
 };
 
 /**

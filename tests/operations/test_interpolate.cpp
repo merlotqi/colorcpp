@@ -211,7 +211,7 @@ TEST(LerpPolarTest, AchromaticEndpointsStayFinite) {
   const auto okr = color_cast<core::oklch_t>(red);
   EXPECT_LT(okml.l(), okw.l());  // 1.0 -> 0.628: midpoint is lighter than red
   EXPECT_GT(okml.l(), okr.l());
-  EXPECT_GT(okml.c(), 0.0f);     // chroma ramps up from the powerless start
+  EXPECT_GT(okml.c(), 0.0f);  // chroma ramps up from the powerless start
   EXPECT_LT(okml.c(), okr.c());
 
   // OkLCH: gray -> gray. The whole segment must stay achromatic.

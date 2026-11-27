@@ -26,6 +26,19 @@ template <typename T>
 using extract_model_t = typename extract_model<T>::type;
 
 /**
+ * @brief Relative-to-absolute luminance scale shared by every absolute
+ * transfer function in this library (PQ for ICtCp / Rec.2100, and the
+ * Jzazbz absolute step).
+ *
+ * XYZ here is relative (Y = 1 is the diffuse white) while PQ is absolute
+ * (cd/m^2); the SDR reference white is 100 cd/m^2, so Y = 1 maps to
+ * 100 nits and white encodes to PQ(100) = 0.5080784 — the ITU-R BT.2100
+ * practice (feeding the raw relative value would put white on the PQ
+ * code for 1 nit instead).
+ */
+inline constexpr float kRelativeWhiteNits = 100.0f;
+
+/**
  * @brief Whether @p Color's model carries a straight alpha channel.
  *
  * Alpha is a pure ride-along channel: conversion functions copy it verbatim and
