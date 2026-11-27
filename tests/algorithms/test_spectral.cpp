@@ -23,6 +23,7 @@
 namespace colorcpp::algorithms::test {
 
 using colorcpp::algorithms::spectral::integrate_spectrum;
+using colorcpp::algorithms::spectral::observer;
 using colorcpp::algorithms::spectral::spd;
 using colorcpp::algorithms::spectral::spd_to_xyz;
 
@@ -155,6 +156,50 @@ TEST(Spectral, D65MatchesLibraryWhitePoint) {
   EXPECT_NEAR(raw.x() * inv, ref.x(), 2e-4);
   EXPECT_NEAR(raw.y() * inv, ref.y(), 1e-6f);
   EXPECT_NEAR(raw.z() * inv, ref.z(), 2e-4);
+}
+
+// The 1964 10° observer integrates differently from the 2° table: same
+// constant spectrum, different CMF sums.
+TEST(Spectral, Observer1964ConstantIntegration) {
+  const auto v = integrate_spectrum([](double) { return 1.0; }, observer::cie_1964_10deg);
+  EXPECT_NEAR(v.x, 116.647394, 1e-4);
+  EXPECT_NEAR(v.y, 116.660381, 1e-4);
+  EXPECT_NEAR(v.z, 116.671647, 1e-4);
+}
+
+// D65 under the 10° observer: the normalized result matches colour-science's
+// published CIE illuminant tristimulus values for the 1964 observer
+// (94.81, 100.00, 107.32) — the same cross-check P1 does for WHITEPOINT_D65.
+TEST(Spectral, Observer1964D65WhitePoint) {
+  const auto raw = spd_to_xyz(from_table(kIlluminantD65), observer::cie_1964_10deg);
+  ASSERT_GT(raw.y(), 0.0f);
+  const float inv = 1.0f / raw.y();
+  EXPECT_NEAR(raw.x() * inv, 0.9481201, 1e-4);
+  EXPECT_NEAR(raw.z() * inv, 1.0732439, 1e-4);
+
+  // Published dataset (rounded to 0.01 in colour-science).
+  EXPECT_NEAR(raw.x() * inv * 100.0f, 94.81f, 0.01f);
+  EXPECT_NEAR(raw.z() * inv * 100.0f, 107.32f, 0.01f);
+
+  const double xd = static_cast<double>(raw.x()) * inv;
+  const double yd = static_cast<double>(raw.y()) * inv;
+  const double zd = static_cast<double>(raw.z()) * inv;
+  const double sum = xd + yd + zd;
+  EXPECT_NEAR(xd / sum, 0.3138053, 1e-5);
+  EXPECT_NEAR(yd / sum, 0.3309763, 1e-5);
+}
+
+// The two observers genuinely disagree on the same spectrum — the tables
+// are not decorative aliases.
+TEST(Spectral, ObserversDiffer) {
+  const auto spd_d65 = from_table(kIlluminantD65);
+  const auto r2 = spd_to_xyz(spd_d65, observer::cie_1931_2deg);
+  const auto r10 = spd_to_xyz(spd_d65, observer::cie_1964_10deg);
+  ASSERT_GT(r2.y(), 0.0f);
+  ASSERT_GT(r10.y(), 0.0f);
+  const float x2 = r2.x() / (r2.x() + r2.y() + r2.z());
+  const float x10 = r10.x() / (r10.x() + r10.y() + r10.z());
+  EXPECT_GT(std::abs(x2 - x10), 1e-3f);
 }
 
 }  // namespace colorcpp::algorithms::test

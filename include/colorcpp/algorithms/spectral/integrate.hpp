@@ -39,21 +39,36 @@ struct spectrum_xyz {
  *          power); invoked once per CMF node in ascending order.
  * @return Raw XYZ in double precision (per-nm scale, see file note).
  */
+namespace details {
+
+/** @brief CMF table for an observer (both tables share the 360-830 nm / 5 nm grid). */
+inline const cmf_sample* cmf_table(observer obs, std::size_t& n) {
+  if (obs == observer::cie_1964_10deg) {
+    n = sizeof(CMF_1964_10DEG) / sizeof(CMF_1964_10DEG[0]);
+    return CMF_1964_10DEG;
+  }
+  n = sizeof(CMF_1931_2DEG) / sizeof(CMF_1931_2DEG[0]);
+  return CMF_1931_2DEG;
+}
+
+}  // namespace details
+
 template <typename F>
-inline spectrum_xyz integrate_spectrum(F&& f) {
-  constexpr std::size_t n = sizeof(details::CMF_1931_2DEG) / sizeof(details::CMF_1931_2DEG[0]);
+inline spectrum_xyz integrate_spectrum(F&& f, observer obs = observer::cie_1931_2deg) {
+  std::size_t n = 0;
+  const details::cmf_sample* cmf = details::cmf_table(obs, n);
 
   spectrum_xyz acc;
   double s_prev = 0.0;
   double nm_prev = 0.0;
   for (std::size_t i = 0; i < n; ++i) {
-    const double nm = static_cast<double>(details::CMF_1931_2DEG[i].nm);
+    const double nm = static_cast<double>(cmf[i].nm);
     const double s = static_cast<double>(f(nm));
     if (i > 0) {
       const double dl = nm - nm_prev;
-      acc.x += 0.5 * (s * details::CMF_1931_2DEG[i].x_bar + s_prev * details::CMF_1931_2DEG[i - 1].x_bar) * dl;
-      acc.y += 0.5 * (s * details::CMF_1931_2DEG[i].y_bar + s_prev * details::CMF_1931_2DEG[i - 1].y_bar) * dl;
-      acc.z += 0.5 * (s * details::CMF_1931_2DEG[i].z_bar + s_prev * details::CMF_1931_2DEG[i - 1].z_bar) * dl;
+      acc.x += 0.5 * (s * cmf[i].x_bar + s_prev * cmf[i - 1].x_bar) * dl;
+      acc.y += 0.5 * (s * cmf[i].y_bar + s_prev * cmf[i - 1].y_bar) * dl;
+      acc.z += 0.5 * (s * cmf[i].z_bar + s_prev * cmf[i - 1].z_bar) * dl;
     }
     s_prev = s;
     nm_prev = nm;
@@ -68,8 +83,9 @@ inline spectrum_xyz integrate_spectrum(F&& f) {
  * its grid). Output follows the spd's magnitude — normalize externally
  * (e.g. divide by Y) when a relative result is wanted.
  */
-inline core::xyz_t spd_to_xyz(const spd& s) {
-  const auto v = integrate_spectrum([&s](double nm) { return static_cast<double>(s.sample(static_cast<float>(nm))); });
+inline core::xyz_t spd_to_xyz(const spd& s, observer obs = observer::cie_1931_2deg) {
+  const auto v =
+      integrate_spectrum([&s](double nm) { return static_cast<double>(s.sample(static_cast<float>(nm))); }, obs);
   return core::xyz_t(static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z));
 }
 
