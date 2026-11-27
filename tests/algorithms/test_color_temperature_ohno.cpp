@@ -147,25 +147,21 @@ namespace ohno_test_detail {
 inline std::pair<double, double> PlanckUvReference(double t) {
   constexpr double c1 = 3.741771e-16;
   constexpr double c2 = 1.4388e-2;
-  constexpr std::size_t n =
-      sizeof(color_temperature::details::CMF_1931_2DEG) / sizeof(color_temperature::details::CMF_1931_2DEG[0]);
+  constexpr std::size_t n = sizeof(spectral::details::CMF_1931_2DEG) / sizeof(spectral::details::CMF_1931_2DEG[0]);
   double s_prev = 0, lambda_prev = 0, X = 0, Y = 0, Z = 0;
   for (std::size_t i = 0; i < n; ++i) {
-    const double lambda = color_temperature::details::CMF_1931_2DEG[i].nm * 1e-9;
+    const double lambda = spectral::details::CMF_1931_2DEG[i].nm * 1e-9;
     const double s = c1 * std::pow(lambda, -5.0) / std::expm1(c2 / (lambda * t));
     if (i > 0) {
       const double dl = lambda - lambda_prev;
       X += 0.5 *
-           (s * color_temperature::details::CMF_1931_2DEG[i].x_bar +
-            s_prev * color_temperature::details::CMF_1931_2DEG[i - 1].x_bar) *
+           (s * spectral::details::CMF_1931_2DEG[i].x_bar + s_prev * spectral::details::CMF_1931_2DEG[i - 1].x_bar) *
            dl;
       Y += 0.5 *
-           (s * color_temperature::details::CMF_1931_2DEG[i].y_bar +
-            s_prev * color_temperature::details::CMF_1931_2DEG[i - 1].y_bar) *
+           (s * spectral::details::CMF_1931_2DEG[i].y_bar + s_prev * spectral::details::CMF_1931_2DEG[i - 1].y_bar) *
            dl;
       Z += 0.5 *
-           (s * color_temperature::details::CMF_1931_2DEG[i].z_bar +
-            s_prev * color_temperature::details::CMF_1931_2DEG[i - 1].z_bar) *
+           (s * spectral::details::CMF_1931_2DEG[i].z_bar + s_prev * spectral::details::CMF_1931_2DEG[i - 1].z_bar) *
            dl;
     }
     s_prev = s;
