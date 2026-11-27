@@ -1,7 +1,7 @@
 /**
  * @file algorithms.hpp
  * @brief Aggregates color algorithms: accessibility, appearance (CAM16), chromatic adaptation, color temperature,
- * delta E, gamut mapping, gradient, harmony, vision simulation.
+ * delta E, gamut mapping, gradient, harmony, spectral, vision simulation.
  *
  * @par Color difference
  * - @ref delta_e::delta_e_76 / @ref delta_e::delta_e_94 / @ref delta_e::delta_e_2000: **CIELAB D65** metrics.
@@ -19,6 +19,7 @@
 #include <colorcpp/algorithms/gamut.hpp>
 #include <colorcpp/algorithms/gradient.hpp>
 #include <colorcpp/algorithms/harmony.hpp>
+#include <colorcpp/algorithms/spectral.hpp>
 #include <colorcpp/algorithms/vision.hpp>
 
 /**
